@@ -44,3 +44,8 @@
 - ROUND 1 DONE (judge 9.12, difficulty 1.67 from 2.04, failed calls 3.2 from 4.5). triage r1/triage.md; fix tasks R1-A..G launched
 - merged R1-A
 - merged R1-C measures; integrator todo: measure lists in args.rs/tools.rs, window fixture
+- merged R1-G
+- merged R1-F click node
+- merged R1-B (laser lufs hash changed by design: targets met after fades)
+- merged R1-D modal loss/tilt
+- merged R1-E splash; workspace clean (fmt/clippy/tests). launching R1-H docs
