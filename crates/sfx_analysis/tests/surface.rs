@@ -77,7 +77,9 @@ fn rolling_speed_zero_is_exact_silence() {
     ];
     let y = node_audio(nodes, "n", 1.0);
     let (a, b) = (rms_db(&y[..9600]), rms_db(&y[38400..]));
-    println!("speed 0 -> exact zeros; ramp 0 -> 2 m/s: rms first 0.2 s {a:.1} dB, last 0.2 s {b:.1} dB");
+    println!(
+        "speed 0 -> exact zeros; ramp 0 -> 2 m/s: rms first 0.2 s {a:.1} dB, last 0.2 s {b:.1} dB"
+    );
     assert!(b > a + 10.0);
 }
 
@@ -90,7 +92,10 @@ fn rolling_speed_raises_centroid_and_level() {
         let (c, l) = (centroid(&x), rms_db(&x));
         println!("rolling speed {v} m/s: centroid {c:.0} Hz, rms {l:.1} dB");
         if let Some((pc, pl)) = last {
-            assert!(c > pc * 1.7, "doubling speed at least x1.7 centroid: {pc} -> {c}");
+            assert!(
+                c > pc * 1.7,
+                "doubling speed at least x1.7 centroid: {pc} -> {c}"
+            );
             assert!(l > pl + 4.5, "doubling speed at least +4.5 dB: {pl} -> {l}");
         }
         last = Some((c, l));
@@ -101,7 +106,11 @@ fn rolling_speed_raises_centroid_and_level() {
 fn rolling_roughness_raises_centroid_and_size_lowers_it() {
     let mut last = 0.0;
     for r in [0.0f32, 0.5, 1.0] {
-        let c = centroid(&node_audio(vec![rolling(json!({"roughness": r}))], "n", 1.0));
+        let c = centroid(&node_audio(
+            vec![rolling(json!({"roughness": r}))],
+            "n",
+            1.0,
+        ));
         println!("rolling roughness {r}: centroid {c:.0} Hz");
         assert!(c > last * 1.5, "{last} -> {c}");
         last = c;
@@ -151,7 +160,9 @@ fn rolling_is_finite_at_the_extremes_and_bit_identical() {
         assert_finite(&x, "rolling extreme");
         worst = worst.max(peak_db(&x));
     }
-    println!("rolling extremes (a +-1e9 m/s sweep clamped, size 0.0001 and 10, roughness 0 and 1): finite, peak at most {worst:.1} dB");
+    println!(
+        "rolling extremes (a +-1e9 m/s sweep clamped, size 0.0001 and 10, roughness 0 and 1): finite, peak at most {worst:.1} dB"
+    );
     assert!(worst < 40.0);
     assert_bit_identical(vec![rolling(json!({"speed": 2.0, "roughness": 0.8}))], 0.5);
 }
@@ -160,10 +171,16 @@ fn rolling_is_finite_at_the_extremes_and_bit_identical() {
 fn rolling_errors_say_what_to_do() {
     let e = render_error(rolling(json!({"speed": 500.0, "size": 0.002})));
     println!("{e}");
-    assert!(e.contains("speed: 500") && e.contains("under 50 m/s"), "{e}");
+    assert!(
+        e.contains("speed: 500") && e.contains("under 50 m/s"),
+        "{e}"
+    );
     let e = render_error(rolling(json!({"speed": 30.0, "size": 0.002})));
     println!("{e}");
-    assert!(e.contains("speed: 30") && e.contains("bigger size") && e.contains("under 24.000"), "{e}");
+    assert!(
+        e.contains("speed: 30") && e.contains("bigger size") && e.contains("under 24.000"),
+        "{e}"
+    );
     let e = render_error(rolling(json!({"roughness": 1.5})));
     assert!(e.contains("roughness: 1.5") && e.contains("0 to 1"), "{e}");
     let e = render_error(rolling(json!({"size": 0.0})));
@@ -183,7 +200,10 @@ fn rolling_excites_modal() {
     let x = node_audio(nodes, "n", 1.0);
     assert_finite(&x, "rolling into modal");
     let (a, b) = (rms_db(&x[..9600]), rms_db(&x[38400..]));
-    println!("rolling -> modal wood: rms first 0.2 s {a:.1} dB, last 0.2 s {b:.1} dB, peak {:.1} dB", peak_db(&x));
+    println!(
+        "rolling -> modal wood: rms first 0.2 s {a:.1} dB, last 0.2 s {b:.1} dB, peak {:.1} dB",
+        peak_db(&x)
+    );
     assert!(b > a + 6.0);
 }
 
@@ -211,9 +231,7 @@ fn cloth_motion_raises_rate_band_and_level() {
         assert_finite(&x, "cloth");
         let d = desc(&x);
         let (c, l, rate) = (d.centroid_all_hz, rms_db(&x), d.density.per_s);
-        println!(
-            "cloth motion {m}: centroid {c:.0} Hz, rms {l:.1} dB, density {rate:.0} events/s"
-        );
+        println!("cloth motion {m}: centroid {c:.0} Hz, rms {l:.1} dB, density {rate:.0} events/s");
         if let Some((pc, pl, _)) = last {
             assert!(c > pc * 1.03, "centroid up: {pc} -> {c}");
             assert!(l > pl + 3.0, "level up: {pl} -> {l}");
@@ -222,7 +240,11 @@ fn cloth_motion_raises_rate_band_and_level() {
     }
     // The events/s measure counts distinct ticks, so it rises while bursts
     // are sparse (up to motion 1) and then saturates as they overlap.
-    let rate = |m: f32| desc(&node_audio(vec![cloth(json!({"motion": m}))], "n", 2.0)).density.per_s;
+    let rate = |m: f32| {
+        desc(&node_audio(vec![cloth(json!({"motion": m}))], "n", 2.0))
+            .density
+            .per_s
+    };
     let (a, b, c) = (rate(0.25), rate(0.5), rate(1.0));
     assert!(a < b && b < c, "{a} {b} {c}");
 }
@@ -233,7 +255,10 @@ fn cloth_weight_lowers_centroid() {
     for w in [0.0f32, 0.5, 1.0] {
         let x = node_audio(vec![cloth(json!({"weight": w}))], "n", 2.0);
         let c = centroid(&x);
-        println!("cloth weight {w}: centroid {c:.0} Hz, rms {:.1} dB", rms_db(&x));
+        println!(
+            "cloth weight {w}: centroid {c:.0} Hz, rms {:.1} dB",
+            rms_db(&x)
+        );
         assert!(c < last * 0.85, "{last} -> {c}");
         last = c;
     }
@@ -250,7 +275,9 @@ fn cloth_follows_a_motion_signal() {
     let (a, b) = (&x[..n / 4], &x[3 * n / 4..]);
     let (la, lb) = (rms_db(a), rms_db(b));
     let (ca, cb) = (centroid(a), centroid(b));
-    println!("cloth motion ramp 0 -> 2: first quarter rms {la:.1} dB centroid {ca:.0} Hz; last quarter {lb:.1} dB, {cb:.0} Hz");
+    println!(
+        "cloth motion ramp 0 -> 2: first quarter rms {la:.1} dB centroid {ca:.0} Hz; last quarter {lb:.1} dB, {cb:.0} Hz"
+    );
     assert!(lb > la + 10.0 && cb > ca);
 }
 
@@ -319,13 +346,21 @@ fn footstep_concrete_is_heel_then_toe() {
     let t: Vec<f32> = d.onsets.iter().map(|o| o.t).collect();
     println!(
         "concrete: onsets {:?} s, attack {:.1} ms, centroid {:.0} Hz, audible {:.2} s, peak {:.1} dB",
-        t, d.attack_s * 1000.0, d.centroid_all_hz, audible_s(&d), d.peak_db
+        t,
+        d.attack_s * 1000.0,
+        d.centroid_all_hz,
+        audible_s(&d),
+        d.peak_db
     );
     assert_eq!(t.len(), 2, "heel and toe: {t:?}");
     let gap = t[1] - t[0];
     assert!((0.060..=0.150).contains(&gap), "gap {gap}");
     assert!(d.attack_s < 0.010);
-    assert!((800.0..=3000.0).contains(&d.centroid_all_hz), "{}", d.centroid_all_hz);
+    assert!(
+        (800.0..=3000.0).contains(&d.centroid_all_hz),
+        "{}",
+        d.centroid_all_hz
+    );
     assert!((0.15..=0.4).contains(&audible_s(&d)), "{}", audible_s(&d));
     assert!(d.pitch_hz.is_none(), "{:?}", d.pitch_hz);
 }
@@ -336,11 +371,20 @@ fn footstep_gravel_is_many_flat_ticks() {
     let d = describe(&a);
     println!(
         "gravel: {} onsets, {} density events, flatness {:.3} (occupied band {:?}), centroid {:.0} Hz, audible {:.2} s",
-        d.onsets.len(), d.density.count, d.flatness_all, d.flatness_occupied, d.centroid_all_hz, audible_s(&d)
+        d.onsets.len(),
+        d.density.count,
+        d.flatness_all,
+        d.flatness_occupied,
+        d.centroid_all_hz,
+        audible_s(&d)
     );
     assert!(d.onsets.len() >= 8, "{}", d.onsets.len());
     assert!(d.density.count >= 8);
-    assert!((2000.0..=6000.0).contains(&d.centroid_all_hz), "{}", d.centroid_all_hz);
+    assert!(
+        (2000.0..=6000.0).contains(&d.centroid_all_hz),
+        "{}",
+        d.centroid_all_hz
+    );
     assert!((0.25..=0.6).contains(&audible_s(&d)), "{}", audible_s(&d));
     assert!(d.flatness_occupied.unwrap_or(0.0) > 0.4);
 }
@@ -351,11 +395,19 @@ fn footstep_grass_is_a_soft_pitchless_swish() {
     let d = describe(&a);
     println!(
         "grass: attack {:.1} ms, pitch {:?}, centroid {:.0} Hz, audible {:.2} s, flatness {:.3}",
-        d.attack_s * 1000.0, d.pitch_hz, d.centroid_all_hz, audible_s(&d), d.flatness_all
+        d.attack_s * 1000.0,
+        d.pitch_hz,
+        d.centroid_all_hz,
+        audible_s(&d),
+        d.flatness_all
     );
     assert!((0.010..=0.040).contains(&d.attack_s), "{}", d.attack_s);
     assert!(d.pitch_hz.is_none(), "{:?}", d.pitch_hz);
-    assert!((1500.0..=5000.0).contains(&d.centroid_all_hz), "{}", d.centroid_all_hz);
+    assert!(
+        (1500.0..=5000.0).contains(&d.centroid_all_hz),
+        "{}",
+        d.centroid_all_hz
+    );
     assert!((0.25..=0.6).contains(&audible_s(&d)), "{}", audible_s(&d));
 }
 
@@ -380,10 +432,17 @@ fn footstep_wood_has_a_low_body_under_a_short_tick() {
         body.map(|m| (m.hz.round(), m.decay_s)),
         audible_s(&d)
     );
-    assert!(body.is_some(), "no 80-300 Hz mode ringing 0.1 s: {:?}", d.modes);
+    assert!(
+        body.is_some(),
+        "no 80-300 Hz mode ringing 0.1 s: {:?}",
+        d.modes
+    );
     assert!((80.0..=300.0).contains(&hz), "{hz}");
     assert!(tick > tail + 20.0, "the tick is short: {tick} vs {tail}");
-    assert!(tick > body_db - 30.0, "the tick is there: {tick} vs {body_db}");
+    assert!(
+        tick > body_db - 30.0,
+        "the tick is there: {tick} vs {body_db}"
+    );
     assert!((0.2..=0.5).contains(&audible_s(&d)), "{}", audible_s(&d));
 }
 
@@ -397,7 +456,11 @@ fn footstep_weight_is_continuous_and_darkens() {
             assert_finite(&x, surface);
             let (c, l) = (centroid(&x), rms_db(&x));
             line += &format!(" w{w}: {c:.0} Hz {l:.1} dB;");
-            assert!(c < last.0, "{surface} weight {w}: centroid {c} !< {}", last.0);
+            assert!(
+                c < last.0,
+                "{surface} weight {w}: centroid {c} !< {}",
+                last.0
+            );
             assert!(l > last.1, "{surface} weight {w}: level {l} !> {}", last.1);
             last = (c, l);
         }
@@ -426,7 +489,10 @@ fn footstep_pace_sets_the_gap_continuously() {
     for (word, num) in [("walk", 0.5), ("run", 0.9), ("sneak", 0.1)] {
         let a = node_audio(vec![step("grass", json!({"pace": word}))], "n", 0.7);
         let b = node_audio(vec![step("grass", json!({"pace": num}))], "n", 0.7);
-        assert!(a.iter().zip(&b).all(|(x, y)| x.to_bits() == y.to_bits()), "{word}");
+        assert!(
+            a.iter().zip(&b).all(|(x, y)| x.to_bits() == y.to_bits()),
+            "{word}"
+        );
         println!("pace \"{word}\" is bit-identical to pace {num}");
     }
     let c = node_audio(vec![step("grass", json!({}))], "n", 0.7);
@@ -440,7 +506,10 @@ fn footstep_surfaces_differ_in_flatness_and_onsets() {
     let w = describe(&step_audio("wood", json!({})));
     println!(
         "gravel: flatness {:.3}, {} onsets; wood: flatness {:.3}, {} onsets",
-        g.flatness_all, g.onsets.len(), w.flatness_all, w.onsets.len()
+        g.flatness_all,
+        g.onsets.len(),
+        w.flatness_all,
+        w.onsets.len()
     );
     assert!(g.flatness_all > 3.0 * w.flatness_all);
     assert!(g.onsets.len() >= w.onsets.len() + 6);
@@ -448,14 +517,25 @@ fn footstep_surfaces_differ_in_flatness_and_onsets() {
 
 #[test]
 fn footstep_shoe_and_at() {
-    let c = |shoe: &str| centroid(&node_audio(vec![step("concrete", json!({"shoe": shoe}))], "n", 1.0));
+    let c = |shoe: &str| {
+        centroid(&node_audio(
+            vec![step("concrete", json!({"shoe": shoe}))],
+            "n",
+            1.0,
+        ))
+    };
     let (hard, sneaker, boot, bare) = (c("hard"), c("sneaker"), c("boot"), c("bare"));
-    println!("concrete centroid by shoe: hard {hard:.0}, sneaker {sneaker:.0}, boot {boot:.0}, bare {bare:.0} Hz");
+    println!(
+        "concrete centroid by shoe: hard {hard:.0}, sneaker {sneaker:.0}, boot {boot:.0}, bare {bare:.0} Hz"
+    );
     assert!(hard > boot && boot > sneaker && sneaker > bare);
     // `at` moves the heel.
     let x = node_audio(vec![step("concrete", json!({"at": 0.3}))], "n", 1.0);
     let first = x.iter().position(|v| v.abs() > 1e-4).unwrap();
-    println!("at 0.3: first sample over 1e-4 at {:.1} ms", first as f32 / 48.0);
+    println!(
+        "at 0.3: first sample over 1e-4 at {:.1} ms",
+        first as f32 / 48.0
+    );
     assert!((first as f32 / 48.0 - 300.0).abs() < 3.0);
 }
 
@@ -471,16 +551,24 @@ fn footstep_seeds_make_different_steps() {
                 dists.push(distance(&steps[i], &steps[j], SR));
             }
         }
-        let (lo, hi) = dists.iter().fold((f32::MAX, 0f32), |(l, h), d| (l.min(*d), h.max(*d)));
+        let (lo, hi) = dists
+            .iter()
+            .fold((f32::MAX, 0f32), |(l, h), d| (l.min(*d), h.max(*d)));
         let gaps: Vec<f32> = steps
             .iter()
             .map(|x| {
                 let d = desc(x);
-                if d.onsets.len() >= 2 { d.onsets[1].t - d.onsets[0].t } else { 0.0 }
+                if d.onsets.len() >= 2 {
+                    d.onsets[1].t - d.onsets[0].t
+                } else {
+                    0.0
+                }
             })
             .collect();
         let levels: Vec<f32> = steps.iter().map(|x| rms_db(x)).collect();
-        let spread = |v: &[f32]| v.iter().cloned().fold(f32::MIN, f32::max) - v.iter().cloned().fold(f32::MAX, f32::min);
+        let spread = |v: &[f32]| {
+            v.iter().cloned().fold(f32::MIN, f32::max) - v.iter().cloned().fold(f32::MAX, f32::min)
+        };
         println!(
             "{surface} 6 doc seeds: STFT distance {lo:.2}..{hi:.2} dB; rms spread {:.2} dB; heel-toe gap spread {:.1} ms",
             spread(&levels),
@@ -506,7 +594,10 @@ fn footstep_is_finite_at_the_extremes_and_bit_identical() {
         for (w, p) in [(0.0, 0.0), (1.0, 1.0), (0.0, 1.0), (1.0, 0.0)] {
             for shoe in ["hard", "bare"] {
                 let x = node_audio(
-                    vec![step(surface, json!({"weight": w, "pace": p, "shoe": shoe, "at": 0.5}))],
+                    vec![step(
+                        surface,
+                        json!({"weight": w, "pace": p, "shoe": shoe, "at": 0.5}),
+                    )],
                     "n",
                     1.0,
                 );
@@ -521,9 +612,14 @@ fn footstep_is_finite_at_the_extremes_and_bit_identical() {
         // `at` past the end: silence, not an error.
         let x = node_audio(vec![step(surface, json!({"at": 5.0}))], "n", 0.5);
         assert!(x.iter().all(|v| *v == 0.0));
-        assert_bit_identical(vec![step(surface, json!({"weight": 0.7, "pace": "run"}))], 0.8);
+        assert_bit_identical(
+            vec![step(surface, json!({"weight": 0.7, "pace": "run"}))],
+            0.8,
+        );
     }
-    println!("footstep weight/pace/shoe extremes, 4 surfaces: finite, highest raw peak {worst:.1} dB ({at}); at 5 s past a 0.5 s sound: zeros");
+    println!(
+        "footstep weight/pace/shoe extremes, 4 surfaces: finite, highest raw peak {worst:.1} dB ({at}); at 5 s past a 0.5 s sound: zeros"
+    );
     assert!(worst < 1.0, "{worst}");
 }
 
@@ -536,9 +632,15 @@ fn footstep_errors_say_what_to_do() {
     println!("{e}");
     assert!(e.contains("jog") && e.contains("walk, run, sneak"), "{e}");
     let e = render_error(step("wood", json!({"pace": 1.5})));
-    assert!(e.contains("pace: 1.5") && e.contains("0 (sneak) to 1 (run)"), "{e}");
+    assert!(
+        e.contains("pace: 1.5") && e.contains("0 (sneak) to 1 (run)"),
+        "{e}"
+    );
     let e = render_error(step("wood", json!({"weight": 2.0})));
-    assert!(e.contains("weight: 2") && e.contains("0 (light) to 1 (heavy)"), "{e}");
+    assert!(
+        e.contains("weight: 2") && e.contains("0 (light) to 1 (heavy)"),
+        "{e}"
+    );
     let e = render_error(step("wood", json!({"shoe": "clog"})));
     assert!(e.contains("clog") && e.contains("sneaker"), "{e}");
     let e = render_error(step("wood", json!({"at": -1.0})));

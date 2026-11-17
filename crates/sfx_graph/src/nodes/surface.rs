@@ -128,7 +128,9 @@ impl Eval for Rolling {
             && v.abs() > v_max
         {
             return Err(if v.abs() > ROLLING_MAX_SPEED {
-                format!("speed: {v}: give a speed under {ROLLING_MAX_SPEED} m/s (a signal is clamped to it)")
+                format!(
+                    "speed: {v}: give a speed under {ROLLING_MAX_SPEED} m/s (a signal is clamped to it)"
+                )
             } else {
                 format!(
                     "speed: {v}: at size {size} m that passes {:.0} features a second, past {max_features:.0} (a quarter of the sample rate): give a speed under {v_max:.3} m/s or a bigger size",
@@ -205,7 +207,9 @@ const CLOTH_BANDS: [f32; 4] = [600.0, 1500.0, 3500.0, 7500.0];
 
 /// One burst size from the power law: `u` in 0..1 uniform.
 pub(crate) fn cloth_size(u: f32) -> f32 {
-    (1.0 - u.clamp(0.0, 0.999_999)).powf(-1.0 / CLOTH_ALPHA).min(CLOTH_MAX_SIZE)
+    (1.0 - u.clamp(0.0, 0.999_999))
+        .powf(-1.0 / CLOTH_ALPHA)
+        .min(CLOTH_MAX_SIZE)
 }
 
 /// Rustling cloth, paper or foliage: short noise bursts whose sizes follow
@@ -569,8 +573,28 @@ impl Step {
         for (t, a) in self.impacts() {
             let r = self.rng.signed();
             let hz = 1800.0 * tilt * (1.0 + 0.05 * r);
-            add_noise(&mut out, &mut self.rng, sr, t, hz, 0.9, 0.55 * a * click, 0.0, 0.007);
-            add_noise(&mut out, &mut self.rng, sr, t, hz * 0.8, 0.7, 0.1 * a, 0.0, 0.045);
+            add_noise(
+                &mut out,
+                &mut self.rng,
+                sr,
+                t,
+                hz,
+                0.9,
+                0.55 * a * click,
+                0.0,
+                0.007,
+            );
+            add_noise(
+                &mut out,
+                &mut self.rng,
+                sr,
+                t,
+                hz * 0.8,
+                0.7,
+                0.1 * a,
+                0.0,
+                0.045,
+            );
         }
         out
     }
@@ -641,7 +665,10 @@ impl Step {
         let mut out = vec![0.0f32; n];
         let attack = lerp(0.034, 0.046, self.w) * lerp(1.2, 0.8, self.pace);
         // The swishes: wide noise bands, slow rise, heel then toe.
-        for (t, a, long) in [(self.heel.0, self.heel.1, 1.0), (self.toe.0, self.toe.1, 0.8)] {
+        for (t, a, long) in [
+            (self.heel.0, self.heel.1, 1.0),
+            (self.toe.0, self.toe.1, 0.8),
+        ] {
             let r = self.rng.signed();
             add_noise(
                 &mut out,
