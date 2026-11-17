@@ -395,3 +395,15 @@ fn absurd_lengths_and_nesting_are_errors_or_capped() {
     );
     assert!(d.render(&RenderOpts::default()).is_err());
 }
+
+#[test]
+fn a_long_unary_chain_is_an_error() {
+    let d = doc(
+        vec![
+            json!({"type": "expr", "name": "x", "out": format!("{}1", "-".repeat(100_000))}),
+            json!({"type": "output", "name": "out", "input": "x"}),
+        ],
+        0.1,
+    );
+    assert!(d.render(&RenderOpts::default()).is_err());
+}

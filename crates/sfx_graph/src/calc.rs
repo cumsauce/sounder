@@ -431,6 +431,16 @@ impl Compiler<'_> {
         Ok(())
     }
     fn unary(&mut self) -> Result<(), CalcError> {
+        if self.nest >= 64 {
+            return Err(self.err_here("expression nested more than 64 deep: simplify it".into()));
+        }
+        self.nest += 1;
+        let r = self.unary_inner();
+        self.nest -= 1;
+        r
+    }
+
+    fn unary_inner(&mut self) -> Result<(), CalcError> {
         if self.eat("-") {
             self.unary()?;
             self.emit(Op::Neg, 1);
