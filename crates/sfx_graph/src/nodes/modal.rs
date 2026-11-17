@@ -333,9 +333,20 @@ fn lowest_mode(shape: ModalShape, props: &MaterialProps) -> (f32, f32) {
     }
 }
 
-/// `(lo, hi)` metres between which the lowest mode falls from 10 kHz (or half
-/// the top of the band, if that is lower) to 40 Hz, rounded inward to
-/// two figures.
+/// The small end of the size range: the lowest mode sits this fraction of
+/// the top of the band (18 kHz at 48 kHz). Below it the lowest mode is nearly
+/// out of the band, and past it the table is empty.
+const RANGE_TOP_FRACTION: f32 = 0.9;
+
+/// The large end of the size range: the lowest mode sits here. A mode under
+/// `FLOOR_HZ` is dropped, so this keeps the detuned lowest mode above it.
+const RANGE_BOTTOM_HZ: f32 = 24.0;
+
+/// `(lo, hi)` metres between which the lowest mode falls from 90 % of the top
+/// of the band (18 kHz at 48 kHz) to 24 Hz, rounded inward to two figures.
+/// Every size in it has at least its lowest mode in the band (a size just
+/// outside the small end has none and is an error), and the table drops every
+/// mode above the top, so nothing folds back past Nyquist.
 fn size_range(shape: ModalShape, props: &MaterialProps, sr: f32) -> (f32, f32) {
     let (a, p) = lowest_mode(shape, props);
     let at = |f: f32| (a / f).powf(1.0 / p);
@@ -344,8 +355,58 @@ fn size_range(shape: ModalShape, props: &MaterialProps, sr: f32) -> (f32, f32) {
         (if up { (v * k).ceil() } else { (v * k).floor() }) / k
     };
     (
-        round(at(10_000f32.min(0.5 * top_hz(sr))), true),
-        round(at(40.0), false),
+        round(at(RANGE_TOP_FRACTION * top_hz(sr)), true),
+        round(at(RANGE_BOTTOM_HZ), false),
+    )
+}
+
+/// `v` to two significant figures, rounded up or down, as text.
+fn sig2(v: f32, up: bool) -> String {
+    let e = v.log10().floor();
+    let k = 10f32.powf(1.0 - e);
+    let r = (if up { (v * k).ceil() } else { (v * k).floor() }) / k;
+    format!("{:.*}", (1.0 - e).max(0.0) as usize, r)
+}
+
+/// The error for a size that leaves no mode in the band: where its lowest
+/// mode falls, the size range, and the material thickness that would fix it
+/// (the lowest mode of every shape goes as the thickness).
+fn no_mode_error(
+    size: f32,
+    shape: ModalShape,
+    material: &MaterialSpec,
+    props: &MaterialProps,
+    sr: f32,
+) -> String {
+    let (lo, hi) = size_range(shape, props, sr);
+    let (a, pw) = lowest_mode(shape, props);
+    let lowest = a / size.powf(pw);
+    let top = top_hz(sr);
+    let what = match material {
+        MaterialSpec::Name(n) => format!("the {n} {}", shape.name()),
+        MaterialSpec::Props(_) => format!("this material's {}", shape.name()),
+    };
+    let why = if lowest > top {
+        // Thinner material lowers every mode in proportion.
+        let t = sig2(props.thickness * RANGE_TOP_FRACTION * top / lowest, false);
+        format!(
+            "its lowest mode would be {} Hz, above the top of the band ({top:.0} Hz): make the size bigger, or give a thinner material ({{young, density, poisson, loss, thickness}} with thickness {t} m or less)",
+            sig2(lowest, true)
+        )
+    } else if lowest >= FLOOR_HZ {
+        format!(
+            "its lowest mode is {lowest:.1} Hz but the strike leaves no mode in the band: move `strike_position`"
+        )
+    } else {
+        let t = sig2(props.thickness * RANGE_BOTTOM_HZ / lowest, true);
+        format!(
+            "its lowest mode would be {} Hz, under 20 Hz: make the size smaller, or give a thicker material (thickness {t} m or more)",
+            sig2(lowest, false)
+        )
+    };
+    format!(
+        "size {size}: no mode of {what} falls between 20 Hz and the top of the band: {why}; for {what} try {lo} to {hi} m (lowest mode from {:.0} kHz down to {RANGE_BOTTOM_HZ:.0} Hz)",
+        RANGE_TOP_FRACTION * top / 1000.0
     )
 }
 
@@ -561,8 +622,11 @@ pub struct Modal {
     /// Side of the plate, length of the bar or string, diameter of the tube
     /// or membrane, metres; the bell's size. Bigger rings lower (pitch goes
     /// as 1 / size^2; for membrane and string as 1 / size). Read once, at the
-    /// start (a `$param` or `=expr` works). An out-of-range size is an error
-    /// that names the range for the material and shape.
+    /// start (a `$param` or `=expr` works). The usable range is where the
+    /// lowest mode falls between 24 Hz and 90 % of the top of the band
+    /// (18 kHz at 48 kHz): a size outside it is an error that names the range
+    /// for the material and shape, and the thickness that would fix it.
+    /// Modes above the top of the band are dropped, never folded back.
     pub size: In,
     /// What is struck: plate (default) bar tube membrane string shell.
     #[serde(default)]
@@ -581,14 +645,30 @@ pub struct Modal {
     /// 0..1 (default 0: exactly harmonic; a piano string is about 0.0004).
     #[serde(default)]
     pub stiffness: Option<f32>,
+    /// Multiplier on the material's loss (default 1, range 0.01..100):
+    /// 0.5 rings twice as long, 2 half as long. T60 is still capped at 20 s
+    /// per mode.
+    #[serde(default)]
+    pub loss: Option<f32>,
+    /// dB per octave on the mode gains about the lowest mode (default 0,
+    /// -12..12): positive lifts the upper modes (flattens a table that is
+    /// all in its first mode), negative darkens. The output is normalized
+    /// after, so only the balance moves.
+    #[serde(default)]
+    pub tilt: Option<f32>,
     /// Mixed with the document seed and the node name (default 0): the
     /// mistuning.
     #[serde(default)]
     pub seed: u64,
 }
 
+/// `loss` multiplier limits and the `tilt` limit (dB per octave).
+const MIN_LOSS: f32 = 0.01;
+const MAX_LOSS: f32 = 100.0;
+const MAX_TILT: f32 = 12.0;
+
 impl Describe for Modal {
-    const BLURB: &'static str = "a struck object: excite audio rings modes computed from material, size, shape (plate bar tube membrane string shell) and strike position (bigger = lower); a unit impulse peaks near 0 dBFS";
+    const BLURB: &'static str = "a struck object: excite audio rings modes computed from material, size, shape (plate bar tube membrane string shell) and strike position (bigger = lower); loss scales the ring time, tilt (dB/oct) the mode balance; a unit impulse peaks near 0 dBFS";
     fn example() -> serde_json::Value {
         serde_json::json!({"excite": "contact1", "material": "wood", "size": 0.5,
             "strike_position": 0.3, "modes": 48})
@@ -601,7 +681,21 @@ impl Eval for Modal {
     }
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let input = cx.audio("excite", &self.excite)?;
-        let props = self.material.props()?;
+        let mut props = self.material.props()?;
+        let loss = self.loss.unwrap_or(1.0);
+        if !(loss.is_finite() && (MIN_LOSS..=MAX_LOSS).contains(&loss)) {
+            return Err(format!(
+                "loss: {loss}: give a multiplier on the material's loss in {MIN_LOSS}..{MAX_LOSS} (1 = as the material is, 0.5 rings twice as long)"
+            ));
+        }
+        props.loss *= loss;
+        let tilt_db = self.tilt.unwrap_or(0.0);
+        if !(tilt_db.is_finite() && (-MAX_TILT..=MAX_TILT).contains(&tilt_db)) {
+            return Err(format!(
+                "tilt: {tilt_db}: give dB per octave in {}..{MAX_TILT} (0 = as the table is)",
+                -MAX_TILT
+            ));
+        }
         let size = positive("size", cx.mono("size", &self.size)?.at(0))?;
         let pos = cx
             .mono_or("strike_position", &self.strike_position, 0.3)?
@@ -634,14 +728,21 @@ impl Eval for Modal {
         };
         let mut modes = table.modes(&mut rng);
         if modes.is_empty() {
-            let (lo, hi) = size_range(self.shape, &props, cx.sr);
-            let what = match &self.material {
-                MaterialSpec::Name(n) => format!("{n} {}", self.shape.name()),
-                MaterialSpec::Props(_) => format!("this material's {}", self.shape.name()),
-            };
-            return Err(format!(
-                "size {size}: no mode of the {what} falls between 20 Hz and the top of the band: for {what} try {lo} to {hi} m (lowest mode from 10 kHz down to 40 Hz)"
+            return Err(no_mode_error(
+                size,
+                self.shape,
+                &self.material,
+                &props,
+                cx.sr,
             ));
+        }
+        if tilt_db != 0.0 {
+            // dB per octave about the lowest kept mode; the normalization
+            // below sets the level, so only the balance changes.
+            let f0 = modes[0].0;
+            for m in &mut modes {
+                m.2 *= 10f32.powf(tilt_db * (m.0 / f0).log2() / 20.0);
+            }
         }
         // A unit impulse peaks at 0 dBFS (the raw sum of many modes was +22).
         let peak = impulse_peak(&modes, cx.sr);
@@ -904,8 +1005,9 @@ mod tests {
                     shape.name()
                 );
                 assert!(steps >= 2);
-                // At the top of the range the lowest mode is 40 Hz or more.
-                assert!(last >= 38.0, "{name} {shape:?}: {last}");
+                // At the top of the range the lowest mode is RANGE_BOTTOM_HZ
+                // (24 Hz; the mistuning moves it by under 2 %) or more.
+                assert!(last >= 23.0, "{name} {shape:?}: {last}");
             }
         }
     }

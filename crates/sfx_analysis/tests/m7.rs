@@ -491,3 +491,353 @@ fn shatter_drives_voices_of_small_plates() {
     assert!(peak_db(&x) > -20.0);
     assert_bit_identical(&nodes, 1.2);
 }
+
+// ------------------------------------------------- R1-D: loss, tilt, size range
+
+/// A thin glass plate: 3 mm, the round-1 shard (glass_break).
+fn glass_3mm() -> Value {
+    json!({"young": 70e9, "density": 2500, "poisson": 0.22, "loss": 0.004, "thickness": 0.003})
+}
+
+/// The modal node `m` (impulse at 10 ms) rendered at `sr`; the samples from
+/// the hit on.
+fn modal_at(extra: Value, sr: u32, duration: f32) -> Vec<f32> {
+    let mut d = SoundDoc::named("t");
+    d.sample_rate = sr;
+    d.nodes = modal(extra);
+    d.nodes
+        .push(json!({"type": "output", "name": "out", "input": "m"}));
+    d.duration = Some(duration);
+    let r = d
+        .render(&RenderOpts {
+            cached: false,
+            ..RenderOpts::default()
+        })
+        .unwrap_or_else(|e| panic!("{e}"));
+    match &*r.eval.buf("m").unwrap() {
+        Buf::Audio(x) => x[(0.01 * sr as f32) as usize..].to_vec(),
+        _ => panic!("not audio"),
+    }
+}
+
+/// Seconds for the 5 ms RMS envelope to fall 20 dB below its maximum.
+fn decay_20_s(x: &[f32]) -> f32 {
+    let win = (0.005 * SR as f32) as usize;
+    let env: Vec<f32> = x
+        .chunks(win)
+        .map(|c| {
+            10.0 * (c.iter().map(|v| v * v).sum::<f32>() / c.len() as f32)
+                .max(1e-20)
+                .log10()
+        })
+        .collect();
+    let top = env.iter().copied().fold(f32::MIN, f32::max);
+    let k = env
+        .iter()
+        .position(|&e| e < top - 20.0)
+        .expect("never fell");
+    k as f32 * 0.005
+}
+
+#[test]
+fn loss_scales_the_ring_time_of_a_named_material() {
+    // One mode, so the envelope is one exponential: T20 = T60 / 3.
+    let one = |loss: Option<f32>| {
+        let mut e = json!({"material": "metal", "size": 0.5, "modes": 1});
+        if let Some(l) = loss {
+            e["loss"] = json!(l);
+        }
+        decay_20_s(&node_audio(modal(e), "m", 3.0)[480..])
+    };
+    let base = one(None);
+    assert_eq!(base, one(Some(1.0)));
+    let (half, double) = (one(Some(0.5)), one(Some(2.0)));
+    println!("T20 loss 1: {base:.4} s; loss 0.5: {half:.4} s; loss 2: {double:.4} s");
+    assert!((half / base - 2.0).abs() < 0.3, "loss 0.5: {}", half / base);
+    assert!(
+        (double / base - 0.5).abs() < 0.075,
+        "loss 2: {}",
+        double / base
+    );
+    // The multiplier applies to a {young, ...} material too.
+    let steel = json!({"young": 200e9, "density": 7800, "poisson": 0.3, "loss": 0.004,
+        "thickness": 0.05});
+    let t = |loss: f32| {
+        decay_20_s(
+            &node_audio(
+                modal(json!({"material": steel, "size": 0.5, "modes": 1, "loss": loss})),
+                "m",
+                3.0,
+            )[480..],
+        )
+    };
+    let r = t(0.5) / t(1.0);
+    println!("custom material: T20 ratio at loss 0.5: {r:.3}");
+    assert!((r - 2.0).abs() < 0.3, "{r}");
+}
+
+#[test]
+fn loss_and_tilt_are_validated() {
+    for (extra, field, range) in [
+        (json!({"loss": 0.0}), "loss", "0.01..100"),
+        (json!({"loss": -1.0}), "loss", "0.01..100"),
+        (json!({"loss": 1000.0}), "loss", "0.01..100"),
+        (json!({"tilt": 13.0}), "tilt", "-12..12"),
+        (json!({"tilt": -13.0}), "tilt", "-12..12"),
+    ] {
+        let mut e = json!({"material": "wood", "size": 0.5});
+        e.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        let msg = render_error(modal(e), 0.2);
+        println!("{msg}");
+        assert!(msg.contains(field) && msg.contains(range), "{msg}");
+    }
+    // The ends are fine.
+    for extra in [
+        json!({"loss": 0.01}),
+        json!({"loss": 100.0}),
+        json!({"tilt": 12.0}),
+        json!({"tilt": -12.0}),
+    ] {
+        let mut e = json!({"material": "wood", "size": 0.5});
+        e.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        let x = node_audio(modal(e), "m", 0.3);
+        assert_finite(&x, "m");
+        assert!(peak_db(&x).abs() < 6.0, "{extra}: {}", peak_db(&x));
+    }
+}
+
+/// The level (dB) of the spectral peak within 1.5 % of `hz`.
+fn level_near(x: &[f32], hz: f32) -> f32 {
+    spectrum(x, SR)
+        .iter()
+        .filter(|(f, _)| (f / hz - 1.0).abs() < 0.015)
+        .map(|p| p.1)
+        .fold(f32::MIN, f32::max)
+}
+
+#[test]
+fn tilt_moves_the_mode_balance_by_db_per_octave() {
+    // A long-ringing steel string / bar, so each mode is a clean line.
+    let steel = json!({"young": 200e9, "density": 7800, "poisson": 0.3, "loss": 0.0004,
+        "thickness": 0.05});
+    // (shape, size, mode ratios to the lowest mode: table values)
+    for (shape, size, ratio) in [
+        ("string", 0.5, 4.0f32),
+        ("string", 0.5, 2.0),
+        ("bar", 1.0, 5.404),
+        ("bar", 1.0, 8.933),
+    ] {
+        let spec =
+            |tilt: f32| json!({"material": steel, "shape": shape, "size": size, "tilt": tilt});
+        let fa = modes_hz(spec(0.0), 1.5, 40)[0];
+        let fb = fa * ratio;
+        let flat = node_audio(modal(spec(0.0)), "m", 1.5)[480..].to_vec();
+        let octaves = ratio.log2();
+        for tilt in [6.0f32, -6.0, 3.0] {
+            let x = node_audio(modal(spec(tilt)), "m", 1.5)[480..].to_vec();
+            // Level of mode b over mode a, relative to the untilted table.
+            let got = (level_near(&x, fb) - level_near(&x, fa))
+                - (level_near(&flat, fb) - level_near(&flat, fa));
+            let want = tilt * octaves;
+            println!(
+                "{shape} {fa:.0} -> {fb:.0} Hz ({octaves:.2} oct), tilt {tilt}: {got:.2} dB (want {want:.2})"
+            );
+            assert!(
+                (got - want).abs() < 2.0,
+                "{shape} tilt {tilt}: {got} vs {want}"
+            );
+        }
+    }
+}
+
+#[test]
+fn tilt_flattens_a_glass_plate_that_is_all_in_one_mode() {
+    // Round 1: glass_clink put 98 % of the energy in the lowest mode.
+    let energy_share = |tilt: f32| {
+        let x = node_audio(
+            modal(
+                json!({"material": "glass", "size": 0.15, "strike_position": 0.31,
+                "modes": 24, "tilt": tilt}),
+            ),
+            "m",
+            0.5,
+        );
+        let top = peaks(&x[480..], SR, 1, 0.0)[0].0;
+        let near = band_db(&x[480..], SR, top * 0.97, top * 1.03);
+        let all = band_db(&x[480..], SR, 20.0, 20_000.0);
+        (near - all, top)
+    };
+    let (flat, f) = energy_share(0.0);
+    let mut last = flat;
+    for t in [3.0, 6.0, 9.0, 12.0] {
+        let (share, f2) = energy_share(t);
+        println!(
+            "tilt {t}: strongest mode {f2:.0} Hz holds {share:.2} dB ({:.0} %) of the total (flat: {f:.0} Hz, {flat:.2} dB)",
+            100.0 * 10f32.powf(share / 10.0)
+        );
+        assert!(share < last, "tilt {t}: {share} dB after {last}");
+        last = share;
+    }
+    // From 98.6 % in the lowest mode to under 65 %.
+    assert!(flat > -0.1 && last < -1.9, "{flat} -> {last}");
+}
+
+#[test]
+fn a_small_glass_shard_has_several_modes_between_1_5_and_8_khz() {
+    // The mode table scales with the plate's thickness, so a 3 cm shard is
+    // given a 0.3 mm plate: (1,1) at 1.6 kHz, then 4.1 k (twice), 6.5 k, 8.1 k.
+    let thin = json!({"young": 70e9, "density": 2500, "poisson": 0.22, "loss": 0.004,
+        "thickness": 0.0003});
+    let hz = modes_hz(json!({"material": thin, "size": 0.03}), 0.3, 16);
+    let inside: Vec<f32> = hz
+        .iter()
+        .copied()
+        .filter(|f| (1500.0..=8000.0).contains(f))
+        .collect();
+    println!("0.03 m glass shard (0.3 mm): peaks {hz:.0?}; between 1.5 and 8 kHz: {inside:.0?}");
+    assert!(inside.len() >= 3, "{inside:?}");
+}
+
+#[test]
+fn the_size_range_reaches_small_shards_and_keys() {
+    // Round 1: 3 mm glass was refused under 0.039 m and 5 cm metal under
+    // 0.16 m (the hint stopped at a 10 kHz lowest mode). The range now runs to
+    // 90 % of the top of the band, and past it the error names the fix.
+    let glass = json!({"material": glass_3mm(), "size": 1e-6});
+    let e = render_error(modal(glass), 0.2);
+    println!("{e}");
+    let tail = e.split("try ").nth(1).unwrap();
+    let lo: f32 = tail.split_whitespace().next().unwrap().parse().unwrap();
+    assert!(lo < 0.03, "3 mm glass plate: lo {lo}");
+    let (mlo, _, _) = hint("metal", "plate");
+    assert!(mlo < 0.15, "metal plate: lo {mlo}");
+    println!("3 mm glass plate from {lo} m; metal plate from {mlo} m (was 0.039 and 0.16)");
+    // 0.03 m and 0.028 m render (lowest mode 16.3 and 18.7 kHz).
+    for size in [0.03, 0.028, lo] {
+        let x = node_audio(
+            modal(json!({"material": glass_3mm(), "size": size})),
+            "m",
+            0.1,
+        );
+        assert!(x.iter().any(|v| v.abs() > 0.01), "size {size}");
+        assert_finite(&x, "m");
+        println!(
+            "3 mm glass {size} m: lowest peak {:.0} Hz, peak {:.2} dB",
+            peak_hz(&x[480..], SR),
+            peak_db(&x)
+        );
+    }
+    // Under the range: an error that names the lowest mode and the thickness
+    // that would put it back in the band; following it renders.
+    let e = render_error(
+        modal(json!({"material": glass_3mm(), "size": lo * 0.5})),
+        0.2,
+    );
+    println!("{e}");
+    assert!(
+        e.contains("lowest mode would be") && e.contains("thinner"),
+        "{e}"
+    );
+    let t: f32 = e
+        .split("thickness ")
+        .nth(1)
+        .unwrap()
+        .split_whitespace()
+        .next()
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(t > 0.0 && t < 0.003, "{t}");
+    let mut fixed = glass_3mm();
+    fixed["thickness"] = json!(t);
+    let x = node_audio(
+        modal(json!({"material": fixed, "size": lo * 0.5})),
+        "m",
+        0.1,
+    );
+    assert!(
+        x.iter().any(|v| v.abs() > 0.01),
+        "thickness {t} did not fix it"
+    );
+    // Too big says so the other way.
+    let e = render_error(
+        modal(json!({"material": "wood", "shape": "shell", "size": 400.0})),
+        0.2,
+    );
+    println!("{e}");
+    assert!(e.contains("under 20 Hz") && e.contains("smaller"), "{e}");
+}
+
+#[test]
+fn every_size_in_the_range_is_stable_and_nothing_folds_past_the_band() {
+    // 8 log-spaced sizes from each end of the range, at three sample rates,
+    // for several materials and all shapes: finite, bounded, and no strong
+    // spectral peak above the top of the band (modes there are dropped, not
+    // folded). 20 kHz or 0.49 sr, whichever is lower.
+    let mats = [json!("wood"), json!("metal"), json!("glass"), glass_3mm()];
+    let mut n = 0;
+    let mut worst = f32::MIN;
+    for sr in [22_050u32, 44_100, 48_000, 96_000] {
+        let top = (0.49 * sr as f32).min(20_000.0);
+        for mat in &mats {
+            for s in SHAPES {
+                let e = render_error_at(mat, s, sr);
+                let (lo, hi) = parse_range(&e);
+                assert!(lo < hi, "{mat} {s} {sr}: {e}");
+                for i in 0..8 {
+                    let size = lo * (hi / lo).powf(i as f32 / 7.0);
+                    let x = modal_at(json!({"material": mat, "shape": s, "size": size}), sr, 0.25);
+                    assert_finite(&x, s);
+                    let p = peak_db(&x);
+                    worst = worst.max(p);
+                    assert!(p.abs() < 6.0, "{mat} {s} {sr} Hz size {size}: peak {p}");
+                    // Peaks above the top of the band (within 40 dB).
+                    let above = peaks(&x[(0.002 * sr as f32) as usize..], sr, 8, 40.0)
+                        .iter()
+                        .filter(|p| p.0 > top * 1.05)
+                        .count();
+                    assert_eq!(above, 0, "{mat} {s} {sr} Hz size {size}: peaks above {top}");
+                    n += 1;
+                }
+            }
+        }
+    }
+    println!("{n} renders over the size range: all finite, worst peak {worst:.2} dB");
+}
+
+/// The error a tiny size gives, at `sr`.
+fn render_error_at(material: &Value, shape: &str, sr: u32) -> String {
+    let mut d = SoundDoc::named("t");
+    d.sample_rate = sr;
+    d.nodes = modal(json!({"material": material, "shape": shape, "size": 1e-6}));
+    d.nodes
+        .push(json!({"type": "output", "name": "out", "input": "m"}));
+    d.duration = Some(0.1);
+    d.render(&RenderOpts::default()).unwrap_err()
+}
+
+fn parse_range(e: &str) -> (f32, f32) {
+    let mut it = e.split("try ").nth(1).unwrap().split_whitespace();
+    let lo: f32 = it.next().unwrap().parse().unwrap();
+    it.next();
+    (lo, it.next().unwrap().parse().unwrap())
+}
+
+#[test]
+fn the_default_loss_and_tilt_leave_the_render_bit_identical() {
+    for m in ["wood", "glass"] {
+        let plain = json!({"material": m, "size": 0.4, "seed": 3});
+        let mut with = plain.clone();
+        with["loss"] = json!(1.0);
+        with["tilt"] = json!(0.0);
+        assert_eq!(
+            node_audio(modal(plain), "m", 0.5),
+            node_audio(modal(with), "m", 0.5),
+            "{m}"
+        );
+    }
+}
