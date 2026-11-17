@@ -22,7 +22,7 @@ mod ringmod;
 
 // slot S1
 
-// slot S2
+mod synth;
 
 // slot S3
 
@@ -87,7 +87,7 @@ pub use ringmod::*;
 
 // slot S1
 
-// slot S2
+pub use synth::*;
 
 // slot S3
 

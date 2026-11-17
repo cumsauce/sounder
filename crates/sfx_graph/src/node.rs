@@ -308,7 +308,8 @@ node_types! {
 
     // slot S1
 
-    // slot S2
+    "fm" => Fm,
+    "wavetable" => Wavetable,
 
     // slot S3
 
