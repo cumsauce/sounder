@@ -74,6 +74,34 @@ pub struct PitchCheck {
     pub tol_cents: Option<f32>,
 }
 
+/// The `aliasing` check.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AliasingCheck {
+    /// Largest energy off the harmonic grid above 4 kHz, relative to the
+    /// total, dB (default -40).
+    #[serde(default)]
+    pub max_db: Option<f32>,
+}
+
+/// The `modulation` check: the sound has a rate near `rate_hz`.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModulationCheck {
+    /// The rate wanted, Hz (0.5 to 200 for amplitude; pitch up to about 40).
+    pub rate_hz: f32,
+    /// Accepted distance from it, Hz (default 0.5).
+    #[serde(default)]
+    pub tol_hz: Option<f32>,
+    /// Smallest peak-to-peak depth, dB for amplitude, cents for pitch
+    /// (default 1 dB / 10 cents).
+    #[serde(default)]
+    pub min_depth: Option<f32>,
+    /// "amplitude" (default) or "pitch".
+    #[serde(default)]
+    pub mode: Option<String>,
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Variations {
@@ -148,6 +176,21 @@ pub struct Expect {
     /// Close to a reference recording (see `listen` `reference`).
     #[serde(default)]
     pub reference: Option<ReferenceCheck>,
+    /// Energy off the harmonic grid above 4 kHz stays under `max_db` (default
+    /// -40): the aliasing a nonlinearity or a naive oscillator leaves in a
+    /// steady pitched sound.
+    #[serde(default)]
+    pub aliasing: Option<Toggle<AliasingCheck>>,
+    /// Mean deviation of the strongest 8 partials from integer multiples of
+    /// f0 in [min, max] cents (a harmonic tone: under 2; a bell: tens).
+    #[serde(default)]
+    pub inharmonicity: Option<Range>,
+    /// The amplitude envelope (or pitch track) has a rate near `rate_hz`.
+    #[serde(default)]
+    pub modulation: Option<ModulationCheck>,
+    /// Percent of the envelope's energy in 20 to 150 Hz in [min, max].
+    #[serde(default)]
+    pub roughness: Option<Range>,
     /// Every macro keeps its claim: swept over 0, .25, .5, .75, 1 (the others
     /// where they are), its measure moves the claimed way at every step and
     /// no position peaks over -0.3 dBFS.
@@ -683,6 +726,163 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
                 ),
             ),
         }
+    }
+    if let Some(al) = e.aliasing.as_ref().and_then(Toggle::get) {
+        let max = al.max_db.unwrap_or(-40.0);
+        match crate::measure::aliasing_db(a) {
+            Some(v) => {
+                let ok = v <= max;
+                let fix = {
+                    let shapes: Vec<&str> = cx
+                        .doc
+                        .nodes
+                        .iter()
+                        .filter(|n| n.get("type").and_then(|t| t.as_str()) == Some("shape"))
+                        .filter_map(|n| n.get("name").and_then(|t| t.as_str()))
+                        .collect();
+                    match shapes.as_slice() {
+                        [] => "likely aliasing: a naive oscillator or a nonlinearity folding harmonics back; band-limit the source (osc) or filter before the nonlinearity".to_string(),
+                        [one] => format!("raise `oversample` on shape `{one}`"),
+                        many => format!(
+                            "raise `oversample` on shape `{}` (or one of: {})",
+                            many[0],
+                            many.join(", ")
+                        ),
+                    }
+                };
+                push(
+                    "aliasing",
+                    ok,
+                    if ok {
+                        format!("{v:.1} dB off the harmonic grid above 4 kHz (max {max})")
+                    } else {
+                        format!(
+                            "{v:.1} dB off the harmonic grid above 4 kHz is over {max}: {fix}"
+                        )
+                    },
+                );
+            }
+            None => push(
+                "aliasing",
+                false,
+                "no steady pitched segment to measure (needs a pitch of 60 Hz to 4 kHz that holds within 1.5 % across 12 periods, and mostly harmonic): check the source with listen zoom instead".into(),
+            ),
+        }
+    }
+    if let Some(r) = &e.inharmonicity {
+        match crate::measure::inharmonicity_cents(a) {
+            Some(v) => {
+                let ok = range_ok(r, v);
+                push(
+                    "inharmonicity",
+                    ok,
+                    if ok {
+                        format!("{v:.1} cents ({})", range_text(r))
+                    } else if r.max.is_some_and(|m| v > m) {
+                        format!(
+                            "{v:.1} cents, want {}: the partials are off integer multiples; tune them (a modal / resonators table) or use a harmonic source",
+                            range_text(r)
+                        )
+                    } else {
+                        format!(
+                            "{v:.1} cents, want {}: the partials sit on integer multiples; stretch them apart (mode ratios like 2.76, 5.4 for a bell)",
+                            range_text(r)
+                        )
+                    },
+                );
+            }
+            None => push(
+                "inharmonicity",
+                false,
+                "under 3 clear partials (20 dB over the median bin): the sound is noisy or too sparse to measure".into(),
+            ),
+        }
+    }
+    if let Some(m) = &e.modulation {
+        let pitch_mode = match m.mode.as_deref() {
+            None | Some("amplitude") => false,
+            Some("pitch") => true,
+            Some(other) => {
+                return Err(format!(
+                    "modulation: mode {other:?}: use \"amplitude\" or \"pitch\""
+                ));
+            }
+        };
+        let tol = m.tol_hz.unwrap_or(0.5);
+        let min_depth = m.min_depth.unwrap_or(if pitch_mode { 10.0 } else { 1.0 });
+        let unit = if pitch_mode { "cents" } else { "dB" };
+        let found = if pitch_mode {
+            crate::measure::pitch_modulation(a)
+        } else {
+            crate::measure::amplitude_modulation(a)
+        };
+        let near = found.iter().find(|p| (p.rate_hz - m.rate_hz).abs() <= tol);
+        let seen = found
+            .iter()
+            .map(|p| format!("{:.1} Hz {:.1} {unit}", p.rate_hz, p.depth))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let name = if pitch_mode {
+            "modulation (pitch)"
+        } else {
+            "modulation"
+        };
+        match near {
+            Some(p) if p.depth >= min_depth => push(
+                name,
+                true,
+                format!(
+                    "{:.2} Hz at {:.1} {unit} peak-to-peak (wanted {} +- {tol} Hz, depth >= {min_depth})",
+                    p.rate_hz, p.depth, m.rate_hz
+                ),
+            ),
+            Some(p) => push(
+                name,
+                false,
+                format!(
+                    "{:.2} Hz found but only {:.1} {unit} deep, want >= {min_depth}: deepen the modulation",
+                    p.rate_hz, p.depth
+                ),
+            ),
+            None => push(
+                name,
+                false,
+                format!(
+                    "no rate within {tol} Hz of {} (found: {}): change the modulator's rate{}",
+                    m.rate_hz,
+                    if seen.is_empty() { "none" } else { &seen },
+                    if pitch_mode {
+                        " (pitch rates are limited to about 40 Hz by the pitch frame rate)"
+                    } else {
+                        ""
+                    }
+                ),
+            ),
+        }
+    }
+    if let Some(r) = &e.roughness {
+        let v = crate::measure::roughness_pct(a);
+        let ok = range_ok(r, v);
+        push(
+            "roughness",
+            ok,
+            if ok {
+                format!(
+                    "{v:.1} % of the envelope energy in 20-150 Hz ({})",
+                    range_text(r)
+                )
+            } else if r.max.is_some_and(|m| v > m) {
+                format!(
+                    "{v:.1} % in 20-150 Hz, want {}: slow the beating / modulation below 20 Hz or push it above 150 Hz, or lower its depth",
+                    range_text(r)
+                )
+            } else {
+                format!(
+                    "{v:.1} % in 20-150 Hz, want {}: add amplitude modulation or beating between partials 20-150 Hz apart",
+                    range_text(r)
+                )
+            },
+        );
     }
     if let Some(r) = &e.onsets {
         let k = d().onsets.len() as f32;
