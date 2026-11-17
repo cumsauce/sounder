@@ -1,0 +1,50 @@
+{
+  "name": "p6_lid_glide",
+  "format_version": 1,
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.5,
+  "seed": 1,
+  "nodes": [
+    {
+      "type": "impulse",
+      "name": "hit",
+      "at": 0.01
+    },
+    {
+      "type": "modal",
+      "name": "lid",
+      "excite": "hit",
+      "material": "metal",
+      "shape": "membrane",
+      "f0": 300,
+      "loss": 0.5,
+      "strike_glide": 80
+    },
+    {
+      "type": "output",
+      "name": "out",
+      "input": "lid",
+      "lufs": -30
+    }
+  ],
+  "params": {},
+  "macros": [
+    {
+      "name": "glide",
+      "value": 0.5,
+      "default": 0.5,
+      "doc": "how far sharp the strike starts (0 to 160 cents)",
+      "game": false,
+      "map": [
+        {
+          "node": "lid",
+          "field": "strike_glide",
+          "from": 0.0,
+          "to": 160.0
+        }
+      ]
+    }
+  ],
+  "version": 2
+}

@@ -1,0 +1,130 @@
+{
+  "name": "p6_cine_hit",
+  "format_version": 1,
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.5,
+  "seed": 1,
+  "nodes": [
+    {
+      "type": "riser",
+      "name": "rise",
+      "at": 1,
+      "length": 0.9,
+      "from": 300,
+      "to": 3000,
+      "amp": 0.3
+    },
+    {
+      "type": "noise",
+      "name": "n",
+      "color": "white",
+      "seed": 2
+    },
+    {
+      "type": "decay",
+      "name": "ce",
+      "time": 0.02,
+      "at": 1
+    },
+    {
+      "type": "math",
+      "name": "crack",
+      "op": "mul",
+      "a": "n",
+      "b": "ce"
+    },
+    {
+      "type": "decay",
+      "name": "be",
+      "time": 0.012,
+      "at": 1
+    },
+    {
+      "type": "math",
+      "name": "burst",
+      "op": "mul",
+      "a": "n",
+      "b": "be"
+    },
+    {
+      "type": "modal",
+      "name": "body",
+      "excite": "burst",
+      "material": "wood",
+      "size": 0.6,
+      "loss": 1.5,
+      "rattle": 0.4
+    },
+    {
+      "type": "subdrop",
+      "name": "drop",
+      "from": 90,
+      "to": 30,
+      "time": 0.8,
+      "decay": 1.5,
+      "at": 1,
+      "drive": 0.3
+    },
+    {
+      "type": "mix",
+      "name": "all",
+      "inputs": [
+        "rise",
+        {
+          "input": "crack",
+          "gain": 0.5
+        },
+        "body",
+        {
+          "input": "drop",
+          "gain": 0.7
+        }
+      ]
+    },
+    {
+      "type": "output",
+      "name": "out",
+      "input": "all",
+      "lufs": -30,
+      "gain_db": -0.56
+    }
+  ],
+  "params": {},
+  "macros": [
+    {
+      "name": "drop",
+      "value": 0.5,
+      "default": 0.5,
+      "doc": "level of the sub drop under the hit",
+      "game": false,
+      "map": [
+        {
+          "node": "all",
+          "field": "inputs",
+          "from": 0.2,
+          "to": 1.2,
+          "index": 3,
+          "key": "gain"
+        }
+      ]
+    },
+    {
+      "name": "swell",
+      "value": 0.5,
+      "default": 0.5,
+      "doc": "level of the riser into the hit",
+      "game": false,
+      "map": [
+        {
+          "node": "rise",
+          "field": "amp",
+          "from": 0.08,
+          "to": 0.6,
+          "curve": "exp"
+        }
+      ]
+    }
+  ],
+  "version": 2
+}

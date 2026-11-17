@@ -436,7 +436,7 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 | a pipe, a flute, a string, a bow | `tube`, `string` | `length` / `freq`, `excite`, `pressure` | waveguides: winds, plucks, strikes, bowed notes |
 | a latch, a switch, a button, a lock, a buckle | `click` | `kind` latch / switch / button / lock / clasp, `size`, `hardness` | one or two transients through small resonators; a hit at t = 0: `fade_in` 0.0005 |
 | thunder, a distant storm | `thunder` | `distance`, `brightness`, `length`, `duration` | foley's N-wave and rumble; `brightness` tilts above 100 Hz, `length` stretches the rumble; a `duration` that fits |
-| a struck object: panel, bell, pipe, keys, a door's thud | `modal` fed by `contact`, `impulse` or a noise burst | `shape` plate / bar / tube / membrane / string / shell, `material`, `size`, `thickness`, `loss`, `tilt` | normalized; `size` and `thickness` are pitch knobs (small thin objects: `thickness` 0.0015 instead of a custom material); `loss` 0.5 rings twice as long; `tilt` flattens a one-mode plate |
+| a struck object: panel, bell, pipe, keys, a door's thud | `modal` fed by `contact`, `impulse` or a noise burst | `shape` plate / bar / tube / membrane / string / shell, `material`, `size`, `thickness`, `loss`, `tilt`; **`noise` for real wood (0.6, `tilt` 4) and metal (0.85, `noise_width` 0.5, `tilt` 6)** (clean modes read as a tuned instrument) | normalized; `size` and `thickness` are pitch knobs (small thin objects: `thickness` 0.0015 instead of a custom material); `loss` 0.5 rings twice as long; `tilt` flattens a one-mode plate |
 | a larger-than-life hit (cinematic, trailer, a game's heavy impact) | `subdrop` under it, `riser` into it | `from` / `to` / `decay`, `drive`; `at` (the hit), `length`, `shape` | tonal on purpose: add them to a layered hit only when the brief asks for exaggeration (a realistic slam with a sine sub read as a tuned drum) |
 | a robot voice, speech-like texture, band dynamics | `vocoder`, `multiband`, `filterbank` | a pitched `carrier` + a noisy `modulator`; `crossovers` + `bands` | see "Bands and vocoder" |
 | a swarm, a swell, a granular wash | `cloud`, `grains` | `source`, `density` (signal), `size`, `pitch_spread` | grains from any node or WAV |
@@ -1350,11 +1350,26 @@ above 150 Hz (+6.0 dB) with the side under 60 Hz 34 dB under the mid.
 
 ### Exaggeration and liveliness (`docs/nodes/phase6.md`)
 
+- `modal` `noise` (0..1) and `noise_width` (0.05..2, default 0.25): each
+  mode becomes (1 - noise) x its clean ring + noise x a band of white noise
+  at its frequency, `noise_width` x f wide, following the ring's envelope
+  and decay (at 1 no tone is left): **use it on real wood, stone and
+  metal**, which a clean
+  `modal` makes tonal (a crate read as a marimba, a lid as a tuned gong).
+  Starting points the listener moved toward: **wood** `noise` 0.6, `tilt` 4,
+  `loss` about 1.8 (3 was "a bit too short"); **thin metal** `noise` 0.85,
+  `noise_width` 0.5, `tilt` 6 (a lid with less read tonal; at `noise` 1
+  and width 1 its flatness went 0.40 to 0.74). Measured in
+  `tests/tonality.rs` and `docs/nodes/phase6.md`. Off by default
+  (bit-identical). `tilt` takes down the one dominant partial; `loss` sets
+  how long wood rings.
 - `modal` `strike_glide` (cents, 0..1200): every mode starts sharp at the
   ring's loudest and settles with the level; `rattle` (0..1): the ring above
   a gap (its loudest 5 ms level at 0, 30 dB under at 1) added back
   high-passed above 1.5 kHz, a buzz that stops when the ring falls under the
-  gap. Both off by default (bit-identical). Measured: `strike_glide` 100 on
+  gap. Both off by default (bit-identical). Listened to: `strike_glide`
+  about 35 cents made a hit sound harder; `rattle` on wood read as plastic
+  (keep it off wood). Measured: `strike_glide` 100 on
   a metal bar, +45.5 cents at 20-110 ms and +2.1 at 1-1.5 s (the full glide
   only at the loudest instant); `rattle` 0.5 on a wood body, +14.7 dB at
   2-12 kHz in the first 100 ms, untouched once the ring is under the gap. A

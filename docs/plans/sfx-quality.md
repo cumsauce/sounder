@@ -229,6 +229,17 @@ with its noise.
   `nodes/exaggerate.rs`. A cinematic hit with a `subdrop` reads voiced 0.58,
   so the `layers` impact preset fails it by design: documented. Not heard.
 
+- **Listening (2026-11-17)** and the fix that followed: `strike_glide` ~35
+  cents helps; `rattle` on wood reads as plastic; `riser` / `subdrop` were
+  off-brief ("cinematic" meant production-quality foley). Clean `modal` read
+  tonal again (a marimba, a tuned gong), so `modal` gained `noise` (each
+  mode a band of noise): wood voiced 0.89 to 0.17, metal 0.92 to 0.00
+  (`docs/nodes/phase6.md`). Three rounds: round 1 "right direction"; round
+  2 the lid still tonal, because `strike_glide` dropped `noise` (fixed) and
+  modulating the rings left clean lines (now real noise bands, plus
+  `noise_width`); round 3 "much better" (wood 0.6 / tilt 4 / loss 1.8, thin
+  metal 0.85 / width 0.5 / tilt 6).
+
 ## Verification (every phase)
 
 ```sh

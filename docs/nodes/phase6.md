@@ -1,5 +1,21 @@
 # Phase 6: modal strike_glide and rattle; subdrop, riser
 
+**Listening result (the human, 2026-11-17).**
+- `strike_glide`: "adds more detail and does sound like a harder hit"; the
+  knob settled at 0.22 of 0..160 cents, so about **35 cents**. But neither lid
+  sounds like a metal lid: a real one is far more inharmonic and atonal than
+  a `modal` membrane struck by an impulse.
+- `rattle`: the plain crate is better ("woodier"); with `rattle` 0.6 it has
+  more texture but reads as **plastic**. Both crates read as a marimba rather
+  than wood, because they are tonal; the plain one passes for a small plank
+  of wood falling on hard ground.
+- `riser` / `subdrop`: not what was meant by "cinematic" (that meant
+  production-quality foley for films and games, not trailer exaggeration),
+  and the hit "sounds bad", though a real one would need effects like reverb.
+- The recurring lesson (the door slam too): `modal` struck cleanly is too
+  tonal for real objects. Wood is heavily damped and noisy; thin metal has
+  dense, clashing partials.
+
 Exaggeration and liveliness for designed hits (`docs/plans/sfx-quality.md`
 Phase 6). None of it has been heard; every number is from
 `crates/sfx_analysis/tests/phase6.rs` (`--nocapture`).
@@ -109,6 +125,69 @@ The `layers` `impact` preset is for realistic hits (voiced at most 0.3, body
 30-80 %) and fails this one on purpose: for a hit the brief wants larger
 than life, give `layers` its own `voiced_max` and `body`, or check it
 against a reference set of cinematic hits instead.
+
+## `modal` `noise`: less tonal wood and metal
+
+After the listening note above, a third field, off by default (left out or
+0: unchanged bit for bit, `defaults_and_zero_are_unchanged`):
+
+| Field | Type | Default | Range | What it does |
+|---|---|---|---|---|
+| `noise` | number | off | 0..1 | each mode becomes (1 - noise) x its clean ring + noise x a band of white noise at its frequency, following the ring's envelope and decay (round 1-2 used a modulation instead; see below) |
+| `noise_width` | number | 0.25 | 0.05..2 | the noise band's width as a fraction of the mode's frequency |
+
+Measured on a noise-burst strike (`crates/sfx_analysis/tests/tonality.rs`):
+
+| Sound | voiced | occupied flatness | strongest partial over the median |
+|---|---|---|---|
+| wood plank f0 180, loss 1.2 | 0.89 | 0.21 | 13.8 dB |
+| + noise 0.6 | 0.24 | 0.45 | 14.8 dB |
+| + noise 0.6, tilt 4, loss 3 (`p7_plank_new`) | 0.17 | 0.26 | 10.1 dB |
+| metal lid (membrane f0 300, 128 modes) | 0.92 | 0.08 | 12.3 dB |
+| + noise 0.6 | 0.01 | 0.42 | 12.7 dB |
+| + noise 0.5, tilt 4 (`p7_lid_new`) | 0.00 | 0.51 | 6.3 dB |
+
+`noise` takes the pitch out; `tilt` with it takes down the one dominant
+partial (the "tuned gong"). A tried `irregular` field (seeded scatter of
+mode frequencies and levels) moved none of these measures, so it was
+dropped: the tuned quality is clean partials, not their spacing. Listening
+pairs: `p7_plank_old` / `p7_plank_new`, `p7_lid_old` / `p7_lid_new`
+(-36 LUFS; the noisy versions are spikier).
+
+Listened (the human, 2026-11-17): both "in the right direction"; the plank
+"a bit too short / not resonant enough", the lid "still slightly too
+tonal". Round 2, measured over MCP on the listening sounds:
+
+| Sound | Was | Now | Measured now |
+|---|---|---|---|
+| `p7_plank_new` | loss 3 (-60 dB at 140 ms) | loss 1.8, noise 0.6, tilt 4 | -60 dB at 210 ms, voiced 0.00, occupied flatness 0.40 |
+| `p7_lid_new` (impulse strike, 128 modes, glide 35) | noise 0.5, tilt 4: voiced 0.29 | noise 0.75, tilt 6 | voiced 0.00, 73 % of the energy at 2-8 kHz, occupied flatness 0.73 |
+
+The lid's lowest mode (300 Hz) still rings longest (3.7 s, at -45 dB).
+
+Round 2 listened: the lid "still too tonal". Two causes, both fixed:
+
+- **A bug: `strike_glide` dropped `noise`.** The glide rebuilt the output
+  from the clean modes after the noise was mixed in, so every lid heard so
+  far (all with `strike_glide` 35) had no noise at all; only `tilt` changed
+  between rounds. Glide and noise are now computed per mode together
+  (`glide_keeps_the_noise`; the glide alone is unchanged, +45.5 cents).
+- **`noise` modulated each ring**, `(1 - noise) + noise x low-passed noise`:
+  at 0.75 a quarter of every partial stayed a clean line, and the smeared
+  part sat beside the line. Now each mode is `(1 - noise) x its ring +
+  noise x a band of white noise at its frequency` (`noise_width` x f wide,
+  following the ring's envelope and decay): at 1 no line is left. New field
+  `noise_width` (default 0.25, 0.05..2).
+
+Lid with `strike_glide` 35, `tilt` 6: flatness 0.40 and voiced 0.48 without
+noise; 0.74 and 0.00 with `noise` 1, `noise_width` 1. Round 3 in the window:
+`p7_lid_new` at `noise` 0.85, `noise_width` 0.5 (knobs `grain`, `width`);
+`p7_plank_new` unchanged settings, now with real noise bands.
+
+**Round 3 listened: "much better"** (no knobs moved). Approved starting
+points: wood `noise` 0.6, `tilt` 4, `loss` 1.8; thin metal `noise` 0.85,
+`noise_width` 0.5, `tilt` 6 (the lid measured voiced 0.00, occupied
+flatness 0.79, 68 % of its energy at 2-8 kHz).
 
 ## Honest limits
 

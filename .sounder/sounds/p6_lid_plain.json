@@ -1,0 +1,54 @@
+{
+  "name": "p6_lid_plain",
+  "format_version": 1,
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.5,
+  "seed": 1,
+  "nodes": [
+    {
+      "type": "impulse",
+      "name": "hit",
+      "at": 0.01
+    },
+    {
+      "type": "modal",
+      "name": "lid",
+      "excite": "hit",
+      "material": "metal",
+      "shape": "membrane",
+      "f0": 300,
+      "loss": 0.5
+    },
+    {
+      "type": "output",
+      "name": "out",
+      "input": "lid",
+      "lufs": -30
+    }
+  ],
+  "params": {},
+  "macros": [
+    {
+      "name": "ring",
+      "value": 0.5,
+      "default": 0.5,
+      "doc": "how long the lid rings",
+      "claim": [
+        "decay",
+        1
+      ],
+      "game": false,
+      "map": [
+        {
+          "node": "lid",
+          "field": "loss",
+          "from": 1.2,
+          "to": 0.4,
+          "curve": "exp"
+        }
+      ]
+    }
+  ],
+  "version": 3
+}

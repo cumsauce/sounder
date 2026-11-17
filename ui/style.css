@@ -235,7 +235,11 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 /* grid of all sounds */
 .overview { position: absolute; top: 48px; left: 0; right: 0; bottom: 0; background: var(--bg); display: grid; grid-template-columns: 1fr 280px; z-index: 5; }
 .overview[hidden] { display: none !important; }
-.ovgrid { padding: 14px; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; align-content: start; }
+/* Rows sized to their tiles: a .tile clips (overflow: hidden), which lets the
+   grid shrink auto rows below their content when the tiles overflow the
+   pane, cutting off the names. max-content keeps every tile whole and
+   scrolls instead. */
+.ovgrid { padding: 14px; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); grid-auto-rows: max-content; gap: 12px; align-content: start; }
 .ovsec { grid-column: 1 / -1; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); padding-top: 4px; }
 .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; cursor: pointer; display: flex; flex-direction: column; }
 .tile:hover { border-color: var(--faint); }

@@ -12,7 +12,7 @@ use foley_synth::{Material, MaterialProps, hertz_time};
 use serde::Deserialize;
 
 use super::{mono, non_negative, one, per_channel, positive};
-use crate::dsp::{Resonator, max_hz};
+use crate::dsp::{FilterMode, Resonator, Svf, max_hz};
 use crate::node::{Cx, Describe, Eval, In, Outs};
 
 /// A material: one of foley's names, or the plate's physical constants.
@@ -739,6 +739,19 @@ pub struct Modal {
     /// or 0, the samples are unchanged.
     #[serde(default)]
     pub rattle: Option<f32>,
+    /// How noisy each mode rings, 0..1 (default none): each mode's clean
+    /// ring is mixed (1 - noise : noise) with a band of white noise at the
+    /// mode's frequency, `noise_width` wide, that follows the ring's own
+    /// envelope and decay. At 1 no line is left, only noise bands placed and
+    /// decaying like the modes: wood and stone knock, metal washes, nothing
+    /// chimes. Left out or 0, the samples are unchanged.
+    #[serde(default)]
+    pub noise: Option<f32>,
+    /// How wide each mode's noise band is, as a fraction of its frequency
+    /// (default 0.25, 0.05..2; only with `noise`). Wider than the gaps
+    /// between partials, the bands merge into a wash.
+    #[serde(default)]
+    pub noise_width: Option<f32>,
     /// Mixed with the document seed and the node name (default 0): the
     /// mistuning.
     #[serde(default)]
@@ -766,31 +779,28 @@ fn level_envelope(x: &[f32], sr: f32) -> Vec<f32> {
     }
 }
 
-/// The modes again, each retuned per sample by `cents x level`.
-fn glide_modes(
-    x: &[f32],
-    modes: &[(f32, f32, f32)],
-    level: &[f32],
-    cents: f32,
-    sr: f32,
-) -> Vec<f32> {
-    let mut out = vec![0.0f32; x.len()];
+/// One mode, retuned per sample by `cents x level`.
+fn glide_one(x: &[f32], mode: (f32, f32, f32), level: &[f32], cents: f32, sr: f32) -> Vec<f32> {
+    let (f, t60, g) = mode;
     let top = max_hz(sr);
-    for &(f, t60, g) in modes {
-        let w0 = 2.0 * PI * f.clamp(1.0, top) / sr;
-        let r = (-(1000f32.ln()) / (t60.max(1e-4) * sr)).exp();
-        let b0 = g * w0.sin();
-        let (mut y1, mut y2) = (0.0f32, 0.0f32);
-        for i in 0..x.len() {
+    let w0 = 2.0 * PI * f.clamp(1.0, top) / sr;
+    let r = (-(1000f32.ln()) / (t60.max(1e-4) * sr)).exp();
+    let b0 = g * w0.sin();
+    let (mut y1, mut y2) = (0.0f32, 0.0f32);
+    (0..x.len())
+        .map(|i| {
             let w = (w0 * 2f32.powf(cents * level[i] / 1200.0)).min(PI * 0.98);
             let y = crate::dsp::flush(b0 * x[i] + 2.0 * r * w.cos() * y1 - r * r * y2);
             y2 = y1;
             y1 = y;
-            out[i] += y;
-        }
-    }
-    out
+            y
+        })
+        .collect()
 }
+
+/// `noise_width` when left out: each noise band a quarter of its mode's
+/// frequency wide.
+const DEFAULT_NOISE_WIDTH: f32 = 0.25;
 
 /// The buzz's gain: at 2 it sat about 30 dB under a wood body (barely
 /// there), at 8 about 18 dB under.
@@ -964,6 +974,23 @@ impl Eval for Modal {
                 cx.sr,
             ));
         }
+        let unit = |field: &str, v: Option<f32>| -> Result<Option<f32>, String> {
+            match v {
+                None => Ok(None),
+                Some(x) if x.is_finite() && (0.0..=1.0).contains(&x) => Ok((x > 0.0).then_some(x)),
+                Some(x) => Err(format!("{field}: {x}: give 0..1")),
+            }
+        };
+        let noise_depth = unit("noise", self.noise)?;
+        let noise_width = match self.noise_width {
+            None => None,
+            Some(w) if w.is_finite() && (0.05..=2.0).contains(&w) => Some(w),
+            Some(w) => {
+                return Err(format!(
+                    "noise_width: {w}: give a fraction of each mode's frequency, 0.05..2"
+                ));
+            }
+        };
         if tilt_db != 0.0 {
             // dB per octave about the lowest kept mode; the normalization
             // below sets the level, so only the balance changes.
@@ -999,17 +1026,80 @@ impl Eval for Modal {
             Some(r) if r.is_finite() && (0.0..=1.0).contains(&r) => (r > 0.0).then_some(r),
             Some(r) => return Err(format!("rattle: {r}: give 0..1")),
         };
+        let noise_seed = crate::mix_seed(cx.seed, self.seed ^ 0x0004_015e_u64);
         Ok(one(per_channel(&input, cx.n, |x| {
-            let mut out = vec![0.0f32; x.len()];
-            for &(f, t60, g) in &modes {
-                let mut r = Resonator::new(f, t60, g, cx.sr);
-                for (o, v) in out.iter_mut().zip(x) {
-                    *o += r.tick(*v);
+            let clean = |m: (f32, f32, f32)| -> Vec<f32> {
+                let mut r = Resonator::new(m.0, m.1, m.2, cx.sr);
+                x.iter().map(|v| r.tick(*v)).collect()
+            };
+            // The glide follows the level of the plain ring (all modes).
+            let level = glide.map(|_| {
+                let mut sum = vec![0.0f32; x.len()];
+                for &m in &modes {
+                    for (o, y) in sum.iter_mut().zip(clean(m)) {
+                        *o += y;
+                    }
                 }
-            }
-            if let Some(c) = glide {
-                let level = level_envelope(&out, cx.sr);
-                out = glide_modes(x, &modes, &level, c, cx.sr);
+                level_envelope(&sum, cx.sr)
+            });
+            // One mode's ring: retuned by the glide when there is one.
+            let ring_of = |m: (f32, f32, f32)| -> Vec<f32> {
+                match (glide, &level) {
+                    (Some(c), Some(l)) => glide_one(x, m, l, c, cx.sr),
+                    _ => clean(m),
+                }
+            };
+            let mut out = vec![0.0f32; x.len()];
+            match noise_depth {
+                None => {
+                    for &m in &modes {
+                        for (o, y) in out.iter_mut().zip(ring_of(m)) {
+                            *o += y;
+                        }
+                    }
+                }
+                Some(depth) => {
+                    let mut rng = crate::dsp::Rng::new(noise_seed);
+                    let width = noise_width.unwrap_or(DEFAULT_NOISE_WIDTH);
+                    let n = x.len();
+                    let mut white = vec![0.0f32; n];
+                    for &(f, t60, g) in &modes {
+                        let ring = ring_of((f, t60, g));
+                        // Its amplitude: a peak follower that falls at the
+                        // mode's own decay rate, so it holds the envelope
+                        // between the sine's peaks.
+                        let fall = (-(1000f32.ln()) / (t60.max(1e-4) * cx.sr)).exp();
+                        // A band of white noise at the mode's frequency,
+                        // `width` x f wide, scaled to the power of a sine of
+                        // amplitude 1 (rms 1 / sqrt 2).
+                        for w in white.iter_mut() {
+                            *w = rng.signed();
+                        }
+                        let bw = (width * f).clamp(20.0, 0.2 * cx.sr);
+                        let q = (f / bw).max(0.05);
+                        let mut svf = Svf::default();
+                        let band: Vec<f32> = white
+                            .iter()
+                            .map(|w| svf.tick(*w, FilterMode::Bp, f, q, 0.0, cx.sr))
+                            .collect();
+                        let rms = (band
+                            .iter()
+                            .map(|b| f64::from(*b) * f64::from(*b))
+                            .sum::<f64>()
+                            / n.max(1) as f64)
+                            .sqrt() as f32;
+                        let scale = if rms > 0.0 {
+                            std::f32::consts::FRAC_1_SQRT_2 / rms
+                        } else {
+                            0.0
+                        };
+                        let mut env = 0.0f32;
+                        for i in 0..n {
+                            env = (env * fall).max(ring[i].abs());
+                            out[i] += (1.0 - depth) * ring[i] + depth * env * band[i] * scale;
+                        }
+                    }
+                }
             }
             if let Some(r) = rattle {
                 let buzz = rattle_buzz(&out, r, cx.sr);
