@@ -227,12 +227,22 @@ pub struct Output {
     /// Edge fades, seconds (defaults 0.002 in, 0.005 out; 0 for a loop).
     /// A hit that starts inside the fade-in is cut by it: set `fade_in`
     /// 0.0005 (0.5 ms; zero at sample 0, so `silent_edges` passes). The
-    /// `lufs` / `peak_db` target is met after the fades.
+    /// `lufs` / `peak_db` target is met after the fades. The fade-in
+    /// warning ("the 2 ms fade-in is cutting the first hit") is not given
+    /// for a `fade_in` of 1 ms or less, nor when a `lufs` / `peak_db` target
+    /// is set and met (the delivered level is right); with no target it
+    /// still fires when the fade cuts the first hit by 1 dB or more.
     #[serde(default)]
     pub fade_in: Option<f32>,
     #[serde(default)]
     pub fade_out: Option<f32>,
-    /// Lookahead limiter ceiling, dBFS (default -1).
+    /// Lookahead limiter ceiling, dBFS (default -1). The limiter holds the
+    /// TRUE peak (4x oversampled, the estimator behind the `true_peak_db`
+    /// check) at the ceiling, not just the sample peak, so a delivered
+    /// sound measures at or under it (within 0.01 dB) in `true_peak_db`. A
+    /// sound whose true peak is already under the ceiling passes through
+    /// bit-identical; one whose samples are under the ceiling but whose
+    /// inter-sample peak is over it is now turned down (before, it was not).
     #[serde(default)]
     pub ceiling_db: Option<f32>,
 }
@@ -254,6 +264,111 @@ pub struct Staged {
 
 fn peak_of(ch: &[Vec<f32>]) -> f32 {
     ch.iter().flatten().fold(0.0f32, |m, x| m.max(x.abs()))
+}
+
+/// Taps each side of the true-peak interpolator and its upsampling factor:
+/// the same windowed-sinc estimator as `loudness::true_peak`.
+const TP_TAPS: isize = 12;
+const TP_UP: usize = 4;
+
+/// The estimator's polyphase kernels for the 3 in-between phases.
+fn tp_kernels() -> Vec<Vec<f32>> {
+    (1..TP_UP)
+        .map(|p| {
+            let frac = p as f64 / TP_UP as f64;
+            (-TP_TAPS + 1..=TP_TAPS)
+                .map(|k| {
+                    let t = k as f64 - frac;
+                    let sinc = if t.abs() < 1e-12 {
+                        1.0
+                    } else {
+                        (std::f64::consts::PI * t).sin() / (std::f64::consts::PI * t)
+                    };
+                    let w = 0.5 + 0.5 * (std::f64::consts::PI * t / (TP_TAPS as f64 + 1.0)).cos();
+                    (sinc * w) as f32
+                })
+                .collect()
+        })
+        .collect()
+}
+
+/// Per-sample true-peak envelope over the channels (linked): the largest of
+/// the sample and of the three interpolated values between it and each of
+/// its neighbours. Where no interpolated value near a sample can exceed
+/// `skip_below` (a bound from the kernels' absolute sums) the sample's own
+/// level is used, which keeps quiet stretches cheap; `0.0` computes all.
+pub(crate) fn true_peak_envelope(chans: &[Vec<f32>], skip_below: f32) -> Vec<f32> {
+    let n = chans.first().map_or(0, Vec::len);
+    let kernels = tp_kernels();
+    let lebesgue = kernels
+        .iter()
+        .map(|k| k.iter().map(|x| x.abs()).sum::<f32>())
+        .fold(1.0f32, f32::max);
+    const BLOCK: usize = 32; // wider than the 24-sample kernel span
+    let mut env = vec![0.0f32; n];
+    for c in chans {
+        let blocks: Vec<f32> = c
+            .chunks(BLOCK)
+            .map(|b| b.iter().fold(0.0f32, |m, x| m.max(x.abs())))
+            .collect();
+        let at = |i: isize| {
+            if i < 0 || i >= n as isize {
+                0.0
+            } else {
+                c[i as usize]
+            }
+        };
+        for i in 0..n {
+            env[i] = env[i].max(c[i].abs());
+            // The window i-11 ..= i+12 touches at most two blocks.
+            let lo = i.saturating_sub((TP_TAPS - 1) as usize) / BLOCK;
+            let hi = ((i + TP_TAPS as usize).min(n - 1)) / BLOCK;
+            if blocks[lo].max(blocks[hi]) * lebesgue <= skip_below {
+                continue;
+            }
+            for kern in &kernels {
+                let mut acc = 0.0f32;
+                for (j, k) in (-TP_TAPS + 1..=TP_TAPS).enumerate() {
+                    acc += kern[j] * at(i as isize + k);
+                }
+                let v = acc.abs();
+                env[i] = env[i].max(v);
+                if i + 1 < n {
+                    env[i + 1] = env[i + 1].max(v);
+                }
+            }
+        }
+    }
+    env
+}
+
+/// A lookahead limiter that holds the TRUE peak (the `true_peak_db` check's
+/// estimator) at `ceiling`. A buffer whose true peak is already under it is
+/// returned untouched. The gain is derived from the interpolated envelope,
+/// then re-measured on the result and corrected (a few passes at most),
+/// because the gain moves between the samples the interpolator reads.
+pub(crate) fn limit_true_peak(
+    mut chans: Vec<Vec<f32>>,
+    ceiling: f32,
+    release: f32,
+    sr: f32,
+) -> Vec<Vec<f32>> {
+    // Pass 0 must leave a buffer already under the ceiling bit-identical;
+    // later passes accept a hair over (0.0087 dB) as held.
+    for pass in 0..8 {
+        let hold = if pass == 0 { ceiling } else { ceiling * 1.001 };
+        let env = true_peak_envelope(&chans, ceiling);
+        if env.iter().all(|p| *p <= hold) {
+            break;
+        }
+        let g = crate::dsp::limiter_gain(&env, ceiling, release, sr);
+        for c in &mut chans {
+            for (x, g) in c.iter_mut().zip(&g) {
+                *x *= g;
+            }
+        }
+    }
+    chans
 }
 
 impl Output {
@@ -313,7 +428,7 @@ impl Output {
                 *v *= g;
             }
         }
-        let lim = |c: Vec<Vec<f32>>| super::nonlinear::limit(c, db_to_gain(ceiling_db), 0.05, sr);
+        let lim = |c: Vec<Vec<f32>>| limit_true_peak(c, db_to_gain(ceiling_db), 0.05, sr);
         let limited = lim(ch.clone());
         let delivered = use_faded.then(|| {
             let mut f = ch.clone();
@@ -405,10 +520,53 @@ impl Output {
         ))
     }
 
+    /// True when a `lufs` or `peak_db` target is set and the delivered level
+    /// matches it (the stage measures the target after the fades, so a cut
+    /// hit is already made up). `delivered` is the exported sound,
+    /// `final_lufs` its loudness; `gain_db` is on top of the target. A
+    /// `peak_db` is also met when the true-peak limiter holds the sound at
+    /// the ceiling and the target (with `gain_db`) is not above that ceiling:
+    /// a noisy hit's inter-sample peaks then set the delivered level.
+    fn target_met(&self, delivered: &[Vec<f32>], final_lufs: f32) -> bool {
+        let gain = self.gain_db.unwrap_or(0.0);
+        if let Some(t) = self.peak_db {
+            let want = t + gain;
+            if (20.0 * peak_of(delivered).max(1e-9).log10() - want).abs() <= 0.5 {
+                return true;
+            }
+            let ceiling = self.ceiling_db.unwrap_or(-1.0);
+            return want <= ceiling + 0.01
+                && (20.0 * loudness::true_peak(delivered).max(1e-9).log10() - ceiling).abs()
+                    <= 0.5;
+        }
+        if let Some(t) = self.lufs {
+            return (final_lufs - (t + gain)).abs() <= 1.0;
+        }
+        false
+    }
+
     /// A warning when the first hit starts inside the fade-in, or None.
-    /// `ch` is the output's input at the exported length.
-    pub fn fade_in_warning(&self, ch: Vec<Vec<f32>>, sr: f32, looped: bool) -> Option<String> {
+    /// `ch` is the output's input at the exported length; `delivered` and
+    /// `final_lufs` are the exported sound and its loudness. No warning for a fade-in of
+    /// 1 ms or less (it is the recommended `fade_in 0.0005`), nor when a
+    /// `lufs` / `peak_db` target is set and met (the level is right whatever
+    /// the fade took off the first hit). With no target a cut of 1 dB or
+    /// more warns.
+    pub fn fade_in_warning(
+        &self,
+        ch: Vec<Vec<f32>>,
+        sr: f32,
+        looped: bool,
+        delivered: &[Vec<f32>],
+        final_lufs: f32,
+    ) -> Option<String> {
+        if self.target_met(delivered, final_lufs) {
+            return None;
+        }
         let s = self.stage(ch, sr, looped).ok()?;
+        if s.fade_in <= 0.001 {
+            return None;
+        }
         let a = ((s.fade_in * sr) as usize).min(s.limited.first().map_or(0, Vec::len));
         if a == 0 {
             return None;
@@ -459,5 +617,32 @@ impl Eval for Output {
         let input = cx.audio("input", &self.input)?;
         let ch = self.process(input.channels(cx.n), cx.sr, cx.looped)?;
         Ok(one(Buf::from_channels(ch)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_envelope_peak_is_the_true_peak_check_estimator() {
+        let mut s = 12345u32;
+        let mut noise = || {
+            s = s.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            (s >> 8) as f32 / (1u32 << 23) as f32 - 1.0
+        };
+        let ch: Vec<Vec<f32>> = (0..2)
+            .map(|_| (0..5000).map(|_| noise() * 0.8).collect())
+            .collect();
+        let env = true_peak_envelope(&ch, 0.0);
+        let peak = env.iter().fold(0.0f32, |m, x| m.max(*x));
+        assert_eq!(peak, loudness::true_peak(&ch));
+        // Skipping quiet stretches never changes whether the ceiling is held.
+        let skipped = true_peak_envelope(&ch, 0.7);
+        assert_eq!(
+            skipped.iter().fold(0.0f32, |m, x| m.max(*x)),
+            peak,
+            "the loudest stretch is never skipped"
+        );
     }
 }

@@ -79,7 +79,13 @@ fn existing_output_behaviour_is_bit_identical() {
         0x729c_2d96_e9f7_2090,
         "laser gain / fades / ceiling"
     );
-    assert_eq!(hash(&c), 0xc7a9_1213_d063_39b9, "laser bare output");
+    // R2-B: the bare laser peaks at +2.2 dBFS, so the ceiling limiter acts;
+    // it now holds the TRUE peak, so this hash moved (it was
+    // 0xc7a9_1213_d063_39b9, the sample-peak limiter). Every other hash here
+    // is a sound whose true peak is under the ceiling: unchanged.
+    assert_eq!(hash(&c), BARE_LASER_TRUE_PEAK_LIMITED, "laser bare output");
+    let tp = sfx_graph::gain_to_db(sfx_graph::loudness::true_peak(&c.audio.channels));
+    assert!(tp <= -0.95, "bare laser true peak {tp}");
     assert_eq!(hash(&d), 0x5eac_53d2_74f9_ef25, "impulse missing lufs -14");
     // The same laser with no hit near 0 (30 ms late), default fades: hash
     // taken on the commit before R1-B.
@@ -92,6 +98,7 @@ fn existing_output_behaviour_is_bit_identical() {
     assert_eq!(hash(&ok(&e)), DELAYED_LASER_BEFORE, "late laser lufs -18");
 }
 
+const BARE_LASER_TRUE_PEAK_LIMITED: u64 = 8_512_498_053_249_768_001;
 const LASER_LUFS_AFTER_FADES: u64 = 13_211_617_635_871_047_603;
 const DELAYED_LASER_BEFORE: u64 = 13_838_043_244_579_427_677;
 
@@ -397,7 +404,11 @@ fn burst_at_zero(output: Value) -> SoundDoc {
 #[test]
 fn peak_db_is_met_after_the_fades_for_a_hit_at_zero() {
     for fade_in in [Some(0.0005), None] {
-        let mut out = json!({"type": "output", "name": "out", "input": "hit", "peak_db": -1.5});
+        // ceiling_db 3: the test is the normalization to peak_db; the true-peak
+        // limiter (default ceiling -1) would otherwise take noise's inter-sample
+        // overs off the sample peak.
+        let mut out = json!({"type": "output", "name": "out", "input": "hit", "peak_db": -1.5,
+            "ceiling_db": 3});
         if let Some(f) = fade_in {
             out["fade_in"] = json!(f);
         }
@@ -410,7 +421,7 @@ fn peak_db_is_met_after_the_fades_for_a_hit_at_zero() {
 #[test]
 fn lufs_is_met_after_the_fades_for_a_hit_at_zero() {
     let out = json!({"type": "output", "name": "out", "input": "hit", "lufs": -20,
-        "fade_in": 0.01});
+        "fade_in": 0.01, "ceiling_db": 3});
     let r = ok(&burst_at_zero(out));
     println!("final {:.2} LUFS", r.lufs);
     assert!((r.lufs + 20.0).abs() < 0.3, "{}", r.lufs);
@@ -447,7 +458,7 @@ fn the_squash_warning_is_silent_when_peak_db_normalizes_the_input() {
     assert!(has(&r, "squashing").is_some(), "{:?}", r.warnings);
     // peak_db: the stage scales the input to the target; nothing is squashed.
     let r = ok(&hot(
-        json!({"type": "output", "name": "out", "input": "q", "peak_db": -3}),
+        json!({"type": "output", "name": "out", "input": "q", "peak_db": -3, "ceiling_db": 3}),
     ));
     println!("peak {:.2}", r.peak_db);
     assert!((r.peak_db + 3.0).abs() < 0.1, "{}", r.peak_db);
@@ -563,4 +574,158 @@ fn a_macro_naming_a_node_inside_a_voices_patch_points_at_param() {
         )
         .unwrap_err();
     assert!(err.contains("no node named `nope`"), "{err}");
+}
+
+// ---------------------------------------------------------------- R2-B
+
+fn true_peak_db(r: &Rendered) -> f32 {
+    sfx_graph::gain_to_db(sfx_graph::loudness::true_peak(&r.audio.channels))
+}
+
+fn crest_db(r: &Rendered) -> f32 {
+    let x = &r.audio.channels[0];
+    let rms = (x.iter().map(|v| f64::from(*v).powi(2)).sum::<f64>() / x.len() as f64).sqrt();
+    20.0 * (f64::from(r.audio.peak()) / rms).log10() as f32
+}
+
+#[test]
+fn fade_in_warning_is_silent_for_a_short_fade_or_a_met_target() {
+    let hit = |extra: Value| {
+        let mut o = json!({"type": "output", "name": "out", "input": "hit"});
+        for (k, v) in extra.as_object().unwrap() {
+            o[k] = v.clone();
+        }
+        click_at(0.0, o)
+    };
+    // No target, default 2 ms: still warns (and with a 4 ms fade).
+    let r = hit(json!({}));
+    assert!(has(&r, "fade-in").is_some(), "{:?}", r.warnings);
+    let r = hit(json!({"fade_in": 0.004}));
+    assert!(has(&r, "fade-in").is_some(), "{:?}", r.warnings);
+    // 1 ms and shorter: never.
+    for f in [0.001, 0.0005, 0.0002] {
+        let r = hit(json!({"fade_in": f}));
+        assert!(has(&r, "fade-in").is_none(), "{f}: {:?}", r.warnings);
+    }
+    // A met target: the delivered level is right, whatever the fade cut.
+    let r = hit(json!({"peak_db": -3}));
+    println!("peak_db -3: peak {:.2}", r.peak_db);
+    assert!(has(&r, "fade-in").is_none(), "{:?}", r.warnings);
+    let r = hit(json!({"lufs": -30, "fade_in": 0.004}));
+    println!("lufs -30: {:.2}", r.lufs);
+    assert!((r.lufs + 30.0).abs() < 1.0, "{}", r.lufs);
+    assert!(has(&r, "fade-in").is_none(), "{:?}", r.warnings);
+    // A target that is not met (gain_db pushes the peak into the ceiling
+    // limiter) does not hide a real cut.
+    let r = hit(json!({"peak_db": -3, "gain_db": 6, "fade_in": 0.004}));
+    println!("peak_db -3 + 6 dB: peak {:.2}", r.peak_db);
+    assert!(has(&r, "fade-in").is_some(), "{:?}", r.warnings);
+}
+
+#[test]
+fn a_sine_at_the_ceiling_ends_at_a_true_peak_under_it() {
+    for (freq, phase) in [(1000.0, 0.0), (12000.0, 0.125), (11025.0, 0.1)] {
+        for ceiling in [-1.0f32, -6.0] {
+            // Amplitude 1 dB over the ceiling: the limiter must act.
+            let amp = 10f32.powf((ceiling + 1.0) / 20.0);
+            let r = ok(&doc(
+                vec![
+                    json!({"type": "osc", "name": "s", "freq": freq, "phase": phase, "amp": amp}),
+                    json!({"type": "output", "name": "out", "input": "s", "fade_in": 0,
+                        "fade_out": 0, "ceiling_db": ceiling}),
+                ],
+                Some(0.5),
+            ));
+            let tp = true_peak_db(&r);
+            println!(
+                "{freq} Hz ceiling {ceiling}: sample {:.3} true {tp:.3}",
+                r.peak_db
+            );
+            assert!(tp <= ceiling + 0.05, "{freq} Hz: true peak {tp}");
+            assert!(tp >= ceiling - 1.5, "{freq} Hz: over-limited to {tp}");
+        }
+    }
+    // Exactly at the ceiling (amplitude = ceiling): the same bound.
+    let amp = 10f32.powf(-1.0 / 20.0);
+    let r = ok(&doc(
+        vec![
+            json!({"type": "osc", "name": "s", "freq": 1000, "amp": amp}),
+            json!({"type": "output", "name": "out", "input": "s", "fade_in": 0, "fade_out": 0}),
+        ],
+        Some(0.5),
+    ));
+    let tp = true_peak_db(&r);
+    println!("1 kHz at the ceiling: true {tp:.3}");
+    assert!(tp <= -0.95, "{tp}");
+}
+
+/// Noise bursts, 1 % of every 0.2 s at full level over a floor 22 dB down.
+fn burst_train(output: Value) -> SoundDoc {
+    doc(
+        vec![
+            json!({"type": "noise", "name": "n", "seed": 9}),
+            json!({"type": "expr", "name": "env", "inputs": {}, "state": {},
+                "out": "fract(t * 5) < 0.01 ? 1 : 0.02"}),
+            json!({"type": "math", "name": "train", "op": "mul", "a": "n", "b": "env"}),
+            output,
+        ],
+        Some(2.0),
+    )
+}
+
+#[test]
+fn a_noise_burst_train_ends_at_a_true_peak_under_the_ceiling() {
+    for out in [
+        json!({"type": "output", "name": "out", "input": "train", "gain_db": 12}),
+        json!({"type": "output", "name": "out", "input": "train", "peak_db": -1, "ceiling_db": -1}),
+        json!({"type": "output", "name": "out", "input": "train", "lufs": -14}),
+        json!({"type": "output", "name": "out", "input": "train", "gain_db": 12,
+            "ceiling_db": -6}),
+    ] {
+        let ceiling = out["ceiling_db"].as_f64().unwrap_or(-1.0) as f32;
+        let r = ok(&burst_train(out.clone()));
+        let (tp, crest) = (true_peak_db(&r), crest_db(&r));
+        println!(
+            "{out}: sample {:.3} true {tp:.3} crest {crest:.1} dB",
+            r.peak_db
+        );
+        assert!(tp <= ceiling + 0.05, "{out}: true peak {tp}");
+        assert!(r.audio.channels.iter().flatten().all(|x| x.is_finite()));
+    }
+    let r = ok(&burst_train(
+        json!({"type": "output", "name": "out", "input": "train", "gain_db": 12}),
+    ));
+    let crest = crest_db(&r);
+    assert!((18.0..=30.0).contains(&crest), "crest {crest}");
+}
+
+#[test]
+fn a_stereo_sound_is_limited_on_the_true_peak_of_either_channel() {
+    let r = ok(&doc(
+        vec![
+            json!({"type": "osc", "name": "s", "freq": 12000, "phase": 0.125, "amp": 1.2}),
+            json!({"type": "pan", "name": "p", "input": "s", "pan": 0.5}),
+            json!({"type": "output", "name": "out", "input": "p", "fade_in": 0, "fade_out": 0}),
+        ],
+        Some(0.3),
+    ));
+    assert_eq!(r.audio.channels.len(), 2);
+    assert!(true_peak_db(&r) <= -0.95, "{}", true_peak_db(&r));
+}
+
+#[test]
+fn a_true_peak_under_the_ceiling_is_bit_identical_whatever_the_ceiling() {
+    // -6 dBFS amplitude: under both ceilings (and the sample-peak limiter did
+    // not touch it either), so the limiter is a pass-through.
+    let mk = |ceiling: f32| {
+        hash(&ok(&doc(
+            vec![
+                json!({"type": "noise", "name": "n", "seed": 5}),
+                json!({"type": "gain", "name": "q", "input": "n", "db": -12}),
+                json!({"type": "output", "name": "out", "input": "q", "ceiling_db": ceiling}),
+            ],
+            Some(0.3),
+        )))
+    };
+    assert_eq!(mk(-1.0), mk(6.0));
 }

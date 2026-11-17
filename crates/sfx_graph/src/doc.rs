@@ -370,7 +370,7 @@ impl SoundDoc {
         {
             a.truncate(audio.len());
             w.extend(o.missed_target_warning(a.channels.clone(), sr, looped, lufs));
-            w.extend(o.fade_in_warning(a.channels, sr, looped));
+            w.extend(o.fade_in_warning(a.channels, sr, looped, &audio.channels, lufs));
         }
         w
     }
