@@ -108,7 +108,10 @@ every call.
   holds its last value, so a sound whose level follows a `ramp` never decays
   by itself: set a `duration`. `gain` takes `db` or `gain_db` (the same field;
   both is an error) or a linear `gain`; `mix` inputs are names or objects
-  (see "`mix` inputs").
+  (see "`mix` inputs"). `decay` `time` is the seconds to fall **60 dB** (exp,
+  the default; to reach 0 with `"curve": "linear"`), not a time constant and
+  not the -20 dB time `listen` prints: a `time` of 0.3 reads about 0.1 s at
+  -20 dB. `at` delays the start (silent before it).
 
 ### The output stage
 
@@ -144,8 +147,11 @@ fade used to leave. A sound the fades barely touch keeps its exact gain.
   then): set **`fade_in: 0.0005`** (0.5 ms: the fade
   reaches zero at sample 0, so `silent_edges` still passes; `fade_in: 0` keeps
   the hit whole but `silent_edges` then fails on the non-zero first sample), or
-  start the hit a few ms later, as `explosion`, `gunshot` and `splash` do
-  themselves.
+  start the hit a few ms later (`at: 0.005`), as `explosion`, `gunshot` and
+  `splash` do themselves. This holds for any first event at t = 0: a
+  `bounce` or `pattern` whose first hit is at 0 (a coin, a dropped ball) is
+  cut the same way (give the output `fade_in: 0.0005` or start the pattern
+  at 0.005).
 - The limiter-squash warning ("the ceiling limiter is squashing it")
   does not fire when `peak_db` is used and the delivered peak reaches the
   target; with `gain_db` pushing a `peak_db` target over the ceiling it still
@@ -246,6 +252,16 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 Scene sounds layer these: a door slam is a `click` (the latch) under a `modal`
 thud, a campfire is `fire` plus a few `spark`s, rain is `poisson` into `voices`.
 One `sound` per layer and a `mix` with `gain` / `at` keeps each one editable.
+
+Layer levels: the ready-made nodes are not normalized and sit at different
+levels (a default `fire` about -30 LUFS, a `footstep` peaks near -12 dBFS, a
+`click` press at -6 dBFS), so balance a scene with a `gain` node (`db`) per
+layer **before** the `mix`, then one `peak_db` / `lufs` on the output. For
+example `fire` -> `gain` db 0 and `click` -> `gain` db -8 and `footstep` ->
+`gain` db -4, each a `sound` or a node, summed by one `mix`. A macro maps the
+`gain` node's `db` (or a `mix` input's `gain`), so "fire level" is one knob
+per layer. `contact` and `modal` take their own `gain_db` (-60..60, 0 =
+unchanged), so a struck layer's level needs no extra node.
 
 ### Variation
 
@@ -550,7 +566,9 @@ impact strength), or later `voices`; **a crackle** = `poisson` with a
   2000 kg/m3 ball of that mass whose stiffness runs from rubber (hardness 0)
   to steel (1) against the struck material. Heavier, slower, softer = longer
   and duller. Area is mass * speed / 0.1 (0.1 kg at 1 m/s = a unit impulse).
-  `speed` and `mass` are read at `at`.
+  `speed` and `mass` are read at `at`. `gain_db` (-60..60, default 0 =
+  unchanged) scales the pulse; `modal` takes the same `gain_db` on its
+  (normalized) output, so a macro can balance a struck layer with one field.
 - `friction` {speed, pressure, [roughness 0], [grain 200], [seed]}: a
   stick-slip sawtooth (90 % climb, a smooth 10 % slip) at `speed * grain` Hz,
   times `pressure`; speed 0 is silence, negative speeds count as their
@@ -590,13 +608,24 @@ until it fits; you read their moves in `summary`.
   (resonator `modes`); `index` / `key` set one element of a list field (a `mix`
   input's `gain`). Mapped fields are overridden: the node's own value for them
   is ignored. Two macros may not write the same field.
+- **Map entries reach deeper** (R4-C). A node inside a `voices` patch is
+  `"node": "voices_name/patch_node"` (deeper for a `voices` in a patch): the
+  write goes to the patch template, so every voice sees it, with no param to
+  declare (a typo errors with the patch's node names). A breakpoint list
+  (`env` `points`, `curve` `points`) takes `"field": "points", "index": 1,
+  "key": "x"` (also `time`, `t`; the first number of the pair) or `"key": "y"`
+  (also `value`, `v`). An `expr`'s initial state is `"field": "state", "key":
+  "y1"` (the entry must exist). Known gap: the "driven by a macro" warning and
+  the window's effective-value display do not look inside patch paths, so an
+  edit to a patch field a macro writes is silently ignored.
 - **A map entry may write a sound param** instead of a node field:
   `{"param": "size", "from": 0.2, "to": 0.8}` (no `node`, `field`, `col`,
   `index`). A `voices` patch (and its `map`) reads the sound's params, so this
-  is how a knob reaches the inside of a patch. A map entry naming a node that
-  exists only inside a `voices` patch is an error that says so and shows the
-  recipe: declare a param with `sound_ops` `params`, use it in the patch as
-  `"=$name"` (or `$name` in the `voices` `map`), map `{"param": ...}`.
+  is one way a knob reaches the inside of a patch (the other is the path form
+  above). A map entry naming a patch node without the path is an error that
+  says so and shows both: `"voices_name/node"`, or declare a param with
+  `sound_ops` `params`, use it in the patch as `"=$name"` (or `$name` in the
+  `voices` `map`), map `{"param": ...}`.
 - **`claim` is optional.** A macro without one is a plain knob (summary says
   "unclaimed") and is not swept by `verify`. Give a claim when the name says
   what a measure does.
@@ -614,7 +643,12 @@ until it fits; you read their moves in `summary`.
   hop of `listen`'s `density` line: rain, crackle, ticks), `attack` (ms from
   the first sample over -60 dBFS to the first 0.25 ms frame at 90 % of the
   peak: a swell or one hit), `spacing` (s, the median gap between the
-  strongest onsets: a bounce, a roll, a footfall pair; 0 under two onsets);
+  strongest onsets: a bounce, a roll, a footfall pair; 0 under two onsets),
+  `ring` (ms, the median over the strong onsets, at least 0.25 of the loudest,
+  of each hit's own fall to -20 dB under its peak, stopping at the next onset;
+  a hit cut off by the next onset is skipped, none usable falls back to
+  `decay`: it falls as a modal `loss` rises and rises with a `decay` node's
+  `time`);
   `1` rises over 0..1, `-1` falls. `verify`
   (macros, in the defaults when a sound has any) sweeps each knob over 0, .25, .5, .75, 1
   with the others where they are and requires the measure to move that way at
@@ -626,18 +660,33 @@ until it fits; you read their moves in `summary`.
   up, punch / snap -> crest up, grit / howl -> flatness, gustiness -> swing,
   clang / stiffness -> inharmonicity up, rattle / buzz -> roughness up,
   rate / busyness -> density up, softness / swell -> attack up, spread /
-  bounciness -> spacing up. Pick the claim that fits: `density` for any
-  event-rate knob (rain, crackle, crumple, bubbles), `centroid` for tone,
-  `decay` for a single-hit sound. The `density` claim holds for tick trains
-  from 10 to about 500 events/s (calibrated on 3 ms ticks; it is an estimate
-  when the ticks overlap, which `listen` says: "density estimate").
+  bounciness -> spacing up, ring / sustain on a multi-hit sound -> ring up.
+  Pick the claim that fits the knob: a layer's level (a `gain` before the
+  output) -> `lufs` only with a `peak_db` output (else `flatness`, or leave
+  the claim off); a filter or brightness knob -> `centroid`; an envelope time
+  -> `attack` (a rise) or `decay` (a single hit's fall); event spacing ->
+  `spacing` (a few hits) or `density` (any event-rate knob: rain, crackle,
+  crumple, bubbles); the ring-out of each hit in a knock, typewriter or
+  footfall train -> `ring`. The `density` claim holds for tick trains
+  from 10 to about 500 events/s (calibrated on 3 ms ticks; the counter's
+  ceiling is near 590 events/s, so a knob that sweeps past it flattens; it
+  is an estimate when the ticks overlap, which `listen` says: "density
+  estimate"). A `pattern` with `jitter` gives a steadier count than a
+  `poisson` of the same rate (its chance clumps move the counter between
+  seeds), so use it under a density-claim knob when the human did not ask
+  for a random stream.
   **An `output.lufs` target renormalizes the level, so a "loudness" /
   "volume" macro with claim `lufs` cannot move**: use a `peak_db` target (then
   map a `gain` before the output) or claim another measure, or leave the
   claim off. `decay`, `swing` and `crest` read the whole sound:
   they are unreliable on a very short or multi-hit sound (several separate
-  hits), so give those a `density`, `attack` or `spacing` claim, or leave the
-  claim off, rather than rename the knob to fit.
+  hits), so give those a `density`, `attack`, `spacing` or `ring` claim, or
+  leave the claim off, rather than rename the knob to fit. `flatness` is the
+  full-band measure; to check a "high flatness" (grit, hiss) knob by hand read
+  `listen`'s whole-sound flatness lines (full-band, and the occupied band, the
+  middle 80 % of the energy: a band-limited texture reads low full-band and
+  high occupied-band) at the knob's ends with `sweep`; `verify` has no
+  occupied-band check yet.
 - `game: true` exports the knob in the manifest `inputs` (name, default, doc,
   map) for the game to set at runtime; others are baked at their value.
 - A macro **overrides** the fields it maps: editing such a field with `sound_ops`
@@ -684,9 +733,17 @@ until it fits; you read their moves in `summary`.
     a rain, a crackle or a footstep) and `density by tenth (events/s)` (ten
     values: does a roll speed up, does a crumple thin out), `steadiness` (loops: loudness over 400 ms
     windows, min / max / spread in LU), and the **onset table** (one row per
-    onset: time, strength, attack ms, -20 dB ms, centroid, pitch start>end, the
-    pitch glide also read for a blip under 40 ms; left out for loops: read
-    `density`).
+    onset: time, strength, attack ms, -20 dB ms, -60 dB ms (`>N` when the hit
+    is still sounding at the next onset or the end, N ms in), centroid, pitch
+    start>end; pitch reads `n/a` for an inharmonic or unvoiced hit, and a
+    burst of 8-60 ms shows `glide up a>b` / `glide down a>b` instead; left out
+    for loops: read `density`). Beside it: `modes` ends with `(N ignored:
+    slower than the sound)` when partials too slow to fit in the sound were
+    left out; `inharmonic: partials at ...` comes from partial *ratios* (the
+    separate `inharmonicity:` line below still uses the older pitch-guess
+    method, so the two can disagree: trust the ratios for "is it bell-like");
+    `closely spaced events: N pairs within 20 ms (at ... ms)` flags double
+    hits (a latch, a bounce's end) that the 40 ms onset merge hides.
   - four lines for synthesis checking: `aliasing` (energy off the harmonic grid
     above 4 kHz, relative to the total, dB; n/a without a steady pitched
     segment), `inharmonicity` (cents, mean over the strongest 8 partials; n/a
@@ -696,7 +753,9 @@ until it fits; you read their moves in `summary`.
   `diff: true` shows your previous render of the same request, this one, and
   their dB-difference spectrogram (this minus previous; diverging colours:
   blue = quieter now, red = louder, grey = same, saturating at +-24 dB, the
-  scale is drawn). `zoom` magnifies an attack or a band; with `zoom {t: [a, b]}`
+  scale is drawn). `zoom {t: [from_s, to_s], hz: [low, high]}` (seconds and
+  Hz; either key alone; a bad shape errors with this) magnifies an attack or
+  a band; with `zoom {t: [a, b]}`
   the descriptor text describes that window too (the line "zoom window a-b s:
   the numbers below describe this window; times count from a" says so), so
   onset, fine-onset and peak times count from `a`. `descriptors: false`
@@ -833,7 +892,7 @@ follow the document's rate. `describe_op <type>` has the schema.
 | `glottis` | `f0` (signal), `[tension 0.65]`, `[breath 0.05]`, `[vibrato_cents]`, `[vibrato_hz 5.5]`, `[amp]`, `[seed]` | Foley's Liljencrants-Fant flow derivative (`lf_pulse`; tension 1 = pressed Rd 0.3, 0 = breathy Rd 2.7) with seeded breath noise. Pitch reads exactly (YIN). Aliases above ~1.5 kHz. |
 | `tract` | `input`, `[vowel a]`, `[vowel_to]`, `[morph]`, `[formants [[hz, bw]..]]`, `[scale]` | **Not foley's waveguide** (its `Tract` is private): a 4-formant Klatt cascade at Peterson-Barney vowels `a e i o u ae uh schwa`. `vowel_to` + `morph` (signal) glide; `scale` > 1 shortens the tract (child, small creature), < 1 lengthens. Feed it a `glottis`. |
 | `syrinx` | `species` or `pitch`; `[harmonic] [waver]` (whistle); `[rate] [at]` (species); `[amp] [seed]` | `species`: foley's `birdsong2`, any of 57 (`robin`, `cardinal`, `dove`, `crow`, `wood_thrush`, `boreal_owl`...; a bad name lists all), a phrase of its own length placed at `at`, cut/padded to the document; each `seed` is another individual; `rate` resamples (pitch and speed). `pitch`: a whistle from a contour signal (sine + 2nd harmonic + waver, as foley's songbirds). |
-| `thunder` | `[distance 1500]`, `[celsius]`, `[humidity 90]`, `[exposure 1]`, `[brightness 0.5]`, `[length 1]`, `[at]`, `[amp]`, `[seed]` | Foley's `strike` (Ribner-Roy N-wave over a jagged channel). Silent until `distance / 343` s, then clap and a rumble of several seconds with centroid ~30-50 Hz: set `duration` to fit (a 1.5 km flash: ~14 s). Foley levels every flash to a similar peak, so distance changes timing, brightness and length, not loudness. `exposure` 0 = shut in (low-pass to 200 Hz). `brightness` 0..1 (0.5 = foley's spectrum, bit-identical) is a +-24 dB high shelf at 100 Hz, peak kept: above 0.5 the centroid rises. `length` 0.5..3 (1 = as foley makes it, bit-identical) stretches the rumble after the first 0.1 s clap by overlap-add of 120 ms grains, so the spectrum stays and the rumble lasts `length` times as long (a longer `duration`). `rumble` 0..1 (0 = off, bit-identical) adds a continuous bed of seeded noise band-limited to 25-90 Hz from the first sound to the end of the audible tail, so the tail is not isolated spikes; its rms is `sqrt(rumble)` times the rms of the flash's loudest 0.4 s (0.6 is 2.2 dB under) and falls 3 dB over the tail; it is added before `exposure`, `brightness` and `amp` and the level is not re-normalised, so the flash gets louder with `rumble`. Measured at 1500 m: the 400 ms rms across the mid-tail spans 18-50 dB at 0, 2.2-5.9 dB at 0.6; centroid stays under 100 Hz (`docs/nodes/r3f.md`). |
+| `thunder` | `[distance 1500]`, `[celsius]`, `[humidity 90]`, `[exposure 1]`, `[brightness 0.5]`, `[length 1]`, `[rumble 0]`, `[tail 0]`, `[at]`, `[amp]`, `[seed]` | Foley's `strike` (Ribner-Roy N-wave over a jagged channel). Silent until `distance / 343` s, then clap and a rumble of several seconds with centroid ~30-50 Hz: set `duration` to fit (a 1.5 km flash: ~14 s). Foley levels every flash to a similar peak, so distance changes timing, brightness and length, not loudness. `exposure` 0 = shut in (low-pass to 200 Hz). `brightness` 0..1 (0.5 = foley's spectrum, bit-identical) is a +-24 dB high shelf at 100 Hz, peak kept: above 0.5 the centroid rises. `length` 0.5..3 (1 = as foley makes it, bit-identical) stretches the rumble after the first 0.1 s clap by overlap-add of 120 ms grains, so the spectrum stays and the rumble lasts `length` times as long (a longer `duration`). `rumble` 0..1 (0 = off, bit-identical) adds a continuous bed of seeded noise band-limited to 25-90 Hz from the first sound to the end of the audible tail, so the tail is not isolated spikes; its rms is `sqrt(rumble)` times the rms of the flash's loudest 0.4 s (0.6 is 2.2 dB under) and falls 3 dB over the tail; it is added before `exposure`, `brightness` and `amp` and the level is not re-normalised, so the flash gets louder with `rumble`. `tail` 0..1 (0 = off, bit-identical) is an exponential fade of the whole output: the gain falls in dB, linearly from the first sound, reaching -40 x `tail` dB at the end of the audible tail (last sample over -60 dB of the peak) and carrying on at that slope; it runs after `length` / `rumble` and before `exposure`, `brightness`, `amp`, and lowers the peak (re-level with `amp` or the output target). Measured at 1500 m, 16 s, audible length (10 ms rms over -45 dBFS) 7.19 / 6.54 / 6.53 / 4.80 / 4.80 s at `tail` 0 / .25 / .5 / .75 / 1: non-increasing, not strict (foley's tail is spikes). `listen`'s `decay -20 dB` is NOT monotone from `tail` 0 to 0.25 (1.84 s to 4.93 s): it counts from the loudest window, which sits in the rumble with no fade and moves to the clap with one; so read the audible length or the loudness curve when tuning a tail (a `decay` claim on a `tail` knob can fail verify's sweep at the 0 to 0.25 step: map `tail` from 0.25 up, or leave the claim off). Measured at 1500 m: the 400 ms rms across the mid-tail spans 18-50 dB at 0, 2.2-5.9 dB at 0.6; centroid stays under 100 Hz (`docs/nodes/r3f.md`). |
 
 `species` / `thunder` are finished one-shots, so they are not causal for a
 live runtime (`summary` says so); the rest are. All seeded nodes are
@@ -1209,16 +1268,28 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
 **Water** (`docs/nodes/M4.md`):
 
 - `water` {flow (signal 0..1; 0 is silence), [depth 0.5], [splash 0], [density
-  300 bubbles/s, 0..3000], [loop], [seed]}: a population of Minnaert bubbles
-  (rate density x flow^1.5, median radius 0.8 mm x 5^flow) plus hiss. Capped at
-  800000 bubbles a render (an error that says so).
-- `splash` {size (m, 0.005..1), [at 0], [seed]}: a bright, brief impact burst
+  300 bubbles/s, 0..3000], [tone 0.5, 0..1], [loop], [seed]}: a population of
+  Minnaert bubbles (rate density x flow^1.5, median radius 0.8 mm x 5^flow)
+  plus hiss. Capped at 800000 bubbles a render (an error that says so).
+  `tone` is a high shelf at 2 kHz of (tone - 0.5) x 24 dB over everything the
+  node makes (0.5 = off, bit-identical); it is primed from the periodic
+  buffer in a loop, so put the brightness knob here and not in a `filter`
+  after the node (which breaks the seam). The level is not re-normalised.
+- `splash` {size (m, 0.005..1), [tail 1, 0..3], [burst 1, 0..2], [at 0],
+  [seed]}: a bright, brief impact burst
   (starts 2.5 ms in, so the default fade-in does not cut it), then a cloud of
   bubbles that grow with time and end in the main cavity bubble, so the
   centroid **falls** through the sound (round-1 redesign; it used to rise);
   scaled to a **peak of 0.5 whatever the size**. `lufs -24` is reached by every
   size and `-20` by 0.1 and 0.5; the 0.17 s pebble (0.02) lands at -21.9 with a
-  missed-target warning: for a short splash use `peak_db`.
+  missed-target warning: for a short splash use `peak_db`. `tail` scales the
+  length of the bubble cloud after the burst and its bubble count (0 = no
+  cloud; a splash never rings past 2.5 s); `burst` is the opening burst's
+  level against the main bubble (2 makes it the loudest moment, 0 drops it;
+  the splash is re-levelled to peak 0.5, so a louder burst quiets what
+  follows). Measured: last fine onset 0.14 / 0.27 / 0.54 s at `tail` 0.5 / 1 /
+  2; peak in the first 20 ms 0.135 / 0.461 / 0.500 at `burst` 0 / 1 / 2.
+  Defaults are bit-identical to before (`docs/nodes/R4-D.md`).
 - Measured: `flow` 0.1 / 0.35 / 0.8 at density 60 gave 1.9 / 9.4 / 17.4 onsets
   a second and centroids 3102 / 2607 / 1971 Hz; no energy under 165 Hz (mix in
   a rumble for a river).
