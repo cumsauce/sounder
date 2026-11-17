@@ -316,7 +316,11 @@ node_types! {
     "ladder" => Ladder,
     "eq" => Equalizer,
 
-    // slot S5
+    // dynamics
+    "transient" => Transient,
+    "gate" => Gate,
+    "sub" => Sub,
+    "exciter" => Exciter,
 
     // slot S6
 

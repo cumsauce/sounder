@@ -28,7 +28,7 @@ mod synth;
 
 // slot S4
 
-// slot S5
+mod dynamics;
 
 // slot S6
 
@@ -93,7 +93,7 @@ pub use synth::*;
 
 // slot S4
 
-// slot S5
+pub use dynamics::*;
 
 // slot S6
 
