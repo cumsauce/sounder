@@ -22,6 +22,9 @@ const LIVE_FOR: Duration = Duration::from_secs(120);
 /// A sound an agent called in this recently is `working`.
 const WORKING_FOR: Duration = Duration::from_secs(20);
 
+/// How many saved sounds the All-sounds grid lists after the open ones.
+const RECENT_SAVED: usize = 40;
+
 fn ago_coarse(t: Instant) -> String {
     let s = t.elapsed().as_secs();
     match s {
@@ -177,6 +180,33 @@ impl Session {
             })
             .collect();
 
+        // The most recently saved sounds that are not open: the All-sounds
+        // grid shows them after the open ones (click loads one).
+        let recent: Vec<Value> = self
+            .library_dir()
+            .ok()
+            .map(|lib| crate::catalog::recent(&lib, RECENT_SAVED))
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|(e, _)| !self.sounds.contains_key(&e.name))
+            .map(|(e, t)| {
+                let secs = t.elapsed().map_or(0, |d| d.as_secs());
+                json!({
+                    "name": e.name,
+                    "kind": kind_name(e.kind),
+                    "seconds": e.length,
+                    "lufs": e.lufs,
+                    "ago": match secs {
+                        0..=59 => "now".to_string(),
+                        60..=3599 => format!("{} min", secs / 60),
+                        3600..=86399 => format!("{} h", secs / 3600),
+                        _ => format!("{} d", secs / 86400),
+                    },
+                    "macros": e.macros.len(),
+                })
+            })
+            .collect();
+
         // Agents and the feed come from the call log.
         let mut agents: BTreeMap<String, bool> = BTreeMap::new();
         for (c, st) in &self.clients {
@@ -220,6 +250,7 @@ impl Session {
             "rev": self.rev,
             "doc": target,
             "sounds": sounds,
+            "recent": recent,
             "agents": agents,
             "feed": feed,
             "sound": sound,

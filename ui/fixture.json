@@ -4,6 +4,9 @@
   "project": "friendSLOP",
   "rev": 42,
   "doc": "laser",
+  "recent": [
+   {"name": "door_latch", "kind": "oneshot", "seconds": 0.31, "lufs": -21.4, "ago": "2 h", "macros": 2}
+  ],
   "sounds": [
    {
     "name": "laser",

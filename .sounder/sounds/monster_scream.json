@@ -1,0 +1,404 @@
+{
+  "name": "monster_scream",
+  "format_version": 1,
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 1.8,
+  "seed": 191,
+  "nodes": [
+    {
+      "type": "ramp",
+      "name": "f0",
+      "from": 130,
+      "to": 62,
+      "time": 1.6,
+      "curve": "exp"
+    },
+    {
+      "type": "wander",
+      "name": "drift",
+      "rate": 3,
+      "range": [
+        -6,
+        6
+      ],
+      "seed": 2
+    },
+    {
+      "type": "math",
+      "name": "pitch",
+      "op": "mul",
+      "a": "f0",
+      "b": "drift"
+    },
+    {
+      "type": "ramp",
+      "name": "fry",
+      "from": 0.15,
+      "to": 0.85,
+      "time": 1.6,
+      "curve": "linear"
+    },
+    {
+      "type": "glottis",
+      "name": "voice",
+      "f0": "pitch",
+      "tension": 0.4,
+      "breath": 0.12,
+      "roughness": 0.3,
+      "fry": "fry",
+      "vibrato_cents": 12,
+      "seed": 4
+    },
+    {
+      "type": "ramp",
+      "name": "morph",
+      "from": 0,
+      "to": 1,
+      "time": 1.6,
+      "curve": "linear"
+    },
+    {
+      "type": "tract",
+      "name": "mouth",
+      "input": "voice",
+      "vowel": "a",
+      "vowel_to": "o",
+      "morph": "morph",
+      "scale": 1.15,
+      "nasal": 0.2,
+      "growl": 0.25,
+      "seed": 5
+    },
+    {
+      "type": "adsr",
+      "name": "env",
+      "attack": 0.25,
+      "decay": 0.3,
+      "sustain": 0.7,
+      "release": 0.5,
+      "gate": 1.1
+    },
+    {
+      "type": "math",
+      "name": "shaped",
+      "op": "mul",
+      "a": "mouth",
+      "b": "env"
+    },
+    {
+      "type": "output",
+      "name": "out",
+      "input": "clean",
+      "lufs": -20,
+      "fade_in": 0.02,
+      "fade_out": 0.08
+    },
+    {
+      "type": "ramp",
+      "name": "flap_hz",
+      "from": 95,
+      "to": 38,
+      "time": 0.9,
+      "curve": "exp"
+    },
+    {
+      "type": "wander",
+      "name": "flap_jit",
+      "rate": 22,
+      "seed": 9,
+      "min": -14,
+      "max": 14
+    },
+    {
+      "type": "math",
+      "name": "flap_f",
+      "op": "add",
+      "a": "flap_hz",
+      "b": "flap_jit"
+    },
+    {
+      "type": "osc",
+      "name": "flap",
+      "shape": "saw",
+      "freq": "flap_f",
+      "amp": 0.8
+    },
+    {
+      "type": "noise",
+      "name": "puff",
+      "color": "pink",
+      "amp": 0.5,
+      "seed": 6
+    },
+    {
+      "type": "wander",
+      "name": "burble",
+      "rate": 14,
+      "range": [
+        0.2,
+        1.0
+      ],
+      "seed": 8
+    },
+    {
+      "type": "math",
+      "name": "puffy",
+      "op": "mul",
+      "a": "puff",
+      "b": "burble"
+    },
+    {
+      "type": "mix",
+      "name": "fart_raw",
+      "inputs": [
+        "flap",
+        "puffy"
+      ],
+      "to": "mono"
+    },
+    {
+      "type": "filter",
+      "name": "fart_body",
+      "input": "fart_raw",
+      "mode": "lp",
+      "freq": 87.4207,
+      "q": 10.95
+    },
+    {
+      "type": "shape",
+      "name": "fart_buzz",
+      "input": "fart_body",
+      "mode": "tanh",
+      "drive": 3
+    },
+    {
+      "type": "adsr",
+      "name": "fart_env",
+      "attack": 0.03,
+      "decay": 0.15,
+      "sustain": 0.7,
+      "release": 0.25,
+      "gate": 0.65
+    },
+    {
+      "type": "math",
+      "name": "fart_shaped",
+      "op": "mul",
+      "a": "fart_buzz",
+      "b": "fart_env"
+    },
+    {
+      "type": "gain",
+      "name": "fart_level",
+      "input": "fart_shaped",
+      "gain": 0.5
+    },
+    {
+      "type": "mix",
+      "name": "layered",
+      "inputs": [
+        "shaped",
+        {
+          "input": "fart_level",
+          "at": 0.55
+        }
+      ],
+      "to": "mono"
+    },
+    {
+      "type": "onepole",
+      "name": "clean",
+      "input": "layered",
+      "mode": "hp",
+      "freq": 20
+    }
+  ],
+  "params": {},
+  "macros": [
+    {
+      "name": "pitch",
+      "value": 0.06450520833333333,
+      "default": 0.5,
+      "doc": "how high the groan starts and ends",
+      "game": false,
+      "map": [
+        {
+          "node": "f0",
+          "field": "from",
+          "from": 90.0,
+          "to": 220.0,
+          "curve": "exp"
+        },
+        {
+          "node": "f0",
+          "field": "to",
+          "from": 42.0,
+          "to": 105.0,
+          "curve": "exp"
+        }
+      ]
+    },
+    {
+      "name": "strain",
+      "value": 0.49143229166666674,
+      "default": 0.5,
+      "doc": "how pressed and rough the voice is",
+      "game": false,
+      "map": [
+        {
+          "node": "voice",
+          "field": "tension",
+          "from": 0.1,
+          "to": 0.9
+        },
+        {
+          "node": "voice",
+          "field": "roughness",
+          "from": 0.0,
+          "to": 0.8
+        }
+      ]
+    },
+    {
+      "name": "breath",
+      "value": 0.26046875,
+      "default": 0.5,
+      "doc": "airy noise in the voice",
+      "game": false,
+      "map": [
+        {
+          "node": "voice",
+          "field": "breath",
+          "from": 0.0,
+          "to": 0.4
+        }
+      ]
+    },
+    {
+      "name": "throat",
+      "value": 0.2034895833333333,
+      "default": 0.5,
+      "doc": "smaller/brighter to bigger/darker throat",
+      "game": false,
+      "map": [
+        {
+          "node": "mouth",
+          "field": "scale",
+          "from": 0.8,
+          "to": 1.5
+        }
+      ]
+    },
+    {
+      "name": "growl",
+      "value": 1.0,
+      "default": 0.5,
+      "doc": "low growly buzz",
+      "claim": [
+        "roughness",
+        1
+      ],
+      "game": false,
+      "map": [
+        {
+          "node": "mouth",
+          "field": "growl",
+          "from": 0.0,
+          "to": 0.9
+        }
+      ]
+    },
+    {
+      "name": "nasal",
+      "value": 0.44621354166666594,
+      "default": 0.2,
+      "doc": "nasal hum",
+      "game": false,
+      "map": [
+        {
+          "node": "mouth",
+          "field": "nasal",
+          "from": 0.0,
+          "to": 0.8
+        }
+      ]
+    },
+    {
+      "name": "swell",
+      "value": 0.35033854166666667,
+      "default": 0.5,
+      "doc": "slow soft start to quick hard start",
+      "game": false,
+      "map": [
+        {
+          "node": "env",
+          "field": "attack",
+          "from": 0.6,
+          "to": 0.05,
+          "curve": "exp"
+        }
+      ]
+    },
+    {
+      "name": "fart_amount",
+      "value": 0.04960937500000004,
+      "default": 0.5,
+      "doc": "how loud the fart layer is",
+      "game": false,
+      "map": [
+        {
+          "node": "fart_level",
+          "field": "gain",
+          "from": 0.0,
+          "to": 1.2
+        }
+      ]
+    },
+    {
+      "name": "fart_pitch",
+      "value": 0.10057291666666672,
+      "default": 0.5,
+      "doc": "low rumbly to high squeaky",
+      "game": false,
+      "map": [
+        {
+          "node": "flap_hz",
+          "field": "from",
+          "from": 60.0,
+          "to": 190.0,
+          "curve": "exp"
+        },
+        {
+          "node": "flap_hz",
+          "field": "to",
+          "from": 26.0,
+          "to": 80.0,
+          "curve": "exp"
+        }
+      ]
+    },
+    {
+      "name": "fart_wet",
+      "value": 0.015755208333333277,
+      "default": 0.5,
+      "doc": "dry flutter to wet burbly",
+      "game": false,
+      "map": [
+        {
+          "node": "flap_jit",
+          "field": "min",
+          "from": -1.0,
+          "to": -25.0
+        },
+        {
+          "node": "flap_jit",
+          "field": "max",
+          "from": 1.0,
+          "to": 25.0
+        }
+      ]
+    }
+  ],
+  "version": 19
+}

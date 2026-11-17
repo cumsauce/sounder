@@ -1,0 +1,22 @@
+[
+  {
+    "name": "monster_scream",
+    "description": "",
+    "tags": [],
+    "kind": "oneshot",
+    "length": 1.8,
+    "lufs": -20.0,
+    "macros": [
+      "pitch",
+      "strain",
+      "breath",
+      "throat",
+      "growl",
+      "nasal",
+      "swell",
+      "fart_amount",
+      "fart_pitch",
+      "fart_wet"
+    ]
+  }
+]

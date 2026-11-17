@@ -126,6 +126,7 @@ fn the_fixture_and_the_real_state_share_their_keys() {
     // does not read.
     let data_dependent = |k: &str| {
         k.starts_with("catalog")
+            || k.starts_with("recent[]")
             || k.starts_with("sound.nodes[].effective.")
             || k.starts_with("sound.comments[].reply.")
             || k == "sound.comments[].ago"

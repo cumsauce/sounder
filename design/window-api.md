@@ -40,6 +40,8 @@ the page shows comes from `Session`: no DSP in JS.
                 "ago": "2 min", "working": true, "saved": false,
                 "open_comments": 1,
                 "seconds": 0.404, "lufs": -18.2 } ],   // seconds, lufs: for the All-sounds tile (null if it does not render yet)
+  "recent": [ { "name": "door_latch", "kind": "oneshot", "seconds": 0.31, "lufs": -21.4,
+                "ago": "2 h", "macros": 2 } ],   // the 40 most recently SAVED sounds not open (catalog), newest first; the All-sounds grid lists them after the open ones; a click is catalog_load then select_sound
   "project": "friendSLOP",         // the top bar's label: the project folder, or "shared library"
   "agents": [ { "name": "look", "live": true } ],
   "feed": [ { "agent": "look", "tool": "sound_ops", "what": "laser · ~lp",

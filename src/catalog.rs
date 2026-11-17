@@ -45,6 +45,23 @@ pub fn list(lib: &Path) -> Vec<CatalogEntry> {
         .unwrap_or_default()
 }
 
+/// The `n` most recently saved sounds, newest first, with the time each file
+/// was written.
+pub fn recent(lib: &Path, n: usize) -> Vec<(CatalogEntry, std::time::SystemTime)> {
+    let mut v: Vec<(CatalogEntry, std::time::SystemTime)> = list(lib)
+        .into_iter()
+        .filter_map(|e| {
+            let t = std::fs::metadata(sounds_dir(lib).join(format!("{}.json", e.name)))
+                .and_then(|m| m.modified())
+                .ok()?;
+            Some((e, t))
+        })
+        .collect();
+    v.sort_by_key(|x| std::cmp::Reverse(x.1));
+    v.truncate(n);
+    v
+}
+
 fn write_index(lib: &Path, entries: &[CatalogEntry]) -> Result<(), String> {
     let bytes = serde_json::to_vec_pretty(entries).map_err(|e| e.to_string())?;
     atomic_write(&index_path(lib), &bytes)

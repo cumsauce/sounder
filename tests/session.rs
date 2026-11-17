@@ -596,3 +596,40 @@ fn hostile_names_and_values_are_errors_not_crashes() {
     ];
     assert!(doc.render(&sfx_graph::RenderOpts::default()).is_err());
 }
+
+#[test]
+fn saved_sounds_that_are_not_open_are_listed_as_recent() {
+    let proj = project("recent");
+    let mut s = Session::new(Some(proj.clone()));
+    build(&mut s, "old_one");
+    let lib = s.library_dir().unwrap();
+    let doc = s.sound(None).unwrap().doc.clone();
+    let entry = |n: &str| sounder::catalog::CatalogEntry {
+        name: n.into(),
+        description: String::new(),
+        tags: vec![],
+        prompt: None,
+        kind: sfx_graph::Kind::Oneshot,
+        length: 0.4,
+        lufs: -18.0,
+        macros: vec![],
+    };
+    sounder::catalog::save(&lib, &doc, entry("old_one")).unwrap();
+    // Open: not in `recent`.
+    assert!(
+        s.window_state(None).unwrap()["recent"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    s.close_sound("old_one", true).unwrap();
+    build(&mut s, "fresh");
+    let r = s.window_state(None).unwrap();
+    let names: Vec<&str> = r["recent"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|x| x["name"].as_str())
+        .collect();
+    assert_eq!(names, ["old_one"], "{r}");
+}
