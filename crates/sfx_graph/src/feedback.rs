@@ -22,7 +22,7 @@ use crate::eval::{Parsed, Ports};
 use crate::node::{In, Node};
 use crate::nodes::{
     Allpass, Comb, ExprProg, ExprState, Filter, Follower as FollowerNode, Gain, MathOp, Mix, MixIn,
-    Onepole, PoleMode, Remap, Shape, ShapeMode, Slew, To,
+    Onepole, PoleMode, Remap, Shape, Slew, To,
 };
 use crate::{db_to_gain, nodes};
 
@@ -453,19 +453,15 @@ impl Ticker for MixT {
 
 struct ShapeT {
     n: Shape,
-    levels: f32,
+    kernel: nodes::ShapeKernel,
 }
 
 impl Ticker for ShapeT {
     fn out(&mut self, i: usize, env: &Env) -> f32 {
-        let u = env.get(i, &self.n.input) * self.n.drive.as_ref().map_or(1.0, |d| env.get(i, d));
-        match self.n.mode {
-            ShapeMode::Tanh => u.tanh(),
-            ShapeMode::Clip => u.clamp(-1.0, 1.0),
-            ShapeMode::Fold => ((u + 1.0).rem_euclid(4.0) - 2.0).abs() - 1.0,
-            ShapeMode::Bitcrush => (u * self.levels).round() / self.levels,
-            ShapeMode::Rectify => u.abs(),
-        }
+        let dry = env.get(i, &self.n.input);
+        let u = dry * self.n.drive.as_ref().map_or(1.0, |d| env.get(i, d));
+        let mix = self.n.mix.as_ref().map_or(1.0, |m| env.get(i, m));
+        nodes::blend(dry, self.kernel.apply(u), mix)
     }
 }
 
@@ -632,10 +628,17 @@ fn ticker(node: &Node, b: &Build, node_seed: u64) -> Result<Box<dyn Ticker>, Str
             Box::new(MathT { n: n.clone() })
         }
         Node::Mix(n) => mix_ticker(n)?,
-        Node::Shape(n) => Box::new(ShapeT {
-            n: n.clone(),
-            levels: 2f32.powf(n.bits.unwrap_or(8.0).clamp(1.0, 24.0) - 1.0),
-        }),
+        Node::Shape(n) => {
+            if let Some(k) = n.oversample.filter(|k| *k != 1) {
+                return Err(format!(
+                    "oversample: {k}: not available inside a feedback loop (the oversampler adds delay the loop cannot take); use 1, or move the shape outside the loop"
+                ));
+            }
+            Box::new(ShapeT {
+                kernel: n.kernel()?,
+                n: n.clone(),
+            })
+        }
         Node::Remap(n) => {
             if (n.from[1] - n.from[0]).abs() < 1e-12 {
                 return Err("from: the two ends are equal; give a range [a, b] with a != b".into());
