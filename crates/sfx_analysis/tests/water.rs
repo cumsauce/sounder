@@ -219,11 +219,128 @@ fn splash_size_moves_centroid_decay_and_low_band() {
         "splash size 0.02 / 0.1 / 0.5: centroid {cent:.0?} Hz, decay {dec:.2?} s, share under 200 Hz {low:.4?}"
     );
     assert!(
-        cent[0] > cent[1] * 1.1 && cent[1] > cent[2] * 5.0,
+        cent[0] > cent[1] * 3.0 && cent[1] > cent[2] * 1.2,
         "{cent:?}"
     );
     assert!(dec[0] < dec[1] && dec[1] < dec[2], "{dec:?}");
     assert!(low[0] < low[1] && low[1] < low[2], "{low:?}");
+}
+
+/// Power centroid over 20 Hz .. 20 kHz (the largest splash rings at 55 Hz).
+fn centroid_wide(x: &[f32]) -> f32 {
+    let s = spectrum(x, SR);
+    let (mut num, mut den) = (0.0f64, 0.0f64);
+    for (f, d) in s {
+        if (20.0..20_000.0).contains(&f) {
+            let p = 10f64.powf(f64::from(d) / 10.0);
+            num += f64::from(f) * p;
+            den += p;
+        }
+    }
+    (num / den.max(1e-30)) as f32
+}
+
+/// The audible part of a splash: up to the last sample over 1e-2 of the peak
+/// (-40 dB; below that a tenth is a few bits of f32 and its centroid is the
+/// noise floor's).
+fn audible(x: &[f32]) -> &[f32] {
+    let peak = x.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+    let end = x.iter().rposition(|v| v.abs() > peak * 1e-2).unwrap_or(0);
+    &x[..=end]
+}
+
+/// Centroid of each tenth of the audible part.
+fn tenths(x: &[f32]) -> Vec<f32> {
+    let x = audible(x);
+    let n = x.len() / 10;
+    (0..10)
+        .map(|i| centroid_wide(&x[i * n..(i + 1) * n]))
+        .collect()
+}
+
+/// Energy of `x` above `hz`, in the units of sum(x^2) (Parseval). A
+/// second difference first removes the loud low end (a window cannot: the
+/// burst sits at the very start of the slice, where a Hann window is 0 and a
+/// rectangular one leaks), a flat-topped taper windows it, and each bin is
+/// divided by the difference filter's power gain again.
+fn energy_above(x: &[f32], hz: f32) -> f64 {
+    use realfft::RealFftPlanner;
+    let n = x.len();
+    let size = n.next_power_of_two();
+    let taper = (n / 10).max(1);
+    let mut buf = vec![0.0f32; size];
+    for i in 2..n {
+        let d = x[i] - 2.0 * x[i - 1] + x[i - 2];
+        let edge = (n - 1 - i).min(taper) as f32 / taper as f32;
+        buf[i] = d * (0.5 + 0.5 * (std::f32::consts::PI * (1.0 - edge)).cos());
+    }
+    let mut out = RealFftPlanner::<f32>::new()
+        .plan_fft_forward(size)
+        .make_output_vec();
+    RealFftPlanner::<f32>::new()
+        .plan_fft_forward(size)
+        .process(&mut buf, &mut out)
+        .unwrap();
+    let mut sum = 0.0f64;
+    for (k, z) in out.iter().enumerate() {
+        let f = k as f32 * SR as f32 / size as f32;
+        if f < hz || f > SR as f32 / 2.0 {
+            continue;
+        }
+        let w = std::f64::consts::TAU * f64::from(f) / f64::from(SR);
+        let gain = (2.0 - 2.0 * w.cos()).powi(2);
+        let weight = if k == 0 || k == size / 2 { 1.0 } else { 2.0 };
+        sum += weight * f64::from(z.norm_sqr()) / gain.max(1e-12);
+    }
+    sum / size as f64
+}
+
+fn energy(x: &[f32]) -> f64 {
+    x.iter().map(|v| f64::from(*v) * f64::from(*v)).sum()
+}
+
+#[test]
+fn splash_centroid_falls_through_the_sound() {
+    let mut bad = Vec::new();
+    for size in [0.02, 0.1, 0.5] {
+        for seed in [1u64, 2, 3, 4, 5] {
+            let x = node_audio(splash(json!({"size": size, "seed": seed})), "s", 3.0);
+            let c = tenths(&x);
+            let reversals = c.windows(2).filter(|w| w[1] > w[0]).count();
+            println!(
+                "splash size {size} seed {seed}: audible {:.3} s, centroid by tenth {c:.0?} Hz, reversals {reversals}",
+                audible(&x).len() as f32 / SR as f32
+            );
+            if reversals > 1 || c[0] < 2.0 * c[9] {
+                bad.push(format!("size {size} seed {seed}: {c:?}"));
+            }
+        }
+    }
+    assert!(bad.is_empty(), "{bad:#?}");
+}
+
+#[test]
+fn splash_burst_is_bright_and_brief() {
+    for size in [0.02, 0.1, 0.5] {
+        for seed in [1u64, 2, 3] {
+            let x = node_audio(splash(json!({"size": size, "seed": seed})), "s", 3.0);
+            let a = audible(&x);
+            let (early, late) = (&a[..a.len() / 5], &a[a.len() / 2..]);
+            let e_en = energy_above(early, 8000.0);
+            let l_en = energy_above(late, 8000.0);
+            let all_early = energy(early);
+            println!(
+                "splash size {size} seed {seed}: early 20 % energy above 8 kHz {:.1} dB under its total, last 50 % holds {:.2e} of it",
+                10.0 * (e_en / all_early).log10(),
+                l_en / e_en
+            );
+            assert!(
+                e_en > 5e-3 * all_early,
+                "size {size}: {e_en} of {all_early}"
+            );
+            assert!(l_en < 0.02 * e_en, "size {size}: {l_en} vs {e_en}");
+        }
+    }
 }
 
 #[test]
@@ -282,8 +399,7 @@ fn typical_settings_reach_lufs_minus_20_without_a_warning() {
             r.warnings.len()
         );
     }
-    // A lone splash is a transient (crest 19..23 dB measured, sizes 0.01..1):
-    // -20 LUFS is out of reach under the -1 dBFS ceiling, -24 is not.
+    // A lone splash, no warning at -24 (and at -20, below).
     for size in [0.02, 0.1, 0.5] {
         let r = render_doc(
             &splash(json!({"size": size})),
@@ -301,18 +417,32 @@ fn typical_settings_reach_lufs_minus_20_without_a_warning() {
             r.warnings
         );
         assert!((r.lufs + 24.0).abs() < 1.0, "{}", r.lufs);
+        // The burst starts after the output's 2 ms fade-in: no warning at all.
+        assert!(r.warnings.is_empty(), "{:?}", r.warnings);
     }
-    let r = render_doc(
-        &splash(json!({"size": 0.1})),
-        3.0,
-        Some(-20.0),
-        Kind::Oneshot,
-    );
-    println!(
-        "splash 0.1 at -20 (misses): LUFS {:.2}, warnings {:?}",
-        r.lufs, r.warnings
-    );
-    assert!(r.lufs < -20.5 && r.lufs > -23.0, "{}", r.lufs);
+    // With the burst as the loudest part the crest is lower than round 0's
+    // (19..23 dB): -20 is reachable too.
+    for size in [0.02, 0.1, 0.5] {
+        let r = render_doc(
+            &splash(json!({"size": size})),
+            3.0,
+            Some(-20.0),
+            Kind::Oneshot,
+        );
+        println!(
+            "splash {size} at -20: LUFS {:.2}, peak {:.2}, warnings {:?}",
+            r.lufs, r.peak_db, r.warnings
+        );
+        // The pebble (0.02) is only 0.16 s long and misses by 1.9 LU.
+        if size >= 0.1 {
+            assert!(
+                r.warnings.iter().all(|w| !w.contains("target")),
+                "{:?}",
+                r.warnings
+            );
+            assert!((r.lufs + 20.0).abs() < 1.0, "{}", r.lufs);
+        }
+    }
 }
 
 #[test]

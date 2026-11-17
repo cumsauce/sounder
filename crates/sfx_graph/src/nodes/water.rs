@@ -51,6 +51,19 @@ const HISS_RMS: f32 = 0.03;
 const SPLASH_PEAK: f32 = 0.5;
 /// Peak of the splashes mixed into a stream by `water.splash`.
 const STREAM_SPLASH_PEAK: f32 = 0.3;
+/// Pitch rise of a splash bubble, in units of its decay rate over a second
+/// (a third of `RISE`).
+const SPLASH_RISE: f32 = -0.03;
+/// Raised-cosine onset of a splash bubble, seconds (a bare phasor start is a
+/// step that shows as broadband clicks).
+const SPLASH_ONSET: f32 = 0.001;
+/// Amplitude of the impact burst, against the main bubble at 1.
+const BURST_AMP: f32 = 1.0;
+/// Silence before the burst, seconds: the output's default 2 ms fade-in would
+/// otherwise cut the loudest part of the sound.
+const LEAD: f32 = 0.0025;
+/// Where in the cloud window the main cavity bubble is born.
+const MAIN_AT: f32 = 1.0;
 /// Longest a splash rings, seconds (cap on its buffer).
 const MAX_SPLASH_SECONDS: f32 = 2.5;
 
@@ -85,15 +98,16 @@ fn ring_seconds(radius: f32) -> f32 {
 
 /// Adds `b` to `out`: foley's phasor ring (pitch re-tuned every 32 samples).
 /// With `wrap`, the tail continues at the start of the buffer (a loop);
-/// without, it is cut at the end.
-fn ring(out: &mut [f32], b: &Pop, sr: f32, wrap: bool) {
+/// without, it is cut at the end. `onset` samples of raised cosine fade the
+/// bubble in (0: a bare start).
+fn ring(out: &mut [f32], b: &Pop, sr: f32, wrap: bool, rise_rate: f32, onset: usize) {
     let n = out.len();
     if n == 0 || b.start >= n {
         return;
     }
     let f0 = minnaert_hz(b.radius);
     let damping = PI * f0 * DAMPING;
-    let rise = RISE * damping;
+    let rise = rise_rate * damping;
     let step = (-damping / sr).exp();
     let dt = 1.0 / sr;
     let life = (ring_seconds(b.radius) * sr).ceil() as usize;
@@ -112,7 +126,12 @@ fn ring(out: &mut [f32], b: &Pop, sr: f32, wrap: bool) {
         }
         (re, im) = (re * c - im * s, re * s + im * c);
         amp *= step;
-        out[idx] += amp * im;
+        let gate = if k < onset {
+            0.5 - 0.5 * (PI * k as f32 / onset as f32).cos()
+        } else {
+            1.0
+        };
+        out[idx] += amp * im * gate;
         idx += 1;
         if idx == n {
             idx = 0;
@@ -121,38 +140,50 @@ fn ring(out: &mut [f32], b: &Pop, sr: f32, wrap: bool) {
 }
 
 /// One splash of characteristic radius `size` metres as its own buffer
-/// (peak 1): an impact noise burst plus a main cavity bubble and a cloud of
-/// smaller ones born over a window that grows with `size`.
+/// (peak 1): a bright, brief impact burst, then a cloud of bubbles whose size
+/// grows with time (so the pitch falls), ending in the main cavity bubble.
 ///
-/// - main bubble: radius `0.12 * size` (1 .. 60 mm), born at 4 ms, amplitude 1.
-/// - cloud: `10 + 18 * sqrt(size / 0.05)` bubbles (6 .. 80), median radius
-///   0.35 of the main one, ln-sigma 0.5, born over `0.06 + 0.12 *
-///   sqrt(size / 0.05)` s with density falling exponentially, amplitude
-///   `0.5 * sqrt(r / r_main)` times the same fall.
-/// - burst: white noise through a low-pass at `7 kHz * (0.05 / size)^0.35`
-///   (400 Hz .. 0.4 sr), decaying with time constant `3 ms + 4 ms *
-///   sqrt(size / 0.05)`, amplitude 0.4.
+/// - window `W = 0.06 + 0.12 * sqrt(size / 0.05)` s.
+/// - burst: white noise through a low-pass at `16 kHz * (0.05 / size)^0.1`
+///   (13 .. 0.4 sr), decaying with time constant `2 ms + 1.5 ms *
+///   sqrt(size / 0.05)`, amplitude 0.5, born at 0.
+/// - cloud: `10 + 18 * sqrt(size / 0.05)` bubbles (6 .. 80), born at 4 ms + t
+///   with t in 0..W, density falling as `exp(-2.5 t / W)`; radius `r_main *
+///   (0.1 + 0.7 * (t / W)^0.6)` times a ln-sigma 0.15 spread; amplitude `0.5 *
+///   sqrt(r / r_main)` times `exp(-1.0 t / W)`.
+/// - main bubble: radius `0.12 * size` (1 .. 60 mm), born at 4 ms + 0.4 W,
+///   amplitude 1.
+///
+/// Every bubble rings with a pitch rise of `SPLASH_RISE` (a third of
+/// `water`'s), so a ring does not climb back into the band the cloud left.
 fn splash_buffer(size: f32, rng: &mut Rng, sr: f32) -> Vec<f32> {
     let scale = (size / 0.05).max(1e-3);
     let r_main = (0.12 * size).clamp(1e-3, MAX_SPLASH_RADIUS_MM * 1e-3);
     let rmin = min_radius(sr);
+    let r_top = r_main.max(rmin);
     let window = 0.06 + 0.12 * scale.sqrt();
     let count = (10.0 + 18.0 * scale.sqrt()).round().clamp(6.0, 80.0) as usize;
+    let t0 = LEAD + 0.004;
     let mut pops = vec![Pop {
-        start: (0.004 * sr) as usize,
-        radius: r_main.max(rmin),
+        start: ((t0 + MAIN_AT * window) * sr) as usize,
+        radius: r_top,
         amp: 1.0,
     }];
-    for _ in 0..count {
-        // Density falling as exp(-3 t / window): inverse CDF.
-        let u = rng.unit();
-        let t = -window / 3.0 * (1.0 - u * (1.0 - (-3.0f32).exp())).ln();
-        let r = (0.35 * r_main * (0.5 * gauss(rng)).exp()).clamp(rmin, r_main.max(rmin));
-        let fall = (-1.5 * t / window).exp();
+    let k = 2.5f32;
+    for i in 0..count {
+        // Density falling as exp(-k t / window): inverse CDF of a stratified
+        // draw (one per equal slice of probability, so the cloud is even
+        // enough for its size to read as a trend).
+        let u = (i as f32 + rng.unit()) / count as f32;
+        let t = -window / k * (1.0 - u * (1.0 - (-k).exp())).ln();
+        let frac = (t / window).clamp(0.0, 1.0);
+        let r =
+            (r_top * (0.1 + 0.7 * frac.powf(0.6)) * (0.08 * gauss(rng)).exp()).clamp(rmin, r_top);
+        let fall = (-frac).exp();
         pops.push(Pop {
-            start: ((0.004 + t) * sr) as usize,
+            start: ((t0 + t) * sr) as usize,
             radius: r,
-            amp: 0.5 * (r / r_main.max(rmin)).sqrt() * fall,
+            amp: 0.5 * (r / r_top).sqrt() * fall,
         });
     }
     let cap = (MAX_SPLASH_SECONDS * sr) as usize;
@@ -165,17 +196,25 @@ fn splash_buffer(size: f32, rng: &mut Rng, sr: f32) -> Vec<f32> {
         .max(1);
     let mut out = vec![0.0f32; len];
     for p in &pops {
-        ring(&mut out, p, sr, false);
+        ring(
+            &mut out,
+            p,
+            sr,
+            false,
+            SPLASH_RISE,
+            (SPLASH_ONSET * sr) as usize,
+        );
     }
     // The impact burst.
-    let tau = 0.003 + 0.004 * scale.sqrt();
-    let cut = (7000.0 * (0.05 / size.max(1e-4)).powf(0.35)).clamp(400.0, 0.4 * sr);
+    let tau = 0.002 + 0.0015 * scale.sqrt();
+    let cut = (16_000.0 * (0.05 / size.max(1e-4)).powf(0.1)).clamp(400.0, 0.4 * sr);
     let mut lp = Biquad::new();
     lp.set(FilterMode::Lp, cut, 0.707, 0.0, sr);
     let burst = ((8.0 * tau * sr) as usize).min(len);
-    for (i, o) in out.iter_mut().enumerate().take(burst) {
-        let e = (-(i as f32) / (tau * sr)).exp();
-        *o += 0.4 * e * lp.tick(rng.signed());
+    let lead = (LEAD * sr) as usize;
+    for (i, o) in out.iter_mut().enumerate().skip(lead).take(burst) {
+        let e = (-((i - lead) as f32) / (tau * sr)).exp();
+        *o += BURST_AMP * e * lp.tick(rng.signed());
     }
     let peak = out.iter().fold(0.0f32, |m, v| m.max(v.abs()));
     if peak > 0.0 {
@@ -316,7 +355,7 @@ impl Eval for Water {
                         radius: r,
                         amp: A0 * (r / median).sqrt(),
                     };
-                    ring(&mut out, &b, sr, looped);
+                    ring(&mut out, &b, sr, looped, RISE, 0);
                 }
             }
         }
@@ -395,14 +434,15 @@ impl Eval for Water {
 
 // ---------------------------------------------------------------- splash
 
-/// A single splash (source, one-shot): an impact burst, one main cavity
-/// bubble and a cloud of smaller ones, built from the same bubble maths as
-/// `water`. `size` is the splash's radius in metres: 0.02 (a pebble) to 1
-/// (a person jumping in). Bigger: the main bubble's radius goes as
-/// `0.12 * size` (a lower, longer ring), the cloud is larger and lasts
-/// longer, the burst is longer and duller. The output is scaled to a peak of
-/// 0.5 (-6 dBFS) whatever the size, as `thunder` is: set loudness with
-/// `gain` or the output's `lufs`. Not causal (a finished one-shot).
+/// A single splash (source, one-shot): a bright, brief impact burst, then a
+/// cloud of bubbles that grow with time (so the pitch falls) and end in the
+/// main cavity bubble, built from the same bubble maths as `water`. `size` is
+/// the splash's radius in metres: 0.02 (a pebble) to 1 (a person jumping in).
+/// Bigger: the main bubble's radius goes as `0.12 * size` (a lower, longer
+/// ring), the cloud is larger and lasts longer, the burst is longer. The
+/// output is scaled to a peak of 0.5 (-6 dBFS) whatever the size, as
+/// `thunder` is: set loudness with `gain` or the output's `lufs`. Not causal
+/// (a finished one-shot).
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Splash {
@@ -419,7 +459,7 @@ pub struct Splash {
 }
 
 impl Describe for Splash {
-    const BLURB: &'static str = "one splash: impact burst, a main cavity bubble and a cloud of smaller ones (Minnaert); size in metres; peak levelled to -6 dBFS";
+    const BLURB: &'static str = "one splash: a bright brief burst, then bubbles growing in size (the centroid falls) ending in the main cavity bubble (Minnaert); size in metres; peak levelled to -6 dBFS";
     fn example() -> serde_json::Value {
         serde_json::json!({"size": 0.08, "at": 0.05, "seed": 1})
     }
