@@ -1,12 +1,14 @@
 //! `sounder`: an MCP server for procedural sound effects.
 //!
 //! `sounder --headless` serves everything except `play` over stdio and exits
-//! when stdin closes. The window (phase 5) is `sounder` without --headless.
-//! The server runs on its own thread with its own tokio runtime; the session
-//! lives on another and takes commands over a channel (the window will
-//! drain that channel from its frame loop).
+//! when stdin closes. `sounder` (window feature) also opens the window, on
+//! the main thread. The MCP server runs on its own thread with its own tokio
+//! runtime; the session lives on another and takes commands over a channel
+//! (the window is one more sender on it).
 
 mod server;
+#[cfg(feature = "window")]
+mod window;
 
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -16,8 +18,9 @@ use sounder::session::Session;
 use sounder::store;
 
 const USAGE: &str =
-    "usage: sounder --headless [--audio] [--project DIR] [--restore] [--feedback-report]
-  --headless          serve MCP on stdio (the only mode until the window exists)
+    "usage: sounder [--headless [--audio]] [--project DIR] [--restore] [--feedback-report]
+  (no flag)           the window (needs the default `window` feature) and the MCP server on stdio
+  --headless          serve MCP on stdio without opening the window
   --audio             with --headless: also open the speakers so `play` works
   --project DIR       the game project (default: the nearest ancestor with .sounder/)
   --restore           reopen the sounds left in the autosave
@@ -78,6 +81,7 @@ fn main() {
         );
         return;
     }
+    #[cfg(not(feature = "window"))]
     if !headless {
         eprintln!(
             "sounder: the window arrives with phase 5; run `sounder --headless` for the MCP server"
@@ -125,8 +129,16 @@ fn main() {
 
     let player = start_audio(audio);
     let (tx, rx) = mpsc::channel::<server::Cmd>();
+    #[cfg(feature = "window")]
+    let window_tx = tx.clone();
     let done = server::Done::new();
-    let server_done = done.clone();
+    // Headless, the MCP client going away ends the session; with the window
+    // open only closing the window does.
+    let server_done = if headless {
+        done.clone()
+    } else {
+        server::Done::new()
+    };
     let server_thread = std::thread::spawn(move || {
         let rt = match tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -159,7 +171,29 @@ fn main() {
             server_done.set();
         });
     });
-    let _session = server::run_headless(session, rx, done);
+    #[cfg(feature = "window")]
+    if !headless {
+        // The window owns the main thread; the session runs on its own.
+        let win = window::Window::new();
+        let hook = win.change_hook();
+        let session_done = done.clone();
+        let session_thread =
+            std::thread::spawn(move || server::run_session(session, rx, session_done, Some(hook)));
+        // TODO(p5-player merge): the real player (src/player.rs, `--audio`)
+        // replaces this stand-in; without a device `play` says so.
+        let player = std::sync::Arc::new(window::player_iface::NullPlayer);
+        let shown = win.run(window_tx, player);
+        done.set();
+        let _ = session_thread.join();
+        store::release_lock_at(&lock, pid);
+        if let Err(e) = shown {
+            eprintln!("sounder: {e}");
+            std::process::exit(1);
+        }
+        // The MCP server thread is blocked reading stdin: leave without it.
+        std::process::exit(0);
+    }
+    let _session = server::run_session(session, rx, done, None);
     store::release_lock_at(&lock, pid);
     let _ = server_thread.join();
 }

@@ -889,7 +889,7 @@ impl rmcp::ServerHandler for Tools {
         let (tool, c2) = (name.clone(), client.clone());
         let _ = self.tx.send(Cmd::Exec(Box::new(move |s: &mut Session| {
             s.end_call(c2.as_deref());
-            s.log_call(&tool, ok, ms);
+            s.log_call(&tool, ok, ms, c2.as_deref());
         })));
         if let (Some(note), Ok(r)) = (note, result.as_mut()) {
             r.content.insert(0, Content::text(note));

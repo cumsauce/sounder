@@ -1,0 +1,37 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>sounder</title>
+<style>
+  :root { color-scheme: dark light; }
+  body { font: 13px ui-monospace, Menlo, monospace; margin: 16px; background: #15151a; color: #ddd; }
+  h1 { font-size: 14px; font-weight: 600; }
+  pre { white-space: pre-wrap; word-break: break-word; }
+</style>
+<h1>sounder: this build has no <code>ui/</code>, so this is the raw window state.</h1>
+<pre id="out">waiting for the session…</pre>
+<script>
+  const out = document.getElementById('out');
+  const pending = new Map();
+  let next = 1;
+  window.sounder = {
+    call(name, args) {
+      return new Promise((resolve, reject) => {
+        const id = next++;
+        pending.set(id, { resolve, reject });
+        window.ipc.postMessage(JSON.stringify({ id, name, args: args || {} }));
+      });
+    },
+    _reply(id, r) {
+      const p = pending.get(id);
+      pending.delete(id);
+      if (p) (r.ok ? p.resolve(r.result) : p.reject(new Error(r.error)));
+    },
+    changed() { refresh(); },
+    played() {},
+  };
+  async function refresh() {
+    try { out.textContent = JSON.stringify(await sounder.call('state', {}), null, 1); }
+    catch (e) { out.textContent = String(e); }
+  }
+  refresh();
+</script>

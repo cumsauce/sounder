@@ -7,6 +7,8 @@
 //! - [`reference`]: compare a sound with a recording (distance, deviations).
 //! - [`checks`]: `verify` / `expect` PASS / FAIL lines.
 //!
+//! - [`view`]: the same spectrogram / waveform / loudness as numbers, for the window.
+//!
 //! None of it needs a window or an audio device.
 
 // DSP loops index several buffers by the same sample index; that reads
@@ -22,6 +24,7 @@ pub mod pitch;
 pub mod raster;
 pub mod reference;
 pub mod stft;
+pub mod view;
 
 pub use checks::{CheckCx, CheckResult, Expect, report, run};
 pub use descriptors::{Descriptors, describe, modes_node};

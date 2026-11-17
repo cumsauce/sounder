@@ -131,3 +131,23 @@ output). Little-endian, no compression.
   static server is fine for design work (`.claude/launch.json` already has one
   for `design/`; add `ui/`).
 - **p5-player** owns `src/player.rs` and the MCP `play` tool; see its brief.
+
+## Rust-side notes (p5-window, where it settled a detail)
+
+- `Session::window_state(doc) -> Result<Value, String>` (an unopen `doc` is an
+  error the page toasts). `solo` / `playing` are filled in by the window layer.
+- `checks` is `[]` and a macro's `result` is `null` until the window's
+  follow-up command ran the default checks (~400 ms after changes pause); that
+  command bumps `rev`, so the page gets `changed` and asks again.
+- `unread` on a node: an agent's history step since the human last opened the
+  sound (`select_sound`, `catalog_load`) touched it.
+- `set_field` with `value: null` removes the field. `jump` forces over an
+  agent's step (the human may undo it). `time` / `hz` of `add_annotation` take
+  `[a, b]` or one number.
+- Results: `move_knob` / `reset_knobs` return `{macros, moves, seconds, peak_db,
+  lufs}`; `select_sound` / `catalog_load` return a full `state`; `set_field`
+  `{label, changed, seconds, peak_db, lufs}`; `play` `{playing, node}`;
+  `catalog_list` the catalog entries. Not built: `catalog_save`.
+- Responses carry `Access-Control-Allow-Origin: *` (the page is `sounder://app`,
+  the data `sounder://render`: different hosts); with `?rev=` they are cached
+  forever, without it `no-store`.

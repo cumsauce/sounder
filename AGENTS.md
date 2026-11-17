@@ -479,6 +479,43 @@ a bird or a storm is the human's call.
 - Honest limit: the human hears it, you do not. `play` succeeding means the
   samples were sent, nothing about how they sound.
 
+## The window
+
+`sounder` (no `--headless`, default `window` feature) opens a system webview
+(`wry` on a `tao` event loop, main thread) beside the MCP server: the human
+listens and comments there; the agent keeps using the tools. `--headless`
+never opens it; `cargo build --no-default-features` has no wry / tao / cpal.
+
+```sh
+cargo run                         # window + MCP on stdio
+cargo run -- --project DIR        # same, in a project
+```
+
+Data flow (the contract is `design/window-api.md`):
+
+- The page (`ui/`, embedded at build time by `build.rs`; a built-in raw-state
+  page stands in when `ui/` is absent) calls `sounder.call(name, args)` ->
+  `window.ipc` -> a `Cmd::Exec` on the session thread -> `window/api.rs` as
+  client `window` -> the reply returns as `sounder._reply(...)`. The window's
+  edits are credited to it: `set_field` is one history step `~node` `by window`;
+  comments are `by you`; knob moves are recorded as the human's (the agent's
+  `summary` shows and clears them; the window's `state` shows them without
+  clearing).
+- `Session::rev()` bumps on every visible change from any client; after each
+  command that moved it the session thread wakes the loop and the page gets
+  `sounder.changed(rev)`, then asks for `state` (`src/session/window_state.rs`).
+  `state` never waits for the default checks or the macro sweeps: they are
+  empty / null until a follow-up command (400 ms after changes pause) runs
+  `Session::check` and bumps `rev`.
+- Bulk data comes over `sounder://render/<doc>/{spectrogram,wave,loudness}`
+  and `.../node/<name>/spark` from `sfx_analysis::view` (the same STFT window,
+  dB scale and loudness window rule as `listen`'s image), `?rev=` caches.
+- Playback goes through `PlayerControl` (`window/player_iface.rs`, a stand-in
+  for `src/player.rs`); player events become `sounder.played({...})`.
+
+What the window cannot do yet: no Edit menu (so no Cmd-C / Cmd-V in text
+fields), no `catalog_save` call, no resolving comments (the agent does that).
+
 ## Not now
 
 - A **live runtime** for the causal subset (every node here has a per-sample
