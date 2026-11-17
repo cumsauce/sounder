@@ -39,6 +39,7 @@ mod dynamics;
 // slot S9
 
 // slot S10
+mod sequence;
 
 // slot S11
 
@@ -104,6 +105,7 @@ pub use dynamics::*;
 // slot S9
 
 // slot S10
+pub use sequence::*;
 
 // slot S11
 

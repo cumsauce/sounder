@@ -331,6 +331,10 @@ node_types! {
     // slot S9
 
     // slot S10
+    "trigger_env" => TriggerEnv,
+    "event_gate" => EventGate,
+    "seq" => Seq,
+    "notes" => Notes,
 
     // slot S11
 
