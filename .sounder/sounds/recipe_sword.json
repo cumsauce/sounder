@@ -1,0 +1,233 @@
+{
+  "name": "recipe_sword",
+  "format_version": 1,
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "seed": 1,
+  "nodes": [
+    {
+      "type": "env",
+      "name": "scr_env",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0.02,
+          0
+        ],
+        [
+          0.04,
+          1
+        ],
+        [
+          0.25,
+          0.3
+        ],
+        [
+          0.32,
+          0
+        ]
+      ],
+      "curve": "smooth"
+    },
+    {
+      "type": "friction",
+      "name": "scr_f",
+      "speed": "scr_env",
+      "pressure": "scr_env",
+      "roughness": 0.6,
+      "grain": 1800
+    },
+    {
+      "type": "filter",
+      "name": "scr",
+      "input": "scr_f",
+      "mode": "bp",
+      "freq": 4000,
+      "q": 0.8
+    },
+    {
+      "type": "gain",
+      "name": "scr_g",
+      "input": "scr",
+      "db": -8
+    },
+    {
+      "type": "noise",
+      "name": "n",
+      "color": "white"
+    },
+    {
+      "type": "decay",
+      "name": "crk_e",
+      "time": 0.012,
+      "at": 0.005
+    },
+    {
+      "type": "math",
+      "name": "crk_raw",
+      "op": "mul",
+      "a": "n",
+      "b": "crk_e"
+    },
+    {
+      "type": "filter",
+      "name": "crk",
+      "input": "crk_raw",
+      "mode": "hp",
+      "freq": 2500
+    },
+    {
+      "type": "gain",
+      "name": "crk_g",
+      "input": "crk",
+      "db": -6
+    },
+    {
+      "type": "decay",
+      "name": "hit_e",
+      "time": 0.004,
+      "at": 0.005
+    },
+    {
+      "type": "math",
+      "name": "hit_burst",
+      "op": "mul",
+      "a": "n",
+      "b": "hit_e"
+    },
+    {
+      "type": "modal",
+      "name": "blade_a",
+      "excite": "hit_burst",
+      "material": "metal",
+      "shape": "bar",
+      "f0": 1750,
+      "loss": 0.6,
+      "tilt": 3,
+      "gain_db": -4
+    },
+    {
+      "type": "modal",
+      "name": "blade_b",
+      "excite": "hit_burst",
+      "material": "metal",
+      "shape": "bar",
+      "f0": 2630,
+      "loss": 0.8,
+      "tilt": 3,
+      "gain_db": -8
+    },
+    {
+      "type": "noise",
+      "name": "thd_n",
+      "color": "brown"
+    },
+    {
+      "type": "decay",
+      "name": "thd_e",
+      "time": 0.15,
+      "at": 0.005
+    },
+    {
+      "type": "math",
+      "name": "thd_raw",
+      "op": "mul",
+      "a": "thd_n",
+      "b": "thd_e"
+    },
+    {
+      "type": "filter",
+      "name": "thd",
+      "input": "thd_raw",
+      "mode": "lp",
+      "freq": 250,
+      "slope": 24
+    },
+    {
+      "type": "gain",
+      "name": "thd_g",
+      "input": "thd",
+      "db": 4
+    },
+    {
+      "type": "mix",
+      "name": "dry",
+      "inputs": [
+        "scr_g",
+        "crk_g",
+        "blade_a",
+        "blade_b",
+        "thd_g"
+      ],
+      "to": "mono"
+    },
+    {
+      "type": "transient",
+      "name": "punch",
+      "input": "trim",
+      "attack_db": 4
+    },
+    {
+      "type": "shape",
+      "name": "warm",
+      "input": "punch",
+      "mode": "tube",
+      "drive": 1.5,
+      "oversample": 4,
+      "mix": 0.2
+    },
+    {
+      "type": "onepole",
+      "name": "dc",
+      "input": "warm",
+      "mode": "hp",
+      "freq": 40
+    },
+    {
+      "type": "output",
+      "name": "out",
+      "input": "dc",
+      "peak_db": -1.5
+    },
+    {
+      "type": "gain",
+      "name": "trim",
+      "input": "dry",
+      "db": -8
+    }
+  ],
+  "params": {},
+  "macros": [
+    {
+      "name": "ring",
+      "value": 0.5,
+      "default": 0.5,
+      "doc": "how long the blades ring",
+      "claim": [
+        "decay",
+        1
+      ],
+      "game": false,
+      "map": [
+        {
+          "node": "blade_a",
+          "field": "loss",
+          "from": 1.5,
+          "to": 0.25,
+          "curve": "exp"
+        },
+        {
+          "node": "blade_b",
+          "field": "loss",
+          "from": 2.0,
+          "to": 0.33,
+          "curve": "exp"
+        }
+      ]
+    }
+  ],
+  "version": 3
+}

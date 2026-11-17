@@ -1,0 +1,147 @@
+{
+  "name": "hunter_spot",
+  "format_version": 1,
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 1.3,
+  "seed": 938,
+  "nodes": [
+    {
+      "type": "env",
+      "name": "pc",
+      "points": [
+        [
+          0,
+          380
+        ],
+        [
+          0.12,
+          900
+        ],
+        [
+          0.5,
+          1250
+        ],
+        [
+          1,
+          700
+        ],
+        [
+          1.3,
+          420
+        ]
+      ]
+    },
+    {
+      "type": "wander",
+      "name": "jit",
+      "rate": 22,
+      "range": [
+        -90,
+        90
+      ]
+    },
+    {
+      "type": "math",
+      "name": "f0",
+      "op": "add",
+      "a": "pc",
+      "b": "jit"
+    },
+    {
+      "type": "glottis",
+      "name": "src",
+      "f0": "f0",
+      "tension": 0.95,
+      "breath": 0.2,
+      "roughness": 0.7,
+      "fry": 0.1,
+      "seed": 5
+    },
+    {
+      "type": "env",
+      "name": "vow",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0.4,
+          1
+        ],
+        [
+          1.3,
+          0.3
+        ]
+      ]
+    },
+    {
+      "type": "tract",
+      "name": "mouth",
+      "input": "src",
+      "vowel": "a",
+      "vowel_to": "i",
+      "morph": "vow",
+      "scale": 1.25,
+      "frication": {
+        "freq": 4500,
+        "level": 0.15
+      },
+      "growl": 0.5
+    },
+    {
+      "type": "shape",
+      "name": "grit",
+      "input": "mouth",
+      "mode": "fold",
+      "drive": 4,
+      "mix": 0.6
+    },
+    {
+      "type": "filter",
+      "name": "hp",
+      "input": "grit",
+      "mode": "hp",
+      "freq": 300
+    },
+    {
+      "type": "env",
+      "name": "amp",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0.05,
+          1
+        ],
+        [
+          0.8,
+          0.9
+        ],
+        [
+          1.3,
+          0
+        ]
+      ]
+    },
+    {
+      "type": "gain",
+      "name": "voice",
+      "input": "hp",
+      "gain": "amp"
+    },
+    {
+      "type": "output",
+      "name": "out",
+      "input": "voice",
+      "lufs": -14,
+      "fade_out": 0.1
+    }
+  ],
+  "params": {},
+  "macros": [],
+  "version": 4
+}

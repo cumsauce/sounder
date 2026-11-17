@@ -1,0 +1,87 @@
+{
+  "name": "hunter_roll",
+  "format_version": 1,
+  "kind": "loop",
+  "sample_rate": 48000,
+  "duration": 1.0,
+  "seed": 1,
+  "nodes": [
+    {
+      "type": "pattern",
+      "name": "hits",
+      "times": [
+        0,
+        0.25,
+        0.5,
+        0.75
+      ]
+    },
+    {
+      "type": "trigger_env",
+      "name": "hitenv",
+      "events": "hits",
+      "attack": 0.002,
+      "decay": 0.07
+    },
+    {
+      "type": "noise",
+      "name": "wetn",
+      "color": "pink"
+    },
+    {
+      "type": "filter",
+      "name": "wetbp",
+      "input": "wetn",
+      "mode": "bp",
+      "freq": 650,
+      "q": 1.2
+    },
+    {
+      "type": "gain",
+      "name": "slap",
+      "input": "wetbp",
+      "gain": "hitenv"
+    },
+    {
+      "type": "trigger_env",
+      "name": "thumpenv",
+      "events": "hits",
+      "attack": 0.003,
+      "decay": 0.12
+    },
+    {
+      "type": "osc",
+      "name": "thumpo",
+      "freq": 95
+    },
+    {
+      "type": "gain",
+      "name": "thump",
+      "input": "thumpo",
+      "gain": "thumpenv"
+    },
+    {
+      "type": "mix",
+      "name": "both",
+      "inputs": [
+        {
+          "input": "slap",
+          "gain": 1
+        },
+        {
+          "input": "thump",
+          "gain": 0.8
+        }
+      ]
+    },
+    {
+      "type": "output",
+      "name": "out",
+      "input": "both",
+      "peak_db": -3
+    }
+  ],
+  "params": {},
+  "macros": [],
+  "version": 1
+}

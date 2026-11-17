@@ -1,0 +1,216 @@
+{
+  "name": "recipe_ui_confirm",
+  "format_version": 1,
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "seed": 1,
+  "nodes": [
+    {
+      "type": "noise",
+      "name": "n",
+      "color": "white"
+    },
+    {
+      "type": "decay",
+      "name": "tick_e",
+      "time": 0.004,
+      "at": 0.005
+    },
+    {
+      "type": "math",
+      "name": "tick_raw",
+      "op": "mul",
+      "a": "n",
+      "b": "tick_e"
+    },
+    {
+      "type": "filter",
+      "name": "tick",
+      "input": "tick_raw",
+      "mode": "hp",
+      "freq": 4000
+    },
+    {
+      "type": "gain",
+      "name": "tick_g",
+      "input": "tick",
+      "db": -14
+    },
+    {
+      "type": "osc",
+      "name": "note1_o",
+      "shape": "tri",
+      "freq": 880
+    },
+    {
+      "type": "math",
+      "name": "note1",
+      "op": "mul",
+      "a": "note1_o",
+      "b": "note1_env"
+    },
+    {
+      "type": "osc",
+      "name": "note2_o",
+      "shape": "tri",
+      "freq": 1320
+    },
+    {
+      "type": "math",
+      "name": "note2",
+      "op": "mul",
+      "a": "note2_o",
+      "b": "note2_env"
+    },
+    {
+      "type": "osc",
+      "name": "body_o",
+      "freq": 220
+    },
+    {
+      "type": "decay",
+      "name": "body_e",
+      "time": 0.09,
+      "at": 0.005
+    },
+    {
+      "type": "math",
+      "name": "body",
+      "op": "mul",
+      "a": "body_o",
+      "b": "body_e"
+    },
+    {
+      "type": "gain",
+      "name": "body_g",
+      "input": "body",
+      "db": -12
+    },
+    {
+      "type": "mix",
+      "name": "notes",
+      "inputs": [
+        {
+          "input": "note1",
+          "gain": 0.5
+        },
+        {
+          "input": "note2",
+          "gain": 0.5
+        }
+      ]
+    },
+    {
+      "type": "delay",
+      "name": "echo",
+      "input": "notes",
+      "time": 0.11,
+      "feedback": 0.25
+    },
+    {
+      "type": "filter",
+      "name": "echo_lp",
+      "input": "echo",
+      "mode": "lp",
+      "freq": 3000
+    },
+    {
+      "type": "gain",
+      "name": "echo_g",
+      "input": "echo_lp",
+      "db": -12
+    },
+    {
+      "type": "mix",
+      "name": "dry",
+      "inputs": [
+        "tick_g",
+        "notes",
+        "body_g",
+        "echo_g"
+      ],
+      "to": "mono"
+    },
+    {
+      "type": "output",
+      "name": "out",
+      "input": "dry",
+      "peak_db": -3
+    },
+    {
+      "type": "env",
+      "name": "note1_env",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0.005,
+          0
+        ],
+        [
+          0.008,
+          1
+        ],
+        [
+          0.3,
+          0
+        ]
+      ]
+    },
+    {
+      "type": "env",
+      "name": "note2_env",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0.075,
+          0
+        ],
+        [
+          0.078,
+          1
+        ],
+        [
+          0.45,
+          0
+        ]
+      ]
+    }
+  ],
+  "params": {},
+  "macros": [
+    {
+      "name": "brightness",
+      "value": 0.5,
+      "default": 0.5,
+      "doc": "pitch of the two notes together",
+      "claim": [
+        "centroid",
+        1
+      ],
+      "game": false,
+      "map": [
+        {
+          "node": "note1_o",
+          "field": "freq",
+          "from": 660.0,
+          "to": 1170.0,
+          "curve": "exp"
+        },
+        {
+          "node": "note2_o",
+          "field": "freq",
+          "from": 990.0,
+          "to": 1760.0,
+          "curve": "exp"
+        }
+      ]
+    }
+  ],
+  "version": 2
+}
