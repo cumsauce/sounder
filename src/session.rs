@@ -24,6 +24,8 @@ use sfx_graph::{
 use crate::history::{History, Step};
 use crate::store;
 
+mod window_state;
+
 /// Autosave happens this long after the last edit.
 pub const AUTOSAVE_AFTER: Duration = Duration::from_millis(500);
 
@@ -242,6 +244,8 @@ impl Sound {
 #[derive(Debug, Default)]
 struct ClientState {
     active: Option<String>,
+    /// When this client's last call ended.
+    last: Option<Instant>,
     /// History node count of each sound at this client's last call.
     seen: HashMap<String, usize>,
 }
@@ -252,6 +256,14 @@ pub struct CallRecord {
     pub tool: String,
     pub ok: bool,
     pub ms: u128,
+    /// When the call finished.
+    pub at: Instant,
+    /// The calling agent (`_meta` "sounder/client"), when it said.
+    pub client: Option<String>,
+    /// The sound the call worked in.
+    pub doc: Option<String>,
+    /// A short line for the window's feed (`laser · ~lp`).
+    pub what: Option<String>,
 }
 
 /// All open sounds.
@@ -274,6 +286,17 @@ pub struct Session {
     pub slot: Option<String>,
     /// Bumps on every change a render may depend on.
     generation: u64,
+    /// Bumps on every change anyone can see (the window's `rev`).
+    rev: u64,
+    /// When each sound last changed.
+    touched: HashMap<String, Instant>,
+    /// History length the window last showed per sound (what is newer and
+    /// by someone else is `unread` in the graph).
+    window_seen: HashMap<String, usize>,
+    /// The default checks per sound: (doc hash, results).
+    check_cache: HashMap<String, (u64, Vec<CheckResult>)>,
+    /// Descriptors as JSON per sound: (doc hash, generation, value).
+    desc_cache: HashMap<String, (u64, u64, Value)>,
 }
 
 impl Session {
@@ -353,6 +376,9 @@ impl Session {
         {
             state.seen.insert(name, sound.history.nodes.len());
         }
+        if let Some(c) = client {
+            self.clients.entry(c.to_string()).or_default().last = Some(Instant::now());
+        }
         self.current = None;
     }
 
@@ -428,6 +454,7 @@ impl Session {
     /// (see [`Sound::rendered`]) and schedules an autosave.
     pub fn mark_dirty(&mut self) {
         self.generation += 1;
+        self.rev += 1;
         self.dirty_since.get_or_insert_with(Instant::now);
     }
 
@@ -435,6 +462,24 @@ impl Session {
     /// `summary` clears knob moves but changes no sound).
     fn mark_saved_state_dirty(&mut self) {
         self.dirty_since.get_or_insert_with(Instant::now);
+    }
+
+    /// Counts every change anyone can see: edits, knob moves, comments,
+    /// opening and closing, the agent reading the knob moves. The window
+    /// pushes `changed` when it moves.
+    pub fn rev(&self) -> u64 {
+        self.rev
+    }
+
+    /// Bumps [`Session::rev`] without invalidating renders (a check result
+    /// arrived, a read cleared something).
+    pub fn bump_rev(&mut self) {
+        self.rev += 1;
+    }
+
+    /// `name` was just edited.
+    fn touch(&mut self, name: &str) {
+        self.touched.insert(name.to_string(), Instant::now());
     }
 
     /// The generation renders are cached against.
@@ -495,6 +540,7 @@ impl Session {
             .insert(name.to_string(), Sound::new(name, kind, by.as_deref()));
         self.order.push(name.to_string());
         self.set_active(name);
+        self.touch(name);
         self.mark_dirty();
         Ok(format!(
             "opened `{name}` ({}): add nodes with sound_ops; describe_op lists the node types",
@@ -537,6 +583,7 @@ impl Session {
         }
         self.sounds.insert(name.clone(), sound);
         self.set_active(&name);
+        self.touch(&name);
         self.mark_dirty();
         Ok(format!("opened `{name}` from the catalog"))
     }
@@ -588,6 +635,9 @@ impl Session {
             // Knob moves are about the old graph.
             sound.macro_results.clear();
         }
+        if report.changed {
+            self.touch(&name);
+        }
         self.mark_dirty();
         let salt = self.generation;
         let sound = self.open_mut(&name)?;
@@ -631,6 +681,10 @@ impl Session {
                     .insert(m.to_string(), (hash, r.pass, r.detail.clone()));
             }
         }
+        if expect.is_none() {
+            self.check_cache.insert(name, (hash, results.clone()));
+            self.rev += 1;
+        }
         Ok(results)
     }
 
@@ -663,6 +717,8 @@ impl Session {
         sound.unsaved = true;
         sound.render = None;
         sound.macro_results.clear();
+        let n = sound.doc.name.clone();
+        self.touch(&n);
         self.mark_dirty();
         Ok(())
     }
@@ -722,6 +778,7 @@ impl Session {
         let (id, step) = moved;
         sound.restore(step.0);
         let label = sound.history.nodes[id].label.clone();
+        self.touch(&name);
         self.mark_dirty();
         Ok(format!(
             "now at history step #{id} (`{label}`), version {}",
@@ -758,6 +815,8 @@ impl Session {
         let line = a.line();
         sound.annotations.push(a);
         sound.unsaved = true;
+        let n = sound.doc.name.clone();
+        self.touch(&n);
         self.mark_dirty();
         Ok(format!("added {line}"))
     }
@@ -929,6 +988,15 @@ pub fn node_line(n: &Value) -> String {
 }
 
 impl Session {
+    /// One node's samples (the output's when `node` is None) of the sound as
+    /// it stands, rendered if needed: what the window's bulk data and the
+    /// player read.
+    pub fn node_audio(&mut self, doc: Option<&str>, node: Option<&str>) -> Result<Audio, String> {
+        let opts = self.render_opts();
+        let salt = self.generation;
+        self.sound(doc)?.rendered(&opts, salt)?.node_audio(node)
+    }
+
     /// The `summary` tool: text and JSON. Reading it clears the human's knob
     /// moves (the agent has now seen them).
     pub fn summary(&mut self, doc: Option<&str>) -> Result<(String, Value), String> {
@@ -1089,6 +1157,10 @@ impl Session {
             }
         }
         json["warnings"] = serde_json::json!(warnings);
+        if !moves.is_empty() {
+            // The window shows unread moves: reading them changes that.
+            self.rev += 1;
+        }
         self.mark_saved_state_dirty();
         Ok((out, json))
     }
@@ -1124,11 +1196,32 @@ impl Session {
         Ok(out)
     }
 
-    pub fn log_call(&mut self, tool: &str, ok: bool, ms: u128) {
+    pub fn log_call(&mut self, tool: &str, ok: bool, ms: u128, client: Option<&str>) {
+        let doc = client
+            .and_then(|c| self.clients.get(c))
+            .and_then(|c| c.active.clone())
+            .or_else(|| self.shared_active.clone())
+            .filter(|d| self.sounds.contains_key(d));
+        // What the call did, for the window's feed: the newest history step
+        // for tools that make one, else just the sound.
+        let what = doc.as_ref().and_then(|d| {
+            let h = &self.sounds.get(d)?.history;
+            let label = h.nodes.get(h.current?)?.label.clone();
+            let edits = matches!(tool, "sound_ops" | "undo" | "redo" | "jump" | "new_sound");
+            Some(if edits && ok {
+                format!("{d} · {label}")
+            } else {
+                d.clone()
+            })
+        });
         self.calls.push(CallRecord {
             tool: tool.into(),
             ok,
             ms,
+            at: Instant::now(),
+            client: client.map(String::from),
+            doc,
+            what,
         });
         if self.calls.len() > 500 {
             self.calls.remove(0);

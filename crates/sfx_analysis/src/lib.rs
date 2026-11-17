@@ -6,6 +6,8 @@
 //! - [`image`]: the `listen` PNG (spectrogram, waveform, loudness).
 //! - [`checks`]: `verify` / `expect` PASS / FAIL lines.
 //!
+//! - [`view`]: the same spectrogram / waveform / loudness as numbers, for the window.
+//!
 //! None of it needs a window or an audio device.
 
 // DSP loops index several buffers by the same sample index; that reads
@@ -19,6 +21,7 @@ pub mod measure;
 pub mod pitch;
 pub mod raster;
 pub mod stft;
+pub mod view;
 
 pub use checks::{CheckCx, CheckResult, Expect, report, run};
 pub use descriptors::{Descriptors, describe, modes_node};
