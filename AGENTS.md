@@ -354,6 +354,39 @@ log (`<library>/feedback.jsonl`, never sent anywhere) also records every failed
 call and slow call; `session_log(report: true)` or `sounder --feedback-report`
 folds it into what to fix first.
 
+## Foley models
+
+Six nodes in `nodes/foley.rs` wrap the user's `foley` crates (pinned rev in
+`Cargo.toml`). Foley renders at the sample rate it is given (`*_at`), so they
+follow the document's rate. `describe_op <type>` has the schema.
+
+| Node | Fields (`[]` optional) | Notes |
+|---|---|---|
+| `bubble` | `radius_mm`, `[loudness 0.3]`, `[rise 0.1]`, `[at]`, `[jitter]`, `[seed]` | Minnaert resonance `f = 3.29 kHz / radius_mm` (2 mm 1.64 kHz, 4 mm 0.82 kHz), decays at pi f 0.045, rises in pitch; level ~ r^1.5. The radius is a number (foley cannot retune a ringing bubble): in `voices` use `map {"r": "1 + $rand * 4"}` and `"radius_mm": "$r"`. Under ~0.7 mm it rings above Nyquist and aliases. |
+| `air` | `input`, `distance` (signal), `[humidity 50]`, `[celsius 15]`, `[level true]` | A 12 dB/oct low-pass at foley's `absorption_cutoff` (where `distance` m cost 6 dB; none while 20 kHz loses under 6 dB, i.e. below ~10 m) and a 1/distance level drop (0 dB inside 1 m). Both only fall as distance grows. Animate `distance` with a `ramp` for a fly-by. |
+| `glottis` | `f0` (signal), `[tension 0.65]`, `[breath 0.05]`, `[vibrato_cents]`, `[vibrato_hz 5.5]`, `[amp]`, `[seed]` | Foley's Liljencrants-Fant flow derivative (`lf_pulse`; tension 1 = pressed Rd 0.3, 0 = breathy Rd 2.7) with seeded breath noise. Pitch reads exactly (YIN). Aliases above ~1.5 kHz. |
+| `tract` | `input`, `[vowel a]`, `[vowel_to]`, `[morph]`, `[formants [[hz, bw]..]]`, `[scale]` | **Not foley's waveguide** (its `Tract` is private): a 4-formant Klatt cascade at Peterson-Barney vowels `a e i o u ae uh schwa`. `vowel_to` + `morph` (signal) glide; `scale` > 1 shortens the tract (child, small creature), < 1 lengthens. Feed it a `glottis`. |
+| `syrinx` | `species` or `pitch`; `[harmonic] [waver]` (whistle); `[rate] [at]` (species); `[amp] [seed]` | `species`: foley's `birdsong2`, any of 57 (`robin`, `cardinal`, `dove`, `crow`, `wood_thrush`, `boreal_owl`...; a bad name lists all), a phrase of its own length placed at `at`, cut/padded to the document; each `seed` is another individual; `rate` resamples (pitch and speed). `pitch`: a whistle from a contour signal (sine + 2nd harmonic + waver, as foley's songbirds). |
+| `thunder` | `[distance 1500]`, `[celsius]`, `[humidity 90]`, `[exposure 1]`, `[at]`, `[amp]`, `[seed]` | Foley's `strike` (Ribner-Roy N-wave over a jagged channel). Silent until `distance / 343` s, then clap and a rumble of several seconds with centroid ~30-50 Hz: set `duration` to fit (a 1.5 km flash: ~14 s). Foley levels every flash to a similar peak, so distance changes timing, brightness and length, not loudness. `exposure` 0 = shut in (low-pass to 200 Hz). |
+
+`species` / `thunder` are finished one-shots, so they are not causal for a
+live runtime (`summary` says so); the rest are. All seeded nodes are
+bit-identical at any thread count.
+
+Recipes: **drips** = `poisson` -> `voices` of a `bubble` with a `$rand` radius,
+then `air` (`examples/water_drips.rs`); **a vowel** = `glottis` (f0 from a
+`wander` or `ramp` for intonation) -> `tract`; **a creature call** = a
+`glottis` with a falling `ramp` f0, `tract` `scale` 0.6, `vowel_to` + a
+`morph` envelope; **a distant storm** = `thunder` `distance` 3000 through
+`air` (more highs gone) and `reverb`.
+
+Honest limits: none of this has been heard. Measured: bubble peak within
+0.2 % of Minnaert, glottis f0 within 1 cent, `tract` /a/ peaks at 768 Hz and
+/i/ at 223 Hz (f0 110: harmonic spacing), `air` 100 m takes the white-noise
+centroid from 12 kHz to 3.3 kHz and the level by 46 dB, thunder at 1.5 km
+arrives at 4.4 s with centroid 32 Hz. Whether they sound like water, a voice,
+a bird or a storm is the human's call.
+
 ## Not now
 
 - A **live runtime** for the causal subset (every node here has a per-sample
