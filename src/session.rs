@@ -989,7 +989,7 @@ pub fn node_line(n: &Value) -> String {
         o.remove("name");
         o.remove("type");
     }
-    let reads = sfx_graph::node::refs(&body)
+    let reads = sfx_graph::node::refs_typed(ty, &body)
         .into_iter()
         .map(|(n, _)| n)
         .collect::<std::collections::BTreeSet<_>>();

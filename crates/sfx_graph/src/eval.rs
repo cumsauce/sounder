@@ -103,7 +103,10 @@ pub fn parse(nodes: &[Value], params: &Params) -> Result<Vec<Parsed>, String> {
         let body = Value::Object(m);
         let ctx = format!("node #{k} ({ty} \"{name}\")");
         let node = node::parse_body(&ty, &body, &ctx)?;
-        let mut reads: Vec<String> = node::refs(&body).into_iter().map(|(n, _)| n).collect();
+        let mut reads: Vec<String> = node::refs_typed(&ty, &body)
+            .into_iter()
+            .map(|(n, _)| n)
+            .collect();
         reads.sort();
         reads.dedup();
         out.push(Parsed {

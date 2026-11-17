@@ -362,7 +362,7 @@ fn window_nodes(sound: &Sound, seen: usize) -> Vec<Value> {
             }
             let reads: Vec<String> = match &parsed {
                 Some(p) => p[i].reads.clone(),
-                None => sfx_graph::node::refs(&fields)
+                None => sfx_graph::node::refs_typed(raw.get("type").and_then(|t| t.as_str()).unwrap_or(""), &fields)
                     .into_iter()
                     .map(|(n, _)| n)
                     .filter(|n| names.contains(&n.as_str()))

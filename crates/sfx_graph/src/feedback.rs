@@ -733,7 +733,7 @@ pub fn eval_loop(
     // The outside signals the members read.
     let mut ext: HashMap<String, Sig> = HashMap::new();
     for &m in members {
-        for (name, port) in crate::node::refs(&parsed[m].body) {
+        for (name, port) in crate::node::refs_typed(&parsed[m].ty, &parsed[m].body) {
             if names.contains_key(name.as_str()) || !ports.contains_key(&name) {
                 continue;
             }
