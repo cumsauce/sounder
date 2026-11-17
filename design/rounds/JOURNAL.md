@@ -41,3 +41,4 @@
 - merged X2 bands. ALL wave 0-3 tasks merged; workspace tests green (52 suites ok). launching DOCS (fold docs/nodes into AGENTS.md + INSTRUCTIONS)
 - merged DOCS; round 1 setup next
 - ROUND 1 started: binary from commit b56563f; testers 1-12 launched (13-24 queued, then judges)
+- ROUND 1 DONE (judge 9.12, difficulty 1.67 from 2.04, failed calls 3.2 from 4.5). triage r1/triage.md; fix tasks R1-A..G launched
