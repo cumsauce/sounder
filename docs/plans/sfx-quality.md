@@ -176,9 +176,17 @@ with its noise.
   partials whose phases cancel, and the `resonators` (all starting at phase
   0) then play them 46 dB louder than the recording. A pre-existing limit of
   the extractor (the synthetic tests have clean, separated modes), now
-  caught: a warning over 6 dB, and `residual` refuses. Fixing the extractor
-  for noisy recordings (merge close pairs, or a resonator phase field) is
-  open.
+  caught: a warning over 6 dB, and `residual` refuses.
+- **Extractor fixed for noisy recordings (2026-11-17).** The blow-up was the
+  peeling itself, not only close pairs: neighbours inside the demodulation's
+  band (50-100 Hz) grew to cancel each other pass after pass. Merging
+  cancelling clusters changed nothing (83.5 dB over on band-passed noise),
+  so it was dropped. Now: each peeled amplitude is capped at the recording's
+  peak (83.5 to 18.2 dB), and when the peeled partials, played as
+  `resonators` do, still peak over 6 dB above the recording, an envelope fit
+  takes over (`modal::extract_fit`, `FitKind::Envelope`): spaced spectral
+  peaks with their own envelope decays, levelled to the recording's peak.
+  Real door slam: modes at its level, modes + residual 0.37 dB from it.
 - Sourcing the WAVs is the human's call (own recordings or CC0); the repo
   ships none. **Open decision for the human**: which library and licence.
 

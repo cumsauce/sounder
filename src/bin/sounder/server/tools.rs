@@ -721,7 +721,7 @@ impl Tools {
                 return fail(format!("{}: only {} samples: give a recording at least a few hundredths of a second long", a.file, audio.len()));
             }
             let count = a.count.unwrap_or(8).clamp(1, 32);
-            let modes = sfx_analysis::modal::extract(&audio, count);
+            let (modes, kind) = sfx_analysis::modal::extract_fit(&audio, count);
             let node = sfx_analysis::modes_node_from(&modes, "modes", "hit");
             let n = node["modes"].as_array().map_or(0, Vec::len);
             let mut text = format!(
@@ -731,6 +731,9 @@ impl Tools {
                 audio.seconds(),
                 serde_json::to_string(&node).unwrap_or_default()
             );
+            if kind == sfx_analysis::modal::FitKind::Envelope {
+                text += "NOTE the recording is not modal (a slam, a noisy hit: its partials, fitted one by one, cancel each other and would play far louder than it): these are its strongest spectral peaks with the decay of its own envelope around each, levelled to its peak. They are a tonal sketch, not the object's modes; pair them with the residual, or use the recording as a `sample` layer\n";
+            }
             if let Ok(over) = sfx_analysis::modal::modes_over_db(&audio, &node)
                 && over > sfx_analysis::modal::MODES_OVER_DB
             {

@@ -477,11 +477,14 @@ fn the_residual_restores_what_the_modes_miss() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// A noisy, non-modal hit (band-passed noise under a decay) fits as close
-/// partials whose phases cancel: the rebuild would play far louder than the
-/// recording, so `residual_after` refuses with the reason.
+/// A noisy, non-modal hit (band-passed noise under a decay) peels into
+/// partials that cancel each other (they played 85 dB over the recording
+/// before the fallback). `extract_fit` detects it and returns an envelope fit
+/// levelled to the recording, whose residual rebuilds it; a clean struck
+/// object keeps the modal fit.
 #[test]
-fn a_non_modal_recording_gets_no_residual() {
+fn a_non_modal_recording_gets_an_envelope_fit() {
+    use sfx_analysis::modal::{FitKind, extract_fit, modes_over_db, residual_after};
     let mut d = SoundDoc::named("noisy");
     d.nodes = vec![
         json!({"type": "noise", "name": "n", "color": "white", "seed": 3}),
@@ -492,23 +495,30 @@ fn a_non_modal_recording_gets_no_residual() {
     ];
     d.duration = Some(1.0);
     let noisy = d.render(&RenderOpts::default()).unwrap().audio;
-    let node = sfx_analysis::modes_node(&noisy, 8, "modes", "hit");
-    let over = sfx_analysis::modal::modes_over_db(&noisy, &node).unwrap();
-    eprintln!("noisy hit: modes play {over:.1} dB over the recording");
-    match sfx_analysis::modal::residual_after(&noisy, &node) {
-        Err(e) => assert!(
-            e.contains("louder than the recording") && e.contains("sample"),
-            "{e}"
-        ),
-        Ok(_) => assert!(
-            over <= sfx_analysis::modal::MODES_OVER_DB,
-            "a residual was made though the modes play {over} dB over"
-        ),
+    let (fit, kind) = extract_fit(&noisy, 8);
+    let node = sfx_analysis::modes_node_from(&fit, "modes", "hit");
+    let over = modes_over_db(&noisy, &node).unwrap();
+    eprintln!("noisy hit: {kind:?}, modes play {over:.1} dB over the recording\n{node}");
+    assert_eq!(kind, FitKind::Envelope);
+    assert!(over.abs() < 1.0, "{over}");
+    // Peaks spaced at least 15 % apart.
+    for w in fit.windows(2) {
+        assert!(w[1].hz >= 1.14 * w[0].hz, "{} then {}", w[0].hz, w[1].hz);
     }
-    // The clean struck object stays within the limit.
+    // The residual exists and the two rebuild the recording.
+    let (residual, at) = residual_after(&noisy, &node).unwrap();
+    let rec_peak = noisy.peak();
+    let res_peak = residual.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+    eprintln!(
+        "noisy hit: residual peak {res_peak:.3} against the recording's {rec_peak:.3}, impulse at {at} s"
+    );
+    assert!(res_peak < 2.0 * rec_peak);
+    // The clean struck object keeps the modal fit.
     let clean = struck(modes(), None, 0.8);
+    let (_, k2) = extract_fit(&clean, 5);
     let n2 = sfx_analysis::modes_node(&clean, 5, "modes", "hit");
-    let o2 = sfx_analysis::modal::modes_over_db(&clean, &n2).unwrap();
-    eprintln!("clean hit: modes play {o2:.1} dB over the recording");
+    let o2 = modes_over_db(&clean, &n2).unwrap();
+    eprintln!("clean hit: {k2:?}, modes play {o2:.1} dB over the recording");
+    assert_eq!(k2, FitKind::Modal);
     assert!(o2 <= sfx_analysis::modal::MODES_OVER_DB, "{o2}");
 }

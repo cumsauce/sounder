@@ -1083,13 +1083,24 @@ until it fits; you read their moves in `summary`.
   fitted partials get wrong, so retuning the modes later leaves their old
   partials in it: keep the modes' pitch and edit their decay and level, or
   re-extract. A recording with under 5 ms before its hit needs the output's
-  `fade_in: 0.0005` (the tool says so). **Only for clean struck objects**:
-  on a noisy hit the fit cancels close partials against each other with
-  phases the `resonators` do not keep, so the modes play far louder than the
-  recording (a real door slam: 46 dB at 8 modes, 13 dB at 3; band-passed
-  noise: 85 dB; the clean five-mode hit: 0.2 dB). Over 6 dB `extract_modes`
-  warns, and with `residual` it refuses and says why: use such a recording
-  as a `sample` layer (`a_non_modal_recording_gets_no_residual`).
+  `fade_in: 0.0005` (the tool says so). **Noisy recordings** (a slam, a
+  noisy hit) are not modal: peeled one by one, their partials grow to cancel
+  each other (gains in the thousands on band-passed noise peaking at 0.9),
+  and the `resonators`, which start every partial at the impulse, would play
+  them far louder than the recording (a real door slam: 46 dB). Two guards:
+  each peeled amplitude is capped at the recording's peak, and when the
+  peeled partials still play over 6 dB louder than the recording the tool
+  falls back to an **envelope fit** and says so ("NOTE the recording is not
+  modal"): its strongest spectral peaks at least 15 % apart, each with the
+  decay of the recording's own envelope around it, levelled so the rebuild
+  peaks at the recording's peak. That is a tonal sketch, not the object's
+  modes: the real door slam gave 8 peaks at 89-424 Hz, modes alone 16.75 dB
+  from the recording (no crack above 2.8 kHz), modes + residual 0.37 dB.
+  Band-passed noise: 0.0 dB over its peak, against 85 dB before
+  (`a_non_modal_recording_gets_an_envelope_fit`); a clean struck object keeps
+  the modal fit (0.2 dB). The residual of an envelope fit also carries the
+  sketch's negative (a peak of 1.10 against the noise's 0.89), so change the
+  sketch's decays and the residual stops cancelling them.
 
 Warnings in `summary`: a node nothing reads, a frequency above Nyquist, a
 silent output, DC over -40 dB, an output whose input is squashed by the

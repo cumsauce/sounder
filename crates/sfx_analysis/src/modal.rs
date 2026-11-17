@@ -209,9 +209,116 @@ fn fit(res: &[f64], p: &Param, sr: f64) -> Option<Param> {
     })
 }
 
+/// How the modes of [`extract_fit`] were found.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FitKind {
+    /// Partials peeled off one by one with their phases: a struck object.
+    Modal,
+    /// The recording is not modal (its peeled partials, played as
+    /// `resonators` do, peak over [`NOT_MODAL_DB`] above it: noise explained
+    /// as interfering partials). These are its strongest spectral peaks, at
+    /// least [`ENVELOPE_SPACING`] apart, each with the decay of the
+    /// recording's own envelope around it, levelled so the rebuild peaks at
+    /// the recording's peak.
+    Envelope,
+}
+
+/// Peeled partials that play this many dB over the recording mean it is
+/// not modal.
+pub const NOT_MODAL_DB: f64 = 6.0;
+/// Fractional spacing of the envelope fit's peaks (about the demodulation's
+/// half bandwidth, so their bands do not overlap).
+pub const ENVELOPE_SPACING: f64 = 0.15;
+
+/// The peak of `modes` played as a `resonators` node plays them from a unit
+/// impulse (`gain * r^n * sin((n + 1) w)`), over `n` samples.
+fn resonator_peak(modes: &[FitMode], sr: f64, n: usize) -> f64 {
+    let mut y = vec![0.0f64; n];
+    for m in modes {
+        let w = std::f64::consts::TAU * f64::from(m.hz) / sr;
+        let r = (-(1000f64.ln()) / (f64::from(m.decay_s).max(1e-4) * sr)).exp();
+        let mut env = f64::from(m.gain);
+        for (i, v) in y.iter_mut().enumerate() {
+            *v += env * (w * (i + 1) as f64).sin();
+            env *= r;
+            if env.abs() < 1e-9 {
+                break;
+            }
+        }
+    }
+    y.iter().fold(0.0f64, |m, v| m.max(v.abs()))
+}
+
 /// The strongest `count` modes of `audio` (mono mix), with decays and the
 /// amplitude each has at the hit.
 pub fn extract(audio: &Audio, count: usize) -> Vec<FitMode> {
+    extract_fit(audio, count).0
+}
+
+/// [`extract`], falling back to an envelope fit (see [`FitKind`]) when the
+/// recording is not modal.
+pub fn extract_fit(audio: &Audio, count: usize) -> (Vec<FitMode>, FitKind) {
+    let modes = extract_peeled(audio, count);
+    let sr = f64::from(audio.sample_rate);
+    let x = audio.mix_mono();
+    let t0 = onset(&x);
+    let end = (t0 + (MAX_SECONDS * audio.sample_rate as f32) as usize).min(x.len());
+    if modes.is_empty() || end <= t0 + 64 {
+        return (modes, FitKind::Modal);
+    }
+    let seg: Vec<f64> = x[t0..end].iter().map(|v| f64::from(*v)).collect();
+    let peak = seg.iter().fold(0.0f64, |m, v| m.max(v.abs()));
+    let over = 20.0 * (resonator_peak(&modes, sr, seg.len()) / peak.max(1e-12)).log10();
+    if over <= NOT_MODAL_DB {
+        return (modes, FitKind::Modal);
+    }
+    // Envelope fit: spaced peaks, each fitted on the recording itself.
+    let cands = candidates(&x[t0..end], audio.sample_rate, (count * 4).clamp(4, 64));
+    let mut picked: Vec<f32> = Vec::new();
+    for hz in cands {
+        if picked.iter().all(|p| {
+            (f64::from(hz) - f64::from(*p)).abs() >= ENVELOPE_SPACING * f64::from(p.min(hz))
+        }) {
+            picked.push(hz);
+        }
+        if picked.len() == count {
+            break;
+        }
+    }
+    let mut env: Vec<FitMode> = picked
+        .iter()
+        .filter_map(|hz| {
+            let start = Param {
+                amp: 0.0,
+                alpha: 20.0,
+                w: std::f64::consts::TAU * f64::from(*hz) / sr,
+                phi: 0.0,
+            };
+            fit(&seg, &start, sr).filter(|q| q.amp.is_finite() && q.amp > 0.0)
+        })
+        .map(|p| FitMode {
+            hz: (p.w * sr / std::f64::consts::TAU) as f32,
+            decay_s: if p.alpha > 1e-3 {
+                (1000f64.ln() / p.alpha).min(600.0) as f32
+            } else {
+                600.0
+            },
+            gain: p.amp as f32,
+        })
+        .collect();
+    let rebuilt = resonator_peak(&env, sr, seg.len());
+    if rebuilt > 0.0 {
+        let k = (peak / rebuilt) as f32;
+        for m in &mut env {
+            m.gain *= k;
+        }
+    }
+    env.sort_by(|a, b| a.hz.total_cmp(&b.hz));
+    (env, FitKind::Envelope)
+}
+
+/// The peeling fit (see the module comment).
+fn extract_peeled(audio: &Audio, count: usize) -> Vec<FitMode> {
     let sr = f64::from(audio.sample_rate);
     let x = audio.mix_mono();
     let t0 = onset(&x);
@@ -225,6 +332,7 @@ pub fn extract(audio: &Audio, count: usize) -> Vec<FitMode> {
         return Vec::new();
     }
     let sig: Vec<f64> = seg.iter().map(|v| f64::from(*v)).collect();
+    let seg_peak = sig.iter().fold(0.0f64, |m, v| m.max(v.abs()));
     let n = sig.len();
     // Initial parameters: the candidate frequency, a medium decay, no amp.
     let mut params: Vec<Option<Param>> = cands
@@ -248,6 +356,14 @@ pub fn extract(audio: &Audio, count: usize) -> Vec<FitMode> {
             for i in 0..n {
                 total[i] -= models[k][i];
             }
+            // No partial starts louder than the whole recording: without this
+            // cap, neighbours within the demodulation's band (a noisy hit)
+            // grow to cancel each other pass after pass (gains in the
+            // thousands on band-passed noise peaking at 0.9).
+            let next = next.map(|mut q| {
+                q.amp = q.amp.min(seg_peak);
+                q
+            });
             match next {
                 Some(q) if q.amp.is_finite() && q.amp > 0.0 => {
                     model(&q, sr, &mut models[k]);
