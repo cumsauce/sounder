@@ -118,7 +118,8 @@ pub(crate) struct ListenArgs {
     #[serde(default)]
     pub(crate) sweep: Option<SweepArg>,
     /// Zoom the picture: {"t": [0, 0.1], "hz": [200, 4000]} (seconds, Hz;
-    /// either key alone is fine).
+    /// either key alone is fine). With `t` the descriptor text describes
+    /// that window too, and its times count from `t[0]`.
     #[serde(default)]
     pub(crate) zoom: Option<ZoomArg>,
     /// A WAV to compare the sound against (relative paths resolve against the
@@ -149,7 +150,7 @@ pub(crate) struct VerifyArgs {
     /// Check names to run IN ADDITION to the defaults: ["clicks"]. Only
     /// checks that need no settings can be named (finite, peak_db (max
     /// -0.3), true_peak_db (max -1), silent_edges, clicks, dc, loop_seam,
-    /// variations, rebuild, macros); the others (lufs, duration, bands,
+    /// variations (4 seeds), rebuild, macros); the others (lufs, duration, bands,
     /// pitch, onsets, reference, aliasing, inharmonicity, modulation,
     /// roughness) take settings: give them in `expect`.
     #[serde(default)]

@@ -44,7 +44,7 @@ modeler's `MODELER_*`.
 2. `new_sound` (or `sound_ops` with `sound: "name"`), then `sound_ops` to build.
    Look at "Which ready-made node for which sound" first: a brief that fits a
    ready-made node is one node and a few knobs, not a rebuilt graph.
-   `describe_op` lists the 108 node types; `describe_op {kind: "filter"}` gives
+   `describe_op` lists the 109 node types; `describe_op {kind: "filter"}` gives
    one's example and schema (`type` and `node` are aliases of `kind`). To
    remove a node put `{"type": "delete", "name": "x"}` in `ops` (one item per
    node; a top-level `delete` is not a field and errors).
@@ -102,7 +102,8 @@ every call.
   fields listed.
 - **Names that trip people:** `impulse` takes `at`, a number or a list of
   times (`"at": [0, 0.1, 0.2]`), default 0. `wander` takes `rate` and
-  `range: [lo, hi]` (not `min` / `max`; `range` omitted is -1..1). `ramp`
+  `range: [lo, hi]` or `min` and `max` together (not both forms; `range`
+  omitted is -1..1). `ramp` takes `time` or `duration` (the same field) and
   defaults to an `exp` curve (`"curve": "linear"` for a straight one) and
   holds its last value, so a sound whose level follows a `ramp` never decays
   by itself: set a `duration`. `gain` takes `db` or `gain_db` (the same field;
@@ -113,7 +114,8 @@ every call.
 
 Exactly one `output` node: `{input, [gain_db], [lufs] or [peak_db],
 [fade_in 0.002], [fade_out 0.005], [ceiling_db -1]}` (fades are 0 in a loop).
-Gain, then the loudness target, then a lookahead ceiling limiter, then the
+Gain, then the loudness target, then a lookahead ceiling limiter that holds
+the **true peak** (4x oversampled, the `true_peak_db` estimator), then the
 edge fades. **The target is met after the fades**: `peak_db` and `lufs` are
 measured on the faded signal when the fades move the gain (by over 0.02 dB for
 a peak, 0.1 LU for loudness), so a hit at t = 0 with `fade_in: 0.0005` and
@@ -123,8 +125,12 @@ fade used to leave. A sound the fades barely touch keeps its exact gain.
 - `lufs` normalizes integrated loudness (up from as low as -70 LUFS too). A
   **short or peaky sound cannot reach a high `lufs`** under the ceiling: use
   `peak_db` instead (normalizes the pre-limiter sample peak to that dBFS; for
-  clicks, ticks, short hits, impacts). `lufs` and `peak_db` together are an
-  error; `peak_db` above `ceiling_db` is an error; `gain_db` stacks on either.
+  clicks, ticks, short hits, impacts). Because the limiter holds the true
+  peak, a noisy hit whose inter-sample peaks run over the ceiling is turned
+  down, so its **delivered sample peak can be lower than `peak_db`** (the
+  true peak sits at the ceiling, and the fade-in warning counts that target
+  as met). A sound whose true peak is already under the ceiling passes
+  bit-identical. `lufs` and `peak_db` together are an error; `peak_db` above `ceiling_db` is an error; `gain_db` stacks on either.
 - A **missed `lufs`** (more than 1 LU off) warns with the numbers: pre- and
   post-limiter peak, crest, and how much the limiter removed. It names the
   cause: "too short or too sparse to reach this loudness: use peak_db" (crest
@@ -133,7 +139,9 @@ fade used to leave. A sound the fades barely touch keeps its exact gain.
   fades took N LU" (shorten them).
 - The **default 2 ms fade-in cuts a hit that starts at t = 0** (a click, a
   gunshot). The render warns "the default 2 ms fade-in is cutting the first hit
-  by N dB (it starts at X ms)": set **`fade_in: 0.0005`** (0.5 ms: the fade
+  by N dB (it starts at X ms)" (not for a `fade_in` of 1 ms or less, nor when a
+  `peak_db` / `lufs` target is set and met: the delivered level is right
+  then): set **`fade_in: 0.0005`** (0.5 ms: the fade
   reaches zero at sample 0, so `silent_edges` still passes; `fade_in: 0` keeps
   the hit whole but `silent_edges` then fails on the non-zero first sample), or
   start the hit a few ms later, as `explosion`, `gunshot` and `splash` do
@@ -151,7 +159,7 @@ fields take a number, `"$param"`, `"=expr"` (`+ - * /`, parentheses, `$name`)
 or the **name of another node** (`"freq": "sweep"`: audio-rate modulation, a
 port as `"verb.wet"`).
 
-Families (108 types; groups marked * have a section under "More nodes, by
+Families (109 types; groups marked * have a section under "More nodes, by
 group" below):
 
 - sources: `osc noise impulse sample` and `fm wavetable`*; control `lfo wander
@@ -171,7 +179,7 @@ group" below):
 - physical models `modal contact friction` (with shapes, `loss`, `tilt`)*,
   mechanism clicks `click`*, the foley ones
   `bubble air glottis tract syrinx thunder` (voice upgrades)*, waveguides
-  `tube string`*, surfaces `rolling cloth footstep`*, water `water splash`*,
+  `tube string`*, surfaces `rolling cloth crumple footstep`*, water `water splash`*,
   elements `fire wind spark`*, machines `engine motor`*, blasts `explosion
   gunshot`*; `output`.
 
@@ -209,14 +217,15 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 
 | Brief | Node | Start with | Fits |
 |---|---|---|---|
-| a footstep, a walk | `footstep` | `surface` concrete / gravel / grass / wood, `weight`, `pace`, `shoe` | one heel + toe step with the surface's texture. A walk is several steps: `pattern` + `sound` instances, or a few `footstep` nodes with different `seed` / `at` in a `mix` |
+| a footstep, a walk | `footstep` | `surface` concrete / gravel / grass / wood, `weight`, `pace`, `shoe`, `body` (pitch apart from weight), `swish` (swish against ticks) | one heel + toe step with the surface's texture. A walk is several steps: `pattern` + `sound` instances, or a few `footstep` nodes with different `seed` / `at` in a `mix` |
 | fire, a campfire, crackle | `fire` | `size`, `intensity`, `crackle`, `loop` | roar + hiss + Poisson pops; loops by itself in a `kind: loop` document |
 | wind, a gale, howling | `wind` | `speed` (signal), `gust`, `whistle`, `loop` | five moving bands (+ an Aeolian tone); a `ramp` on `speed` is a rising gale |
 | electric arcs, sparks | `spark` | `rate`, `buzz`, `body` | mains-gated crackle into a short resonator |
 | a stream, a brook, rain on water | `water` | `flow` (signal), `density`, `splash`, `depth` | a Minnaert bubble population plus hiss; a loop in a loop document |
 | a splash, something dropped in water | `splash` | `size` (m) | bright, brief impact burst, then a bubble cloud whose pitch falls (the centroid falls through the sound); a transient: use `peak_db` |
 | a single drip, a blip of water | `bubble` | `radius_mm`, `jitter`; in `voices` `map` a `$rand` radius | one Minnaert bubble: drips, water_drips example |
-| cloth, paper, foliage rustle | `cloth` | `motion` (signal), `weight` | power-law rustle bursts in four bands; shape `motion` with a `wander` or `ramp` |
+| cloth, foliage rustle | `cloth` | `motion` (signal), `weight` | power-law rustle bursts in four bands; shape `motion` with a `wander` or `ramp` |
+| crumpled paper, foil, plastic, dry leaves | `crumple` | `density` (signal, bursts/s up to 400), `size`, `hardness` | band-passed noise bursts whose count follows `density` (cloth's saturates); hardness 0.2 paper, 0.85 foil; `peak_db` for a sparse one |
 | rolling, scraping, sliding | `rolling`, `friction` | `speed` (signal), `roughness` | an excitation: put it through `modal` (a scale first: `rolling` is loud at high speed) |
 | breaking glass, shards, debris | `shatter` into `voices` | `pieces`, `spread`, `exponent`; a small `modal` per fragment | a crack then power-law fragments; `modal` glass with `loss` and `tilt` per shard |
 | explosion, gunshot, blast | `explosion`, `gunshot` | `size`, `distance`; `caliber`, `barrel`, `suppressed` | finished one-shots, start 2.5 ms in (the default fade-in does not cut them); distance delays and darkens |
@@ -224,7 +233,7 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 | a pipe, a flute, a string, a bow | `tube`, `string` | `length` / `freq`, `excite`, `pressure` | waveguides: winds, plucks, strikes, bowed notes |
 | a latch, a switch, a button, a lock, a buckle | `click` | `kind` latch / switch / button / lock / clasp, `size`, `hardness` | one or two transients through small resonators; a hit at t = 0: `fade_in` 0.0005 |
 | thunder, a distant storm | `thunder` | `distance`, `brightness`, `length`, `duration` | foley's N-wave and rumble; `brightness` tilts above 100 Hz, `length` stretches the rumble; a `duration` that fits |
-| a struck object: panel, bell, pipe, keys, a door's thud | `modal` fed by `contact`, `impulse` or a noise burst | `shape` plate / bar / tube / membrane / string / shell, `material`, `size`, `loss`, `tilt` | normalized; `size` is a pitch knob; `loss` 0.5 rings twice as long; `tilt` flattens a one-mode plate |
+| a struck object: panel, bell, pipe, keys, a door's thud | `modal` fed by `contact`, `impulse` or a noise burst | `shape` plate / bar / tube / membrane / string / shell, `material`, `size`, `thickness`, `loss`, `tilt` | normalized; `size` and `thickness` are pitch knobs (small thin objects: `thickness` 0.0015 instead of a custom material); `loss` 0.5 rings twice as long; `tilt` flattens a one-mode plate |
 | a robot voice, speech-like texture, band dynamics | `vocoder`, `multiband`, `filterbank` | a pitched `carrier` + a noisy `modulator`; `crossovers` + `bands` | see "Bands and vocoder" |
 | a swarm, a swell, a granular wash | `cloud`, `grains` | `source`, `density` (signal), `size`, `pitch_spread` | grains from any node or WAV |
 | a vowel, a creature call | `glottis` into `tract` | `f0` (signal), `tension`, `vowel`, `scale` | "Foley models" |
@@ -238,15 +247,16 @@ One `sound` per layer and a `mix` with `gain` / `at` keeps each one editable.
 `seed` (the sound's, `new_sound` / `sound_ops` `seed`) is mixed into every
 random node, so **a seed changes only what reads it**: `noise`, `wander`,
 `poisson`, `voices` (`$rand`), `grains`, `cloud`, `shatter`, `pattern` with
-`jitter` or `values`, `bubble` with `jitter`, and the seeded model nodes
+`jitter` or `values`, `bubble` and `bounce` with `jitter`, and the seeded model nodes
 (`footstep`, `click`, `fire`, `wind`, `thunder`, ...). A chain of `osc`,
-`filter`, `ramp`, `decay`, a `pattern` without jitter, a `bubble` without
-jitter, `modal` fed by a plain `impulse` renders the same bits for every seed,
+`filter`, `ramp`, `decay`, a `pattern` without jitter, a `bubble` or
+`bounce` without jitter, `modal` fed by a plain `impulse` renders the same bits for every seed,
 so `export` with `variations: N` writes N identical files and warns ("all N
 variations are bit-identical"), and `verify expect variations` fails. To get
 four different takes:
 
-- jitter the timing: `pattern` `jitter` (seconds), `poisson` for a stream;
+- jitter the timing: `pattern` `jitter` (seconds), `bounce` `jitter` (a
+  fraction of each gap, 0..0.5), `poisson` for a stream;
 - randomize the voice: `voices` with a `map` of `$rand` expressions (pitch,
   `modal` `size`, level), `bubble` `jitter` (0..0.9) or `grains` `jitter` /
   per-grain ranges.
@@ -359,7 +369,7 @@ per event) will after it lands. Every generator takes `values {min, max,
 | `once` | `[at]` |
 | `pattern` | `times: [..]` or `every` + `count`; `[start]` added to all; `[jitter]` seconds, each time moves within +-jitter |
 | `poisson` | `rate` events/s, a number or a signal (thinning, so the rate can vary) |
-| `bounce` | `first` (seconds from the first impact to the second), `restitution` (0..1 exclusive), `[min_interval 0.004]`, `[start]`; gap k is `first * restitution^k`, impact k has value `restitution^k` |
+| `bounce` | `first` (seconds from the first impact to the second), `restitution` (0..1 exclusive), `[min_interval 0.004]`, `[start]`, `[jitter 0..0.5]` (each hit after the first moves by up to jitter times the gap before it, seeded; 0 draws nothing, so old renders hold); gap k is `first * restitution^k`, impact k has value `restitution^k` |
 | `burst` | `count`, `spread` (first to last event), `[curve]` timing density (linear even, exp dense early, smooth dense at both ends), `[at]` |
 | `on_threshold` | `input` (mono audio), `level`, `[hold 0.01]`: an event at each rising crossing (interpolated time), value = the signal there; a signal that starts above `level` fires at 0 |
 | `grains` | `source` (a node or a `.wav`), `events`, `size` s, `[position 0..1 or signal]` where each grain starts reading, `[pitch]` ratio, `[window hann\|tri\|rect]`, `[pan_spread 0..1]` (stereo, random pan per grain), `[jitter]` (+- of the source length on the position) |
@@ -462,7 +472,10 @@ impact strength), or later `voices`; **a crackle** = `poisson` with a
   [tilt 0], [seed]}:
   a simply supported square plate `size` metres a side. `material` is a foley
   name (`stone wood metal glass ice earth granular plant soft snow`) or
-  `{young, density, poisson, loss, thickness}`. Mode Hz = pi/2 * thickness *
+  `{young, density, poisson, loss, thickness}`; the `thickness` field
+  (metres, 0.0001..0.5, read once) overrides the material's own, so a small
+  thin object needs no custom material (every mode frequency goes linearly
+  with it; giving the material's own value changes nothing). Mode Hz = pi/2 * thickness *
   c_L / sqrt(12) * (m^2 + n^2) / size^2, so pitch goes as 1 / size^2 and a
   plate's thickness sets its register (wood 2.5 cm, size 0.5: lowest mode
   ~425 Hz; glass 1 cm, size 0.5: ~200 Hz). T60 per mode = ln(1000) / (pi f
@@ -494,7 +507,12 @@ impact strength), or later `voices`; **a crackle** = `poisson` with a
   plate from 0.12 m; outside it the error gives the range, and a size that
   leaves no mode in band says which thickness would fix it (pass `{young,
   density, poisson, loss, thickness}`). Modes above the band are dropped, not
-  folded.
+  folded. **Honest limit of `thickness`**: it is the plate formula, a pitch
+  knob, not a measured coin or key. A 25 mm metal coin of 1.5 mm has one mode,
+  at 11.5 kHz, and none at 3-9 kHz; an 8 cm disc of the same thickness has four
+  between 3 and 9 kHz. An object that must ring in that band needs a `size` and
+  `thickness` whose lowest mode sits near 1 kHz (give the human a macro on
+  `thickness`, exp curve).
 - `contact` {speed, mass, material, [hardness 0.7], [at]}: a half-sine force
   pulse as long as the Hertz contact time (foley's `hertz_time`) of a
   2000 kg/m3 ball of that mass whose stiffness runs from rubber (hardness 0)
@@ -598,10 +616,15 @@ until it fits; you read their moves in `summary`.
   peak + RMS envelopes, loudness curve; seeds / sweep values tile as labelled
   columns, 8 at most, under ~1.15 MP) and the descriptor table, one line each:
   - `length`, `level` (peak, true peak, LUFS, momentary max, RMS, crest, DC),
-    `time` (attack, peak time, decay -20 / -60 dB, and the silence wording:
+    `time` (attack as the 10-90 % rise, peak time, decay -20 / -60 dB, and the silence wording:
     leading / trailing silence, or "all silent"; "loop: n/a (see steadiness)"
-    for a loop), `onsets` (times and strengths), `pitch` (YIN, voiced share,
-    harmonicity).
+    for a loop), `swell/attack (the headline)` (ms from the first sound to 90 %
+    of the peak of the 10 ms RMS envelope: a swell reads long, a click near
+    zero; the 10-90 % `attack` and `attack detail` measure other things),
+    `onsets {n} (40 ms merge); fine {m} (5 ms): ...` (the fine count is the one
+    `density` is built on; it resolves hits 5 ms apart; the first 40 are listed
+    in ms, 20 to a line, with "... N more fine onsets not shown" after; not
+    for a loop), `pitch` (YIN, voiced share, harmonicity).
   - `spectrum (start/middle/end)` centroid / rolloff / flatness, then the
     **whole-sound** line (centroid, rolloff, full-band flatness, and flatness
     over the **occupied band**, the middle 80 % of the energy, "none" when that
@@ -613,10 +636,12 @@ until it fits; you read their moves in `summary`.
     like"), `modes`, `stereo` (correlation, width).
   - `attack detail` (first sound to 90 % of peak, and to the sample peak, in
     ms), `density` (events a second, from a 1 ms envelope: the count of hits in
-    a rain, a crackle or a footstep), `steadiness` (loops: loudness over 400 ms
+    a rain, a crackle or a footstep) and `density by tenth (events/s)` (ten
+    values: does a roll speed up, does a crumple thin out), `steadiness` (loops: loudness over 400 ms
     windows, min / max / spread in LU), and the **onset table** (one row per
-    onset: time, strength, attack ms, -20 dB ms, centroid, pitch start>end;
-    left out for loops: read `density`).
+    onset: time, strength, attack ms, -20 dB ms, centroid, pitch start>end, the
+    pitch glide also read for a blip under 40 ms; left out for loops: read
+    `density`).
   - four lines for synthesis checking: `aliasing` (energy off the harmonic grid
     above 4 kHz, relative to the total, dB; n/a without a steady pitched
     segment), `inharmonicity` (cents, mean over the strongest 8 partials; n/a
@@ -626,7 +651,10 @@ until it fits; you read their moves in `summary`.
   `diff: true` shows your previous render of the same request, this one, and
   their dB-difference spectrogram (this minus previous; diverging colours:
   blue = quieter now, red = louder, grey = same, saturating at +-24 dB, the
-  scale is drawn). `zoom` magnifies an attack or a band. `descriptors: false`
+  scale is drawn). `zoom` magnifies an attack or a band; with `zoom {t: [a, b]}`
+  the descriptor text describes that window too (the line "zoom window a-b s:
+  the numbers below describe this window; times count from a" says so), so
+  onset, fine-onset and peak times count from `a`. `descriptors: false`
   returns the image alone.
 - `listen reference: "file.wav"` (relative to the project, or absolute): the
   reference is resampled to the sound's rate, moved so its first onset (30 dB
@@ -652,7 +680,7 @@ until it fits; you read their moves in `summary`.
   - `checks: ["clicks"]` adds checks to the defaults; `only: ["clicks", "dc"]`
     runs just those. Only checks that **need no settings** can be named here:
     `finite peak_db true_peak_db silent_edges clicks dc loop_seam variations
-    rebuild macros`. A check that needs settings errors and shows the `expect`
+    rebuild macros` (a bare `variations` runs 4 seeds). A check that needs settings errors and shows the `expect`
     form to use.
   - `expect` (verify's `expect`, `sound_ops`'s `expect`, or the same fields at
     verify's top level) takes the checks with settings; given alone, only
@@ -664,7 +692,13 @@ until it fits; you read their moves in `summary`.
     30 counts with a fine detector above 1 kHz (`spacing_ms: 5` counted a 200/s
     click train within 10 %), over 40 merges more.
   - Settings of the rest: `bands [{band: "1k" (or Hz), segment 0..4, min_db,
-    max_db}]`; `variations {seeds 6, lufs_spread 1, min_distance 1}`;
+    max_db}]`; `variations {seeds 6, lufs_spread 1, peak_spread_db 1, min_distance 1}`
+    (it compares the quantity the output normalizes: the sample-peak spread,
+    `peak_spread_db`, when the output uses `peak_db`; the loudness spread,
+    `lufs_spread`, otherwise; the other is only reported; the closest pair of
+    seeds must also differ by `min_distance` dB of STFT distance);
+    a wrong shape (`"variations": 5`) errors with the check's name and its
+    fields, as `dc` and `aliasing` do;
     `aliasing true` or `{max_db -40}`; `inharmonicity {min, max}` cents (a
     harmonic tone reads under 2, a bell tens); `modulation {rate_hz, tol_hz
     0.5, min_depth (1 dB or 10 cents), mode "amplitude" | "pitch"}`;
@@ -689,7 +723,8 @@ Warnings in `summary`: a node nothing reads, a frequency above Nyquist, a
 silent output, DC over -40 dB, an output whose input is squashed by the
 ceiling limiter, a sound that never decays, one that is mostly silence, an
 `output.lufs` the render missed (with the numbers and the cause), the default
-fade-in cutting a first hit (it suggests `fade_in` 0.0005), a field driven by a
+fade-in cutting a first hit (it suggests `fade_in` 0.0005; not given for
+a `fade_in` of 1 ms or less or when the target is met), a field driven by a
 macro (your value is ignored).
 
 ## Sessions, history, comments
@@ -1162,9 +1197,43 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
 - `cloth` {motion (signal 0..4; 0 is silence), [weight 0.5], [seed]}: rustle
   bursts with power-law sizes in four bands (cloth, paper, foliage).
 - `footstep` {surface concrete|gravel|grass|wood, [weight 0.5], [pace walk|run|
-  sneak or 0..1], [shoe hard|boot|sneaker|bare], [at 0], [seed]}: one heel and
-  one toe (70-150 ms apart), a finished sound; a default step peaks near
-  -12 dBFS. Build a walk with several nodes or `sound` instances.
+  sneak or 0..1], [shoe hard|boot|sneaker|bare], [body 1], [swish 0.5], [at 0],
+  [seed]}: one heel and one toe (70-150 ms apart), a finished sound; a default
+  step peaks near -12 dBFS. Build a walk with several nodes or `sound`
+  instances. `body` (0.5..2) multiplies the resonant body frequency apart from
+  `weight` (wood: all three modes; concrete: the low thud; gravel: the thump;
+  grass: the low band; 0.5 an octave down). `swish` (0..1) trades the swish
+  for the ticks: grass swish bands x `1 + 2 (swish - 0.5)` against the stalk
+  ticks x `1 - 2 (swish - 0.5)`; gravel stone ticks fewer and a swish bed
+  fading in above 0.5; concrete and wood ignore it. Both defaults are
+  bit-identical to before the fields (pinned hashes); give the human macros on
+  them. Measured (`docs/nodes/R2-G.md`): grass energy above 2 kHz at swish 0 /
+  .5 / 1 is 0.10 / 0.56 / 0.77; the wood low mode at weight 0.5 goes 78 Hz to
+  305 Hz from `body` 0.5 to 2.
+
+- `crumple` {density (signal, bursts/s, 0..400; 0 is silence), [size 0.5],
+  [hardness 0.5], [seed]} (`docs/nodes/crumple.md`): paper, foil, plastic or
+  leaves as a population of short band-passed noise bursts plus sparse louder
+  snaps, arrivals on a jittered grid so the count follows `density` all the way
+  (`cloth` saturates: its fine onset count stops rising from `motion` 1).
+  `size` lowers the burst centres and lengthens the decays, `hardness` raises
+  the centres (1.5-4.5 kHz soft, 3-9 kHz hard) and shortens them. Measured:
+  fine onsets per second 20 / 40 / 80 / ~155 at density 20 / 40 / 80 / 160;
+  centroid 4.5 kHz at hardness 0 to 7.2 kHz at 1; 3.9 kHz at size 1 to 8.1 kHz
+  at 0. Above density 40 each burst shortens so the energy stays level. Not
+  normalized and peaky when sparse: `output.lufs` -20 is met at density 40,
+  `peak_db` for a few bursts a second. The fine onset counter reads low above
+  about 200 per second (checked to 200). Not heard: macros on `hardness`
+  (claim `centroid`, 1) and `size` (claim `centroid`, -1) work.
+
+<!-- recipe -->
+```json
+[
+  {"type": "wander", "name": "squeeze", "rate": 3, "range": [30, 140], "seed": 2},
+  {"type": "crumple", "name": "foil", "density": "squeeze", "size": 0.4, "hardness": 0.85, "seed": 3},
+  {"type": "output", "name": "out", "input": "foil", "lufs": -20}
+]
+```
 
 **Mechanism clicks** (`docs/nodes/click.md`):
 
