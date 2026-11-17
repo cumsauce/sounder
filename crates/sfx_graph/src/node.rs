@@ -329,6 +329,9 @@ node_types! {
     "freq_shift" => FreqShift,
 
     // slot S7
+    "doppler" => Doppler,
+    "haas" => Haas,
+    "decorrelate" => Decorrelate,
 
     // slot S8
 

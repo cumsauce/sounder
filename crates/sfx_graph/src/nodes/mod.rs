@@ -34,6 +34,7 @@ mod dynamics;
 mod modfx;
 
 // slot S7
+mod motion;
 
 // slot S8
 
@@ -102,6 +103,7 @@ pub use dynamics::*;
 pub use modfx::*;
 
 // slot S7
+pub use motion::*;
 
 // slot S8
 
