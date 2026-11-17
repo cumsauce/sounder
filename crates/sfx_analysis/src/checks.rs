@@ -330,11 +330,15 @@ fn seam_spectral(tail: &[f32], head: &[f32], sr: u32) -> f32 {
     if k == 0 { 0.0 } else { sum / k as f32 }
 }
 
-/// Sweeps one macro; (pass, text).
-fn macro_check(cx: &CheckCx, m: &sfx_graph::Macro) -> Result<(bool, String), String> {
+/// Sweeps one macro that has a claim; (pass, text).
+fn macro_check(
+    cx: &CheckCx,
+    m: &sfx_graph::Macro,
+    claim: sfx_graph::Claim,
+) -> Result<(bool, String), String> {
     use crate::measure::{fmt, measure};
-    let sfx_graph::Claim(measure_of, dir) = m.claim;
-    let xs = [0.0, 0.25, 0.5, 0.75, 1.0];
+    let sfx_graph::Claim(measure_of, dir) = claim;
+    let xs = sfx_graph::macros::SWEEP;
     let (mut vals, mut peaks) = (Vec::new(), Vec::new());
     for x in xs {
         let r = cx.doc.render(&RenderOpts {
@@ -749,8 +753,13 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
         push("reference", ok, why);
     }
     if e.macros == Some(true) {
+        let mut unclaimed: Vec<&str> = Vec::new();
         for m in &cx.doc.macros {
-            match macro_check(cx, m) {
+            let Some(claim) = m.claim else {
+                unclaimed.push(&m.name);
+                continue;
+            };
+            match macro_check(cx, m, claim) {
                 Ok(r) => push(&format!("macro {}", m.name), r.0, r.1),
                 Err(e) => push(
                     &format!("macro {}", m.name),
@@ -758,6 +767,17 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
                     format!("the sweep failed to render: {e}"),
                 ),
             }
+        }
+        if !unclaimed.is_empty() {
+            push(
+                "macros",
+                true,
+                format!(
+                    "{} macros unclaimed, not swept: {} (give one a claim [measure, direction] to have verify hold its name to it)",
+                    unclaimed.len(),
+                    unclaimed.join(", ")
+                ),
+            );
         }
     }
     if e.rebuild == Some(true) {

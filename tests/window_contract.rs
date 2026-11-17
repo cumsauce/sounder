@@ -60,7 +60,7 @@ fn real_state() -> Value {
                 value: 0.5,
                 default: None,
                 doc: "how cutting it is".into(),
-                claim: Claim(Measure::Centroid, 1),
+                claim: Some(Claim(Measure::Centroid, 1)),
                 game: false,
                 map: vec![MapEntry {
                     node: "lp".into(),
@@ -68,6 +68,7 @@ fn real_state() -> Value {
                     from: 0.8,
                     to: 2.4,
                     curve: MapCurve::Linear,
+                    param: None,
                     col: None,
                     index: None,
                     key: None,

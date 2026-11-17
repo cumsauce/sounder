@@ -5,7 +5,9 @@
 //! nodes (after `$param` substitution) before evaluation, so a mapped field's
 //! own value is overridden. The name is a claim: `claim` says which measure
 //! of the sound moves which way over 0..1, and `sfx_analysis`'s `macros`
-//! check verifies it. The mock `design/window-concept.html` has a JS version
+//! check verifies it (a macro without a claim is not swept). A map entry may
+//! also write one of the sound's `params` (`{"param": "size", ...}`), which a
+//! `voices` patch and its `map` read. The mock `design/window-concept.html` has a JS version
 //! (`applyMacros`).
 
 use std::collections::BTreeMap;
@@ -81,14 +83,22 @@ pub enum MapCurve {
     Exp,
 }
 
-/// One field a macro writes.
+/// One field (or one doc param) a macro writes: give `node` and `field`, or
+/// `param`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MapEntry {
-    /// The node.
+    /// The node. Empty when the entry writes a `param`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub node: String,
-    /// Its field.
+    /// Its field. Empty when the entry writes a `param`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub field: String,
+    /// Instead of `node` + `field`: the name of one of the sound's `params`.
+    /// Nodes (and a `voices` patch and its `map`) that read `$name` see the
+    /// knob's value; the param's own value is overridden.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub param: Option<String>,
     /// The value at macro 0 and at macro 1.
     pub from: f64,
     pub to: f64,
@@ -118,8 +128,36 @@ impl MapEntry {
         }
     }
 
-    /// `node.field` with column / index.
+    /// Exactly one of `node` + `field` or `param`; a param entry takes no
+    /// `col` / `index` / `key`.
+    pub fn check_shape(&self) -> Result<(), String> {
+        match (&self.param, self.node.is_empty(), self.field.is_empty()) {
+            (Some(_), true, true) => {
+                if self.col.is_some() || self.index.is_some() || self.key.is_some() {
+                    return Err(format!(
+                        "{}: a param entry takes no col / index / key",
+                        self.target()
+                    ));
+                }
+                Ok(())
+            }
+            (Some(p), ..) => Err(format!(
+                "entry writes both param `{p}` and node `{}` field `{}`: give one or the other",
+                self.node, self.field
+            )),
+            (None, false, false) => Ok(()),
+            (None, ..) => Err(
+                "entry needs \"node\" and \"field\" (a node's field), or \"param\" (one of the sound's params)"
+                    .into(),
+            ),
+        }
+    }
+
+    /// `node.field` with column / index, or `$param`.
     pub fn target(&self) -> String {
+        if let Some(p) = &self.param {
+            return format!("${p}");
+        }
         let mut s = format!("{}.{}", self.node, self.field);
         if let Some(c) = self.col {
             s += &format!(" col {c}");
@@ -134,8 +172,8 @@ impl MapEntry {
     }
 }
 
-/// A named 0..1 knob.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+/// A named 0..1 knob. Deserializing names the macro in every error.
+#[derive(Clone, Debug, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Macro {
     /// An adjective for what the knob does: brightness, weight, grit.
@@ -150,14 +188,64 @@ pub struct Macro {
     /// What the knob does, in a phrase the human reads on hover.
     #[serde(default)]
     pub doc: String,
-    /// The name's claim; checked by `verify` (macros).
-    pub claim: Claim,
+    /// The name's claim; checked by `verify` (macros). Optional: a macro
+    /// without one is not swept.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claim: Option<Claim>,
     /// Written to the export manifest as a runtime input the game sets.
     #[serde(default)]
     pub game: bool,
-    /// The fields it moves.
+    /// The fields (or params) it moves.
     pub map: Vec<MapEntry>,
 }
+
+/// [`Macro`]'s wire shape; its errors get the macro's name.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MacroBody {
+    name: String,
+    #[serde(default = "half")]
+    value: f64,
+    #[serde(default)]
+    default: Option<f64>,
+    #[serde(default)]
+    doc: String,
+    #[serde(default)]
+    claim: Option<Claim>,
+    #[serde(default)]
+    game: bool,
+    map: Vec<MapEntry>,
+}
+
+impl<'de> Deserialize<'de> for Macro {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        use serde::de::Error;
+        let v = Value::deserialize(d)?;
+        let what = match v.get("name").and_then(Value::as_str) {
+            Some(n) => format!("macro `{n}`"),
+            None => "macro (no \"name\" string)".to_string(),
+        };
+        let b: MacroBody =
+            serde_json::from_value(v).map_err(|e| D::Error::custom(format!("{what}: {e}")))?;
+        for (i, e) in b.map.iter().enumerate() {
+            e.check_shape()
+                .map_err(|why| D::Error::custom(format!("{what}: map[{i}]: {why}")))?;
+        }
+        Ok(Macro {
+            name: b.name,
+            value: b.value,
+            default: b.default,
+            doc: b.doc,
+            claim: b.claim,
+            game: b.game,
+            map: b.map,
+        })
+    }
+}
+
+/// The knob positions `verify` sweeps (and `sound_ops` checks renders at when
+/// it creates a macro).
+pub const SWEEP: [f64; 5] = [0.0, 0.25, 0.5, 0.75, 1.0];
 
 fn half() -> f64 {
     0.5
@@ -170,14 +258,44 @@ impl Macro {
 
     /// Nodes this macro writes.
     pub fn nodes(&self) -> Vec<&str> {
-        let mut v: Vec<&str> = self.map.iter().map(|m| m.node.as_str()).collect();
+        let mut v: Vec<&str> = self
+            .map
+            .iter()
+            .filter(|m| m.param.is_none())
+            .map(|m| m.node.as_str())
+            .collect();
         v.dedup();
         v
     }
 }
 
-/// `nodes` (already param-resolved) with every macro applied at its value;
-/// `overrides` replaces named macros' values (sweeps, the game's inputs).
+/// `params` with every macro's param entries written at the macro's value
+/// (`overrides` replaces named macros' values). Resolve the nodes with this,
+/// and hand it to the render as the sound's params (a `voices` patch reads it).
+pub fn effective_params(
+    params: &crate::Params,
+    macros: &[Macro],
+    overrides: &BTreeMap<String, f64>,
+) -> crate::Params {
+    let mut out = params.clone();
+    for m in macros {
+        let x = overrides
+            .get(&m.name)
+            .copied()
+            .unwrap_or(m.value)
+            .clamp(0.0, 1.0);
+        for e in &m.map {
+            if let Some(p) = &e.param {
+                out.insert(p.clone(), e.at(x));
+            }
+        }
+    }
+    out
+}
+
+/// `nodes` (already param-resolved) with every macro's node entries applied
+/// at its value; `overrides` replaces named macros' values (sweeps, the
+/// game's inputs). Param entries are [`effective_params`]'s.
 pub fn apply(
     nodes: &[Value],
     macros: &[Macro],
@@ -190,7 +308,7 @@ pub fn apply(
             .copied()
             .unwrap_or(m.value)
             .clamp(0.0, 1.0);
-        for e in &m.map {
+        for e in m.map.iter().filter(|e| e.param.is_none()) {
             let Some(node) = out
                 .iter_mut()
                 .find(|n| n.get("name").and_then(Value::as_str) == Some(e.node.as_str()))
@@ -304,6 +422,7 @@ pub fn validate_shape(
         Option<String>,
         String,
     )> = Vec::new();
+    let mut written_params: Vec<(String, String)> = Vec::new();
     for m in macros {
         if m.name.trim().is_empty() || m.name.contains(char::is_whitespace) {
             return Err(format!(
@@ -318,10 +437,13 @@ pub fn validate_shape(
         if !(0.0..=1.0).contains(&m.value) || m.default.is_some_and(|d| !(0.0..=1.0).contains(&d)) {
             return Err(format!("macro `{}`: value and default are 0..1", m.name));
         }
-        if m.claim.1 != 1 && m.claim.1 != -1 {
+        if let Some(c) = &m.claim
+            && c.1 != 1
+            && c.1 != -1
+        {
             return Err(format!(
                 "macro `{}`: claim direction {} must be 1 (rises over 0..1) or -1 (falls)",
-                m.name, m.claim.1
+                m.name, c.1
             ));
         }
         if m.map.is_empty() {
@@ -331,6 +453,8 @@ pub fn validate_shape(
             ));
         }
         for e in &m.map {
+            e.check_shape()
+                .map_err(|why| format!("macro `{}`: {why}", m.name))?;
             if !e.from.is_finite() || !e.to.is_finite() {
                 return Err(format!(
                     "macro `{}`: {} from / to must be finite numbers",
@@ -346,6 +470,28 @@ pub fn validate_shape(
                     e.from,
                     e.to
                 ));
+            }
+            if let Some(p) = &e.param {
+                if !params.contains_key(p) {
+                    let known: Vec<&str> = params.keys().map(String::as_str).collect();
+                    return Err(format!(
+                        "macro `{}`: no param named `{p}` (params: {}): declare it first with sound_ops params",
+                        m.name,
+                        if known.is_empty() {
+                            "none".into()
+                        } else {
+                            known.join(", ")
+                        }
+                    ));
+                }
+                if let Some(w) = written_params.iter().find(|w| &w.0 == p) {
+                    return Err(format!(
+                        "macro `{}` and macro `{}` both write param ${p}: split the param or drop one",
+                        w.1, m.name
+                    ));
+                }
+                written_params.push((p.clone(), m.name.clone()));
+                continue;
             }
             if !nodes
                 .iter()
@@ -396,12 +542,17 @@ pub fn validate_ends(
     if macros.is_empty() {
         return Ok(());
     }
-    let nodes: Vec<Value> = nodes
-        .iter()
-        .map(|n| crate::params::resolve(n, params))
-        .collect::<Result<_, _>>()?;
     for x in [0.0, 1.0] {
         let all: BTreeMap<String, f64> = macros.iter().map(|m| (m.name.clone(), x)).collect();
+        let at = effective_params(params, macros, &all);
+        let nodes: Vec<Value> = nodes
+            .iter()
+            .enumerate()
+            .map(|(k, n)| {
+                crate::params::resolve(n, &at)
+                    .map_err(|e| format!("with every macro at {x}: node #{k}: {e}"))
+            })
+            .collect::<Result<_, _>>()?;
         let moved = apply(&nodes, macros, &all)?;
         crate::eval::parse(&moved, &crate::Params::new())
             .map_err(|e| format!("with every macro at {x}: {e}"))?;

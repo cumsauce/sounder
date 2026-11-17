@@ -1246,6 +1246,7 @@ impl Session {
             out += "macros:\n";
             for m in &d.macros {
                 let checked = match sound.macro_results.get(&m.name) {
+                    _ if m.claim.is_none() => String::new(),
                     Some((h, pass, why)) if *h == hash => format!(
                         " [{}: {why}]",
                         if *pass { "claim holds" } else { "CLAIM FAILS" }
@@ -1253,13 +1254,19 @@ impl Session {
                     _ => " [claim unchecked: verify runs it]".into(),
                 };
                 out += &format!(
-                    "- {} {:.2} (agent default {:.2}){} claims {} {}{}; moves {}{}\n",
+                    "- {} {:.2} (agent default {:.2}){} {}{}; moves {}{}\n",
                     m.name,
                     m.value,
                     m.default_value(),
                     if m.game { " GAME" } else { "" },
-                    m.claim.0.name(),
-                    if m.claim.1 > 0 { "rises" } else { "falls" },
+                    match m.claim {
+                        Some(c) => format!(
+                            "claims {} {}",
+                            c.0.name(),
+                            if c.1 > 0 { "rises" } else { "falls" }
+                        ),
+                        None => "unclaimed".to_string(),
+                    },
                     checked,
                     m.map
                         .iter()

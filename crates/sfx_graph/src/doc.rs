@@ -204,6 +204,12 @@ impl SoundDoc {
         v.get("name").and_then(Value::as_str)
     }
 
+    /// The sound's params as evaluated: macros' param entries written at their
+    /// values (`overrides` replace macro values).
+    pub fn effective_params(&self, overrides: &BTreeMap<String, f64>) -> Params {
+        macros::effective_params(&self.params, &self.macros, overrides)
+    }
+
     /// The graph as evaluated: nodes with `$param`s resolved and macros
     /// applied (`overrides` replace macro values).
     pub fn graph(&self, overrides: &BTreeMap<String, f64>) -> Result<Vec<Value>, String> {
@@ -220,11 +226,12 @@ impl SoundDoc {
                 ));
             }
         }
+        let eff = self.effective_params(overrides);
         let resolved: Vec<Value> = self
             .nodes
             .iter()
             .enumerate()
-            .map(|(k, n)| params::resolve(n, &self.params).map_err(|e| format!("node #{k}: {e}")))
+            .map(|(k, n)| params::resolve(n, &eff).map_err(|e| format!("node #{k}: {e}")))
             .collect::<Result<_, _>>()?;
         macros::apply(&resolved, &self.macros, overrides)
     }
@@ -232,6 +239,7 @@ impl SoundDoc {
     /// Renders the sound.
     pub fn render(&self, opts: &RenderOpts) -> Result<Rendered, String> {
         let nodes = self.graph(&opts.macros)?;
+        let eff = self.effective_params(&opts.macros);
         let params = Params::new();
         let seed = opts.seed.unwrap_or(self.seed);
         let sr = self.sample_rate;
@@ -247,7 +255,7 @@ impl SoundDoc {
             seed,
             looped,
             base_dir: opts.base_dir.clone(),
-            params: self.params.clone(),
+            params: eff.clone(),
             sounds: opts.sounds.clone(),
             stack: {
                 let mut s = opts.stack.clone();
@@ -442,6 +450,38 @@ impl SoundDoc {
         w
     }
 
+    /// Renders each named macro over [`macros::SWEEP`] (the other knobs where
+    /// they are); the first render error as "macro `m` at 0.75: error". With
+    /// `needs_a_pass`, a macro that fails at every position is not blamed (the
+    /// graph is broken, not the knob).
+    fn sweep_failure(
+        &self,
+        names: &[String],
+        opts: &RenderOpts,
+        needs_a_pass: bool,
+    ) -> Option<String> {
+        for m in self.macros.iter().filter(|m| names.contains(&m.name)) {
+            let mut first: Option<(f64, String)> = None;
+            let mut passes = 0;
+            for x in macros::SWEEP {
+                let at = RenderOpts {
+                    macros: [(m.name.clone(), x)].into(),
+                    ..opts.clone()
+                };
+                match self.render(&at) {
+                    Ok(_) => passes += 1,
+                    Err(e) => first = first.or(Some((x, e))),
+                }
+            }
+            if let Some((x, e)) = first
+                && (passes > 0 || !needs_a_pass)
+            {
+                return Some(format!("macro `{}` at {x}: {e}", m.name));
+            }
+        }
+        None
+    }
+
     /// Applies a batch of node upserts (and `{"type": "delete", "name"}`)
     /// atomically: the result is rendered for real, and on any error nothing
     /// changes. A call that changes nothing records no step.
@@ -453,8 +493,23 @@ impl SoundDoc {
     ) -> Result<ApplyReport, String> {
         let started = Instant::now();
         let mut next = self.clone();
+        let param_edits = edit.params.clone().unwrap_or_default();
         if let Some(p) = edit.params {
             next.params.extend(p);
+        }
+        // A name in both `delete_macros` and `macros` is a replacement: the
+        // delete runs first, so the new definition is the one that stays.
+        let upserted: Vec<String> = edit
+            .macros
+            .as_ref()
+            .map(|l| l.iter().map(|m| m.name.clone()).collect())
+            .unwrap_or_default();
+        for name in &edit.delete_macros {
+            let before = next.macros.len();
+            next.macros.retain(|m| &m.name != name);
+            if next.macros.len() == before && !upserted.contains(name) {
+                return Err(format!("delete_macros: no macro named `{name}`"));
+            }
         }
         if let Some(list) = edit.macros {
             for mut m in list {
@@ -467,13 +522,6 @@ impl SoundDoc {
                     Some(at) => next.macros[at] = m,
                     None => next.macros.push(m),
                 }
-            }
-        }
-        for name in &edit.delete_macros {
-            let before = next.macros.len();
-            next.macros.retain(|m| &m.name != name);
-            if next.macros.len() == before {
-                return Err(format!("delete_macros: no macro named `{name}`"));
             }
         }
         if let Some(k) = edit.kind {
@@ -547,11 +595,12 @@ impl SoundDoc {
             }
         };
         macros::validate_shape(&next.nodes, &next.params, &next.macros).map_err(hint)?;
+        let eff = macros::effective_params(&next.params, &next.macros, &BTreeMap::new());
         let resolved: Vec<Value> = next
             .nodes
             .iter()
             .enumerate()
-            .map(|(k, n)| params::resolve(n, &next.params).map_err(|e| format!("node #{k}: {e}")))
+            .map(|(k, n)| params::resolve(n, &eff).map_err(|e| format!("node #{k}: {e}")))
             .collect::<Result<_, _>>()?;
         let current = macros::apply(&resolved, &next.macros, &BTreeMap::new()).map_err(hint)?;
         if let Err(e) = eval::parse(&current, &Params::new()) {
@@ -566,7 +615,24 @@ impl SoundDoc {
         macros::validate_ends(&next.nodes, &next.params, &next.macros).map_err(hint)?;
         // Render for real: kernel errors (a filter fed an event stream)
         // surface now, and leave the document untouched.
-        let rendered = next.render(opts)?;
+        let rendered = match next.render(opts) {
+            Ok(r) => r,
+            // The render at the knobs' values failed: if a knob made here is
+            // the cause (it renders at some positions but not this one), say
+            // which and where.
+            Err(e) => {
+                return Err(match next.sweep_failure(&upserted, opts, true) {
+                    Some(blame) => hint(blame),
+                    None => e,
+                });
+            }
+        };
+        // A knob made or redefined here is swept as `verify` would: a render
+        // that fails at some position (too many events at 0.75, say) is
+        // reported now, with the position, not found later.
+        if let Some(blame) = next.sweep_failure(&upserted, opts, false) {
+            return Err(hint(blame));
+        }
         let mut cmp = self.clone();
         cmp.version = next.version;
         let same = self.version > 0 && cmp == next;
@@ -612,6 +678,20 @@ impl SoundDoc {
                             e.to
                         ));
                     }
+                }
+            }
+        }
+        // Likewise a param a macro writes: setting it changes nothing audible.
+        for (k, v) in &param_edits {
+            if self.params.get(k).is_none_or(|old| old == v) {
+                continue; // new, or unchanged
+            }
+            for m in &next.macros {
+                for e in m.map.iter().filter(|e| e.param.as_deref() == Some(k)) {
+                    macro_notes.push(format!(
+                        "param `{k}` is driven by macro `{}` ({} -> {} over 0..1): your value is ignored; edit the macro (sound_ops macros) or delete it",
+                        m.name, e.from, e.to
+                    ));
                 }
             }
         }

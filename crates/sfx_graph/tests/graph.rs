@@ -276,7 +276,7 @@ fn params_macros_and_expressions_resolve() {
         value: 0.5,
         default: Some(0.5),
         doc: "level".into(),
-        claim: Claim(Measure::Lufs, 1),
+        claim: Some(Claim(Measure::Lufs, 1)),
         game: true,
         map: vec![MapEntry {
             node: "out".into(),
@@ -284,6 +284,7 @@ fn params_macros_and_expressions_resolve() {
             from: -24.0,
             to: 0.0,
             curve: MapCurve::Linear,
+            param: None,
             col: None,
             index: None,
             key: None,
@@ -322,6 +323,7 @@ fn macro_validation_names_the_problem() {
         from,
         to,
         curve: sfx_graph::MapCurve::Linear,
+        param: None,
         col: None,
         index: None,
         key: None,
@@ -331,7 +333,7 @@ fn macro_validation_names_the_problem() {
         value: 0.5,
         default: None,
         doc: String::new(),
-        claim: Claim(Measure::Centroid, 1),
+        claim: Some(Claim(Measure::Centroid, 1)),
         game: false,
         map,
     };

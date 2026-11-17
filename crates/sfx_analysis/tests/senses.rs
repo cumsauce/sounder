@@ -301,7 +301,7 @@ fn knob(
         value: 0.5,
         default: Some(0.5),
         doc: String::new(),
-        claim: sfx_graph::Claim(claim.0, claim.1),
+        claim: Some(sfx_graph::Claim(claim.0, claim.1)),
         game: false,
         map,
     }
@@ -318,6 +318,7 @@ fn entry(node: &str, field: &str, from: f64, to: f64, exp: bool) -> sfx_graph::M
         } else {
             sfx_graph::MapCurve::Linear
         },
+        param: None,
         col: None,
         index: None,
         key: None,

@@ -421,7 +421,7 @@ mod tests {
                     value: 0.5,
                     default: None,
                     doc: "cutoff".into(),
-                    claim: Claim(Measure::Centroid, 1),
+                    claim: Some(Claim(Measure::Centroid, 1)),
                     game: false,
                     map: vec![MapEntry {
                         node: "lp".into(),
@@ -429,6 +429,7 @@ mod tests {
                         from: 300.0,
                         to: 8000.0,
                         curve: MapCurve::Exp,
+                        param: None,
                         col: None,
                         index: None,
                         key: None,
