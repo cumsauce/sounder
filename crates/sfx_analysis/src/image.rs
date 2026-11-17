@@ -167,7 +167,13 @@ fn legend(c: &mut Canvas, right: usize, top: usize) {
         &hi,
         1,
     );
-    c.text(x0, top + 4, "BLUE QUIETER  RED LOUDER", 1);
+    let key = "BLUE QUIETER  RED LOUDER";
+    c.text(
+        right.saturating_sub(Canvas::text_width(key, 1) + 4),
+        top + 4,
+        key,
+        1,
+    );
 }
 
 fn nice_step(span: f32, ticks: f32) -> f32 {
@@ -193,7 +199,13 @@ fn fmt_t(t: f32, step: f32) -> String {
     }
 }
 
-fn panel(label: &str, a: &Audio, spec_diff: Option<(&Audio, &Audio)>, w: usize, view: View) -> Canvas {
+fn panel(
+    label: &str,
+    a: &Audio,
+    spec_diff: Option<(&Audio, &Audio)>,
+    w: usize,
+    view: View,
+) -> Canvas {
     let sr = a.sample_rate;
     let mut c = Canvas::new(w, PANEL_H, BG);
     let mono = a.mix_mono();

@@ -97,9 +97,8 @@ cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings 
 - **Output loudness.** `output.lufs` normalizes, then the `ceiling_db`
   lookahead limiter runs; on a very peaky sound the limiter takes some
   loudness back, and the render warns when the target is missed by over 1 LU.
-- **Not built yet:** the `reference` check and reference compare (phase 4),
-  `extract_modes` (phase 4), `listen` `diff` (phase 2: needs the previous
-  render, which the session keeps).
+- **Reference compare, `diff`, `extract_modes`:** built in phase 4, see
+  "Phase 4 notes (reference)" below.
 - Copied from modeler: `params.rs` (verbatim), the node macro / strict parsing
   / `refs` / `example` / `describe` pattern, `eval.rs` structure, the
   `MatDoc::apply` flow, `raster.rs` (canvas, 5x7 font, PNG).
@@ -109,8 +108,7 @@ cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings 
 - **Tools: 16, not 15.** The plan's table names 16 (`undo`, `redo`, `jump`,
   `history` count four); all are implemented. `extract_modes` is implemented
   now (strongest spectral peaks and their decay as a `resonators` node);
-  phase 4 can refine it. `play` returns the headless error. `listen`'s
-  `reference` returns "arrives with phase 4".
+  phase 4 refined it. `play` returns the headless error.
 - **Macros replace `inputs`** (plan: "Macros"). `sfx_graph::macros`: `Macro`,
   `MapEntry`, `apply` (on param-resolved nodes before evaluation),
   `validate` (names, ends, duplicate writers, and the graph must parse with
@@ -191,3 +189,21 @@ instancing came after the merge because they reach into the evaluator.
 - **Examples.** `rain_loop.rs` (a loop passing `loop_seam`), `gravel_step.rs`
   (6 seeds passing `variations`; the loudness target is -26 LUFS because a peaky
   step cannot reach a higher one under the -1 dBFS ceiling).
+
+## Phase 4 notes (reference)
+
+- **`sfx_analysis::reference`**: `compare(sound, reference)` resamples (windowed
+  sinc, Blackman, 48 taps a side), aligns by first onset (-30 dB re peak),
+  matches integrated loudness, then reports `stft::distance`, the top 5 band x
+  time deviations in words (the same 8 bands x 5 segments as `listen`), and
+  length / attack / decay / centroid sentences. `listen reference:`, `diff` and
+  the `reference {file, max_distance}` check use it. The difference spectrogram
+  is `image::DiffColumn` with `raster::colormap_diverging` (+-24 dB).
+- **`extract_modes`** now lives in `sfx_analysis::modal`: a time-domain peeling
+  fit with absolute gains. Recorded thresholds (`tests/reference.rs`): rebuilt
+  from its own render the distance is 0.69 dB (the old peak-pick: 3.77 dB and
+  2 dB too loud); the hard case 1.21 dB; the tests allow 1.2 / 2.0 dB, and
+  require a 10 %-shifted rebuild to score over 8 dB.
+- **Deviation from the plan:** building in the shared `target/` let lanes
+  overwrite each other's `sfx_analysis` rlib (same artefact hash across
+  worktrees), so this lane built in its worktree's own `target/`.

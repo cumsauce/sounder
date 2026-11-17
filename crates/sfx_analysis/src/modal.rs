@@ -49,7 +49,9 @@ fn candidates(seg: &[f32], sr: u32, max: usize) -> Vec<f32> {
     let mut input = fft.make_input_vec();
     let mut spec = fft.make_output_vec();
     for (i, v) in input.iter_mut().enumerate() {
-        let w = (std::f32::consts::FRAC_PI_2 * i as f32 / win as f32).cos().powi(2);
+        let w = (std::f32::consts::FRAC_PI_2 * i as f32 / win as f32)
+            .cos()
+            .powi(2);
         *v = seg.get(i).copied().unwrap_or(0.0) * w;
     }
     if fft.process(&mut input, &mut spec).is_err() {

@@ -33,7 +33,13 @@ fn struck(modes: Value, lp: Option<f64>, duration: f32) -> Audio {
 }
 
 fn modes() -> Value {
-    json!([[300, 0.25, 1.0], [870, 0.2, 0.6], [1700, 0.15, 0.5], [3200, 0.1, 0.4], [5200, 0.08, 0.3]])
+    json!([
+        [300, 0.25, 1.0],
+        [870, 0.2, 0.6],
+        [1700, 0.15, 0.5],
+        [3200, 0.1, 0.4],
+        [5200, 0.08, 0.3]
+    ])
 }
 
 fn base() -> Audio {
@@ -85,7 +91,11 @@ fn a_quieter_copy_matches_after_loudness_matching_and_reports_the_gain() {
     assert!(c.distance_db < 0.2, "distance {}", c.distance_db);
     assert!((c.gain_db - 6.0).abs() < 0.3, "gain {}", c.gain_db);
     assert!(c.deviations.is_empty(), "{:?}", c.deviations);
-    assert!(c.text().contains("+6.0 dB") || c.text().contains("+5.9 dB") || c.text().contains("+6.1 dB"));
+    assert!(
+        c.text().contains("+6.0 dB")
+            || c.text().contains("+5.9 dB")
+            || c.text().contains("+6.1 dB")
+    );
 }
 
 #[test]
@@ -96,7 +106,11 @@ fn a_late_copy_is_aligned_by_its_onset() {
     assert!((c.shift_s - 0.1).abs() < 0.002, "shift {}", c.shift_s);
     assert!(c.distance_db < 0.5, "distance {}", c.distance_db);
     let early = compare(&late, &a);
-    assert!((early.shift_s + 0.1).abs() < 0.002, "shift {}", early.shift_s);
+    assert!(
+        (early.shift_s + 0.1).abs() < 0.002,
+        "shift {}",
+        early.shift_s
+    );
     assert!(early.text().contains("moved later"), "{}", early.text());
 }
 
@@ -116,14 +130,23 @@ fn a_darker_sound_is_quieter_in_the_high_bands_and_the_words_name_them() {
     assert!(c.deviations[0].band >= 5, "{:#?}", c.deviations);
     let text = c.text();
     assert!(
-        text.contains("0-20% of the sound:") && text.contains("kHz is") && text.contains("quieter than the reference"),
+        text.contains("0-20% of the sound:")
+            && text.contains("kHz is")
+            && text.contains("quieter than the reference"),
         "{text}"
     );
-    assert!(text.contains("centroid") && text.contains("darker"), "{text}");
+    assert!(
+        text.contains("centroid") && text.contains("darker"),
+        "{text}"
+    );
     assert!(c.deviations.len() <= 5);
     // The brighter sound against the dark reference is the mirror image.
     let m = compare(&bright, &dark);
-    assert!(m.text().contains("louder than the reference"), "{}", m.text());
+    assert!(
+        m.text().contains("louder than the reference"),
+        "{}",
+        m.text()
+    );
 }
 
 #[test]
@@ -141,7 +164,9 @@ fn a_longer_ringing_reference_is_reported_as_longer() {
     let c = compare(&short, &long);
     let text = c.text();
     assert!(
-        c.notes.iter().any(|n| n.contains("the reference is") && n.contains("longer")),
+        c.notes
+            .iter()
+            .any(|n| n.contains("the reference is") && n.contains("longer")),
         "{text}"
     );
     assert!(text.contains("decay"), "{text}");
@@ -168,8 +193,16 @@ fn another_sample_rate_and_mono_against_stereo_are_handled() {
         "distance {} vs {far} for a darker sound",
         c.distance_db
     );
-    assert!(c.notes.iter().any(|n| n.contains("nothing above 22.0 kHz")), "{:?}", c.notes);
-    assert!(c.notes.iter().any(|n| n.contains("resampled")), "{:?}", c.notes);
+    assert!(
+        c.notes.iter().any(|n| n.contains("nothing above 22.0 kHz")),
+        "{:?}",
+        c.notes
+    );
+    assert!(
+        c.notes.iter().any(|n| n.contains("resampled")),
+        "{:?}",
+        c.notes
+    );
     assert!(c.notes.iter().any(|n| n.contains("mono")), "{:?}", c.notes);
 }
 
@@ -194,6 +227,9 @@ fn the_image_has_three_columns_inside_the_pixel_budget() {
         b: &c.aligned,
     };
     let png = listen_png_diff(&cols, Some(&d), View::default()).unwrap();
+    if let Ok(path) = std::env::var("SOUNDER_SAVE_PNG") {
+        std::fs::write(path, &png).unwrap();
+    }
     let (w, h) = png_size(&png);
     assert!(w * h <= MAX_PIXELS, "{w}x{h}");
     assert!(w % 3 == 0 && w / 3 >= 240, "three columns of {}", w / 3);
@@ -219,30 +255,50 @@ fn the_image_has_three_columns_inside_the_pixel_budget() {
 }
 
 fn decode(png: &[u8]) -> Vec<u8> {
-    let mut r = png::Decoder::new(std::io::BufReader::new(std::io::Cursor::new(png))).read_info().unwrap();
+    let mut r = png::Decoder::new(std::io::BufReader::new(std::io::Cursor::new(png)))
+        .read_info()
+        .unwrap();
     let mut buf = vec![0; r.output_buffer_size().unwrap()];
     r.next_frame(&mut buf).unwrap();
     buf
 }
 
 fn png_size(png: &[u8]) -> (usize, usize) {
-    let r = png::Decoder::new(std::io::BufReader::new(std::io::Cursor::new(png))).read_info().unwrap();
+    let r = png::Decoder::new(std::io::BufReader::new(std::io::Cursor::new(png)))
+        .read_info()
+        .unwrap();
     let i = r.info();
     (i.width as usize, i.height as usize)
 }
 
-fn check_reference(doc: &SoundDoc, dir: &std::path::Path, file: &str, max: f32) -> Vec<sfx_analysis::CheckResult> {
+fn check_reference(
+    doc: &SoundDoc,
+    dir: &std::path::Path,
+    file: &str,
+    max: f32,
+) -> Vec<sfx_analysis::CheckResult> {
     let opts = RenderOpts {
         base_dir: Some(dir.to_path_buf()),
         ..RenderOpts::default()
     };
     let r = doc.render(&opts).unwrap();
-    let e: Expect = serde_json::from_value(json!({"reference": {"file": file, "max_distance": max}})).unwrap();
-    run(&e, &CheckCx { doc, rendered: &r, opts: &opts }).unwrap_or_else(|e| vec![sfx_analysis::CheckResult {
-        name: "error".into(),
-        pass: false,
-        detail: e,
-    }])
+    let e: Expect =
+        serde_json::from_value(json!({"reference": {"file": file, "max_distance": max}})).unwrap();
+    run(
+        &e,
+        &CheckCx {
+            doc,
+            rendered: &r,
+            opts: &opts,
+        },
+    )
+    .unwrap_or_else(|e| {
+        vec![sfx_analysis::CheckResult {
+            name: "error".into(),
+            pass: false,
+            detail: e,
+        }]
+    })
 }
 
 #[test]
@@ -274,7 +330,11 @@ fn the_reference_check_passes_close_and_fails_far_with_words() {
     );
     // A missing file is an error naming it.
     let missing = check_reference(&doc, &dir, "nope.wav", 1.0);
-    assert!(!missing[0].pass && missing[0].detail.contains("nope.wav"), "{}", missing[0].detail);
+    assert!(
+        !missing[0].pass && missing[0].detail.contains("nope.wav"),
+        "{}",
+        missing[0].detail
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -322,7 +382,13 @@ fn extract_modes_rebuilds_a_struck_object_close_to_its_own_render() {
 #[test]
 fn extract_modes_handles_fast_decays_and_close_pairs() {
     // 30 ms and 20 ms modes, and a pair 25 Hz apart.
-    let hard = json!([[400, 0.03, 1.0], [1000, 0.3, 0.8], [1025, 0.3, 0.6], [2500, 0.05, 0.5], [7000, 0.02, 0.4]]);
+    let hard = json!([
+        [400, 0.03, 1.0],
+        [1000, 0.3, 0.8],
+        [1025, 0.3, 0.6],
+        [2500, 0.05, 0.5],
+        [7000, 0.02, 0.4]
+    ]);
     let (good, gain, bad, node) = rebuild_distances(hard, 5);
     // Measured 1.21 dB, level +0.06 dB, shifted rebuild 13.3 dB.
     assert!(good < 2.0, "rebuilt distance {good}");
@@ -332,11 +398,21 @@ fn extract_modes_handles_fast_decays_and_close_pairs() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|m| m.as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect())
+        .map(|m| {
+            m.as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_f64().unwrap())
+                .collect()
+        })
         .collect();
     assert_eq!(rows.len(), 5, "{node}");
     for (row, hz) in rows.iter().zip([400.0, 1000.0, 1025.0, 2500.0, 7000.0]) {
-        assert!((row[0] - hz).abs() < 3.0, "mode at {} Hz, wanted {hz}: {node}", row[0]);
+        assert!(
+            (row[0] - hz).abs() < 3.0,
+            "mode at {} Hz, wanted {hz}: {node}",
+            row[0]
+        );
     }
     // The 30 ms mode reads 30 ms (not smeared by the analysis window).
     assert!((rows[0][1] - 0.03).abs() < 0.01, "decay {}", rows[0][1]);

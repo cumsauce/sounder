@@ -1,0 +1,141 @@
+[
+ {
+  "name": "new_sound",
+  "args": {
+   "name": "struck"
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "ops": [
+    {
+     "type": "impulse",
+     "name": "hit"
+    },
+    {
+     "type": "resonators",
+     "name": "body",
+     "input": "hit",
+     "modes": [
+      [
+       300,
+       0.25,
+       1.0
+      ],
+      [
+       870,
+       0.2,
+       0.6
+      ],
+      [
+       1700,
+       0.15,
+       0.5
+      ],
+      [
+       3200,
+       0.1,
+       0.4
+      ],
+      [
+       5200,
+       0.08,
+       0.3
+      ]
+     ]
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -20
+    }
+   ],
+   "duration": 0.6
+  }
+ },
+ {
+  "name": "export",
+  "args": {
+   "path": "@OUT@"
+  }
+ },
+ {
+  "name": "listen",
+  "args": {
+   "reference": "@OUT@/struck.wav"
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "ops": [
+    {
+     "type": "filter",
+     "name": "lp",
+     "input": "body",
+     "mode": "lp",
+     "freq": 600,
+     "q": 0.7
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "lp",
+     "lufs": -20
+    }
+   ]
+  }
+ },
+ {
+  "name": "listen",
+  "args": {
+   "reference": "@OUT@/struck.wav"
+  }
+ },
+ {
+  "name": "verify",
+  "args": {
+   "reference": {
+    "file": "@OUT@/struck.wav",
+    "max_distance": 1.0
+   }
+  }
+ },
+ {
+  "name": "listen",
+  "args": {
+   "reference": "@OUT@/missing.wav"
+  }
+ },
+ {
+  "name": "listen",
+  "args": {
+   "diff": true,
+   "descriptors": false
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "ops": [
+    {
+     "type": "filter",
+     "name": "lp",
+     "input": "body",
+     "mode": "lp",
+     "freq": 3000,
+     "q": 0.7
+    }
+   ]
+  }
+ },
+ {
+  "name": "listen",
+  "args": {
+   "diff": true,
+   "descriptors": false
+  }
+ }
+]

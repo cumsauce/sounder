@@ -801,7 +801,7 @@ const INSTRUCTIONS: &str = "Operating guidance for this sound server:
 - Macros are the knobs the human turns to fit the sound by ear. After the sound works, add 2-4 with sound_ops macros: name each with an adjective (brightness, weight, grit, snap, length), map it to the fields it moves with sensible from / to ranges, and give it a claim [measure, direction] (centroid, decay, crest, lufs, flatness, swing). verify sweeps each knob and fails a name that does not do what it says. game: true exports a knob as a runtime input. Read the human's knob moves in summary and keep them as new defaults.
 - Several agents may share one server: each keeps its own active sound; pass doc when working on a specific one. undo refuses another agent's step unless force.
 - history / undo / redo / jump move a history tree; one sound_ops call is one step.
-- listen options: node, seeds [..] (variations as columns), sweep {param or macro, values}, zoom {t, hz}, diff. Use zoom for attacks and diff after a change.
+- listen options: node, seeds [..] (variations as columns), sweep {param or macro, values}, zoom {t, hz}, diff, reference (a WAV: distance + the biggest differences in words). Use zoom for attacks and diff after a change.
 - export writes WAVs and a manifest into <project>/assets/sounds/; catalog saves a sound for later.
 - When a call surprises you, tell the maintainers with session_log(feedback: \"...\").
 Full details live in AGENTS.md next to the source.";

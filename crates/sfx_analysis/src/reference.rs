@@ -397,11 +397,7 @@ pub fn compare(audio: &Audio, reference: &Audio) -> Comparison {
     let n = audio.len().max(rf.len());
     let aligned = Audio {
         sample_rate: sr,
-        channels: rf
-            .channels
-            .iter()
-            .map(|c| fitted(c.clone(), n))
-            .collect(),
+        channels: rf.channels.iter().map(|c| fitted(c.clone(), n)).collect(),
     };
     let padded = Audio {
         sample_rate: sr,
@@ -445,7 +441,11 @@ impl Comparison {
             o += &format!(
                 "aligned: the reference starts {:.3} s {} than the sound; moved {}\n",
                 self.shift_s.abs(),
-                if self.shift_s > 0.0 { "later" } else { "earlier" },
+                if self.shift_s > 0.0 {
+                    "later"
+                } else {
+                    "earlier"
+                },
                 if self.shift_s > 0.0 {
                     "earlier"
                 } else {
@@ -483,7 +483,10 @@ impl Comparison {
                 "biggest: {}; change what shapes that band (filter, noise colour, level of the part that sounds there)",
                 d.words
             ),
-            None => "no single band differs much: look at timing and the notes from listen reference".into(),
+            None => {
+                "no single band differs much: look at timing and the notes from listen reference"
+                    .into()
+            }
         }
     }
 }

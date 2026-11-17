@@ -52,7 +52,7 @@ modeler's `MODELER_*`.
 |---|---|
 | `summary` | state, nodes (what reads what), params, macros + claim status, the human's knob moves since last read (reading clears them), open comments, warnings, causal yes/no, descriptors |
 | `sound_ops` | atomic batch: `ops` (node upserts / deletes), `params`, `macros`, `delete_macros`, `kind`, `duration`, `seed`, `sample_rate`, `expect`; renders for real; one history step if anything changed |
-| `listen` | the image + descriptor table; `node`, `seeds`, `sweep`, `zoom`, `diff` |
+| `listen` | the image + descriptor table; `node`, `seeds`, `sweep`, `zoom`, `diff`, `reference` |
 | `verify` | PASS / FAIL checks; any FAIL is an error |
 | `describe_op` | node types, one line each; or one type's example + schema |
 | `extract_modes` | strongest partials of a WAV as a ready `resonators` node |
@@ -309,13 +309,38 @@ until it fits; you read their moves in `summary`.
   flatness at start / middle / end, an 8 octave-band x 5 time-segment dB
   table (your main "what does it sound like"), modes, stereo.
   `diff: true` shows your previous render of the same request, this one, and
-  their residual (this - previous). `zoom` magnifies an attack or a band.
+  their dB-difference spectrogram (this minus previous; diverging colours:
+  blue = quieter now, red = louder, grey = same, saturating at +-24 dB, the
+  scale is drawn). `zoom` magnifies an attack or a band.
+- `listen reference: "file.wav"` (relative to the project, or absolute): the
+  reference is resampled to the sound's rate, moved so its first onset (30 dB
+  under its peak) meets the sound's, and scaled to the sound's integrated
+  loudness (the shift and the gain are reported). The image is [sound,
+  reference, difference]; the text gives the multi-resolution STFT distance
+  (windows 256 / 1024 / 4096, dB, 0 = identical), the 5 biggest band x time
+  cells that differ by 3 dB or more in words ("0-20% of the sound: 2.8-5.7 kHz
+  is 31 dB quieter than the reference"; segments are fifths of the sound), and
+  length / attack / decay / centroid differences. A reference with nothing
+  above its Nyquist counts the sound's top end as a difference (it says so).
+  Not with seeds, sweep or diff. This is the distance, not a taste verdict.
   Reading the picture: x is time, y log frequency, colour dB from -90 (black)
   to 0.
 - `verify` / `expect` checks: `peak_db` `true_peak_db` `lufs` `duration`
   `silent_edges` `clicks` `dc` `finite` `loop_seam` `bands` `pitch` `onsets`
-  `variations` `rebuild` `macros`. Each line is PASS / FAIL with the measured
-  value; a FAIL says what to change.
+  `variations` `rebuild` `reference` `macros`. Each line is PASS / FAIL with the measured
+  value; a FAIL says what to change. `reference {file, max_distance}` fails
+  when the STFT distance to the WAV (aligned and loudness-matched as in
+  `listen reference`) exceeds `max_distance` dB, and then names the biggest
+  band differences.
+- `extract_modes` fits each partial in the time domain (candidates from a long
+  spectrum, then peeling: demodulate the recording minus the other modes,
+  line-fit the log envelope and the phase), so decays of fast modes, close
+  pairs and the gains are good. A gain is the amplitude the mode has at the
+  hit in the recording's own scale: a unit `impulse` into the node reproduces
+  the recording's level. Measured (`tests/reference.rs`): a rebuilt five-mode
+  hit with a noise tick sits 0.69 dB (STFT distance) from its original and
+  within 0.1 dB in level; a hard case (30 ms and 20 ms modes, a pair 25 Hz
+  apart) 1.21 dB; a rebuild with the modes shifted 10 % sits 13 dB away.
 
 Warnings in `summary`: a node nothing reads, a frequency above Nyquist, a
 silent output, DC over -40 dB, an output whose input is squashed by the
@@ -362,5 +387,5 @@ folds it into what to fix first.
 - Compressed export (ogg).
 - A project **sound style** (loudness targets per category); project-level
   macros across several sounds ("grit" on all the footsteps) belong with it.
-- Physical models, `reference` compare (phase 4); the window and `play`
+- Physical models (phase 4); the window and `play`
   (phase 5).
