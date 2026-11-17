@@ -137,9 +137,9 @@ pub enum TubeExcite {
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Tube {
-    /// Acoustic length, metres (`describe_op` range: 0.03 at 48 kHz, so
-    /// that the loop is at least 8 samples, to 20). The end correction is
-    /// not added: this is the length the pitch formula uses.
+    /// Acoustic length, metres, from 4 c / sample rate (0.029 at 48 kHz: the
+    /// loop is at least 8 samples) to 20. The end correction is not added:
+    /// this is the length the pitch formula uses.
     pub length: f32,
     /// What drives the tube: reed (default), lip, jet or noise.
     #[serde(default)]
@@ -147,8 +147,10 @@ pub struct Tube {
     /// Blowing pressure, 0..1: a number or a node (an `adsr` for a
     /// breath). A signal is clamped to 0..1 and smoothed over 8 ms. Below a
     /// threshold the tube only rings down; above it the tone is steady.
-    /// The threshold sits near 0.5..0.6 for reed, lip and jet with the
-    /// default bore and falls as the bore loses less; noise has none.
+    /// With the defaults (0.6 m, bore 0.01) a rising ramp starts the tone
+    /// near 0.54 for the reed and 0.3 to 0.35 for the lip and jet; the
+    /// threshold moves with the loss (a longer or narrower tube needs more).
+    /// Noise has no threshold: its level follows the pressure.
     pub pressure: In,
     /// Bore radius, metres, 0.001 to 0.5 (default 0.01). A wider bore
     /// loses less to friction but radiates more at the open end, which
@@ -502,7 +504,7 @@ impl Eval for StringNode {
                     g = (tg / lp_g.max(1e-3)).min(0.9999);
                     // Stiffness: the all-pass chain, within a delay budget.
                     let budget = 0.6 * d - lp_d - 4.0;
-                    a_disp = -0.85 * stiffness.sqrt();
+                    a_disp = -0.85 * stiffness.powf(0.25);
                     for _ in 0..24 {
                         if SECTIONS as f32 * ap_delay(a_disp, w) <= budget.max(0.0) {
                             break;
