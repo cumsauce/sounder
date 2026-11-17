@@ -151,14 +151,11 @@ fn do_listen(s: &mut Session, a: ListenArgs) -> R {
             "reference: comparing against a recording arrives with phase 4; until then compare descriptors by eye, or listen with diff: true against your own earlier render",
         );
     }
-    let base = s.base_dir();
+    let opts = s.render_opts();
+    let salt = s.generation();
     let name = plain(s.target_name(a.doc.as_deref()))?;
     let sound = plain(s.sound(Some(&name)))?;
     let doc = sound.doc.clone();
-    let opts = RenderOpts {
-        base_dir: base.clone(),
-        ..RenderOpts::default()
-    };
     let mut cols: Vec<(String, Audio)> = Vec::new();
     match (&a.seeds, &a.sweep) {
         (Some(_), Some(_)) => return fail("give seeds or sweep, not both"),
@@ -217,7 +214,7 @@ fn do_listen(s: &mut Session, a: ListenArgs) -> R {
         }
         (None, None) => {
             let sound = plain(s.sound(Some(&name)))?;
-            let r = plain(sound.rendered(base.as_deref()))?.clone();
+            let r = plain(sound.rendered(&opts, salt))?.clone();
             cols.push((
                 a.node.clone().unwrap_or_else(|| name.clone()),
                 plain(listen_audio(&r, &a.node))?,
@@ -334,6 +331,7 @@ fn report_text(results: &[sfx_analysis::CheckResult]) -> String {
 fn do_export(s: &mut Session, a: ExportArgs) -> R {
     let project = s.project.clone();
     let base = s.base_dir();
+    let sounds = Some(s.sound_source());
     let sound = plain(s.sound(a.doc.as_deref()))?;
     let bits = match a.bits.unwrap_or(16) {
         16 => wav::Bits::Int16,
@@ -348,6 +346,7 @@ fn do_export(s: &mut Session, a: ExportArgs) -> R {
         bits,
         sample_rate: a.sample_rate,
         base_dir: base,
+        sounds,
         catalog_name: sound.catalog_name.clone(),
     };
     let ex = plain(export::export(&doc, &opts))?;
@@ -412,10 +411,11 @@ fn do_catalog(s: &mut Session, a: CatalogArgs) -> R {
             Ok(Out::text(t))
         }
         "save" => {
-            let base = s.base_dir();
+            let opts = s.render_opts();
+            let salt = s.generation();
             let sound = plain(s.sound(a.name.as_deref()))?;
             let (length, lufs) = {
-                let r = plain(sound.rendered(base.as_deref()))?;
+                let r = plain(sound.rendered(&opts, salt))?;
                 (r.audio.seconds(), r.lufs)
             };
             let name = sound.doc.name.clone();
@@ -458,6 +458,7 @@ fn do_catalog(s: &mut Session, a: CatalogArgs) -> R {
                 return fail("delete needs name");
             };
             plain(catalog::delete(&lib, n))?;
+            s.mark_dirty();
             Ok(Out::text(format!(
                 "deleted `{n}` from the catalog (an open copy stays open)"
             )))

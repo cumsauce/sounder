@@ -447,7 +447,7 @@ fn every_node_type_renders_its_example() {
         "on_threshold",
     ];
     for t in sfx_graph::NODE_TYPES {
-        if matches!(*t, "sample" | "convolve" | "output") {
+        if matches!(*t, "sample" | "convolve" | "output" | "sound") {
             continue; // need files / are the output
         }
         let mut ex = sfx_graph::example(t).unwrap();
@@ -529,6 +529,7 @@ fn node_samples(nodes: &[Value], name: &str, n: usize) -> Vec<f32> {
         seed: 1,
         looped: false,
         base_dir: None,
+        ..sfx_graph::Ctx::default()
     };
     let ev = sfx_graph::evaluate(nodes, &Default::default(), &ctx, false)
         .unwrap_or_else(|e| panic!("{e}"));
@@ -545,6 +546,7 @@ fn eval_error(nodes: Vec<Value>) -> String {
         seed: 1,
         looped: false,
         base_dir: None,
+        ..sfx_graph::Ctx::default()
     };
     sfx_graph::evaluate(&nodes, &Default::default(), &ctx, false).unwrap_err()
 }

@@ -153,9 +153,15 @@ impl Expect {
     }
 
     /// `defaults`, plus `macros` when the sound has any.
+    ///
+    /// A loop checks `loop_seam` instead of `silent_edges` (a loop's first
+    /// and last samples are not meant to be silent).
     pub fn defaults_for(doc: &SoundDoc) -> Expect {
+        let looped = doc.kind == Kind::Loop;
         Expect {
             macros: (!doc.macros.is_empty()).then_some(true),
+            silent_edges: (!looped).then_some(true),
+            loop_seam: looped.then_some(true),
             ..Expect::defaults()
         }
     }
@@ -271,16 +277,30 @@ pub fn clicks(x: &[f32], sr: u32) -> Vec<f32> {
 }
 
 /// How much the spectrum changes across a loop's wrap: the mean |dB|
-/// difference between the average spectra of the end and the start (frames
-/// wholly inside each), over bins within 60 dB of the loudest.
+/// difference between the end and the start in third-octave bands from 100 Hz
+/// up (bands within 60 dB of the loudest). Bands, not bins: two windows of
+/// noise differ by several dB in every bin and by well under 1 dB in a band.
 fn seam_spectral(tail: &[f32], head: &[f32], sr: u32) -> f32 {
-    let win = 1024.min(tail.len()).max(16).next_power_of_two() / 2;
+    let win = 2048.min(tail.len()).max(16).next_power_of_two() / 2;
     let inner = |x: &[f32]| {
         let s = stft::stft(x, sr, win, win / 4);
         // Frame k is centred on k * hop: keep those wholly inside.
         let first = (win / 2).div_ceil(win / 4);
         let last = (x.len().saturating_sub(win / 2)) / (win / 4);
-        s.mean(first..last.max(first + 1).min(s.frames.len()))
+        let mean = s.mean(first..last.max(first + 1).min(s.frames.len()));
+        let nyq = sr as f32 / 2.0;
+        let mut bands = Vec::new();
+        let mut lo = 100.0f32;
+        while lo < nyq {
+            let hi = (lo * 2f32.powf(1.0 / 3.0)).min(nyq);
+            let p: f32 = (0..mean.len())
+                .filter(|&b| s.hz(b) >= lo && s.hz(b) < hi)
+                .map(|b| mean[b])
+                .sum();
+            bands.push(p);
+            lo = hi;
+        }
+        bands
     };
     let (a, b) = (inner(tail), inner(head));
     let top = a.iter().chain(&b).copied().fold(0.0f32, f32::max);
@@ -565,7 +585,7 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
                 worst_ratio = worst_ratio.max(step).max(kink);
             }
             let m = a.mix_mono();
-            let w = (4096.min(m.len() / 2)).max(16);
+            let w = (16_384.min(m.len() / 2)).max(16);
             let tail = &m[m.len() - w..];
             let head = &m[..w];
             let spec_d = seam_spectral(tail, head, sr);

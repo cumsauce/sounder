@@ -31,6 +31,27 @@ pub struct Ctx {
     pub looped: bool,
     /// Relative file paths resolve here.
     pub base_dir: Option<PathBuf>,
+    /// The document's params (a `voices` patch reads them as defaults).
+    pub params: Params,
+    /// How `sound` nodes reach other documents.
+    pub sounds: Option<crate::instance::SoundSource>,
+    /// The documents being rendered, outermost first (instance cycle guard).
+    pub stack: Vec<String>,
+}
+
+impl Default for Ctx {
+    fn default() -> Ctx {
+        Ctx {
+            sample_rate: 48_000,
+            n: 48_000,
+            seed: 1,
+            looped: false,
+            base_dir: None,
+            params: Params::new(),
+            sounds: None,
+            stack: Vec::new(),
+        }
+    }
 }
 
 /// One parsed node of a graph.
@@ -320,6 +341,15 @@ pub fn evaluate(
             if p.node.random() {
                 (ctx.seed, p.name.as_str()).hash(&mut h);
             }
+            // An instance also keys on the instanced document itself.
+            if p.ty == "sound"
+                && let (Some(src), Some(name)) =
+                    (&ctx.sounds, p.body.get("sound").and_then(Value::as_str))
+            {
+                src.get(name)
+                    .and_then(|d| serde_json::to_string(&d).ok())
+                    .hash(&mut h);
+            }
             // A file-reading node also keys on its file's path and mtime, so
             // editing the WAV re-renders.
             for f in ["file", "ir"] {
@@ -414,6 +444,9 @@ pub fn evaluate(
                     seed: node_seed(ctx.seed, &p.name),
                     looped: ctx.looped,
                     base_dir: ctx.base_dir.as_deref(),
+                    params: &ctx.params,
+                    sounds: ctx.sounds.as_ref(),
+                    stack: &ctx.stack,
                     get: &get,
                 };
                 let outs = p

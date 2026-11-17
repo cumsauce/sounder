@@ -20,10 +20,12 @@ fn is_expr(s: &str) -> bool {
 /// own compiler (`expr`'s `out` and `update`), never `$param` / `=expr`
 /// fields: they are written without a leading `$` or `=`.
 fn expr_text_keys(map: &serde_json::Map<String, Value>) -> &'static [&'static str] {
-    if map.get("type").and_then(Value::as_str) == Some("expr") {
-        &["out", "update"]
-    } else {
-        &[]
+    match map.get("type").and_then(Value::as_str) {
+        Some("expr") => &["out", "update"],
+        // A voices patch is its own graph: its `$x` are per-event params,
+        // resolved when each voice renders.
+        Some("voices") => &["patch", "map"],
+        _ => &[],
     }
 }
 

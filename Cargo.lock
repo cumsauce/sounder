@@ -675,6 +675,7 @@ name = "sfx_analysis"
 version = "0.1.0"
 dependencies = [
  "png",
+ "rayon",
  "realfft",
  "schemars",
  "serde",

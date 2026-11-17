@@ -18,6 +18,8 @@ pub struct ExportOpts {
     /// Render at this rate instead of the document's.
     pub sample_rate: Option<u32>,
     pub base_dir: Option<PathBuf>,
+    /// How `sound` nodes reach other sounds.
+    pub sounds: Option<sfx_graph::SoundSource>,
     pub catalog_name: Option<String>,
 }
 
@@ -48,6 +50,7 @@ pub fn export(doc: &SoundDoc, o: &ExportOpts) -> Result<Exported, String> {
         let r = doc.render(&RenderOpts {
             seed: Some(seed),
             base_dir: o.base_dir.clone(),
+            sounds: o.sounds.clone(),
             ..RenderOpts::default()
         })?;
         causal &= r.causal;

@@ -15,6 +15,7 @@ use serde_json::Value;
 use crate::buf::{Buf, Event, Sig};
 use crate::dsp::Rng;
 use crate::nodes::*;
+use crate::params::Params;
 
 /// An input: a number, a constant stereo pair `[l, r]`, or another node's
 /// output by name (`"env"` or `"env.port"`).
@@ -48,6 +49,12 @@ pub struct Cx<'a> {
     pub looped: bool,
     /// Where relative file paths (`sample`, `convolve`) resolve.
     pub base_dir: Option<&'a Path>,
+    /// The document's params.
+    pub params: &'a Params,
+    /// How `sound` nodes reach other documents.
+    pub sounds: Option<&'a crate::instance::SoundSource>,
+    /// The documents being rendered, outermost first.
+    pub stack: &'a [String],
     pub get: &'a (dyn Fn(&In) -> Result<Sig, String> + Sync),
 }
 
@@ -234,6 +241,9 @@ node_types! {
     "pitch_shift" => PitchShift,
     "time_stretch" => TimeStretch,
     "spectral" => Spectral,
+    // phase 3: voices
+    "voices" => Voices,
+    "sound" => SoundNode,
     // phase 3: events
     "once" => Once,
     "pattern" => Pattern,
@@ -330,9 +340,17 @@ pub fn is_file(s: &str) -> bool {
 /// a file, as (node, port).
 pub fn refs(body: &Value) -> Vec<(String, String)> {
     const WORDS: &[&str] = &[
-        "type", "name", "op", "mode", "shape", "curve", "color", "file", "window",
+        "type", "name", "op", "mode", "shape", "curve", "color", "file", "window", "sound",
     ];
     let mut out = Vec::new();
+    // phase 3: voices. The `patch` is its own graph and `map` is expression
+    // text: only `events` reads another node.
+    if body.get("patch").is_some_and(Value::is_array) {
+        if let Some(e) = body.get("events") {
+            walk(e, Some("events"), &mut out);
+        }
+        return out;
+    }
     // phase 3: expr. Its `out` / `update` / `state` are expression text, not
     // references: only the `inputs` values read other nodes. (No other node
     // has a string `out` without an `input`; `fade`'s `out` is a number.)
@@ -419,6 +437,13 @@ fn blurb(ty: &str) -> &'static str {
         "spectral" => {
             "spectrum edits: freeze (hold a moment as texture), blur, gate (zero quiet bins), morph (toward another node) (acausal)"
         }
+        // phase 3: voices
+        "voices" => {
+            "renders a sub-patch once per event (rain, gravel, shards, gunfire), summed at the event times"
+        }
+        "sound" => {
+            "an instance of another sound (open or saved): layer a transient, a body and a tail from separate documents"
+        }
         // phase 3: events
         "once" => "an event stream with one event at a time",
         "pattern" => "events at listed times, or every N seconds (optional jitter)",
@@ -487,6 +512,12 @@ pub fn example(ty: &str) -> Option<Value> {
         "pitch_shift" => json!({"input": "src", "semitones": -5}),
         "time_stretch" => json!({"input": "src", "factor": 1.5}),
         "spectral" => json!({"input": "src", "mode": "freeze", "at": 0.1, "length": 0.15}),
+        // phase 3: voices
+        "voices" => json!({"events": "ev", "length": 0.3, "map": {"pitch": "300 + $rand * 600"},
+            "patch": [{"type": "osc", "name": "tone", "freq": "$pitch", "amp": "$value"},
+                      {"type": "decay", "name": "amp", "time": 0.08},
+                      {"type": "math", "name": "hit", "op": "mul", "a": "tone", "b": "amp"}]}),
+        "sound" => json!({"sound": "thud", "at": 0.05, "gain_db": -6}),
         // phase 3: events
         "once" => json!({"at": 0.1}),
         "pattern" => json!({"every": 0.25, "count": 4, "jitter": 0.01}),

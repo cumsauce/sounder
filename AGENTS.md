@@ -228,6 +228,42 @@ impact strength), or later `voices`; **a crackle** = `poisson` with a
   40)"`, `update {"ph": "ph >= gap ? 0 : ph + 1 / sr", "gap": "ph >= gap ?
   max(gap * 0.7, 0.01) : gap", "amp": "ph >= gap ? amp * 0.7 : amp"}`.
 
+## Voices and instances
+
+- `voices` renders a sub-patch once per event and sums the results at the event
+  times: rain, gravel, shards, fire crackle, gunfire. `{"type": "voices",
+  "events": "drops", "length": 0.05, "max": 700, "map": {"hz": "1500 + $rand *
+  5500"}, "patch": [ ...nodes... ]}`.
+  - The `patch` is its own graph: it cannot read nodes outside it. Its sound
+    is its `output` node if it has one, else its last node. Inside it `$value`
+    (the event's value), `$index`, `$rand` (0..1, seeded per event) and `$t`
+    (the event's time) are params, plus the ones `map` makes (plain expressions,
+    no leading `=`) and the sound's own params. Voices are seeded per event and
+    rendered in parallel; the sum is in event order, so the result is
+    bit-identical at any thread count.
+  - `length` is how long each voice renders (default 1 s): make it as short as
+    the voice needs, the work is per voice. `max` (default 64) is an error when
+    exceeded, not a silent cut: raise it or thin the stream. A voice whose sound
+    is stereo makes the result stereo.
+  - Recipes: `poisson` rate 120 -> short band-passed noise ticks = rain;
+    `burst` 70 in 0.22 s `curve: "exp"` -> ticks of random pitch = footstep on
+    gravel; `bounce` -> a ball's impacts. `examples/rain_loop.rs` and
+    `examples/gravel_step.rs` are worked, checked versions.
+- `sound` instances another document, open or saved in the catalog: `{"type":
+  "sound", "sound": "thud", "at": 0.3, "gain_db": -6, "params": {...},
+  "macros": {...}, "seed": 1}`. The instance keeps its own `output` stage
+  (loudness target, ceiling), so layer by mixing instances with `mix` gains: a
+  transient from one document, a body from another, a tail from a third. Editing
+  the instanced sound re-renders every sound that instances it. Cycles (a
+  instances b instances a) are an error naming the chain; nesting stops at 8.
+  Only the server can reach other sounds: a bare `SoundDoc::render` needs a
+  `RenderOpts.sounds` (`SoundSource`) for `sound` nodes.
+- **Loops** get `loop_seam` (not `silent_edges`) in the default checks. The
+  seam check compares the wrap sample with the loop's own roughness (a jump or a
+  slope kink) and the third-octave band levels of the last and first 0.34 s. Noise
+  loops pass easily; a smooth loop (a drone, an lfo) must be periodic in the
+  duration (every lfo / oscillator frequency a multiple of 1 / duration).
+
 ## Macros: knobs for the human
 
 You cannot hear, so give the human a front panel: a few knobs that move
@@ -326,6 +362,5 @@ folds it into what to fix first.
 - Compressed export (ogg).
 - A project **sound style** (loudness targets per category); project-level
   macros across several sounds ("grit" on all the footsteps) belong with it.
-- Events and `voices`, `expr`, `sound` instancing, offline pitch / time
-  (rest of phase 3); physical models, `reference` compare (phase 4); the
-  window and `play` (phase 5).
+- Physical models, `reference` compare (phase 4); the window and `play`
+  (phase 5).

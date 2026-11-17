@@ -11,13 +11,15 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::hash::{Hash, Hasher};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sfx_analysis::{CheckCx, CheckResult, Descriptors, Expect};
-use sfx_graph::{ApplyReport, Audio, DocEdit, Kind, KnobMove, RenderOpts, Rendered, SoundDoc};
+use sfx_graph::{
+    ApplyReport, Audio, DocEdit, Kind, KnobMove, RenderOpts, Rendered, SoundDoc, SoundSource,
+};
 
 use crate::history::{History, Step};
 use crate::store;
@@ -202,13 +204,14 @@ impl Sound {
     }
 
     /// The (cached) render of the document as it stands.
-    pub fn rendered(&mut self, base_dir: Option<&Path>) -> Result<&Rendered, String> {
-        let key = hash_of(&(&self.doc, base_dir));
+    ///
+    /// `salt` is the session's generation (see `Session::generation`): it changes
+    /// whenever any sound is edited, opened, closed or saved, so a render that
+    /// instances another sound never outlives an edit to it.
+    pub fn rendered(&mut self, opts: &RenderOpts, salt: u64) -> Result<&Rendered, String> {
+        let key = hash_of(&(&self.doc, &opts.base_dir, salt));
         if self.render.as_ref().is_none_or(|(k, _)| *k != key) {
-            let r = self.doc.render(&RenderOpts {
-                base_dir: base_dir.map(Path::to_path_buf),
-                ..RenderOpts::default()
-            })?;
+            let r = self.doc.render(opts)?;
             self.render = Some((key, r));
         }
         match &self.render {
@@ -218,8 +221,8 @@ impl Sound {
     }
 
     /// Stores a render the caller already made for this document.
-    pub fn set_render(&mut self, base_dir: Option<&Path>, r: Rendered) {
-        self.render = Some((hash_of(&(&self.doc, base_dir)), r));
+    pub fn set_render(&mut self, opts: &RenderOpts, salt: u64, r: Rendered) {
+        self.render = Some((hash_of(&(&self.doc, &opts.base_dir, salt)), r));
     }
 
     pub fn open_annotations(&self) -> impl Iterator<Item = &Annotation> {
@@ -269,6 +272,8 @@ pub struct Session {
     pub autosave_ok: bool,
     /// Autosave file slot (`session.<slot>.json`) when another server owns the main one.
     pub slot: Option<String>,
+    /// Bumps on every change a render may depend on.
+    generation: u64,
 }
 
 impl Session {
@@ -419,12 +424,60 @@ impl Session {
         self.open_mut(&n)
     }
 
+    /// Something changed that renders may depend on: bumps the generation
+    /// (see [`Sound::rendered`]) and schedules an autosave.
     pub fn mark_dirty(&mut self) {
+        self.generation += 1;
         self.dirty_since.get_or_insert_with(Instant::now);
+    }
+
+    /// Schedules an autosave without invalidating cached renders (reading
+    /// `summary` clears knob moves but changes no sound).
+    fn mark_saved_state_dirty(&mut self) {
+        self.dirty_since.get_or_insert_with(Instant::now);
+    }
+
+    /// The generation renders are cached against.
+    pub fn generation(&self) -> u64 {
+        self.generation
     }
 
     pub fn base_dir(&self) -> Option<PathBuf> {
         self.project.clone()
+    }
+
+    /// How a `sound` node reaches other sounds: the open ones first, then the
+    /// catalog.
+    pub fn sound_source(&self) -> SoundSource {
+        let docs: BTreeMap<String, SoundDoc> = self
+            .sounds
+            .iter()
+            .map(|(k, v)| (k.clone(), v.doc.clone()))
+            .collect();
+        let lib = self.library_dir().ok();
+        let mut names: Vec<String> = docs.keys().cloned().collect();
+        if let Some(l) = &lib {
+            for e in crate::catalog::list(l) {
+                if !names.contains(&e.name) {
+                    names.push(e.name);
+                }
+            }
+        }
+        SoundSource::new(names, move |n| {
+            docs.get(n)
+                .cloned()
+                .or_else(|| lib.as_ref().and_then(|l| crate::catalog::load(l, n).ok()))
+        })
+    }
+
+    /// Render options for this session: the project folder for relative
+    /// files, and a way to reach other sounds.
+    pub fn render_opts(&self) -> RenderOpts {
+        RenderOpts {
+            base_dir: self.base_dir(),
+            sounds: Some(self.sound_source()),
+            ..RenderOpts::default()
+        }
     }
 
     // ---------------------------------------------------------- sounds
@@ -520,13 +573,9 @@ impl Session {
         edit: DocEdit,
     ) -> Result<ApplyReport, String> {
         let by = self.current.clone();
-        let base = self.base_dir();
+        let opts = self.render_opts();
         let name = self.target_name(doc)?;
         let sound = self.open_mut(&name)?;
-        let opts = RenderOpts {
-            base_dir: base.clone(),
-            ..RenderOpts::default()
-        };
         let report = sound.doc.apply(items, edit, &opts)?;
         if report.changed {
             sound
@@ -539,8 +588,10 @@ impl Session {
             // Knob moves are about the old graph.
             sound.macro_results.clear();
         }
-        sound.set_render(base.as_deref(), report.rendered.clone());
         self.mark_dirty();
+        let salt = self.generation;
+        let sound = self.open_mut(&name)?;
+        sound.set_render(&opts, salt, report.rendered.clone());
         Ok(report)
     }
 
@@ -550,7 +601,8 @@ impl Session {
         doc: Option<&str>,
         expect: Option<&Expect>,
     ) -> Result<Vec<CheckResult>, String> {
-        let base = self.base_dir();
+        let opts = self.render_opts();
+        let salt = self.generation;
         let name = self.target_name(doc)?;
         let sound = self.open_mut(&name)?;
         let defaults;
@@ -561,13 +613,9 @@ impl Session {
                 &defaults
             }
         };
-        let opts = RenderOpts {
-            base_dir: base.clone(),
-            ..RenderOpts::default()
-        };
         let hash = sound.doc_hash();
         let doc_copy = sound.doc.clone();
-        let rendered = sound.rendered(base.as_deref())?.clone();
+        let rendered = sound.rendered(&opts, salt)?.clone();
         let results = sfx_analysis::run(
             e,
             &CheckCx {
@@ -884,11 +932,12 @@ impl Session {
     /// The `summary` tool: text and JSON. Reading it clears the human's knob
     /// moves (the agent has now seen them).
     pub fn summary(&mut self, doc: Option<&str>) -> Result<(String, Value), String> {
-        let base = self.base_dir();
+        let opts = self.render_opts();
+        let salt = self.generation;
         let sound = self.sound(doc)?;
         let moves = std::mem::take(&mut sound.knob_moves);
         let name = sound.doc.name.clone();
-        let rendered = sound.rendered(base.as_deref()).cloned();
+        let rendered = sound.rendered(&opts, salt).cloned();
         let hash = sound.doc_hash();
         let d = &sound.doc;
         let mut out = String::new();
@@ -1040,7 +1089,7 @@ impl Session {
             }
         }
         json["warnings"] = serde_json::json!(warnings);
-        self.mark_dirty();
+        self.mark_saved_state_dirty();
         Ok((out, json))
     }
 

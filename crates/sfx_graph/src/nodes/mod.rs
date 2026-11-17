@@ -13,6 +13,7 @@ mod offline;
 mod sources;
 mod spectral;
 mod time;
+mod voices;
 
 pub use control::*;
 pub use envelopes::*;
@@ -26,6 +27,7 @@ pub use offline::*;
 pub use sources::*;
 pub use spectral::*;
 pub use time::*;
+pub use voices::*;
 
 use serde::Deserialize;
 

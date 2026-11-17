@@ -158,7 +158,8 @@ fn macros_knob_moves_and_summary() {
     let (text, _) = s.summary(None).unwrap();
     assert!(text.contains("claim holds"), "{text}");
     // The human turns the knob; the agent reads the move once.
-    let before = s.sound(None).unwrap().rendered(None).unwrap().lufs;
+    let (o, g) = (s.render_opts(), s.generation());
+    let before = s.sound(None).unwrap().rendered(&o, g).unwrap().lufs;
     s.move_knob(None, "brightness", 0.9).unwrap();
     s.move_knob(None, "brightness", 0.8).unwrap();
     assert!(
@@ -176,7 +177,8 @@ fn macros_knob_moves_and_summary() {
     let (text, _) = s.summary(None).unwrap();
     assert!(!text.contains("knob"), "reading clears them: {text}");
     // The move changed the sound; no history step was recorded for it.
-    let after = s.sound(None).unwrap().rendered(None).unwrap().lufs;
+    let (o, g) = (s.render_opts(), s.generation());
+    let after = s.sound(None).unwrap().rendered(&o, g).unwrap().lufs;
     assert!((after - before).abs() < 3.0);
     assert_eq!(s.sound(None).unwrap().history.nodes.len(), 3);
     // After the agent read it, a move is from there (0.80): moving away and
@@ -399,6 +401,7 @@ fn export_writes_wavs_and_a_manifest_with_game_inputs() {
             bits: sfx_graph::wav::Bits::Int24,
             sample_rate: Some(44_100),
             base_dir: None,
+            sounds: None,
             catalog_name: Some("boom".into()),
         },
     )
@@ -428,9 +431,99 @@ fn export_writes_wavs_and_a_manifest_with_game_inputs() {
             bits: sfx_graph::wav::Bits::Int16,
             sample_rate: None,
             base_dir: None,
+            sounds: None,
             catalog_name: None,
         },
     )
     .unwrap();
     assert_eq!(ex.manifest["loop"]["end"], 24_000);
+}
+
+#[test]
+fn sound_nodes_reach_open_and_saved_sounds_and_follow_edits() {
+    let mut s = Session::new(Some(project("instance")));
+    // `thud` is open; `layers` instances it.
+    s.new_sound("thud", Kind::Oneshot).unwrap();
+    s.apply_ops(
+        None,
+        vec![
+            json!({"type": "osc", "name": "o", "freq": 90, "amp": 0.8}),
+            json!({"type": "decay", "name": "e", "time": 0.15}),
+            json!({"type": "math", "name": "m", "op": "mul", "a": "o", "b": "e"}),
+            json!({"type": "output", "name": "out", "input": "m", "lufs": -18}),
+        ],
+        DocEdit::default(),
+    )
+    .unwrap();
+    s.new_sound("layers", Kind::Oneshot).unwrap();
+    let report = s
+        .apply_ops(
+            None,
+            vec![
+                json!({"type": "sound", "name": "a", "sound": "thud"}),
+                json!({"type": "sound", "name": "b", "sound": "thud", "at": 0.3, "gain_db": -6}),
+                json!({"type": "mix", "name": "m", "inputs": ["a", "b"]}),
+                json!({"type": "output", "name": "out", "input": "m"}),
+            ],
+            DocEdit {
+                duration: Some(Some(0.6)),
+                ..DocEdit::default()
+            },
+        )
+        .unwrap();
+    assert!(
+        report.rendered.audio.peak() > 0.05,
+        "{:?}",
+        report.rendered.warnings
+    );
+    let (text, _) = s.summary(None).unwrap();
+    assert!(
+        text.contains("a (sound)") && !text.contains("<- thud"),
+        "a sound name is not a node reference: {text}"
+    );
+    let before = s.summary(None).unwrap().1["lufs"].as_f64().unwrap();
+    // Edit the instanced sound: the parent's summary follows (no stale cache).
+    s.apply_ops(
+        Some("thud"),
+        vec![json!({"type": "output", "name": "out", "input": "m", "lufs": -30})],
+        DocEdit::default(),
+    )
+    .unwrap();
+    let after = s.summary(Some("layers")).unwrap().1["lufs"]
+        .as_f64()
+        .unwrap();
+    assert!(after < before - 5.0, "{before} -> {after}");
+    // A saved (catalog) sound is found when it is not open.
+    let lib = s.library_dir().unwrap();
+    let doc = s.sound(Some("thud")).unwrap().doc.clone();
+    catalog::save(
+        &lib,
+        &doc,
+        catalog::CatalogEntry {
+            name: "thud".into(),
+            description: String::new(),
+            tags: vec![],
+            prompt: None,
+            kind: doc.kind,
+            length: 0.2,
+            lufs: -30.0,
+            macros: vec![],
+        },
+    )
+    .unwrap();
+    s.close_sound("thud", true).unwrap();
+    let rep = s
+        .apply_ops(
+            Some("layers"),
+            vec![
+                json!({"type": "gain", "name": "g", "input": "m", "db": 0}),
+                json!({"type": "output", "name": "out", "input": "g"}),
+            ],
+            DocEdit::default(),
+        )
+        .unwrap();
+    assert!(
+        rep.rendered.audio.peak() > 0.001,
+        "instanced from the catalog"
+    );
 }

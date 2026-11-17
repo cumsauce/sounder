@@ -36,6 +36,8 @@ cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings 
 
 ## Status
 
+**Phase 3 (events, voices, feedback, expr, instancing, offline pitch/time): done.** See "Phase 3 notes" below.
+
 **Phase 3, offline pitch / time / spectral: `pitch_shift`, `time_stretch`, `spectral` (freeze, blur, gate, morph) in `nodes/spectral.rs`; see AGENTS.md.**
 
 **Phase 3, lane C (events): `once pattern poisson bounce burst on_threshold` event nodes and `grains`; see "Events and grains" in AGENTS.md.**
@@ -152,3 +154,40 @@ cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings 
   with a per-sample `tick` for the future feedback evaluator). `expr`'s
   `out` / `update` text is exempt from `$` / `=` resolution and from node
   refs (only `inputs` are refs). See "expr" in `AGENTS.md`.
+
+## Phase 3 notes
+
+Built in parallel: three lanes in their own worktrees (`expr`; offline
+`pitch_shift` / `time_stretch` / `spectral`; event nodes and `grains`) while the
+feedback evaluator was written on main, then merged; `voices` and `sound`
+instancing came after the merge because they reach into the evaluator.
+
+- **Feedback** (`sfx_graph/src/feedback.rs`): Tarjan SCCs; a cycle must pass
+  through a `delay` (else "nodes form a cycle without a delay: a -> c -> b -> a");
+  a loop is evaluated per sample (delays read before written) and cached as one
+  unit. Only these have a per-sample form and may sit in a loop: `delay filter
+  onepole comb allpass gain math mix shape remap slew follower` (others error
+  naming the node and listing them). `expr` and the other lanes' nodes are not in
+  the loop set yet. Mono only.
+- **Evaluator context.** `Ctx` gained `params`, `sounds` (a `SoundSource`) and
+  `stack`; `Ctx::default()` exists for tests. `RenderOpts` gained `sounds` and
+  `stack`. The session passes `Session::render_opts()` everywhere and keys its
+  render cache on a generation that bumps on any edit, open, close or catalog
+  change, so a render that instances another sound never goes stale.
+- **`voices`**: sub-patch kept raw by `params::resolve` (`patch` and `map` are
+  skipped like `expr`'s text), `refs` reads only `events`; per-event params
+  `$value $index $rand $t`; `max` errors rather than truncating.
+- **`sound`**: `sound` is a mode word for `refs`, so the name is not a node
+  reference. Instance cache keys include the instanced document.
+- **Checks.** Loop defaults are `loop_seam` instead of `silent_edges`; the seam
+  spectral comparison uses third-octave bands (bins of two noise windows differ
+  by several dB, bands by about 1).
+- **Tests.** `tests/feedback.rs` (loop == block feedback sample for sample,
+  outside signals per sample, cycles, determinism, cache), `karplus.rs` (strings
+  read the pitch the delay sets), `voices.rs` (voices over poisson: onsets within
+  20 % of the events; per-event pitch; determinism at 1 / 8 threads; instancing,
+  cycles, edits), the lanes' own tests, and a session test that `sound` nodes
+  follow edits and reach the catalog.
+- **Examples.** `rain_loop.rs` (a loop passing `loop_seam`), `gravel_step.rs`
+  (6 seeds passing `variations`; the loudness target is -26 LUFS because a peaky
+  step cannot reach a higher one under the -1 dBFS ceiling).

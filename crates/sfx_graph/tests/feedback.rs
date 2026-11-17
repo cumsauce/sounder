@@ -12,6 +12,7 @@ fn ctx(secs: f32) -> Ctx {
         seed: 1,
         looped: false,
         base_dir: None,
+        ..Ctx::default()
     }
 }
 
