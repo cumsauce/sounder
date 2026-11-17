@@ -173,6 +173,17 @@ pub struct Descriptors {
     /// Set with [`Descriptors::with_loop`]: the table drops attack, peak-at
     /// and decay.
     pub is_loop: bool,
+    /// The headline attack: seconds from the first sample above -60 dBFS to
+    /// 90% of the peak of the smoothed envelope (a 10 ms trailing RMS). A
+    /// swell reads long, a click near zero; `attack_s`, `attack_to90_s` and
+    /// `attack_to_peak_s` measure other things (see their docs).
+    pub swell_attack_s: f32,
+    /// Times (seconds) of the fine events behind `density` (1 ms envelope
+    /// over 1 kHz, 6 dB rise): resolves hits 5 ms apart, which `onsets`
+    /// (40 ms merge) cannot.
+    pub fine_onsets: Vec<f32>,
+    /// Fine events per second in each tenth of the sound.
+    pub density_tenths: Vec<f32>,
 }
 
 fn rms(x: &[f32]) -> f32 {
@@ -460,7 +471,7 @@ fn onset_rows(
                 .filter(|f| f.t >= t - 0.01 && f.t < hi)
                 .filter_map(|f| f.hz)
                 .collect();
-            let (ps, pe) = if voiced.len() >= 3 {
+            let (mut ps, mut pe) = if voiced.len() >= 3 {
                 (
                     median(voiced[..2].to_vec()),
                     median(voiced[voiced.len() - 2..].to_vec()),
@@ -468,6 +479,25 @@ fn onset_rows(
             } else {
                 (None, None)
             };
+            // A blip of 15..60 ms (a drip) is too short for the frames
+            // above (two or three frames): read the two halves of its first
+            // 40 ms directly, in place of them. Its end is where the level
+            // first falls 30 dB under the peak (looking past the next onset:
+            // a blip's own tail can raise one).
+            {
+                let thr = 0.0316 * env[p];
+                let end30 = (p..env.len())
+                    .find(|k| env[*k..(*k + 4).min(env.len())].iter().all(|v| *v < thr))
+                    .unwrap_or(env.len());
+                let (s0, s1) = (start * c, end30 * c);
+                let len_ms = (s1.saturating_sub(s0)) as f32 / sr * 1000.0;
+                if env[p] > 0.0
+                    && (15.0..=60.0).contains(&len_ms)
+                    && let Some((a, z)) = blip_glide(x, spec.sr, s0, s1)
+                {
+                    (ps, pe) = (Some(a), Some(z));
+                }
+            }
             OnsetRow {
                 t,
                 strength: o.strength,
@@ -488,7 +518,7 @@ fn onset_rows(
 /// Unlike the merged onset list this resolves clicks 5 ms apart. A tone's
 /// ripple does not count (nothing rises over a recent crest), nor does a
 /// bass thump (high-passed away).
-fn density(x: &[f32], sr: u32, span: (usize, usize)) -> Density {
+fn density(x: &[f32], sr: u32, span: (usize, usize)) -> (Density, Vec<f32>) {
     const SPACING_CHUNKS: usize = 4;
     let mut y = x.to_vec();
     // RBJ high-pass, 1 kHz (lower when the rate is low), Q 0.707.
@@ -516,6 +546,7 @@ fn density(x: &[f32], sr: u32, span: (usize, usize)) -> Density {
     let peak = e.iter().copied().fold(0.0f32, f32::max);
     let floor = peak * 0.0056;
     let mut count = 0;
+    let mut times: Vec<f32> = Vec::new();
     let mut k = 0;
     while k < e.len() && peak > 0.0 {
         let prev = (k.saturating_sub(3)..k)
@@ -523,13 +554,14 @@ fn density(x: &[f32], sr: u32, span: (usize, usize)) -> Density {
             .fold(0.0f32, f32::max);
         if e[k] >= floor && e[k] >= 2.0 * prev {
             count += 1;
+            times.push((k * c) as f32 / sr as f32);
             k += SPACING_CHUNKS;
         } else {
             k += 1;
         }
     }
     let span_s = (span.1.saturating_sub(span.0)) as f32 / sr as f32;
-    Density {
+    let d = Density {
         per_s: if span_s > 0.0 {
             count as f32 / span_s
         } else {
@@ -538,7 +570,156 @@ fn density(x: &[f32], sr: u32, span: (usize, usize)) -> Density {
         count,
         span_s,
         min_spacing_ms: SPACING_CHUNKS as f32 * c as f32 / sr as f32 * 1000.0,
+    };
+    (d, times)
+}
+
+/// The headline attack, seconds: from `first_loud` (the first sample above
+/// -60 dBFS) to the first 0.25 ms step at which the trailing 10 ms RMS (only
+/// samples from `first_loud` on count, so a step reads about zero) reaches
+/// 90% of its own maximum. 0 for silence.
+fn swell_attack(x: &[f32], sr: u32, first_loud: usize) -> f32 {
+    let n = x.len();
+    if first_loud >= n {
+        return 0.0;
     }
+    let c = (sr as usize / 4000).max(1);
+    let win = (sr as usize / 100).max(c);
+    let mut cs = vec![0.0f64; n + 1];
+    for (i, v) in x.iter().enumerate() {
+        cs[i + 1] = cs[i] + f64::from(*v) * f64::from(*v);
+    }
+    let mut env: Vec<(usize, f64)> = Vec::new();
+    let mut e = first_loud + c;
+    loop {
+        let end = e.min(n);
+        let from = end.saturating_sub(win).max(first_loud);
+        let len = (end - from).max(1);
+        env.push((end, ((cs[end] - cs[from]) / len as f64).sqrt()));
+        if end >= n {
+            break;
+        }
+        e += c;
+    }
+    let top = env.iter().map(|p| p.1).fold(0.0f64, f64::max);
+    if top <= 0.0 {
+        return 0.0;
+    }
+    let (end, _) = env
+        .iter()
+        .copied()
+        .find(|p| p.1 >= 0.9 * top)
+        .unwrap_or(env[0]);
+    // The step's own width is not part of the attack.
+    (end.saturating_sub(first_loud + c)) as f32 / sr as f32
+}
+
+/// The pitch (Hz) of `seg` by a YIN-style difference function over lags that
+/// fit inside it (100 Hz .. 8 kHz, at most half the segment): the first dip
+/// of the cumulative-mean-normalised difference under 0.25. None when the
+/// segment is too short (under 6 ms), silent or not periodic.
+fn segment_pitch(seg: &[f32], sr: u32) -> Option<f32> {
+    let w = seg.len();
+    if w < sr as usize * 6 / 1000 {
+        return None;
+    }
+    let mean = seg.iter().map(|v| f64::from(*v)).sum::<f64>() / w as f64;
+    let y: Vec<f32> = seg.iter().map(|v| (f64::from(*v) - mean) as f32).collect();
+    if rms(&y) < 1e-5 {
+        return None;
+    }
+    let min_lag = (sr as usize / 8000).max(2);
+    let max_lag = (sr as usize / 100).min(w / 2);
+    if max_lag <= min_lag + 2 {
+        return None;
+    }
+    let mut d = vec![0.0f32; max_lag + 2];
+    for (tau, dv) in d.iter_mut().enumerate().skip(1) {
+        let m = w - tau;
+        let s: f32 = (0..m)
+            .map(|i| {
+                let e = y[i] - y[i + tau];
+                e * e
+            })
+            .sum();
+        *dv = s / m as f32;
+    }
+    let mut cm = vec![1.0f32; max_lag + 2];
+    let mut run = 0.0f32;
+    for tau in 1..=max_lag + 1 {
+        run += d[tau];
+        cm[tau] = if run > 0.0 {
+            d[tau] * tau as f32 / run
+        } else {
+            1.0
+        };
+    }
+    // The first local minimum within 0.1 of the deepest one (and under 0.25),
+    // so a faint early dip does not beat the true period.
+    let deepest = (min_lag..=max_lag).map(|t| cm[t]).fold(f32::MAX, f32::min);
+    if deepest >= 0.25 {
+        return None;
+    }
+    let tau = (min_lag..max_lag)
+        .find(|&t| cm[t] <= deepest + 0.1 && cm[t] <= cm[t - 1] && cm[t] <= cm[t + 1])?;
+    let (a, b, cc) = (d[tau - 1], d[tau], d[tau + 1]);
+    let den = a - 2.0 * b + cc;
+    let off = if den.abs() > 1e-9 {
+        (0.5 * (a - cc) / den).clamp(-1.0, 1.0)
+    } else {
+        0.0
+    };
+    Some(sr as f32 / (tau as f32 + off))
+}
+
+/// Start and end pitch of a blip `x[s0..s1]` (the first 40 ms at most): the
+/// pitch of each half, both required voiced and more than 60 cents apart,
+/// then extended along the same slope in log frequency to the blip's two
+/// ends (a half's pitch belongs to its centre; for a linear chirp that puts
+/// the start and end back on the ends). None when not a clear glide.
+fn blip_glide(x: &[f32], sr: u32, s0: usize, s1: usize) -> Option<(f32, f32)> {
+    let s1 = s1.min(s0 + sr as usize * 40 / 1000).min(x.len());
+    if s1 <= s0 {
+        return None;
+    }
+    let half = (s1 - s0) / 2;
+    let f1 = segment_pitch(&x[s0..s0 + half], sr)?;
+    let f2 = segment_pitch(&x[s0 + half..s0 + 2 * half], sr)?;
+    if pitch::cents(f1, f2).abs() <= 60.0 {
+        return None;
+    }
+    // Linear in Hz (exact for a linear chirp); a glide too steep for that
+    // to stay positive is extended in log frequency instead.
+    let top = sr as f32 * 0.45;
+    let extend = |from: f32, to: f32| {
+        let lin = from - 0.5 * (to - from);
+        let log = (from.ln() - 0.5 * (to.ln() - from.ln())).exp();
+        (if lin > 0.3 * from.min(to) { lin } else { log }).clamp(20.0, top)
+    };
+    let (start, end) = (extend(f1, f2), extend(f2, f1));
+    Some((start, end))
+}
+
+/// Descriptors of the part of `audio` between `t0` and `t1` seconds (clamped
+/// to the sound; an empty window gives the descriptors of nothing). Every
+/// time in the result (onsets, fine events, peak) counts from `t0`. This is
+/// what a zoomed `listen` window reads.
+pub fn descriptors_window(audio: &Audio, t0: f32, t1: f32) -> Descriptors {
+    let sr = audio.sample_rate as f32;
+    let cut = |t: f32, len: usize| ((t.max(0.0) * sr).round() as usize).min(len);
+    let channels = audio
+        .channels
+        .iter()
+        .map(|c| {
+            let a = cut(t0, c.len());
+            let b = cut(t1, c.len()).max(a);
+            c[a..b].to_vec()
+        })
+        .collect();
+    describe(&Audio {
+        sample_rate: audio.sample_rate,
+        channels,
+    })
 }
 
 /// Partials (Hz, ascending) when `modes` (the strongest six) are not
@@ -835,6 +1016,15 @@ pub fn describe(audio: &Audio) -> Descriptors {
         }
     };
     let span = (first_loud, last_loud.map_or(first_loud, |l| l + 1));
+    let (density, fine_onsets) = density(&x, sr, span);
+    let density_tenths: Vec<f32> = (0..10)
+        .map(|i| {
+            let (t0, t1) = (seconds * i as f32 / 10.0, seconds * (i + 1) as f32 / 10.0);
+            let k = fine_onsets.iter().filter(|t| **t >= t0 && **t < t1).count();
+            if t1 > t0 { k as f32 / (t1 - t0) } else { 0.0 }
+        })
+        .collect();
+    let swell_attack_s = swell_attack(&x, sr, first_loud);
     let steadiness = {
         let v: Vec<f32> = momentary.iter().copied().filter(|v| *v > -70.0).collect();
         if v.len() < 2 {
@@ -887,7 +1077,7 @@ pub fn describe(audio: &Audio) -> Descriptors {
         rolloff_all_hz: rolloff(&mean_all),
         centroid_tenths,
         onset_rows,
-        density: density(&x, sr, span),
+        density,
         band_shares,
         pitch_tenths,
         inharmonic_partials,
@@ -898,6 +1088,9 @@ pub fn describe(audio: &Audio) -> Descriptors {
         flatness_occupied,
         steadiness,
         is_loop: false,
+        swell_attack_s,
+        fine_onsets,
+        density_tenths,
     }
 }
 
@@ -939,7 +1132,7 @@ impl Descriptors {
                 "loop: n/a (see steadiness)".to_string()
             } else {
                 format!(
-                    "attack {:.3} s, peak at {:.3} s, decay -20 dB {}, -60 dB {}",
+                    "attack (10-90% rise) {:.3} s, peak at {:.3} s, decay -20 dB {}, -60 dB {}",
                     self.attack_s,
                     self.peak_t,
                     opt_s(self.decay20_s),
@@ -948,6 +1141,12 @@ impl Descriptors {
             },
             self.silence_words()
         );
+        if !self.is_loop {
+            o += &format!(
+                "swell/attack (the headline): {:.1} ms, first sound to 90% of the smoothed-envelope peak (10 ms RMS)\n",
+                self.swell_attack_s * 1000.0
+            );
+        }
         let ons: Vec<String> = self
             .onsets
             .iter()
@@ -955,8 +1154,9 @@ impl Descriptors {
             .map(|x| format!("{:.3}({:.1})", x.t, x.strength))
             .collect();
         o += &format!(
-            "onsets {}: {}{}\n",
+            "onsets {} (40 ms merge); fine {} (5 ms): {}{}\n",
             self.onsets.len(),
+            self.density.count,
             ons.join(" "),
             if self.onsets.len() > 16 { " ..." } else { "" }
         );
@@ -1095,7 +1295,7 @@ impl Descriptors {
         }
         if !self.is_loop {
             o += &format!(
-                "attack detail: first sound to 90% of peak {:.2} ms, to the sample peak {:.2} ms (attack above is 10% to 90%)\n",
+                "attack detail: first sound to 90% of peak {:.2} ms (sample-peak envelope), to the sample peak {:.2} ms (attack above is the 10-90% rise; swell/attack is the headline)\n",
                 self.attack_to90_s * 1000.0,
                 self.attack_to_peak_s * 1000.0
             );
@@ -1105,6 +1305,47 @@ impl Descriptors {
             "density: {:.0} events/s ({} in {:.2} s; 1 ms envelope over 1 kHz, 6 dB rise, {:.0} ms apart; onsets above merge under 40 ms)\n",
             d.per_s, d.count, d.span_s, d.min_spacing_ms
         );
+        if self.density.count > 0 {
+            o += &format!(
+                "density by tenth (events/s): {}\n",
+                self.density_tenths
+                    .iter()
+                    .map(|v| format!("{v:.0}"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            );
+        }
+        if !self.is_loop && !self.fine_onsets.is_empty() {
+            // Compact, 20 to a line; the last row says the unit.
+            let ms = |t: f32| {
+                let v = t * 1000.0;
+                if v < 10.0 {
+                    format!("{v:.1}")
+                } else {
+                    format!("{v:.0}")
+                }
+            };
+            let shown: Vec<String> = self.fine_onsets.iter().take(40).map(|t| ms(*t)).collect();
+            let rows = shown.chunks(20).count();
+            for (i, row) in shown.chunks(20).enumerate() {
+                o += &format!(
+                    "{} {}{}\n",
+                    if i == 0 {
+                        "fine onsets:"
+                    } else {
+                        "            "
+                    },
+                    row.join(" "),
+                    if i + 1 == rows { " (ms)" } else { "" }
+                );
+            }
+            if self.fine_onsets.len() > 40 {
+                o += &format!(
+                    "            ... {} more fine onsets not shown\n",
+                    self.fine_onsets.len() - 40
+                );
+            }
+        }
         if let Some(s) = self.steadiness.filter(|_| self.is_loop) {
             o += &format!(
                 "steadiness: loudness over 400 ms windows {:.1} to {:.1} LUFS, spread {:.1} LU\n",
