@@ -111,7 +111,8 @@ impl Session {
         }
         let hash = s.doc_hash(self.generation);
         let checks_ok = self.check_cache.get(&name).is_some_and(|(h, _)| *h == hash);
-        let macros_ok = s.doc.macros.iter().all(|m| {
+        // Only macros with a claim are swept, so only they leave a result to wait for.
+        let macros_ok = s.doc.macros.iter().filter(|m| m.claim.is_some()).all(|m| {
             s.macro_results
                 .get(&m.name)
                 .is_some_and(|(h, ..)| *h == hash)
