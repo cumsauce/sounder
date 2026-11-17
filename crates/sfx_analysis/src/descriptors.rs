@@ -12,6 +12,8 @@ pub const BANDS: [f32; 8] = [63.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 
 pub const BAND_LABELS: [&str; 8] = ["63", "125", "250", "500", "1k", "2k", "4k", "8k+"];
 /// Equal time segments of the band table.
 pub const SEGMENTS: usize = 5;
+/// Rows of the per-onset table.
+pub const MAX_ONSET_ROWS: usize = 24;
 
 /// A spectral measure at the start, middle and end thirds of the sound.
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -27,6 +29,53 @@ pub struct Onset {
     pub t: f32,
     /// Spectral flux at the onset, relative to the strongest (0..1).
     pub strength: f32,
+}
+
+/// One row of the per-onset table: what the sound does from one onset until
+/// the next (or the end).
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct OnsetRow {
+    /// Seconds.
+    pub t: f32,
+    /// Spectral flux relative to the strongest onset (0..1).
+    pub strength: f32,
+    /// Milliseconds from the last point under 10% of the hit's peak up to
+    /// the peak (0.25 ms resolution).
+    pub attack_ms: f32,
+    /// Milliseconds after the hit's peak until the level (smoothed over
+    /// 6 ms) stays 20 dB under it; None: it does not fall that far before the
+    /// next onset (or the end).
+    pub decay20_ms: Option<f32>,
+    /// Spectral centroid of the first 100 ms of the hit (or until the next
+    /// onset), Hz.
+    pub centroid_hz: f32,
+    /// Median f0 of the voiced frames of the hit, Hz.
+    pub pitch_hz: Option<f32>,
+    /// Median f0 of the first / last two voiced frames, when the hit has at
+    /// least three voiced frames (a chirp or a drip).
+    pub pitch_start_hz: Option<f32>,
+    pub pitch_end_hz: Option<f32>,
+}
+
+/// Events per second at a fine time resolution, apart from the merged
+/// onset list.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct Density {
+    /// Events over the audible span, per second.
+    pub per_s: f32,
+    pub count: usize,
+    /// Seconds from the first to the last sample above -60 dBFS.
+    pub span_s: f32,
+    /// Events closer than this count as one, milliseconds.
+    pub min_spacing_ms: f32,
+}
+
+/// Loudness spread over 400 ms windows (what a loop should keep small).
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct Steadiness {
+    pub min_lufs: f32,
+    pub max_lufs: f32,
+    pub spread_lu: f32,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -92,6 +141,38 @@ pub struct Descriptors {
     pub bands_total: Vec<f32>,
     pub modes: Vec<Mode>,
     pub stereo: Option<Stereo>,
+    /// Centroid / 85% rolloff of the whole sound's spectrum (frames weighted
+    /// by their energy), Hz.
+    pub centroid_all_hz: f32,
+    pub rolloff_all_hz: f32,
+    /// Centroid in each tenth of the sound, Hz (None: nothing audible).
+    pub centroid_tenths: Vec<Option<f32>>,
+    /// Up to 24 rows, one per onset of `onsets`.
+    pub onset_rows: Vec<OnsetRow>,
+    pub density: Density,
+    /// Percent of the energy under 200 Hz, 200-2k, 2k-8k, over 8k.
+    pub band_shares: [f32; 4],
+    /// Median YIN f0 in each tenth of the sound (None: unvoiced / quiet).
+    pub pitch_tenths: Vec<Option<f32>>,
+    /// Strongest partials (Hz, ascending) when the sound is not harmonic.
+    pub inharmonic_partials: Vec<f32>,
+    /// Seconds from the first sample above -60 dBFS to the first 0.25 ms
+    /// frame at 90% of the sample peak.
+    pub attack_to90_s: f32,
+    /// Seconds from the first sample above -60 dBFS to the sample peak.
+    pub attack_to_peak_s: f32,
+    /// Flatness of the whole sound's spectrum, as `flatness` but over all.
+    pub flatness_all: f32,
+    /// The band holding the middle 80% of the energy (10th to 90th
+    /// percentile), Hz.
+    pub occupied_hz: (f32, f32),
+    /// Flatness inside `occupied_hz` (None when under 5 bins wide: tonal).
+    pub flatness_occupied: Option<f32>,
+    /// Loudness spread over 400 ms windows (None: under two windows).
+    pub steadiness: Option<Steadiness>,
+    /// Set with [`Descriptors::with_loop`]: the table drops attack, peak-at
+    /// and decay.
+    pub is_loop: bool,
 }
 
 fn rms(x: &[f32]) -> f32 {
@@ -293,6 +374,217 @@ fn modes(s: &Spectra, from_frame: usize) -> Vec<Mode> {
     out
 }
 
+/// Sliding maximum of `v` over `radius` samples each side.
+fn sliding_max(v: &[f32], radius: usize) -> Vec<f32> {
+    use std::collections::VecDeque;
+    let n = v.len();
+    let mut out = vec![0.0f32; n];
+    let mut dq: VecDeque<usize> = VecDeque::new();
+    let mut next = 0;
+    for k in 0..n {
+        let hi = (k + radius).min(n - 1);
+        while next <= hi {
+            while dq.back().is_some_and(|b| v[*b] <= v[next]) {
+                dq.pop_back();
+            }
+            dq.push_back(next);
+            next += 1;
+        }
+        while dq.front().is_some_and(|f| f + radius < k) {
+            dq.pop_front();
+        }
+        out[k] = dq.front().map_or(0.0, |f| v[*f]);
+    }
+    out
+}
+
+/// Peak of each `c`-sample chunk.
+fn chunk_peaks(x: &[f32], c: usize) -> Vec<f32> {
+    x.chunks(c)
+        .map(|k| k.iter().fold(0.0f32, |m, v| m.max(v.abs())))
+        .collect()
+}
+
+/// The per-onset table, one row per onset (at most [`MAX_ONSET_ROWS`]).
+fn onset_rows(
+    x: &[f32],
+    spec: &Spectra,
+    ons: &[Onset],
+    pitch_frames: &[pitch::PitchFrame],
+    centroid: &dyn Fn(&Vec<f32>) -> f32,
+) -> Vec<OnsetRow> {
+    let sr = spec.sr as f32;
+    let c = (spec.sr as usize / 4000).max(1);
+    let env = chunk_peaks(x, c);
+    if env.is_empty() {
+        return Vec::new();
+    }
+    let sm = sliding_max(&env, 12);
+    let half = spec.win as f32 / 2.0 / sr;
+    let total = x.len() as f32 / sr;
+    let ms_per_chunk = c as f32 / sr * 1000.0;
+    ons.iter()
+        .take(MAX_ONSET_ROWS)
+        .enumerate()
+        .map(|(i, o)| {
+            let t = o.t;
+            let next = ons.get(i + 1).map(|n| n.t);
+            let end_t = next.map_or(total, |n| (n - half).max(t));
+            let a = (((t - half).max(0.0) * sr) as usize / c).min(env.len() - 1);
+            let b = ((end_t * sr).ceil() as usize)
+                .div_ceil(c)
+                .clamp(a + 1, env.len());
+            let p = (a..b).fold(a, |m, k| if env[k] > env[m] { k } else { m });
+            let pv = env[p];
+            let start = (a..p)
+                .rev()
+                .find(|k| env[*k] < 0.1 * pv)
+                .map_or(a, |k| k + 1);
+            let attack_ms = (p - start) as f32 * ms_per_chunk;
+            let top = sm[p..b].iter().copied().fold(0.0f32, f32::max);
+            let decay20_ms = (p..b)
+                .rev()
+                .find(|k| sm[*k] >= 0.1 * top)
+                .filter(|last| last + 1 < b && top > 0.0)
+                .map(|last| (last + 1 - p) as f32 * ms_per_chunk);
+            // Spectrum of the first 100 ms of the hit.
+            let f0 = ((t * sr / spec.hop as f32).round() as usize).min(spec.frames.len() - 1);
+            let f1 = (((t + 0.1).min(next.unwrap_or(f32::MAX)) * sr / spec.hop as f32).ceil()
+                as usize)
+                .clamp(f0 + 1, spec.frames.len());
+            let centroid_hz = centroid(&spec.mean(f0..f1));
+            // f0 of the voiced frames of the hit.
+            let hi = next.unwrap_or(f32::MAX);
+            let voiced: Vec<f32> = pitch_frames
+                .iter()
+                .filter(|f| f.t >= t - 0.01 && f.t < hi)
+                .filter_map(|f| f.hz)
+                .collect();
+            let (ps, pe) = if voiced.len() >= 3 {
+                (
+                    median(voiced[..2].to_vec()),
+                    median(voiced[voiced.len() - 2..].to_vec()),
+                )
+            } else {
+                (None, None)
+            };
+            OnsetRow {
+                t,
+                strength: o.strength,
+                attack_ms,
+                decay20_ms,
+                centroid_hz,
+                pitch_hz: median(voiced),
+                pitch_start_hz: ps,
+                pitch_end_hz: pe,
+            }
+        })
+        .collect()
+}
+
+/// Events per second from a 1 ms envelope of the sound above 1 kHz: an event
+/// is a 1 ms chunk at least 6 dB over the loudest of the 3 chunks before it
+/// (and within 45 dB of the loudest chunk), then 4 ms of refractory time.
+/// Unlike the merged onset list this resolves clicks 5 ms apart. A tone's
+/// ripple does not count (nothing rises over a recent crest), nor does a
+/// bass thump (high-passed away).
+fn density(x: &[f32], sr: u32, span: (usize, usize)) -> Density {
+    const SPACING_CHUNKS: usize = 4;
+    let mut y = x.to_vec();
+    // RBJ high-pass, 1 kHz (lower when the rate is low), Q 0.707.
+    let w0 = std::f32::consts::TAU * 1000.0f32.min(sr as f32 * 0.2) / sr as f32;
+    let (sin, cos) = w0.sin_cos();
+    let alpha = sin / (2.0 * std::f32::consts::FRAC_1_SQRT_2);
+    let a0 = 1.0 + alpha;
+    let (b0, b1, b2) = (
+        (1.0 + cos) / 2.0 / a0,
+        -(1.0 + cos) / a0,
+        (1.0 + cos) / 2.0 / a0,
+    );
+    let (a1, a2) = (-2.0 * cos / a0, (1.0 - alpha) / a0);
+    let (mut x1, mut x2, mut y1, mut y2) = (0.0f64, 0.0f64, 0.0f64, 0.0f64);
+    for v in y.iter_mut() {
+        let xn = f64::from(*v);
+        let yn = f64::from(b0) * xn + f64::from(b1) * x1 + f64::from(b2) * x2
+            - f64::from(a1) * y1
+            - f64::from(a2) * y2;
+        (x2, x1, y2, y1) = (x1, xn, y1, yn);
+        *v = yn as f32;
+    }
+    let c = (sr as usize / 1000).max(1);
+    let e: Vec<f32> = y.chunks(c).map(rms).collect();
+    let peak = e.iter().copied().fold(0.0f32, f32::max);
+    let floor = peak * 0.0056;
+    let mut count = 0;
+    let mut k = 0;
+    while k < e.len() && peak > 0.0 {
+        let prev = (k.saturating_sub(3)..k)
+            .map(|j| e[j])
+            .fold(0.0f32, f32::max);
+        if e[k] >= floor && e[k] >= 2.0 * prev {
+            count += 1;
+            k += SPACING_CHUNKS;
+        } else {
+            k += 1;
+        }
+    }
+    let span_s = (span.1.saturating_sub(span.0)) as f32 / sr as f32;
+    Density {
+        per_s: if span_s > 0.0 {
+            count as f32 / span_s
+        } else {
+            0.0
+        },
+        count,
+        span_s,
+        min_spacing_ms: SPACING_CHUNKS as f32 * c as f32 / sr as f32 * 1000.0,
+    }
+}
+
+/// Partials (Hz, ascending) when `modes` (the strongest six) are not
+/// harmonics of the sound's pitch: under half of them within 3% of a
+/// multiple of it up to the 8th (a pitch far under the partials is a
+/// subharmonic guess, and everything is a high multiple of it). Without a
+/// pitch, the `harmonicity` alone decides. Noise (`flatness` over 0.3) has no
+/// partials to name.
+fn inharmonic(modes: &[Mode], pitch_hz: Option<f32>, harmonicity: f32, flatness: f32) -> Vec<f32> {
+    let mut top: Vec<Mode> = modes.to_vec();
+    top.sort_by(|a, b| b.level_db.total_cmp(&a.level_db));
+    top.truncate(6);
+    if top.len() < 3 || flatness > 0.3 {
+        return Vec::new();
+    }
+    let harmonic = |f0: f32| {
+        top.iter()
+            .filter(|m| {
+                let r = m.hz / f0;
+                let k = r.round();
+                r >= 0.9 && (1.0..=8.0).contains(&k) && (r - k).abs() / k < 0.03
+            })
+            .count()
+    };
+    let bad = match pitch_hz {
+        Some(f0) => harmonic(f0) < top.len().div_ceil(2),
+        None => harmonicity < 0.5,
+    } || harmonicity < 0.5;
+    if !bad {
+        return Vec::new();
+    }
+    let mut hz: Vec<f32> = top.iter().map(|m| m.hz).collect();
+    hz.sort_by(f32::total_cmp);
+    hz
+}
+
+fn flatness_of(p: &[f32]) -> f32 {
+    let v: Vec<f64> = p.iter().map(|x| f64::from(*x).max(1e-20)).collect();
+    if v.is_empty() || v.iter().sum::<f64>() < 1e-15 {
+        return 0.0;
+    }
+    let geo = (v.iter().map(|x| x.ln()).sum::<f64>() / v.len() as f64).exp();
+    let ari = v.iter().sum::<f64>() / v.len() as f64;
+    (geo / ari) as f32
+}
+
 /// Measures `audio`.
 pub fn describe(audio: &Audio) -> Descriptors {
     let sr = audio.sample_rate;
@@ -464,6 +756,105 @@ pub fn describe(audio: &Audio) -> Descriptors {
         None
     };
     let momentary = loudness::momentary(&audio.channels, sr, 0.1);
+    let ons = onsets(&spec);
+    let mode_list = modes(&spec, peak_frame);
+    // Whole-sound spectrum (frames weigh by their energy).
+    let mean_all = spec.mean(0..spec.frames.len());
+    let tenth =
+        |i: usize| spec.frames_in(seconds * i as f32 / 10.0, seconds * (i + 1) as f32 / 10.0);
+    let centroid_tenths: Vec<Option<f32>> = (0..10)
+        .map(|i| {
+            let idx: Vec<usize> = tenth(i).filter(|k| audible[*k]).collect();
+            if idx.is_empty() {
+                return None;
+            }
+            let mut avg = vec![0.0f32; spec.bins()];
+            for k in &idx {
+                for (a, p) in avg.iter_mut().zip(&spec.frames[*k]) {
+                    *a += p / idx.len() as f32;
+                }
+            }
+            Some(centroid(&avg))
+        })
+        .collect();
+    let pitch_tenths: Vec<Option<f32>> = (0..10)
+        .map(|i| {
+            let (t0, t1) = (seconds * i as f32 / 10.0, seconds * (i + 1) as f32 / 10.0);
+            median(
+                frames
+                    .iter()
+                    .filter(|f| f.t >= t0 && f.t < t1)
+                    .filter_map(|f| f.hz)
+                    .collect(),
+            )
+        })
+        .collect();
+    let onset_rows = onset_rows(&x, &spec, &ons, &frames, &centroid);
+    let band_shares = {
+        let tot: f32 = mean_all[1..].iter().sum();
+        let mut sh = [0.0f32; 4];
+        if tot > 0.0 {
+            for b in 1..mean_all.len() {
+                let f = spec.hz(b);
+                let k =
+                    usize::from(f >= 200.0) + usize::from(f >= 2000.0) + usize::from(f >= 8000.0);
+                sh[k] += 100.0 * mean_all[b] / tot;
+            }
+        }
+        sh
+    };
+    // The band holding the middle 80% of the energy and its flatness.
+    let (occupied_hz, flatness_occupied) = {
+        let tot: f32 = mean_all[lo_bin..].iter().sum();
+        let (mut acc, mut b10, mut b90) = (0.0f32, lo_bin, mean_all.len() - 1);
+        let (mut got10, mut got90) = (false, false);
+        for b in lo_bin..mean_all.len() {
+            acc += mean_all[b];
+            if !got10 && acc >= 0.1 * tot {
+                (b10, got10) = (b, true);
+            }
+            if !got90 && acc >= 0.9 * tot {
+                (b90, got90) = (b, true);
+            }
+        }
+        let flat = (tot > 0.0 && b90 + 1 >= b10 + 5).then(|| flatness_of(&mean_all[b10..=b90]));
+        ((spec.hz(b10), spec.hz(b90)), flat)
+    };
+    // Attack: from the first sample over -60 dBFS to 90% of / the sample peak.
+    let (attack_to90_s, attack_to_peak_s) = {
+        let c = (sr as usize / 4000).max(1);
+        let env_c = chunk_peaks(&x, c);
+        let top = env_c.iter().copied().fold(0.0f32, f32::max);
+        if top <= 0.0 || first_loud >= n {
+            (0.0, 0.0)
+        } else {
+            let at = |k: usize| ((k * c).saturating_sub(first_loud)) as f32 / sr as f32;
+            let kp = env_c.iter().position(|v| *v >= top).unwrap_or(0);
+            let k90 = env_c.iter().position(|v| *v >= 0.9 * top).unwrap_or(kp);
+            (at(k90), at(kp))
+        }
+    };
+    let span = (first_loud, last_loud.map_or(first_loud, |l| l + 1));
+    let steadiness = {
+        let v: Vec<f32> = momentary.iter().copied().filter(|v| *v > -70.0).collect();
+        if v.len() < 2 {
+            None
+        } else {
+            let lo = v.iter().copied().fold(f32::MAX, f32::min);
+            let hi = v.iter().copied().fold(f32::MIN, f32::max);
+            Some(Steadiness {
+                min_lufs: lo,
+                max_lufs: hi,
+                spread_lu: hi - lo,
+            })
+        }
+    };
+    let inharmonic_partials = inharmonic(
+        &mode_list,
+        median(frames.iter().filter_map(|f| f.hz).collect()),
+        harmonicity,
+        flatness_of(&mean_all[lo_bin..mean_all.len() - 1]),
+    );
     Descriptors {
         seconds,
         sample_rate: sr,
@@ -481,7 +872,7 @@ pub fn describe(audio: &Audio) -> Descriptors {
         decay60_s: decay(60.0),
         silence_start_s: first_loud as f32 / sr as f32,
         silence_end_s: silence_end,
-        onsets: onsets(&spec),
+        onsets: ons,
         pitch_hz: median(voiced_hz),
         voiced,
         harmonicity,
@@ -490,8 +881,23 @@ pub fn describe(audio: &Audio) -> Descriptors {
         flatness: sme(&flatness),
         bands,
         bands_total,
-        modes: modes(&spec, peak_frame),
+        modes: mode_list,
         stereo,
+        centroid_all_hz: centroid(&mean_all),
+        rolloff_all_hz: rolloff(&mean_all),
+        centroid_tenths,
+        onset_rows,
+        density: density(&x, sr, span),
+        band_shares,
+        pitch_tenths,
+        inharmonic_partials,
+        attack_to90_s,
+        attack_to_peak_s,
+        flatness_all: flatness_of(&mean_all[lo_bin..mean_all.len() - 1]),
+        occupied_hz,
+        flatness_occupied,
+        steadiness,
+        is_loop: false,
     }
 }
 
@@ -528,13 +934,19 @@ impl Descriptors {
             self.dc_db
         );
         o += &format!(
-            "time: attack {:.3} s, peak at {:.3} s, decay -20 dB {}, -60 dB {}, silence start {:.3} s / end {:.3} s\n",
-            self.attack_s,
-            self.peak_t,
-            opt_s(self.decay20_s),
-            opt_s(self.decay60_s),
-            self.silence_start_s,
-            self.silence_end_s
+            "time: {}, {}\n",
+            if self.is_loop {
+                "loop: n/a (see steadiness)".to_string()
+            } else {
+                format!(
+                    "attack {:.3} s, peak at {:.3} s, decay -20 dB {}, -60 dB {}",
+                    self.attack_s,
+                    self.peak_t,
+                    opt_s(self.decay20_s),
+                    opt_s(self.decay60_s)
+                )
+            },
+            self.silence_words()
         );
         let ons: Vec<String> = self
             .onsets
@@ -600,6 +1012,133 @@ impl Descriptors {
                 "stereo: correlation {:.2}, width {:.2}\n",
                 s.correlation, s.width
             );
+        }
+        o += &self.extra_lines();
+        o
+    }
+
+    /// Marks the sound as a loop: the table says "loop: n/a" where attack,
+    /// peak-at and decay would be.
+    pub fn with_loop(mut self, is_loop: bool) -> Self {
+        self.is_loop = is_loop;
+        self
+    }
+
+    /// The silence wording of the `time:` line.
+    fn silence_words(&self) -> String {
+        if self.silence_start_s >= self.seconds - 1e-6 {
+            return "all silent (under -60 dBFS)".into();
+        }
+        let lead = if self.silence_start_s < 0.005 {
+            "no leading silence".to_string()
+        } else {
+            format!("leading silence {:.3} s", self.silence_start_s)
+        };
+        let trail = if self.silence_end_s < 0.01 {
+            "no trailing silence".to_string()
+        } else {
+            format!(
+                "trailing silence from {:.3} s ({:.3} s long)",
+                self.seconds - self.silence_end_s,
+                self.silence_end_s
+            )
+        };
+        format!("{lead}, {trail}")
+    }
+
+    /// The later lines of the table (whole-sound spectrum, tenths, shares,
+    /// pitch contour, attack detail, density, steadiness, onset rows), each
+    /// short; the onset table is capped at [`MAX_ONSET_ROWS`] rows.
+    fn extra_lines(&self) -> String {
+        let mut o = String::new();
+        let flat_occ = match self.flatness_occupied {
+            Some(f) => format!(
+                "{f:.2} in {}-{} Hz (middle 80% of the energy)",
+                hz(self.occupied_hz.0),
+                hz(self.occupied_hz.1)
+            ),
+            None => format!(
+                "none: the middle 80% of the energy is {}-{} Hz, too narrow (tonal)",
+                hz(self.occupied_hz.0),
+                hz(self.occupied_hz.1)
+            ),
+        };
+        o += &format!(
+            "whole sound: centroid {} Hz, rolloff {} Hz, flatness {:.2} full band, {flat_occ}\n",
+            hz(self.centroid_all_hz),
+            hz(self.rolloff_all_hz),
+            self.flatness_all
+        );
+        o += &format!(
+            "energy shares: <200 Hz {:.0}%, 200-2k {:.0}%, 2k-8k {:.0}%, >8k {:.0}%\n",
+            self.band_shares[0], self.band_shares[1], self.band_shares[2], self.band_shares[3]
+        );
+        let tenths = |v: &[Option<f32>]| {
+            v.iter()
+                .map(|c| c.map_or("-".to_string(), hz))
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
+        o += &format!(
+            "centroid by tenth (Hz): {}\n",
+            tenths(&self.centroid_tenths)
+        );
+        if self.pitch_tenths.iter().any(Option::is_some) {
+            o += &format!("pitch by tenth (Hz): {}\n", tenths(&self.pitch_tenths));
+        }
+        if !self.inharmonic_partials.is_empty() {
+            let p: Vec<String> = self.inharmonic_partials.iter().map(|f| hz(*f)).collect();
+            o += &format!(
+                "inharmonic: partials at {} Hz (the pitch line is one of them or a guess)\n",
+                p.join(" ")
+            );
+        }
+        if !self.is_loop {
+            o += &format!(
+                "attack detail: first sound to 90% of peak {:.2} ms, to the sample peak {:.2} ms (attack above is 10% to 90%)\n",
+                self.attack_to90_s * 1000.0,
+                self.attack_to_peak_s * 1000.0
+            );
+        }
+        let d = &self.density;
+        o += &format!(
+            "density: {:.0} events/s ({} in {:.2} s; 1 ms envelope over 1 kHz, 6 dB rise, {:.0} ms apart; onsets above merge under 40 ms)\n",
+            d.per_s, d.count, d.span_s, d.min_spacing_ms
+        );
+        if let Some(s) = self.steadiness.filter(|_| self.is_loop) {
+            o += &format!(
+                "steadiness: loudness over 400 ms windows {:.1} to {:.1} LUFS, spread {:.1} LU\n",
+                s.min_lufs, s.max_lufs, s.spread_lu
+            );
+        }
+        if self.is_loop {
+            o += "onset table: left out for a loop (read density)\n";
+        } else if !self.onset_rows.is_empty() {
+            o += "onset table: t s, strength, attack ms (0.25 res), -20 dB ms, centroid Hz, pitch Hz (start>end)\n";
+            for r in &self.onset_rows {
+                let pitch = match (r.pitch_hz, r.pitch_start_hz, r.pitch_end_hz) {
+                    (_, Some(a), Some(b)) if crate::pitch::cents(a, b).abs() > 60.0 => {
+                        format!("{}>{}", hz(a), hz(b))
+                    }
+                    (Some(p), _, _) => hz(p),
+                    _ => "-".into(),
+                };
+                o += &format!(
+                    "  {:7.3} {:4.1} {:6.2} {:>6} {:>6} {:>10}\n",
+                    r.t,
+                    r.strength,
+                    r.attack_ms,
+                    r.decay20_ms.map_or("-".into(), |v| format!("{v:.0}")),
+                    hz(r.centroid_hz),
+                    pitch
+                );
+            }
+            if self.onsets.len() > self.onset_rows.len() {
+                o += &format!(
+                    "  ... {} more onsets not shown\n",
+                    self.onsets.len() - self.onset_rows.len()
+                );
+            }
         }
         o
     }
