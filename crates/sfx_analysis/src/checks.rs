@@ -196,6 +196,278 @@ pub struct Variations {
     pub min_distance: Option<f32>,
 }
 
+/// The `layers` check: is the sound a designed one (layers in their bands,
+/// atonal where it should be, dry)? Each field is one measure; `preset`
+/// fills the ones not given. Energy shares are percent of the whole sound's
+/// energy: weight under 200 Hz, body 200 Hz-2 kHz, crack above 2 kHz.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LayersCheck {
+    /// "impact" (a hit, a slam, a knock, a blow): weight 15..60 %, body
+    /// 30..80 %, crack at least 1.5 %, voiced at most 0.3, at most 1 ringing
+    /// partial, crest at most 23 dB, dry. The Phase 0 door slams: the round-0
+    /// build fails weight, body and crest, the first layered one ringing,
+    /// crest and dry; the one the listener approved passes.
+    #[serde(default)]
+    pub preset: Option<String>,
+    /// Percent of the energy under 200 Hz.
+    #[serde(default)]
+    pub weight: Option<Range>,
+    /// Percent of the energy from 200 Hz to 2 kHz.
+    #[serde(default)]
+    pub body: Option<Range>,
+    /// Percent of the energy above 2 kHz.
+    #[serde(default)]
+    pub crack: Option<Range>,
+    /// Largest share of frames the pitch tracker calls voiced (0..1): an
+    /// atonal impact reads near 0.
+    #[serde(default)]
+    pub voiced_max: Option<f32>,
+    /// Most partials (from the `modes` line) within 6 dB of the strongest
+    /// that ring longer than 0.6 s to -60 dB: more than one reads as a tuned
+    /// drum (the Phase 0 slam the listener called "melodic" had three; the
+    /// real slam one).
+    #[serde(default)]
+    pub ringing_max: Option<usize>,
+    /// Peak over RMS, dB.
+    #[serde(default)]
+    pub crest_db: Option<Range>,
+    /// Time from the peak to 20 dB under it, ms.
+    #[serde(default)]
+    pub tail_ms: Option<Range>,
+    /// No `reverb` or `convolve` node anywhere in the sound (patches
+    /// included): SFX are dry unless the brief names a space.
+    #[serde(default)]
+    pub dry: Option<bool>,
+}
+
+impl LayersCheck {
+    /// The settings with the preset's values filled in where none is given.
+    pub fn resolved(&self) -> Result<LayersCheck, String> {
+        let base = match self.preset.as_deref() {
+            None => LayersCheck::default(),
+            Some("impact") => LayersCheck {
+                preset: None,
+                weight: Some(Range {
+                    min: Some(15.0),
+                    max: Some(60.0),
+                }),
+                body: Some(Range {
+                    min: Some(30.0),
+                    max: Some(80.0),
+                }),
+                crack: Some(Range {
+                    min: Some(1.5),
+                    max: None,
+                }),
+                voiced_max: Some(0.3),
+                ringing_max: Some(1),
+                crest_db: Some(Range {
+                    min: None,
+                    max: Some(23.0),
+                }),
+                tail_ms: None,
+                dry: Some(true),
+            },
+            Some(other) => {
+                return Err(format!(
+                    "layers: preset `{other}`: the presets are impact (or leave preset out and give the measures)"
+                ));
+            }
+        };
+        Ok(LayersCheck {
+            preset: self.preset.clone(),
+            weight: self.weight.clone().or(base.weight),
+            body: self.body.clone().or(base.body),
+            crack: self.crack.clone().or(base.crack),
+            voiced_max: self.voiced_max.or(base.voiced_max),
+            ringing_max: self.ringing_max.or(base.ringing_max),
+            crest_db: self.crest_db.clone().or(base.crest_db),
+            tail_ms: self.tail_ms.clone().or(base.tail_ms),
+            dry: self.dry.or(base.dry),
+        })
+    }
+}
+
+/// A partial counts as ringing (`layers` `ringing_max`) when it is within
+/// this many dB of the strongest and takes longer than `RING_S` to fall 60 dB.
+const RING_WITHIN_DB: f32 = 6.0;
+const RING_S: f32 = 0.6;
+
+/// Every `reverb` / `convolve` node in a list of nodes, patches included.
+fn wet_nodes(nodes: &[Value], out: &mut Vec<String>) {
+    for n in nodes {
+        let ty = n.get("type").and_then(Value::as_str).unwrap_or("");
+        if matches!(ty, "reverb" | "convolve") {
+            out.push(format!(
+                "{ty} `{}`",
+                n.get("name").and_then(Value::as_str).unwrap_or("?")
+            ));
+        }
+        if let Some(Value::Array(p)) = n.get("patch") {
+            wet_nodes(p, out);
+        }
+    }
+}
+
+/// The `layers` measures: (name, pass, detail) each.
+fn layers_results(l: &LayersCheck, d: &Descriptors, doc: &SoundDoc) -> Vec<(String, bool, String)> {
+    let mut out = Vec::new();
+    let [low, mid, hi, air] = d.band_shares;
+    let share = |out: &mut Vec<(String, bool, String)>,
+                 role: &str,
+                 band: &str,
+                 v: f32,
+                 r: &Option<Range>,
+                 low_fix: &str,
+                 high_fix: &str| {
+        if let Some(r) = r {
+            let ok = range_ok(r, v);
+            let detail = if ok {
+                format!("{v:.1} % of the energy {band} ({})", range_text(r))
+            } else if r.min.is_some_and(|m| v < m) {
+                format!(
+                    "{v:.1} % of the energy {band}, want {}: {low_fix}",
+                    range_text(r)
+                )
+            } else {
+                format!(
+                    "{v:.1} % of the energy {band}, want {}: {high_fix}",
+                    range_text(r)
+                )
+            };
+            out.push((format!("layers {role}"), ok, detail));
+        }
+    };
+    share(
+        &mut out,
+        "weight",
+        "under 200 Hz",
+        low,
+        &l.weight,
+        "add a weight layer (brown noise x decay through a lp at 150-250 Hz, slope 24; or finish weight_db)",
+        "the low end carries the sound: lower the weight / sub layer, or add a body layer at 200 Hz-2 kHz",
+    );
+    share(
+        &mut out,
+        "body",
+        "from 200 Hz to 2 kHz",
+        mid,
+        &l.body,
+        "add a body layer (a modal of the object's material struck by a noise burst, or band-passed noise at 200 Hz-2 kHz)",
+        "the body crowds out the rest: add weight under 200 Hz or a crack above 2 kHz, or lower the body",
+    );
+    share(
+        &mut out,
+        "crack",
+        "above 2 kHz",
+        hi + air,
+        &l.crack,
+        "add a crack (white noise x a decay of 0.008-0.03 s through a bp or hp at 2-6 kHz; or finish air_db)",
+        "too bright: lower the crack, or low-pass it",
+    );
+    if let Some(m) = l.voiced_max {
+        let ok = d.voiced <= m + 1e-6;
+        out.push((
+            "layers voiced".into(),
+            ok,
+            if ok {
+                format!("{:.2} of the frames voiced (max {m})", d.voiced)
+            } else {
+                format!(
+                    "{:.2} of the frames voiced (max {m}), pitch {}: the sound has a pitch; build weight from band-limited noise instead of a sine, strike modal with a noise burst, raise its loss",
+                    d.voiced,
+                    d.pitch_hz.map_or("n/a".into(), |p| format!("{p:.0} Hz"))
+                )
+            },
+        ));
+    }
+    if let Some(m) = l.ringing_max {
+        let top = d.modes.iter().map(|x| x.level_db).fold(f32::MIN, f32::max);
+        let ringing: Vec<String> = d
+            .modes
+            .iter()
+            .filter(|x| {
+                x.level_db >= top - RING_WITHIN_DB && x.decay_s > RING_S && x.decay_s < 600.0
+            })
+            .map(|x| format!("{:.0} Hz ({:.2} s)", x.hz, x.decay_s))
+            .collect();
+        let ok = ringing.len() <= m;
+        out.push((
+            "layers ringing".into(),
+            ok,
+            if ok {
+                format!(
+                    "{} strong partial(s) ringing over {RING_S} s (max {m}){}",
+                    ringing.len(),
+                    if ringing.is_empty() { String::new() } else { format!(": {}", ringing.join(", ")) }
+                )
+            } else {
+                format!(
+                    "{} strong partials ring over {RING_S} s (max {m}): {}: that reads as a tuned drum; raise the modal loss, strike it with a noise burst, or replace a sine (a sub drop) with band-limited noise",
+                    ringing.len(),
+                    ringing.join(", ")
+                )
+            },
+        ));
+    }
+    if let Some(r) = &l.crest_db {
+        let v = d.crest_db;
+        let ok = range_ok(r, v);
+        out.push((
+            "layers crest".into(),
+            ok,
+            if ok {
+                format!("{v:.1} dB ({})", range_text(r))
+            } else if r.max.is_some_and(|m| v > m) {
+                format!("{v:.1} dB, want {}: too spiky: finish glue, or longer body and weight layers under the hit", range_text(r))
+            } else {
+                format!("{v:.1} dB, want {}: too flat: finish punch, or a sharper crack", range_text(r))
+            },
+        ));
+    }
+    if let Some(r) = &l.tail_ms {
+        match d.decay20_s {
+            Some(t) => {
+                let v = t * 1000.0;
+                let ok = range_ok(r, v);
+                out.push((
+                    "layers tail".into(),
+                    ok,
+                    if ok {
+                        format!("{v:.0} ms to -20 dB ({})", range_text(r))
+                    } else {
+                        format!("{v:.0} ms to -20 dB, want {}: lengthen or shorten the body and weight decays (or finish tail_db)", range_text(r))
+                    },
+                ));
+            }
+            None => out.push((
+                "layers tail".into(),
+                false,
+                "never falls 20 dB under its peak: give the layers a decay".into(),
+            )),
+        }
+    }
+    if l.dry == Some(true) {
+        let mut wet = Vec::new();
+        wet_nodes(&doc.nodes, &mut wet);
+        let ok = wet.is_empty();
+        out.push((
+            "layers dry".into(),
+            ok,
+            if ok {
+                "no reverb or convolve node".into()
+            } else {
+                format!(
+                    "{}: SFX are dry unless the brief names a space (the game places the sound); delete it, or drop `dry` from the check when the brief asks for a room",
+                    wet.join(", ")
+                )
+            },
+        ));
+    }
+    out
+}
+
 /// The `reference` check: the sound stays within `max_distance` dB of a WAV.
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -277,6 +549,10 @@ pub struct Expect {
     /// no position peaks over -0.3 dBFS.
     #[serde(default)]
     pub macros: Option<bool>,
+    /// A designed sound: energy by role (weight, body, crack), voiced share,
+    /// crest, tail and no reverb; `{"preset": "impact"}` for a hit.
+    #[serde(default)]
+    pub layers: Option<LayersCheck>,
 }
 
 impl Expect {
@@ -1157,6 +1433,12 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
             }
         }
         push("reference", ok, why);
+    }
+    if let Some(l) = &e.layers {
+        let l = l.resolved()?;
+        for (name, pass, detail) in layers_results(&l, &d(), cx.doc) {
+            push(&name, pass, detail);
+        }
     }
     if e.macros == Some(true) {
         let mut unclaimed: Vec<&str> = Vec::new();

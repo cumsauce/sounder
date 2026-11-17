@@ -1548,7 +1548,7 @@ impl Descriptors {
             self.flatness_all
         );
         o += &format!(
-            "energy shares: <200 Hz {:.0}%, 200-2k {:.0}%, 2k-8k {:.0}%, >8k {:.0}%\n",
+            "energy shares: <200 Hz {:.0}% (weight), 200-2k {:.0}% (body), 2k-8k {:.0}% (crack), >8k {:.0}% (air)\n",
             self.band_shares[0], self.band_shares[1], self.band_shares[2], self.band_shares[3]
         );
         let tenths = |v: &[Option<f32>]| {

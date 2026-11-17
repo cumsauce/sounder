@@ -1239,6 +1239,7 @@ fn bare_check(name: &str) -> Result<Value, String> {
             json!(true)
         }
         "variations" => json!({"seeds": 4}),
+        "layers" => json!({"preset": "impact"}),
         "peak_db" => json!({"max": -0.3}),
         "true_peak_db" => json!({"max": -1.0}),
         "lufs" => return needs_settings(name, r#"{"min": -20, "max": -14}"#),
@@ -1251,7 +1252,7 @@ fn bare_check(name: &str) -> Result<Value, String> {
         }
         other => {
             return Err(format!(
-                "verify: unknown check `{other}`; the checks are peak_db, true_peak_db, lufs, duration, silent_edges, clicks, dc, finite, loop_seam, bands, pitch, onsets, variations, rebuild, reference, macros, aliasing, inharmonicity, modulation, roughness (the last four need settings: use expect)"
+                "verify: unknown check `{other}`; the checks are peak_db, true_peak_db, lufs, duration, silent_edges, clicks, dc, finite, loop_seam, bands, pitch, onsets, variations, rebuild, reference, macros, layers (bare: the impact preset), aliasing, inharmonicity, modulation, roughness (the last four need settings: use expect)"
             ));
         }
     })
@@ -1268,6 +1269,36 @@ fn expect_map(e: &Expect) -> Result<serde_json::Map<String, Value>, String> {
         Ok(Value::Object(m)) => Ok(m.into_iter().filter(|(_, v)| !v.is_null()).collect()),
         _ => Err("expect: could not be read".into()),
     }
+}
+
+/// Share of the energy in one role band above which `summary` says a single
+/// layer carries the sound (the round-0 door slam had 86 % under 200 Hz).
+const ONE_ROLE_SHARE: f32 = 80.0;
+
+/// A hint when a oneshot puts nearly all its energy in one role band: a
+/// designed hit spreads it over weight, body and crack (Phase 0).
+fn one_role_hint(desc: &Descriptors, kind: Kind) -> Option<String> {
+    if kind == Kind::Loop {
+        return None;
+    }
+    let roles = [
+        "under 200 Hz (weight)",
+        "at 200 Hz-2 kHz (body)",
+        "at 2-8 kHz (crack)",
+        "above 8 kHz (air)",
+    ];
+    let (i, v) = desc
+        .band_shares
+        .iter()
+        .copied()
+        .enumerate()
+        .max_by(|a, b| a.1.total_cmp(&b.1))?;
+    (v >= ONE_ROLE_SHARE).then(|| {
+        format!(
+            "{v:.0} % of the energy is {}: one layer carries the sound. A designed hit spreads it over weight, body and crack (AGENTS.md \"Layering a designed sound\"; check with verify expect layers {{\"preset\": \"impact\"}}); fine for a UI blip, a drone or a texture",
+            roles[i]
+        )
+    })
 }
 
 /// The check set for `verify`: see [`Session::verify`].
@@ -1483,6 +1514,9 @@ impl Session {
                     r.lufs
                 );
                 out += &desc.table();
+                if let Some(w) = one_role_hint(&desc, d.kind) {
+                    warnings.push(w);
+                }
                 json["seconds"] = serde_json::json!(r.audio.seconds());
                 json["peak_db"] = serde_json::json!(r.peak_db);
                 json["lufs"] = serde_json::json!(r.lufs);

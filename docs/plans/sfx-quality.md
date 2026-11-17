@@ -129,6 +129,16 @@ Goal: the senses notice a thin sound.
 - Add an `energy by role` line to `Descriptors::table()` (`:1353`).
 - Tests: a bare `modal` hit fails `layers` with sub and tail settings; the
   Phase 1 door slam passes.
+- **Done (2026-11-17).** As built: `layers` takes `preset` (`impact`), `weight`
+  / `body` / `crack` share ranges (under 200 Hz / 200 Hz-2 kHz / above 2 kHz,
+  the bands `listen` already had), `voiced_max`, `ringing_max`, `crest_db`,
+  `tail_ms`, `dry` (no `reverb` / `convolve` node: structural, not
+  measured). Dropped: `attack_ms` (the approved slam's pre-impact brush puts
+  its 90 % point at 42 ms), `width` (SFX are mono), `bands_occupied` (it
+  did not separate the slams). Added `ringing_max`: the search-tuned `slam_b`
+  the listener heard as a tuned drum reads voiced 0.00; its three strong
+  partials ringing 0.65-0.98 s are what separate it. Tests run on the Phase 0
+  slams as fixtures; the real recording passes too.
 
 ## Phase 4: source material
 

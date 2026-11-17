@@ -281,6 +281,10 @@ Measured targets for a heavy wooden impact (the real slam): crest about 16 dB
 (21.6 for the rebuild), energy under 200 Hz / 200 Hz-2 kHz / 2-8 kHz near
 38 / 56 / 5.5 %, -20 dB about 200 ms after the hit.
 
+Check a hit with `verify {checks: ["layers"]}` (the `impact` preset: energy
+by role, voiced, ringing partials, crest, no reverb; see "Senses"): every
+FAIL names the layer to add.
+
 **When one node is still right:** ambience and loops (`fire`, `wind`, `water`),
 UI blips, a single texture, or a brief that names one ready-made sound
 (`footstep`, `explosion`): use it as the body layer and add layers only if the
@@ -964,7 +968,7 @@ until it fits; you read their moves in `summary`.
   to 0.
 - `verify` / `expect` checks: `peak_db` `true_peak_db` `lufs` `duration`
   `silent_edges` `clicks` `dc` `finite` `loop_seam` `bands` `pitch` `onsets`
-  `variations` `rebuild` `reference` `macros`, and the synthesis checks
+  `variations` `rebuild` `reference` `macros` `layers`, and the synthesis checks
   `aliasing` `inharmonicity` `modulation` `roughness`. Each line is PASS /
   FAIL with the measured value; a FAIL says what to change. Four ways to ask:
   - no arguments: the defaults (`finite`, `peak_db` max -0.3, `silent_edges`
@@ -973,7 +977,8 @@ until it fits; you read their moves in `summary`.
   - `checks: ["clicks"]` adds checks to the defaults; `only: ["clicks", "dc"]`
     runs just those. Only checks that **need no settings** can be named here:
     `finite peak_db true_peak_db silent_edges clicks dc loop_seam variations
-    rebuild macros` (a bare `variations` runs 4 seeds). A check that needs settings errors and shows the `expect`
+    rebuild macros layers` (a bare `variations` runs 4 seeds, a bare `layers`
+    the `impact` preset). A check that needs settings errors and shows the `expect`
     form to use.
   - `expect` (verify's `expect`, `sound_ops`'s `expect`, or the same fields at
     verify's top level) takes the checks with settings; given alone, only
@@ -1010,6 +1015,24 @@ until it fits; you read their moves in `summary`.
     0.5, min_depth (1 dB or 10 cents), mode "amplitude" | "pitch"}`;
     `roughness {min, max}` percent; `dc {max}` dB; `reference {file,
     max_distance}`.
+  - **`layers`**: is it a designed sound? `{"preset": "impact"}` (or bare in
+    `checks`) for a hit, slam, knock or blow runs seven measures: `weight`
+    15-60 % of the energy under 200 Hz, `body` 30-80 % at 200 Hz-2 kHz,
+    `crack` at least 1.5 % above 2 kHz, `voiced_max` 0.3 (pitch tracker),
+    `ringing_max` 1 (partials within 6 dB of the strongest that take over
+    0.6 s to fall 60 dB), `crest_db` at most 23, and `dry` (no `reverb` or
+    `convolve` node, patches included). A field given beside the preset
+    replaces the preset's (`tail_ms {min, max}`, the time to -20 dB, has no
+    preset value). Each FAIL names the role and the layer to add. Measured on
+    the Phase 0 door slams (`tests/layers.rs`, fixtures in
+    `tests/fixtures/phase0/`): the round-0 build fails weight (86 %), body
+    (5.7 %) and crest (24.9 dB); the first layered one, which the listener
+    heard as a tuned drum with a reverb tail, fails ringing (75, 329, 457 Hz
+    at 0.65-0.98 s), crest (28.3 dB) and dry; the approved one passes, and
+    so does the real recording (38.5 / 55.9 / 5.6 %, voiced 0.15, one
+    partial ringing, crest 21.4 dB). Not a default: a UI blip or a drone has
+    no weight or crack. `summary` warns when 80 % of a oneshot's energy sits
+    in one role band, and `listen`'s energy shares line names the roles.
   `aliasing`, `inharmonicity`, `modulation` and `roughness` cannot be named in
   `checks` / `only`: put them in `expect`. `reference {file, max_distance}` fails
   when the STFT distance to the WAV (aligned and loudness-matched as in
