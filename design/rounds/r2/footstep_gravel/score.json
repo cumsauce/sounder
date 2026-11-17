@@ -1,0 +1,9 @@
+{"sound": "footstep_gravel", "round": 2,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults: finite, peak_db -3.00, silent_edges, dc -59 dB, macro weight/brightness/grit claims, rebuild all PASS; no FAIL."},
+  "time_shape": {"score": 2, "evidence": "Length 0.57 s (seeds 1-4: 0.533-0.570 s), inside 0.25-0.6 s. 9 onsets at 0, 0.139, 0.181, 0.235, 0.277, 0.309, 0.363, 0.405, 0.469 s; seeds give 9, 9, 10, 9 (all 8 or more). Decay is a fade across the stones, -60 dB at 0.56 s."},
+  "spectrum": {"score": 1, "evidence": "Centroid 5.32 kHz whole (5.26k/5.18k/6.38k start/mid/end), inside 2-6 kHz; seed 2 reaches 6.88k mid and 7.89k end. Flatness is not high full band: 0.07/0.05/0.04 (0.76 only in the 1.7-10 kHz middle 80%). Energy: 2-8k 69%, >8k 18%. Bands 2k-8k+ dominate every segment (-25 to -38 dB) with the thud at 63-125 Hz in the first 40%."},
+  "parts": {"score": 2, "evidence": "Heel thud is visible as 63/125 Hz energy at -35/-34 dB in 0-20% (spectrogram shows low blobs at 0-0.06 s and 0.10-0.14 s), then separate high-band stone ticks from 0.139 s on, each a discrete vertical burst in the picture and a listed onset."},
+  "control_variation": {"score": 2, "evidence": "3 macros (weight, brightness, grit); all claims PASS. Sweeps: weight centroid 6.2k -> 5.3k -> 4.6k, length 0.51 -> 0.61 s; brightness 1.9k -> 4.0k -> 5.8k, flatness 0.00 -> 0.21; grit 4.2k -> 6.2k -> 7.5k. Seeds differ in onset times, level (-23.3 to -26.9 LUFS), length and centroid by tenth, all 9-10 onsets and whole centroid 5.3-5.5 kHz."}},
+ "total": 9,
+ "notes": ["Full-band flatness is only 0.02-0.21 across the knobs, so 'high flatness' holds only in the mid band.", "Seed 1 reports attack 0.410 s while seeds 2-4 report 3-5 ms: the first onset is a long low thump so the attack metric is unstable.", "Seed 2 is 3.6 LU quieter than seed 1, and the last stones fade out; the tail after 0.47 s is sparse."]}

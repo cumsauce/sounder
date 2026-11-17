@@ -1,0 +1,13 @@
+{"sound": "fire_loop", "round": 2, "finished": true,
+ "calls": 13, "failed_calls": 1,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["fire", "onepole", "gain", "output"],
+ "blockers": [
+  {"kind": "doc_gap", "where": "macros / output.lufs",
+   "wanted": "a knob named fierceness with claim lufs rising",
+   "tried": "output.lufs -26 plus a macro on fire.intensity claiming lufs",
+   "workaround": "dropped output.lufs, set a gain of +3 dB before an output with no target; then lufs rose -32 to -19 across the knob",
+   "severity": 1}],
+ "wishlist": ["verify's macro FAIL for a flat lufs measure should say the output stage normalizes (output.lufs), not only 'rename the macro'", "a hiss-vs-roar balance field on fire (hiss gain) so a macro can move the hiss without touching the roar"],
+ "what_worked": ["one fire node in a loop document passed loop_seam at once (0.50x, 2.1 dB)", "density and centroid claims for macros passed first time", "listen density line and energy shares answered the brief directly"]}

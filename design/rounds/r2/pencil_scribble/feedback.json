@@ -1,0 +1,13 @@
+{"sound": "pencil_scribble", "round": 2, "finished": true,
+ "calls": 15, "failed_calls": 1,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["pattern", "trigger_env", "noise", "wander", "filter", "math", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "verify macro claim attack",
+   "wanted": "claim [attack, 1] on a softness knob that lengthens every stroke's swell-in",
+   "tried": "trigger_env attack 10..70 ms mapped to the knob; the claim measured 113 -> 359 -> 380 -> 157 -> 161 ms (non-monotonic)",
+   "workaround": "left softness unclaimed (a plain knob)",
+   "severity": 1}],
+ "wishlist": ["attack claim measured as the median per-onset attack (the onset table has it) so multi-swell sounds can claim it"],
+ "what_worked": ["pattern -> trigger_env (smooth) gave 8 swells in one step", "listen spectrogram + onset table made the 8 strokes and 4.9-8.6 kHz centroid readable", "macro sweep in verify caught the bad claim at once with numbers"]}

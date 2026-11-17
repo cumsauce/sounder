@@ -1,0 +1,32 @@
+{
+ "sound": "stream_loop",
+ "round": 2,
+ "lines": {
+  "checks": {
+   "score": 2,
+   "evidence": "verify defaults: no FAIL. loop_seam PASS (wrap discontinuity 0.39x the 99th-percentile step, max 2; spectral change 2.1 dB, max 6). finite, peak -8.4 dBFS, dc -153 dB, rebuild bit-identical, both claimed macros PASS."
+  },
+  "time_shape": {
+   "score": 2,
+   "evidence": "loop, 4.000 s, no leading/trailing silence. Density 40 events/s (161 in 4 s, min spacing 4 ms), seeds 2-4: 41/41/43 per s. Steadiness -25.0 to -22.8 LUFS (spread 2.2 LU), flat loudness curve in the picture, no swell or gaps. The discrete onset list is short (6) because dense onsets merge under 40 ms; density is the right reading and is dense."
+  },
+  "spectrum": {
+   "score": 2,
+   "evidence": "Centroid 1.62k/1.61k/1.43k Hz, rolloff 2.2 kHz, 90% of energy in 727 Hz-2.48 kHz. Energy shares <200 Hz 0%, 200-2k 80%, 2k-8k 20%, >8k 0%. Bands: 500 Hz -35.5, 1k -28.9, 2k -29.2, 4k -37.5 dB, 8k+ -50, 125 Hz -62. So the energy sits inside 300 Hz-6 kHz, stable start to end. Upper 3-6 kHz is thin (4k band 8 dB under the peak) but present."
+  },
+  "parts": {
+   "score": 2,
+   "evidence": "The brief names one component, bubbles. Spectrogram shows many short vertical streaks (individual bubbles) between about 500 Hz and 3 kHz, evenly spread over the 4 s, on a continuous fine floor. YIN finds no pitch (expected for a burble)."
+  },
+  "control_variation": {
+   "score": 2,
+   "evidence": "3 macros (brightness, depth, busyness). brightness claim centroid up: 1.3k->1.5k->1.5k->1.6k->1.6k PASS; depth claim centroid down: 2.2k->1.8k->1.5k->1.3k->1.0k PASS; busyness is unclaimed (not swept by verify); its 0 position shows 44 events/s, 0.5 shows crest 14.7 dB. Sweeps stay inside the band (brightness 0: centroid 1.35k, 2k-8k 12%; depth 0: centroid 2.24k, 2k-8k 53%, still 0% below 200 Hz). Seeds 1-4 differ measurably (peaks -8.4/-8.6/-9.2/-10.0 dBFS, crest 16.9/16.8/16.1/15.3, different onset lists, centroid 1.54-1.62k) all inside the brief. Variation between seeds is modest, mostly in detail."
+  }
+ },
+ "total": 10,
+ "notes": [
+  "busyness sweep: density barely tracks the knob (0 gives 44 events/s vs 40 at the default 0.2); the knob is unclaimed so verify cannot hold it to a direction.",
+  "Spectrum is narrow, 90% within 0.7-2.5 kHz; 3-6 kHz is much weaker than 1-2 kHz so the sound reads somewhat closed/muffled by measurement.",
+  "Seeds differ mainly in fine detail; global descriptors stay within about 5%."
+ ]
+}

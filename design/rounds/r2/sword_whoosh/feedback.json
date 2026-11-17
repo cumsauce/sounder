@@ -1,0 +1,13 @@
+{"sound": "sword_whoosh", "round": 2, "finished": true,
+ "calls": 14, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["noise", "env", "math", "filter", "adsr", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "listen attack measures / verify macro swell",
+   "wanted": "one trustworthy attack time for a noise swell to compare with the 50-150 ms target",
+   "tried": "read the time line (attack 64 ms 10-90%, peak at 90 ms), attack detail (79 ms to 90%, 105.8 ms to sample peak) and the macro sweep (39.7, 79.1, 79.1, 105.5, 137.2 ms)",
+   "workaround": "took the swell as ~80-90 ms using the loudness curve and waveform picture",
+   "severity": 1}],
+ "wishlist": ["a ready swell / whoosh node (band-passed noise with a rising-then-falling centre and a swell envelope)", "an attack measure based on a smoothed envelope so noise does not jitter it"],
+ "what_worked": ["env breakpoints with smooth curve drove the bp filter freq; centroid by tenth showed the rise 1.98k -> 4.31k then fall to 2.01k", "macro sweep in sound_ops/verify with attack, decay and centroid claims all passed first time", "describe_op gave env/adsr/filter fields at once"]}

@@ -1,0 +1,18 @@
+{"sound": "zipper", "round": 2, "finished": true,
+ "calls": 23, "failed_calls": 4,
+ "difficulty": 2,
+ "self_score": 7,
+ "nodes_used": ["ramp", "osc", "wander", "noise", "filter", "mix", "math", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "listen / summary onsets and pitch",
+   "wanted": "read the tooth rate rising 30 -> 420 per s and the point where the train fuses into a pitch",
+   "tried": "onsets line (reports 1-2 onsets, merges under 40 ms), pitch (none, voiced 0%), density line (whole-sound average)",
+   "workaround": "read the waveform panel of the PNG (teeth visibly denser to the right); trusted the ramp numbers",
+   "severity": 2},
+  {"kind": "sense_gap", "where": "verify macro claims",
+   "wanted": "claim names for a band-limited sound: flatness for a 'grit' knob, something for an end-rate 'speed' knob",
+   "tried": "flatness (full-band, 0.038 -> 0.040 with a 0..0.6 noise mix), decay (0.37 -> 0.00 -> 0.19 s on a sustained sound), lufs (non-monotone), centroid for pulse width (filters set the centroid)",
+   "workaround": "claimed crest falling for 'rattle'; left 'speed' unclaimed; dropped a 'sharpness' macro that could not pass any claim",
+   "severity": 1}],
+ "wishlist": ["per-tenth onset rate (events/s) and a pitch-or-rate curve in listen", "band-limited flatness (middle-80% band) for macro claims", "a claim measure for event rate / tempo"],
+ "what_worked": ["osc pulse with a ramp freq into hp + bp gave the rising teeth train in one pass, centroid 5.8-6.3 kHz", "mix inputs as objects with a macro on one input gain", "verify macro sweep gave exact numbers per step"]}

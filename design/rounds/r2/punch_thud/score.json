@@ -1,0 +1,14 @@
+{"sound": "punch_thud", "round": 2,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults: PASS finite, peak_db -2.55 dBFS, silent_edges, dc -66 dB, macro weight/brightness/length, rebuild. No FAIL."},
+  "time_shape": {"score": 2, "evidence": "length 0.200 s (brief 0.15-0.4); attack to 90% of peak 0.48 ms (seeds 0.23-0.96 ms), well under 5 ms; one onset at 0.000; -20 dB at 40 ms, -60 dB at 100 ms, audible tail ends ~0.087 s."},
+  "spectrum": {"score": 2, "evidence": "energy shares <200 Hz 86%, 200-2k 8%, 2k-8k 6%; centroid 366 Hz start, 62 mid; main mode 119 Hz at -14 dB; band table 125 Hz -19.9 dB in first fifth is the dominant band; 2k/4k bands -31.5/-35.7 dB in first fifth then silent. Spectrogram shows the low blob decaying over ~0.1 s and a bright burst up to ~4 kHz (some to 16k) in the first ~15 ms."},
+  "parts": {"score": 2, "evidence": "Thud and slap are separate in the spectrogram: low 60-250 Hz body lasting ~100 ms, and a short broadband-ish 1-4 kHz burst (modes 1.2-4.7 kHz, 20-30 ms decay) in the first fifth only. Band table shows a 2k notch-up (-31.5) above the 1k band (-43.5), so the slap is a distinct bump, not just spectral tilt."},
+  "control_variation": {"score": 2, "evidence": "3 macros (weight, brightness, length), all claims PASS: weight centroid 402->343 Hz, brightness 178 Hz->1.2 kHz, length decay 0.03->0.11 s. Seeds 1-4 differ: peak -2.5/-1.0/-3.9/-3.1 dBFS, centroid 366/528/375/599 Hz, attack 0.23-0.96 ms, 2k-8k share 4-12%; all keep <200 Hz at 80-87% and one onset. Sweeps stay in brief (length=0 gives 72% <200 Hz, 0.045 s tail, still thud-led)."}
+ },
+ "total": 10,
+ "notes": [
+  "More than half of the 0.2 s file (from ~0.087 s) is silence; the sound is effectively 90 ms long, inside the brief only because of the fixed duration padding.",
+  "weight macro barely moves the whole-sound centroid (402 to 343 Hz) because the body is already at ~120 Hz; mainly shifts the pitch (161 vs 119 Hz mode).",
+  "Loudness is -29 LUFS with peak -2.5 dBFS: crest 22.5 dB, very quiet for a one-shot at that peak; no loudness target seems set."
+ ]}

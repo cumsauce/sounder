@@ -1,0 +1,18 @@
+{"sound": "switch_click", "round": 2, "finished": true,
+ "calls": 13, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["click", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "listen onsets / time lines",
+   "wanted": "see that the switch click has two hits 24 ms apart (brief: 1-2 onsets)",
+   "tried": "listen: reports 'onsets 1', 'attack 0.024 s, peak at 0.020 s' (merged double); only the density line (2 in 0.03 s) and the image showed two hits",
+   "workaround": "expect onsets {spacing_ms: 5} counted 2 (docs mention this)",
+   "severity": 1},
+  {"kind": "wrong_result", "where": "sound_ops warning for output.fade_in",
+   "wanted": "no fade-in warning after setting fade_in 0.0005",
+   "tried": "fade_in 0.0005 as recommended; every render still warns 'the 0 ms fade-in is cutting the first hit by 1.9-2.6 dB' (prints 0 ms, rounded); unclear whether the hit is really cut",
+   "workaround": "ignored it; peak target is met (-3.6 dBFS), silent_edges passes",
+   "severity": 1}],
+ "wishlist": ["click: a `gap` / `double` timing field so the second snick spacing is a knob (a macro claiming `spacing`)", "listen onsets line should list the merged double hits when density shows 2 events", "a hit-level balance between press and release (the release peaks higher than the press here)"],
+ "what_worked": ["the click node with kind switch gave the whole sound in one node; centroid 4.1 kHz, 0.049 s, 2 onsets", "macros mapped to click size/hardness and output.peak_db passed their claims first try", "peak_db + fade_in 0.0005 delivered the target and passed silent_edges"]}

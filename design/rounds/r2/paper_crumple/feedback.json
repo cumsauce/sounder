@@ -1,0 +1,18 @@
+{"sound": "paper_crumple", "round": 2, "finished": true,
+ "calls": 29, "failed_calls": 1,
+ "difficulty": 2,
+ "self_score": 8,
+ "nodes_used": ["cloth", "poisson", "voices", "noise", "filter", "decay", "math", "gain", "mix", "output"],
+ "blockers": [
+  {"kind": "wrong_result", "where": "cloth motion",
+   "wanted": "dense crackle (20+ onsets) from the ready-made cloth node by raising motion",
+   "tried": "motion 2 (17 onsets in 1 s) and motion 4 (15 onsets in 1.2 s, centroid 7.6k, noise-like)",
+   "workaround": "cloth motion 2 weight 0 plus a poisson -> voices layer of short band-passed noise ticks (hz 3-8k), duration 1.4 s: 22 onsets, centroid 5.2k Hz",
+   "severity": 2},
+  {"kind": "sense_gap", "where": "noise color crackle + macro claims",
+   "wanted": "a crackle layer that moves density / crest when its gain is swept",
+   "tried": "noise crackle -> bp -> gain, gain swept 0.3..12 under a lufs-normalized output: no measure moved",
+   "workaround": "replaced with poisson -> voices ticks; renamed the crest-claim macro to sparkle (centroid up)",
+   "severity": 1}],
+ "wishlist": ["cloth `crinkle`/`sharpness` field: sparse loud sharp ticks on top of the rustle (paper vs cloth)", "listen showing per-layer level share when a node is a mix", "a verify onsets check hint that onsets merge under 40 ms so a 1 s sound caps near 25"],
+ "what_worked": ["cloth gave a paper-like rustle at once (centroid 4.8k)", "macro claims in verify caught macros that did nothing", "voices + poisson tick recipe with $rand map"]}

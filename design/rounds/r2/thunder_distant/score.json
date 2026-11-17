@@ -1,0 +1,11 @@
+{"sound": "thunder_distant", "round": 2,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults: PASS finite, peak_db -1.00, silent_edges -200/-200, dc -93 dB, rebuild bit-identical, macro brightness and length claims; no FAIL."},
+  "time_shape": {"score": 1, "evidence": "Silence first: leading silence 2.087 s (seed 1; 2.9-3.2 s for seeds 2-4), length 14 s (in 6-14). Decay -60 dB at 7.11 s is long on paper, but in the seed-1 picture and loudness curve the body is five bursts from 2.08 to ~4.6 s (loudness under -48 LUFS by ~5 s, decay -20 dB only 1.72 s), then 4.1 s of trailing silence from 9.86 s with only faint ticks after 5 s. Reads as a short cluster of hits with a thin tail, not a long rolling decay; the tail is longer in seeds 2-3 (energy to ~10 s)."},
+  "spectrum": {"score": 2, "evidence": "Centroid 54/38/29 Hz start/middle/end (whole 54 Hz, under 150); 98% of energy below 200 Hz; 63 Hz band is dominant at start/middle (-30 dB vs -36 at 125 Hz, -41 at 250 Hz), falling to near nothing above 2 kHz. Centroid falls over time. Brightness macro at 1 gives start centroid 143 Hz, still under 150."},
+  "parts": {"score": 2, "evidence": "Brief names silence then a rumble. Silence 0-2.087 s is clean; a crack/onset at 2.123 s (centroid 99 Hz, 0.75 ms attack, strength 0.9) is distinct from the later rumble bursts at 2.741, 3.733, 4.427 s (centroids 45-62 Hz); spectrogram shows broadband vertical crack lines up to ~2-4 kHz over a 30-60 Hz rumble."},
+  "control_variation": {"score": 2, "evidence": "Two macros (brightness, length), both claims PASS: centroid 39/43/54/83/143 Hz; decay 4.62/6.64/7.77/9.43/11.15 s. Seeds differ measurably: leading silence 2.09/2.94/3.12/3.21 s, onsets 5/5/1/7, loudness -29.8/-27.0/-25.4/-24.9 LUFS, decay60 7.1/7.6/7.1/4.8 s; all have centroid ~47-54 Hz at start, >97% under 200 Hz, silence first."}},
+ "total": 9,
+ "notes": ["Seed-1 loudness is -29.8 LUFS, about 5 LU quieter than seed 4 (-24.9), so seeds vary a lot in level.",
+           "Seed 4 reports attack 3.2 s and a silence window (start 3.21 s, end 2.76 s) that does not line up, so its silence descriptors are unreliable.",
+           "Descriptor modes at 816 Hz and 1.05 kHz (60 ms) come from the crack transients; the picture shows isolated vertical lines up to 2-4 kHz, so the crack is a series of discrete spikes."]}
