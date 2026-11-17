@@ -48,7 +48,7 @@ mod sequence;
 
 // slot S12
 
-// slot M1
+mod blast;
 
 // slot M2
 
@@ -117,7 +117,7 @@ pub use sequence::*;
 
 // slot S12
 
-// slot M1
+pub use blast::*;
 
 // slot M2
 

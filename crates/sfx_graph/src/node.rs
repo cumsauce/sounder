@@ -353,7 +353,8 @@ node_types! {
 
     // slot S12
 
-    // slot M1
+    "explosion" => Explosion,
+    "gunshot" => Gunshot,
 
     // slot M2
 
