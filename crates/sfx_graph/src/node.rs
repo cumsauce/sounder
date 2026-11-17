@@ -258,6 +258,13 @@ node_types! {
     "modal" => Modal,
     "contact" => Contact,
     "friction" => Friction,
+    // phase 4: foley
+    "bubble" => BubbleNode,
+    "air" => Air,
+    "glottis" => Glottis,
+    "tract" => Tract,
+    "syrinx" => Syrinx,
+    "thunder" => Thunder,
 }
 
 /// "unknown node type", naming the closest types.
@@ -347,6 +354,7 @@ pub fn refs(body: &Value) -> Vec<(String, String)> {
         "type", "name", "op", "mode", "shape", "curve", "color", "file", "window", "sound",
         // phase 4: modal (a material name is a word, not a node)
         "material",
+        "vowel", "vowel_to", "species",
     ];
     let mut out = Vec::new();
     // phase 3: voices. The `patch` is its own graph and `map` is expression
@@ -471,6 +479,24 @@ fn blurb(ty: &str) -> &'static str {
         }
         "friction" => {
             "stick-slip sawtooth whose rate follows speed and level follows pressure (creaks, squeaks, scrapes); excites modal"
+        // phase 4: foley
+        "bubble" => {
+            "a water bubble: Minnaert resonance from radius_mm (smaller = higher), decaying, rising (foley)"
+        }
+        "air" => {
+            "distance through air: high-frequency absorption (ISO 9613-1) and 1/distance level; distance may be a signal"
+        }
+        "glottis" => {
+            "voice source: Liljencrants-Fant glottal pulse at f0 (signal), tension, breath, vibrato (foley)"
+        }
+        "tract" => {
+            "vocal tract: formant cascade, a vowel preset (or glide between two) or a formant list; feed it a glottis"
+        }
+        "syrinx" => {
+            "a bird: foley's call for one of 57 species, or a whistle from a pitch contour signal"
+        }
+        "thunder" => {
+            "one flash of thunder from its distance (foley's N-wave model): clap, then rumble; silent until the sound arrives"
         }
         _ => "",
     }
@@ -552,6 +578,15 @@ pub fn example(ty: &str) -> Option<Value> {
             json!({"speed": 1.5, "mass": 0.2, "material": "wood", "hardness": 0.7, "at": 0.0})
         }
         "friction" => json!({"speed": "sweep", "pressure": 0.5, "roughness": 0.2, "grain": 200}),
+        // phase 4: foley
+        "bubble" => json!({"radius_mm": 2.0, "at": 0.02, "seed": 1}),
+        "air" => json!({"input": "src", "distance": 80, "humidity": 50}),
+        "glottis" => {
+            json!({"f0": 140, "tension": 0.65, "breath": 0.05, "vibrato_cents": 20, "seed": 1})
+        }
+        "tract" => json!({"input": "src", "vowel": "a", "vowel_to": "i", "morph": 0.5}),
+        "syrinx" => json!({"species": "robin", "at": 0.0, "seed": 1}),
+        "thunder" => json!({"distance": 400, "exposure": 0.8, "seed": 1}),
         _ => return None,
     };
     let mut m = serde_json::Map::new();
