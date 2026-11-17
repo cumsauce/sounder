@@ -7,10 +7,15 @@
 
 // ---------- transport: sounder.call over window.ipc, or the fixture in a plain browser ----------
 const IN_WINDOW = !!(window.ipc && window.ipc.postMessage);
-const FONT_BASE = IN_WINDOW ? 'sounder://fonts/' : 'fonts/';
+// Dev only: `?bridge=http://127.0.0.1:PORT` talks to `sounder --headless --dev-ui PORT` over HTTP, so a plain
+// browser can drive this page against the real session (same calls, same bulk data as the webview).
+const BRIDGE = IN_WINDOW ? null : new URLSearchParams(location.search).get('bridge');
+const FONT_BASE = IN_WINDOW ? 'sounder://fonts/' : BRIDGE ? `${BRIDGE}/fonts/` : 'fonts/';
 const sounder = window.sounder = {
   _id: 0, _pending: new Map(),
   call(name, args = {}) {
+    if (BRIDGE) return fetch(`${BRIDGE}/call`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, args }) })
+      .then(r => r.json()).then(r => { if (r && r.ok) return r.result; throw new Error(r && r.error ? r.error : 'the call failed'); });
     if (!IN_WINDOW) return FIX.call(name, args);
     return new Promise((resolve, reject) => {
       const id = ++this._id; this._pending.set(id, { resolve, reject });
@@ -24,8 +29,8 @@ const sounder = window.sounder = {
 // GET bulk data as an ArrayBuffer (sounder://render/...). In a plain browser the fixture answers.
 async function bulk(path, q) {
   const qs = Object.entries(q || {}).filter(([, v]) => v !== undefined && v !== null).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
-  if (!IN_WINDOW) return FIX.bulk(path, q || {});
-  const r = await fetch(`sounder://${path}${qs ? '?' + qs : ''}`);
+  if (!IN_WINDOW && !BRIDGE) return FIX.bulk(path, q || {});
+  const r = await fetch(`${BRIDGE ? BRIDGE + '/' : 'sounder://'}${path}${qs ? '?' + qs : ''}`);
   if (!r.ok) throw new Error(`${path}: ${r.status}`);
   return r.arrayBuffer();
 }
@@ -532,11 +537,15 @@ async function loadFonts() {
 function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('could not load ' + src)); document.head.append(s); }); }
 async function boot() {
   try {
-    if (!IN_WINDOW) await loadScript('fixture.js');   // plain browser: fixture.js answers sounder.call and the bulk GETs
+    if (!IN_WINDOW && !BRIDGE) await loadScript('fixture.js');   // plain browser: fixture.js answers sounder.call and the bulk GETs
     await loadFonts();
     CMAP = new Uint8Array(await bulk('render/colormap', {}));
     applyState(await sounder.call('state', {}));
     requestAnimationFrame(overlay);
+    if (BRIDGE) (async function poll(since) { // the session's `rev` moved: the page pulls `state` (as sounder.changed does)
+      try { const r = await (await fetch(`${BRIDGE}/poll?since=${since}`)).json(); if (r.rev > since) onChanged(r.rev); setTimeout(() => poll(Math.max(since, r.rev)), 50); }
+      catch (e) { setTimeout(() => poll(since), 1000); }
+    })(0);
   } catch (e) { document.body.insertAdjacentHTML('beforeend', `<div class="toast"><span class="chip warn">${esc(errText(e))}</span></div>`); }
 }
 boot();

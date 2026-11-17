@@ -12,6 +12,7 @@
 //! `sounder.played({...})`.
 
 pub mod api;
+pub mod dev;
 pub mod player_iface;
 pub mod protocol;
 

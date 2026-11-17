@@ -572,6 +572,36 @@ impl SoundDoc {
             next.version = self.version + 1;
             next.format_version = SOUND_FORMAT_VERSION;
         }
+        // A macro overrides the fields it maps: an edit to one of them changes
+        // nothing audible. Say so (the agent would otherwise think it worked).
+        let mut macro_notes: Vec<String> = Vec::new();
+        for name in added.iter().chain(&changed) {
+            let find = |nodes: &[Value]| {
+                nodes
+                    .iter()
+                    .find(|n| Self::node_name(n) == Some(name.as_str()))
+                    .cloned()
+            };
+            let (new, old) = (find(&next.nodes), find(&self.nodes));
+            let Some(new) = new else { continue };
+            for m in &next.macros {
+                for e in m.map.iter().filter(|e| &e.node == name) {
+                    let (n, o) = (
+                        new.get(&e.field),
+                        old.as_ref().and_then(|o| o.get(&e.field)),
+                    );
+                    if n.is_some() && n != o {
+                        macro_notes.push(format!(
+                            "node `{name}` field `{}` is driven by macro `{}` ({} -> {} over 0..1): your value is ignored; edit the macro (sound_ops macros) or delete it",
+                            e.field,
+                            m.name,
+                            e.from,
+                            e.to
+                        ));
+                    }
+                }
+            }
+        }
         *self = next;
         let lv = eval::levels(&rendered.eval.nodes)?;
         let mut text = format!(
@@ -593,6 +623,9 @@ impl SoundDoc {
             if !list.is_empty() {
                 text += &format!("{sign} {}\n", list.join(", "));
             }
+        }
+        for n in &macro_notes {
+            text += &format!("WARNING {n}\n");
         }
         text += &format!(
             "peak {:.1} dBFS, {:.1} LUFS, {}\n",

@@ -4,7 +4,6 @@ mod args;
 mod bridge;
 mod tools;
 
-#[cfg(feature = "window")]
 pub(crate) use bridge::OnChange;
 pub(crate) use bridge::{Cmd, Done, run_session};
 pub(crate) use tools::Tools;

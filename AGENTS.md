@@ -344,6 +344,10 @@ until it fits; you read their moves in `summary`.
   punch / snap -> crest up, grit / howl -> flatness, gustiness -> swing.
 - `game: true` exports the knob in the manifest `inputs` (name, default, doc,
   map) for the game to set at runtime; others are baked at their value.
+- A macro **overrides** the fields it maps: editing such a field with `sound_ops`
+  changes nothing audible, and the result says so ("WARNING node `amp` field
+  `time` is driven by macro `weight`: your value is ignored"). Edit the macro's
+  map or value instead.
 - The human's moves arrive in `summary` ("brightness 0.50 -> 0.72"). Keep
   them: re-issue the macro with `value` (and so `default`) set to where they
   left it, or re-centre its range. Moves are not history steps.
@@ -515,6 +519,22 @@ Data flow (the contract is `design/window-api.md`):
 
 What the window cannot do yet: no Edit menu (so no Cmd-C / Cmd-V in text
 fields), no `catalog_save` call, no resolving comments (the agent does that).
+
+### Driving the real page from a browser (dev only)
+
+`sounder --headless --dev-ui 8767` (window build) also serves the page and the
+window's calls / bulk data over plain HTTP on 127.0.0.1 (`window/dev.rs`: no
+auth, std only). Open `http://127.0.0.1:8767/app/index.html?bridge=http://127.0.0.1:8767`
+in any browser (an agent's included): the page runs against the REAL session
+exactly as the webview does (`?bridge=` switches `ui/app.js` from `window.ipc`
+to `POST /call`, `GET /render/...`, and a `GET /poll` loop that stands in for
+`sounder.changed`). With the driver daemon: `SOUNDER_EXTRA_ARGS="--dev-ui 8767"
+python3 mcp_driver.py --daemon ...`, then talk to the same session as an agent
+with `--connect`. This is how the plan's window checks were run: a knob drag
+and a typed comment show up in the agent's `summary`; an agent's `sound_ops`
+redraws the open page without a reload. Caveat for browser tooling: a page
+without focus gets no `requestAnimationFrame`, so the first paint can wait for
+a screenshot or click.
 
 ## Not now
 

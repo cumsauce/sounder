@@ -527,3 +527,38 @@ fn sound_nodes_reach_open_and_saved_sounds_and_follow_edits() {
         "instanced from the catalog"
     );
 }
+
+#[test]
+fn editing_a_macro_driven_field_warns_that_the_value_is_ignored() {
+    let mut s = Session::new(Some(project("macro_warn")));
+    build(&mut s, "t");
+    s.apply_ops(
+        None,
+        vec![],
+        DocEdit {
+            macros: Some(vec![brightness()]),
+            ..DocEdit::default()
+        },
+    )
+    .unwrap();
+    // `f.freq` is driven by `brightness`: setting it is a no-op the agent must hear about.
+    let r = s
+        .apply_ops(
+            None,
+            vec![json!({"type": "filter", "name": "f", "input": "m", "mode": "lp", "freq": 500})],
+            DocEdit::default(),
+        )
+        .unwrap();
+    assert!(
+        r.text
+            .contains("WARNING node `f` field `freq` is driven by macro `brightness`")
+            && r.text.contains("your value is ignored"),
+        "{}",
+        r.text
+    );
+    // A field no macro drives does not warn.
+    let r = s
+        .apply_ops(None, vec![json!({"type": "filter", "name": "f", "input": "m", "mode": "lp", "freq": 500, "q": 2.0})], DocEdit::default())
+        .unwrap();
+    assert!(!r.text.contains("driven by macro"), "{}", r.text);
+}

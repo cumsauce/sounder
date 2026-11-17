@@ -118,7 +118,7 @@ class SounderSession:
         # mode: "windowed" (preview window), "offscreen" (renders agent views,
         # no window), "headless" (no renderer at all).
         # No window yet (phase 5): every mode serves headless.
-        cmd = [BINARY, "--headless"]
+        cmd = [BINARY, "--headless"] + os.environ.get("SOUNDER_EXTRA_ARGS", "").split()
         cmd.append("--restore")  # daemon restarts and throwaway runs pick up the autosave
         env = dict(os.environ)
         if slot:
