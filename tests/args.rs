@@ -206,6 +206,100 @@ fn verify_can_name_variations_bare_in_checks_and_only() {
     assert!(r[0].detail.starts_with("3 seeds"), "{:?}", r[0]);
 }
 
+// ------------------------------------------------------- verify seeds
+
+/// The test graph with no loudness target, so the peak follows the seed.
+fn unnormalized_graph() -> Vec<Value> {
+    let mut g = graph();
+    g.pop();
+    g.push(json!({"type": "output", "name": "out", "input": "f"}));
+    g
+}
+
+/// The sample peak (dB) of the test graph at seeds 1..=n, rendered apart
+/// from the session.
+fn peaks_at_seeds(n: u64) -> Vec<f32> {
+    let mut d = sfx_graph::SoundDoc::named("t");
+    d.nodes = unnormalized_graph();
+    (1..=n)
+        .map(|seed| {
+            d.render(&sfx_graph::RenderOpts {
+                seed: Some(seed),
+                ..Default::default()
+            })
+            .unwrap()
+            .peak_db
+        })
+        .collect()
+}
+
+#[test]
+fn verify_seeds_runs_every_check_per_seed_and_groups_the_fails() {
+    let mut s = session("verify_seeds");
+    s.apply_ops(None, unnormalized_graph(), DocEdit::default())
+        .unwrap();
+    let peaks = peaks_at_seeds(4);
+    println!("peaks {peaks:?}");
+    let lo = peaks.iter().copied().fold(f32::INFINITY, f32::min);
+    let hi = peaks.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    assert!(hi - lo > 0.05, "seeds must differ for this test: {peaks:?}");
+    // A ceiling between the quietest and loudest seed: some seeds fail.
+    let mid = (lo + hi) / 2.0;
+    let e: Expect = serde_json::from_value(json!({"peak_db": {"max": mid}})).unwrap();
+    let before = s.verify(None, &[], &[], &[&e]).unwrap();
+    let r = s.verify_seeds(None, &[], &[], &[&e], Some(4)).unwrap();
+    println!("{}", sfx_analysis::report(&r));
+    assert_eq!(
+        names(&r),
+        (1..=4)
+            .map(|k| format!("seed {k}: peak_db"))
+            .collect::<Vec<_>>()
+    );
+    for (k, c) in r.iter().enumerate() {
+        assert_eq!(c.pass, peaks[k] <= mid + 1e-3, "seed {}: {c:?}", k + 1);
+    }
+    assert!(
+        r.iter().any(|c| !c.pass) && r.iter().any(|c| c.pass),
+        "{r:?}"
+    );
+    // The session's own seed is untouched: the plain run is what it was.
+    let after = s.verify(None, &[], &[], &[&e]).unwrap();
+    assert_eq!(before[0].detail, after[0].detail);
+    assert_eq!(before.len(), 1);
+}
+
+#[test]
+fn verify_seeds_with_nothing_else_runs_the_defaults_and_changes_nothing() {
+    let mut s = session("verify_seeds_defaults");
+    let plain = names(&s.verify(None, &[], &[], &[]).unwrap());
+    let steps = s.history_text(None, 50).unwrap();
+    let r = s.verify_seeds(None, &[], &[], &[], Some(3)).unwrap();
+    let n = names(&r);
+    assert_eq!(n.len(), plain.len() * 3, "{n:?}");
+    for k in 1..=3 {
+        for p in &plain {
+            assert!(n.contains(&format!("seed {k}: {p}")), "{n:?}");
+        }
+    }
+    // Grouped by seed: seed numbers never go back down.
+    let ks: Vec<u32> = n
+        .iter()
+        .map(|x| x["seed ".len()..x.find(':').unwrap()].parse().unwrap())
+        .collect();
+    assert!(ks.windows(2).all(|w| w[0] <= w[1]), "{ks:?}");
+    assert_eq!(steps, s.history_text(None, 50).unwrap());
+}
+
+#[test]
+fn verify_seeds_out_of_range_is_an_error() {
+    let mut s = session("verify_seeds_range");
+    for n in [0, 1, 9, 100] {
+        let e = s.verify_seeds(None, &[], &[], &[], Some(n)).unwrap_err();
+        assert!(e.contains("seeds") && e.contains("2..8"), "{e}");
+    }
+    assert!(s.verify_seeds(None, &[], &[], &[], Some(8)).is_ok());
+}
+
 // ------------------------------------------------------------------ export
 
 fn export_opts(dir: PathBuf, variations: u32) -> export::ExportOpts {

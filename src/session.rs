@@ -758,14 +758,72 @@ impl Session {
         only: &[String],
         explicit: &[&Expect],
     ) -> Result<Vec<CheckResult>, String> {
-        let explicit: Vec<&Expect> = explicit.iter().copied().filter(|e| !e.is_empty()).collect();
-        if checks.is_empty() && only.is_empty() && explicit.is_empty() {
-            return self.check(doc, None);
+        self.verify_seeds(doc, checks, only, explicit, None)
+    }
+
+    /// [`Session::verify`], optionally over seeds: with `seeds: Some(n)`
+    /// (2..=8) the same checks run on renders with seeds 1..=n (the seed
+    /// replaces the document's for that render only; nothing is saved, no
+    /// history step, no claim results stored) and every result is named
+    /// `seed K: <check>`, grouped by seed in seed order.
+    pub fn verify_seeds(
+        &mut self,
+        doc: Option<&str>,
+        checks: &[String],
+        only: &[String],
+        explicit: &[&Expect],
+        seeds: Option<u32>,
+    ) -> Result<Vec<CheckResult>, String> {
+        if let Some(n) = seeds
+            && !(2..=8).contains(&n)
+        {
+            return Err(format!(
+                "verify: seeds {n}: give 2..8 (the sound is re-rendered with seeds 1..N and every check runs on each)"
+            ));
         }
+        let explicit: Vec<&Expect> = explicit.iter().copied().filter(|e| !e.is_empty()).collect();
+        let Some(n) = seeds else {
+            if checks.is_empty() && only.is_empty() && explicit.is_empty() {
+                return self.check(doc, None);
+            }
+            let name = self.target_name(doc)?;
+            let defaults = Expect::defaults_for(&self.sound(Some(&name))?.doc);
+            let e = plan_checks(&defaults, checks, only, &explicit)?;
+            return self.check(Some(&name), Some(&e));
+        };
         let name = self.target_name(doc)?;
-        let defaults = Expect::defaults_for(&self.sound(Some(&name))?.doc);
-        let e = plan_checks(&defaults, checks, only, &explicit)?;
-        self.check(Some(&name), Some(&e))
+        let sound_doc = self.sound(Some(&name))?.doc.clone();
+        let defaults = Expect::defaults_for(&sound_doc);
+        let e = if checks.is_empty() && only.is_empty() && explicit.is_empty() {
+            defaults
+        } else {
+            plan_checks(&defaults, checks, only, &explicit)?
+        };
+        let base = self.render_opts();
+        let mut out = Vec::new();
+        for seed in 1..=u64::from(n) {
+            let opts = RenderOpts {
+                seed: Some(seed),
+                ..base.clone()
+            };
+            let rendered = sound_doc
+                .render(&opts)
+                .map_err(|m| format!("seed {seed}: {m}"))?;
+            let results = sfx_analysis::run(
+                &e,
+                &CheckCx {
+                    doc: &sound_doc,
+                    rendered: &rendered,
+                    opts: &opts,
+                },
+            )
+            .map_err(|m| format!("seed {seed}: {m}"))?;
+            out.extend(results.into_iter().map(|mut r| {
+                r.name = format!("seed {seed}: {}", r.name);
+                r
+            }));
+        }
+        Ok(out)
     }
 
     /// A knob moved by the human (or the window): sets the macro's value and

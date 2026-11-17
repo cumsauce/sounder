@@ -170,6 +170,12 @@ pub(crate) struct VerifyArgs {
     /// macros when the sound has knobs).
     #[serde(flatten)]
     pub(crate) expect: Expect,
+    /// 2..8: re-render with seeds 1..N (the document's seed is replaced for
+    /// those renders only; nothing is saved) and run the same checks on
+    /// each. FAILs are grouped by seed ("seed 3: loop_seam"). A sound that
+    /// passes only at its own seed is not finished.
+    #[serde(default)]
+    pub(crate) seeds: Option<u32>,
     /// Run on this open sound instead of your active one.
     #[serde(default)]
     pub(crate) doc: Option<String>,

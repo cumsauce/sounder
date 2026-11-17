@@ -39,6 +39,12 @@ pub struct OnsetsCheck {
     /// default onsets that are closer.
     #[serde(default)]
     pub spacing_ms: Option<f32>,
+    /// `[lo, hi]` seconds: every gap between consecutive onsets (counted at
+    /// the `spacing_ms` resolution) must lie in the range. "Exactly 3 hits
+    /// 0.15-0.3 s apart" is `{min: 3, max: 3, gap: [0.15, 0.3]}`. Fewer than
+    /// two onsets have no gaps (the count bounds catch that).
+    #[serde(default)]
+    pub gap: Option<[f32; 2]>,
 }
 
 impl OnsetsCheck {
@@ -983,9 +989,16 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
                 oc.spacing_ms.unwrap_or(0.0)
             ));
         }
-        let (k, how) = match oc.spacing_ms {
+        if let Some([lo, hi]) = oc.gap
+            && !(lo.is_finite() && hi.is_finite() && lo >= 0.0 && lo <= hi)
+        {
+            return Err(format!(
+                "onsets: gap [{lo}, {hi}]: give [lo, hi] in seconds with 0 <= lo <= hi, e.g. [0.15, 0.3]"
+            ));
+        }
+        let (times, how): (Vec<f32>, String) = match oc.spacing_ms {
             Some(m) if m < 30.0 => (
-                crate::measure::fine_onsets(a, m).len() as f32,
+                crate::measure::fine_onsets(a, m),
                 format!(" (fine detector above 1 kHz, {m} ms apart)"),
             ),
             Some(m) if m > 40.0 => {
@@ -995,25 +1008,77 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
                         t.push(o.t);
                     }
                 }
-                (t.len() as f32, format!(" (merged under {m} ms)"))
+                (t, format!(" (merged under {m} ms)"))
             }
-            _ => (d().onsets.len() as f32, String::new()),
+            _ => (d().onsets.iter().map(|o| o.t).collect(), String::new()),
         };
-        let ok = range_ok(r, k);
-        push(
-            "onsets",
-            ok,
-            if ok {
-                format!("{k} onsets{how} ({})", range_text(r))
-            } else if oc.spacing_ms.is_none() && k > 0.0 && r.min.is_some_and(|m| k < m) {
-                format!(
-                    "{k} onsets, want {}: events closer than 30-40 ms merge; pass spacing_ms: 5 to count dense ticks",
-                    range_text(r)
-                )
+        let k = times.len() as f32;
+        let count_ok = range_ok(r, k);
+        // Gaps outside [lo, hi], as (index, gap, from, to).
+        let bad_gaps: Vec<(usize, f32, f32, f32)> = match oc.gap {
+            Some([lo, hi]) => times
+                .windows(2)
+                .enumerate()
+                .filter(|(_, w)| {
+                    let g = w[1] - w[0];
+                    g < lo - 1e-4 || g > hi + 1e-4
+                })
+                .map(|(i, w)| (i + 1, w[1] - w[0], w[0], w[1]))
+                .collect(),
+            None => Vec::new(),
+        };
+        let gap_text = oc.gap.map(|[lo, hi]| {
+            if times.len() < 2 {
+                format!("no gaps to check (gap {lo}-{hi} s)")
             } else {
-                format!("{k} onsets{how}, want {}", range_text(r))
-            },
-        );
+                let gs: Vec<f32> = times.windows(2).map(|w| w[1] - w[0]).collect();
+                let gmin = gs.iter().copied().fold(f32::INFINITY, f32::min);
+                let gmax = gs.iter().copied().fold(0.0, f32::max);
+                format!(
+                    "{} gaps {:.3}-{:.3} s (want {lo}-{hi} s)",
+                    gs.len(),
+                    gmin,
+                    gmax
+                )
+            }
+        });
+        let ok = count_ok && bad_gaps.is_empty();
+        let mut detail = if count_ok {
+            format!("{k} onsets{how} ({})", range_text(r))
+        } else if oc.spacing_ms.is_none() && k > 0.0 && r.min.is_some_and(|m| k < m) {
+            format!(
+                "{k} onsets, want {}: events closer than 30-40 ms merge; pass spacing_ms: 5 to count dense ticks",
+                range_text(r)
+            )
+        } else {
+            format!("{k} onsets{how}, want {}", range_text(r))
+        };
+        if let (Some(g), Some([lo, hi])) = (&gap_text, oc.gap) {
+            if bad_gaps.is_empty() {
+                detail.push_str(&format!("; {g}"));
+            } else {
+                let list: Vec<String> = bad_gaps
+                    .iter()
+                    .take(6)
+                    .map(|(i, g, a, b)| format!("gap {i} is {g:.3} s ({a:.3} -> {b:.3} s)"))
+                    .collect();
+                detail.push_str(&format!(
+                    "; {} of {} gaps outside {lo}-{hi} s: {}{}; onsets at {}{}: move those hits or widen `gap`",
+                    bad_gaps.len(),
+                    times.len() - 1,
+                    list.join(", "),
+                    if bad_gaps.len() > 6 { ", ..." } else { "" },
+                    times
+                        .iter()
+                        .take(12)
+                        .map(|t| format!("{t:.3}"))
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                    if times.len() > 12 { " ..." } else { "" },
+                ));
+            }
+        }
+        push("onsets", ok, detail);
     }
     if let Some(v) = e.variations.as_ref().and_then(Toggle::get) {
         let n = v.seeds.unwrap_or(6).clamp(2, 32);

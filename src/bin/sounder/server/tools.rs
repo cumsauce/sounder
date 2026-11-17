@@ -608,8 +608,13 @@ impl Tools {
     /// defaults, `only: ["clicks"]` runs just them, and `expect` (the same
     /// shape as `sound_ops` `expect`) runs checks with settings:
     /// `{"expect": {"duration": {"min": 0.4, "max": 1.2}, "onsets": {"min": 1,
-    /// "max": 3}, "lufs": {"min": -20, "max": -14}, "clicks": true}}`. Any
-    /// FAIL makes the result an error.
+    /// "max": 3}, "lufs": {"min": -20, "max": -14}, "clicks": true}}`.
+    /// `onsets` also takes `gap: [lo, hi]` seconds (every gap between
+    /// consecutive onsets in range: three hits 0.15-0.3 s apart is `{"min": 3,
+    /// "max": 3, "gap": [0.15, 0.3]}`). `seeds: N` (2..8) runs the same checks
+    /// on renders with seeds 1..N (the document's seed is replaced for those
+    /// renders only; nothing is saved) and groups the results by seed
+    /// ("seed 3: loop_seam"). Any FAIL makes the result an error.
     #[tool]
     async fn verify(
         &self,
@@ -618,7 +623,8 @@ impl Tools {
         self.run(move |s| {
             let mut explicit: Vec<&sfx_analysis::Expect> = vec![&a.expect];
             explicit.extend(a.explicit.as_ref());
-            let results = plain(s.verify(a.doc.as_deref(), &a.checks, &a.only, &explicit))?;
+            let results =
+                plain(s.verify_seeds(a.doc.as_deref(), &a.checks, &a.only, &explicit, a.seeds))?;
             let ok = results.iter().all(|c| c.pass);
             let text = report_text(&results);
             let json = json!({"ok": ok, "checks": results});
