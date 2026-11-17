@@ -254,6 +254,10 @@ node_types! {
     "grains" => Grains,
     // phase 3: expr
     "expr" => Expr,
+    // phase 4: modal
+    "modal" => Modal,
+    "contact" => Contact,
+    "friction" => Friction,
 }
 
 /// "unknown node type", naming the closest types.
@@ -341,6 +345,8 @@ pub fn is_file(s: &str) -> bool {
 pub fn refs(body: &Value) -> Vec<(String, String)> {
     const WORDS: &[&str] = &[
         "type", "name", "op", "mode", "shape", "curve", "color", "file", "window", "sound",
+        // phase 4: modal (a material name is a word, not a node)
+        "material",
     ];
     let mut out = Vec::new();
     // phase 3: voices. The `patch` is its own graph and `map` is expression
@@ -456,6 +462,16 @@ fn blurb(ty: &str) -> &'static str {
         "expr" => {
             "per-sample maths with state: out/update text over t, sr, inputs, state (sin tanh min clamp noise, ?:, ...)"
         }
+        // phase 4: modal
+        "modal" => {
+            "a struck plate: excite audio rings modes computed from material, size and strike position (bigger = lower)"
+        }
+        "contact" => {
+            "the force pulse of a strike (Hertz contact time: heavier, slower, softer = longer, duller); excites modal"
+        }
+        "friction" => {
+            "stick-slip sawtooth whose rate follows speed and level follows pressure (creaks, squeaks, scrapes); excites modal"
+        }
         _ => "",
     }
 }
@@ -529,6 +545,13 @@ pub fn example(ty: &str) -> Option<Value> {
         // phase 3: expr
         "expr" => json!({"inputs": {"a": "src"}, "state": {"y1": 0}, "out": "y1",
             "update": {"y1": "y1 + 0.1 * (a - y1)"}}),
+        // phase 4: modal
+        "modal" => json!({"excite": "contact1", "material": "wood", "size": 0.5,
+            "strike_position": 0.3, "modes": 48}),
+        "contact" => {
+            json!({"speed": 1.5, "mass": 0.2, "material": "wood", "hardness": 0.7, "at": 0.0})
+        }
+        "friction" => json!({"speed": "sweep", "pressure": 0.5, "roughness": 0.2, "grain": 200}),
         _ => return None,
     };
     let mut m = serde_json::Map::new();
