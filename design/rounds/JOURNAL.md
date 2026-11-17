@@ -50,3 +50,4 @@
 - merged R1-D modal loss/tilt
 - merged R1-E splash; workspace clean (fmt/clippy/tests). launching R1-H docs
 - merged R1-H docs. ROUND 2 setup done (binary commit 2764919); 28 sounds (24 core + 4 reserve)
+- ROUND 2: testers 1-12 launched; queue: stream_loop splash rain_loop wind_loop fire_loop thunder_distant cloth_rustle paper_crumple sword_whoosh punch_thud switch_click keys_jingle + reserve chain_rattle zipper pencil_scribble drawer_slide; then judges
