@@ -38,10 +38,26 @@ pub enum Measure {
     /// Percent of the loudness envelope's energy at 20-150 Hz (smooth to
     /// rough, beating).
     Roughness,
+    /// Events per second over the audible span, counted at the fine 1 ms
+    /// hop of the descriptors' `density` line (a 1 ms envelope above 1 kHz,
+    /// an event is a 6 dB rise over the last 3 ms, 4 ms apart at the least):
+    /// a rate knob, rain, crackle, a ticking dial. High-passed, so a bass
+    /// thump does not count.
+    Density,
+    /// Attack, milliseconds: from the first sample over -60 dBFS to the
+    /// first 0.25 ms frame at 90 % of the sample peak (the descriptors'
+    /// `attack to 90 %`). For a train it is the time to the loudest hit's
+    /// peak from the very start, so it suits one swell or one hit.
+    Attack,
+    /// Spacing, seconds: the median gap between the strongest onsets (events
+    /// over 150 Hz within 20 dB of the loudest, 30 ms apart at the least).
+    /// For a bounce, a drum roll or a footfall pair: a longer first gap
+    /// widens it. 0 under two onsets.
+    Spacing,
 }
 
 impl Measure {
-    pub const ALL: [Measure; 8] = [
+    pub const ALL: [Measure; 11] = [
         Measure::Centroid,
         Measure::Decay,
         Measure::Crest,
@@ -50,6 +66,9 @@ impl Measure {
         Measure::Swing,
         Measure::Inharmonicity,
         Measure::Roughness,
+        Measure::Density,
+        Measure::Attack,
+        Measure::Spacing,
     ];
 
     pub fn name(self) -> &'static str {
@@ -62,6 +81,9 @@ impl Measure {
             Measure::Swing => "swing",
             Measure::Inharmonicity => "inharmonicity",
             Measure::Roughness => "roughness",
+            Measure::Density => "density",
+            Measure::Attack => "attack",
+            Measure::Spacing => "spacing",
         }
     }
 
@@ -75,6 +97,9 @@ impl Measure {
             Measure::Swing => "LU",
             Measure::Inharmonicity => "cents",
             Measure::Roughness => "%",
+            Measure::Density => "events/s",
+            Measure::Attack => "ms",
+            Measure::Spacing => "s",
         }
     }
 }

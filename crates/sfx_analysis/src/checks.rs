@@ -23,6 +23,32 @@ pub struct Range {
     pub max: Option<f32>,
 }
 
+/// The `onsets` check: a count in [min, max].
+#[derive(Clone, Debug, Default, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OnsetsCheck {
+    #[serde(default)]
+    pub min: Option<f32>,
+    #[serde(default)]
+    pub max: Option<f32>,
+    /// Events closer than this many ms are one (default 40: the spectral
+    /// detector, which merges under 30-40 ms). Under 30 the count switches to
+    /// a fine 1 ms detector above 1 kHz (the one behind `density`), so
+    /// `spacing_ms: 5` counts a 200/s click train; over 40 merges the
+    /// default onsets that are closer.
+    #[serde(default)]
+    pub spacing_ms: Option<f32>,
+}
+
+impl OnsetsCheck {
+    fn range(&self) -> Range {
+        Range {
+            min: self.min,
+            max: self.max,
+        }
+    }
+}
+
 /// `true`, or the check's settings.
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
@@ -164,9 +190,10 @@ pub struct Expect {
     /// Median pitch within tol_cents of hz.
     #[serde(default)]
     pub pitch: Option<PitchCheck>,
-    /// Onset count in [min, max].
+    /// Onset count in [min, max]; `spacing_ms` (default 40) is the merge
+    /// distance, 5 counts dense ticks.
     #[serde(default)]
-    pub onsets: Option<Range>,
+    pub onsets: Option<OnsetsCheck>,
     /// Seeds differ audibly yet sit within lufs_spread LU.
     #[serde(default)]
     pub variations: Option<Toggle<Variations>>,
@@ -397,10 +424,25 @@ fn macro_check(
     let steady = vals.windows(2).all(|w| (w[1] - w[0]) * d > -tol);
     let net = (vals[4] - vals[0]) * d > tol;
     let clip = peaks.iter().position(|p| *p > -0.3);
+    // The knob must move the measure by at least 2 % of the largest value it
+    // reads: a claim that holds only by a hair is a knob nobody can hear.
+    let scale = vals
+        .iter()
+        .map(|v| v.abs())
+        .fold(0.0f32, f32::max)
+        .max(1e-6);
+    let barely = (vals[4] - vals[0]).abs() < 0.02 * scale;
     let shown: Vec<String> = vals.iter().map(|v| fmt(measure_of, *v)).collect();
     let word = if dir > 0 { "rise" } else { "fall" };
     let list = shown.join(" -> ");
     Ok(match (steady && net, clip) {
+        (true, None) if barely => (
+            false,
+            format!(
+                "the knob barely moves {} ({list}: under 2 % of the value across 0..1): widen its map, or rename the macro to what it really does",
+                measure_of.name()
+            ),
+        ),
         (true, None) => (
             true,
             format!("{} {}s over 0..1: {list}", measure_of.name(), word),
@@ -884,16 +926,44 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
             },
         );
     }
-    if let Some(r) = &e.onsets {
-        let k = d().onsets.len() as f32;
+    if let Some(oc) = &e.onsets {
+        let r = oc.range();
+        let r = &r;
+        if oc.spacing_ms.is_some_and(|m| !(m.is_finite() && m > 0.0)) {
+            return Err(format!(
+                "onsets: spacing_ms {}: give a positive number of milliseconds (default 40, 5 counts dense ticks)",
+                oc.spacing_ms.unwrap_or(0.0)
+            ));
+        }
+        let (k, how) = match oc.spacing_ms {
+            Some(m) if m < 30.0 => (
+                crate::measure::fine_onsets(a, m).len() as f32,
+                format!(" (fine detector above 1 kHz, {m} ms apart)"),
+            ),
+            Some(m) if m > 40.0 => {
+                let mut t: Vec<f32> = Vec::new();
+                for o in &d().onsets {
+                    if t.last().is_none_or(|l| (o.t - l) * 1000.0 >= m) {
+                        t.push(o.t);
+                    }
+                }
+                (t.len() as f32, format!(" (merged under {m} ms)"))
+            }
+            _ => (d().onsets.len() as f32, String::new()),
+        };
         let ok = range_ok(r, k);
         push(
             "onsets",
             ok,
             if ok {
-                format!("{k} onsets ({})", range_text(r))
+                format!("{k} onsets{how} ({})", range_text(r))
+            } else if oc.spacing_ms.is_none() && k > 0.0 && r.min.is_some_and(|m| k < m) {
+                format!(
+                    "{k} onsets, want {}: events closer than 30-40 ms merge; pass spacing_ms: 5 to count dense ticks",
+                    range_text(r)
+                )
             } else {
-                format!("{k} onsets, want {}", range_text(r))
+                format!("{k} onsets{how}, want {}", range_text(r))
             },
         );
     }

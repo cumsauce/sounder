@@ -86,6 +86,9 @@ pub fn measure(audio: &Audio, m: Measure) -> f32 {
         }
         Measure::Inharmonicity => inharmonicity_cents(audio).unwrap_or(0.0),
         Measure::Roughness => roughness_pct(audio),
+        Measure::Density => density_per_s(audio),
+        Measure::Attack => attack_ms(audio),
+        Measure::Spacing => spacing_s(audio),
         Measure::Swing => {
             // Loudness over 0.2 s windows every 0.05 s; a sound under 0.6 s
             // uses a third of its length (20 ms at the least), so a short
@@ -116,6 +119,7 @@ pub fn fmt(m: Measure, v: f32) -> String {
         Measure::Centroid if v >= 1000.0 => format!("{:.1}k Hz", v / 1000.0),
         Measure::Centroid => format!("{v:.0} Hz"),
         Measure::Flatness => format!("{v:.3}"),
+        Measure::Density => format!("{v:.1} events/s"),
         _ => format!("{v:.2} {}", m.unit()),
     }
 }
@@ -628,4 +632,149 @@ pub fn aliasing_db(audio: &Audio) -> Option<f32> {
         used += 1;
     }
     (used > 0 && total > 0.0).then(|| (10.0 * (off.max(1e-30) / total).log10()).max(-120.0) as f32)
+}
+
+// ---------------------------------------------------------------------------
+// Fine-grained events: density, attack, spacing, and the `onsets` check with
+// a `spacing_ms` under the spectral detector's 30 ms.
+// ---------------------------------------------------------------------------
+
+/// One event of [`fine_events`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FineEvent {
+    /// Seconds from the start.
+    pub t: f32,
+    /// The loudest 1 ms RMS chunk from the event to the end of its
+    /// refractory time.
+    pub level: f32,
+}
+
+/// Events from a 1 ms RMS envelope of `x` high-passed at `hp_hz` (RBJ, Q
+/// 0.707; lower when the rate is low): a chunk at least 6 dB over the loudest
+/// of the 3 chunks before it and within 45 dB of the loudest chunk, then
+/// `refractory` chunks (ms) of silence for the detector. This is the
+/// algorithm of the descriptors' `density` line (`hp_hz` 1000, `refractory`
+/// 4), so `Measure::Density` agrees with it. A tone's ripple does not count
+/// (nothing rises over a recent crest).
+pub fn fine_events(x: &[f32], sr: u32, hp_hz: f32, refractory: usize) -> Vec<FineEvent> {
+    let mut y = x.to_vec();
+    let w0 = std::f32::consts::TAU * hp_hz.min(sr as f32 * 0.2) / sr as f32;
+    let (sin, cos) = w0.sin_cos();
+    let alpha = sin / (2.0 * std::f32::consts::FRAC_1_SQRT_2);
+    let a0 = 1.0 + alpha;
+    let (b0, b1, b2) = (
+        (1.0 + cos) / 2.0 / a0,
+        -(1.0 + cos) / a0,
+        (1.0 + cos) / 2.0 / a0,
+    );
+    let (a1, a2) = (-2.0 * cos / a0, (1.0 - alpha) / a0);
+    let (mut x1, mut x2, mut y1, mut y2) = (0.0f64, 0.0f64, 0.0f64, 0.0f64);
+    for v in y.iter_mut() {
+        let xn = f64::from(*v);
+        let yn = f64::from(b0) * xn + f64::from(b1) * x1 + f64::from(b2) * x2
+            - f64::from(a1) * y1
+            - f64::from(a2) * y2;
+        (x2, x1, y2, y1) = (x1, xn, y1, yn);
+        *v = yn as f32;
+    }
+    let c = (sr as usize / 1000).max(1);
+    let rms = |ch: &[f32]| (ch.iter().map(|v| v * v).sum::<f32>() / ch.len().max(1) as f32).sqrt();
+    let e: Vec<f32> = y.chunks(c).map(rms).collect();
+    let peak = e.iter().copied().fold(0.0f32, f32::max);
+    let floor = peak * 0.0056;
+    let refractory = refractory.max(1);
+    let mut out = Vec::new();
+    let mut k = 0;
+    while k < e.len() && peak > 0.0 {
+        let prev = (k.saturating_sub(3)..k)
+            .map(|j| e[j])
+            .fold(0.0f32, f32::max);
+        if e[k] >= floor && e[k] >= 2.0 * prev {
+            let level = e[k..(k + refractory).min(e.len())]
+                .iter()
+                .copied()
+                .fold(0.0f32, f32::max);
+            out.push(FineEvent {
+                t: (k * c) as f32 / sr as f32,
+                level,
+            });
+            k += refractory;
+        } else {
+            k += 1;
+        }
+    }
+    out
+}
+
+/// Times (seconds) of the events a `spacing_ms` under the spectral
+/// detector's 30 ms asks for: [`fine_events`] above 1 kHz, closer than
+/// `spacing_ms` merged (the refractory time is `ceil(spacing_ms) - 1` ms, so
+/// a train exactly `spacing_ms` apart is not lost to chunk rounding).
+pub fn fine_onsets(audio: &Audio, spacing_ms: f32) -> Vec<f32> {
+    let refractory = (spacing_ms.max(1.0).ceil() as usize)
+        .saturating_sub(1)
+        .max(1);
+    fine_events(&audio.mix_mono(), audio.sample_rate, 1000.0, refractory)
+        .into_iter()
+        .map(|e| e.t)
+        .collect()
+}
+
+/// Events per second (`Measure::Density`): [`fine_events`] as the descriptors'
+/// `density` line counts them, over the span from the first sample over -60
+/// dBFS to the last (at least 20 ms, so one click is not 50 000 per second).
+pub fn density_per_s(audio: &Audio) -> f32 {
+    let sr = audio.sample_rate;
+    let th = sfx_graph::db_to_gain(-60.0);
+    let first = audio
+        .channels
+        .iter()
+        .filter_map(|c| c.iter().position(|v| v.abs() > th))
+        .min();
+    let last = audio
+        .channels
+        .iter()
+        .filter_map(|c| c.iter().rposition(|v| v.abs() > th))
+        .max();
+    let (Some(first), Some(last)) = (first, last) else {
+        return 0.0;
+    };
+    let span_s = ((last + 1 - first) as f32 / sr as f32).max(0.02);
+    fine_events(&audio.mix_mono(), sr, 1000.0, 4).len() as f32 / span_s
+}
+
+/// Milliseconds from the first sample over -60 dBFS to the first 0.25 ms
+/// frame holding 90 % of the sample peak (`Measure::Attack`).
+pub fn attack_ms(audio: &Audio) -> f32 {
+    let sr = audio.sample_rate;
+    let x = audio.mix_mono();
+    let th = sfx_graph::db_to_gain(-60.0);
+    let Some(first) = x.iter().position(|v| v.abs() > th) else {
+        return 0.0;
+    };
+    let c = (sr as usize / 4000).max(1);
+    let env: Vec<f32> = x
+        .chunks(c)
+        .map(|ch| ch.iter().fold(0.0f32, |m, v| m.max(v.abs())))
+        .collect();
+    let top = env.iter().copied().fold(0.0f32, f32::max);
+    let Some(k90) = env.iter().position(|v| *v >= 0.9 * top) else {
+        return 0.0;
+    };
+    (k90 * c).saturating_sub(first) as f32 / sr as f32 * 1000.0
+}
+
+/// Median gap, seconds, between the strongest onsets (`Measure::Spacing`):
+/// [`fine_events`] above 150 Hz and 30 ms apart, keeping those whose level is
+/// within 20 dB of the loudest. 0 under two onsets.
+pub fn spacing_s(audio: &Audio) -> f32 {
+    let ev = fine_events(&audio.mix_mono(), audio.sample_rate, 150.0, 30);
+    let top = ev.iter().map(|e| e.level).fold(0.0f32, f32::max);
+    let t: Vec<f32> = ev
+        .iter()
+        .filter(|e| e.level >= 0.1 * top)
+        .map(|e| e.t)
+        .collect();
+    let gaps: Vec<f32> = t.windows(2).map(|w| w[1] - w[0]).collect();
+    median_of(gaps).unwrap_or(0.0)
 }
