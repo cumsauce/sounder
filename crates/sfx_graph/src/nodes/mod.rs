@@ -9,6 +9,7 @@ mod mixing;
 mod nonlinear;
 mod offline;
 mod sources;
+mod spectral;
 mod time;
 
 pub use control::*;
@@ -19,6 +20,7 @@ pub use mixing::*;
 pub use nonlinear::*;
 pub use offline::*;
 pub use sources::*;
+pub use spectral::*;
 pub use time::*;
 
 use serde::Deserialize;

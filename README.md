@@ -36,6 +36,8 @@ cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings 
 
 ## Status
 
+**Phase 3, offline pitch / time / spectral: `pitch_shift`, `time_stretch`, `spectral` (freeze, blur, gate, morph) in `nodes/spectral.rs`; see AGENTS.md.**
+
 **Phase 2 (MCP server, session, macros): done.** See "Phase 2 notes" below.
 
 **Phase 1 (core + analysis, no server): done.**

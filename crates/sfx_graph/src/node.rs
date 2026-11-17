@@ -213,6 +213,10 @@ node_types! {
     "fade" => Fade,
     // output
     "output" => Output,
+    // phase 3: spectral
+    "pitch_shift" => PitchShift,
+    "time_stretch" => TimeStretch,
+    "spectral" => Spectral,
 }
 
 /// "unknown node type", naming the closest types.
@@ -369,6 +373,14 @@ fn blurb(ty: &str) -> &'static str {
         "output" => {
             "the sound: gain, loudness target, edge fades and a ceiling limiter; exactly one"
         }
+        // phase 3: spectral
+        "pitch_shift" => "phase-vocoder pitch shift by semitones or ratio, same length (acausal)",
+        "time_stretch" => {
+            "phase-vocoder time stretch (factor > 1 = slower), cut or padded to the document length (acausal)"
+        }
+        "spectral" => {
+            "spectrum edits: freeze (hold a moment as texture), blur, gate (zero quiet bins), morph (toward another node) (acausal)"
+        }
         _ => "",
     }
 }
@@ -421,6 +433,10 @@ pub fn example(ty: &str) -> Option<Value> {
         "trim" => json!({"input": "src", "threshold_db": -60}),
         "fade" => json!({"input": "src", "in": 0.01, "out": 0.2}),
         "output" => json!({"input": "mix1", "lufs": -16}),
+        // phase 3: spectral
+        "pitch_shift" => json!({"input": "src", "semitones": -5}),
+        "time_stretch" => json!({"input": "src", "factor": 1.5}),
+        "spectral" => json!({"input": "src", "mode": "freeze", "at": 0.1, "length": 0.15}),
         _ => return None,
     };
     let mut m = serde_json::Map::new();
