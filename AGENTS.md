@@ -42,6 +42,10 @@ modeler's `MODELER_*`.
 
 1. `summary` — what is open, what the human asked for (open comments).
 2. `new_sound` (or `sound_ops` with `sound: "name"`), then `sound_ops` to build.
+   `describe_op` lists the 107 node types; `describe_op {kind: "filter"}` gives
+   one's example and schema (`type` and `node` are aliases of `kind`). To
+   remove a node put `{"type": "delete", "name": "x"}` in `ops` (one item per
+   node; a top-level `delete` is not a field and errors).
 3. `listen`, `verify`, fix, repeat.
 4. Add 2-4 **macros** (knobs) so the human can fit the sound by ear.
 5. `catalog save`, `export`.
@@ -51,10 +55,10 @@ modeler's `MODELER_*`.
 | Tool | What it does |
 |---|---|
 | `summary` | state, nodes (what reads what), params, macros + claim status, the human's knob moves since last read (reading clears them), open comments, warnings, causal yes/no, descriptors |
-| `sound_ops` | atomic batch: `ops` (node upserts / deletes), `params`, `macros`, `delete_macros`, `kind`, `duration`, `seed`, `sample_rate`, `expect`; renders for real; one history step if anything changed |
+| `sound_ops` | atomic batch: `ops` (node upserts; `{"type": "delete", "name": ...}` removes), `params`, `macros`, `delete_macros`, `kind`, `duration` (0 = automatic length again), `seed`, `sample_rate`, `expect`; renders for real; one history step if anything changed |
 | `listen` | the image + descriptor table; `node`, `seeds`, `sweep`, `zoom`, `diff`, `reference` |
-| `verify` | PASS / FAIL checks; any FAIL is an error |
-| `describe_op` | node types, one line each; or one type's example + schema |
+| `verify` | PASS / FAIL checks (`checks`, `only`, `expect`; see Senses); any FAIL is an error |
+| `describe_op` | node types, one line each; or one type's example + schema (`kind`, aliases `type` / `node`) |
 | `extract_modes` | strongest partials of a WAV as a ready `resonators` node |
 | `play` | plays on the speakers for the human (the window, or `--headless --audio`); a plain headless server answers with an error saying so |
 | `new_sound` | opens a sound beside the others; an open name is refused |
@@ -63,6 +67,10 @@ modeler's `MODELER_*`.
 | `undo redo jump history` | the history tree; one `sound_ops` call is one step |
 | `add_annotation` | comment on a node / region, or `resolve` / `reopen` one |
 | `session_log` | recent calls; `feedback` notes; `report` of the friction log |
+
+**Every tool rejects an argument it does not take**: the error names the tool,
+the key, and lists the keys it does take (a misspelt `descriptors` or a
+top-level `delete` is an error, never silently ignored).
 
 Every tool that reads a sound takes `doc` (an open sound's name). Subagents of
 one Claude session share one client id and one active sound: pass `doc` on
@@ -79,10 +87,46 @@ every call.
 - `kind` `oneshot` with no `duration` renders until the output stays under
   -80 dBFS for 50 ms (doubling 2 s up to 30 s; then a warning that it never
   decays), then trims the trailing silence. A `loop` needs a `duration`.
+- `duration` in `sound_ops`: a number fixes the length; **`0` returns to
+  automatic length** (`null` or leaving it out changes nothing). Nodes that
+  end after the document (`time_stretch`, `smear`, a long `reverb` tail,
+  `thunder`) need a `duration` long enough, or they are cut.
 - `seed` drives every random node (mixed with the node's name and its own
   `seed`). Same document + seed = bit-identical samples at any thread count.
 - Mono is the default; a node fed stereo that only takes mono errors and tells
   you to add a `mix` with `"to": "mono"`.
+- Node names `mono` and `stereo` are reserved (they are `mix`'s `to` words);
+  an `ops` item with a bad name or an unknown field errors with the node's
+  fields listed.
+- **Names that trip people:** `impulse` takes `at`, a number or a list of
+  times (`"at": [0, 0.1, 0.2]`), default 0. `wander` takes `rate` and
+  `range: [lo, hi]` (not `min` / `max`; `range` omitted is -1..1). `ramp`
+  defaults to an `exp` curve (`"curve": "linear"` for a straight one) and
+  holds its last value, so a sound whose level follows a `ramp` never decays
+  by itself: set a `duration`.
+
+### The output stage
+
+Exactly one `output` node: `{input, [gain_db], [lufs] or [peak_db],
+[fade_in 0.002], [fade_out 0.005], [ceiling_db -1]}` (fades are 0 in a loop).
+Gain, then the loudness target, then a lookahead ceiling limiter, then the
+edge fades.
+
+- `lufs` normalizes integrated loudness (up from as low as -70 LUFS too). A
+  **short or peaky sound cannot reach a high `lufs`** under the ceiling: use
+  `peak_db` instead (normalizes the pre-limiter sample peak to that dBFS; for
+  clicks, ticks, short hits, impacts). `lufs` and `peak_db` together are an
+  error; `peak_db` above `ceiling_db` is an error; `gain_db` stacks on either.
+- A **missed `lufs`** (more than 1 LU off) warns with the numbers: pre- and
+  post-limiter peak, crest, and how much the limiter removed. It names the
+  cause: "too short or too sparse to reach this loudness: use peak_db" (crest
+  of 20 dB or more), "the limiter took N dB off the peak" (compress or shape
+  before the output, lower the target, or raise `ceiling_db`), or "the edge
+  fades took N LU" (shorten them).
+- The **default 2 ms fade-in cuts a hit that starts at t = 0** (a click, a
+  gunshot). The render warns "the default 2 ms fade-in is cutting the first hit
+  by N dB": set `fade_in: 0` (or start the hit a few ms later, as `explosion`
+  and `gunshot` do themselves).
 
 ## Nodes
 
@@ -92,30 +136,50 @@ fields take a number, `"$param"`, `"=expr"` (`+ - * /`, parentheses, `$name`)
 or the **name of another node** (`"freq": "sweep"`: audio-rate modulation, a
 port as `"verb.wet"`).
 
-Families: sources `osc noise impulse sample`; envelopes `env adsr decay
-follower`; filters `filter onepole comb allpass resonators`; time `delay reverb
-convolve`; nonlinear `shape compress limit`; control `lfo wander sample_hold slew
-ramp`; maths `math remap gain` and `expr`; mix `mix pan width`; offline `reverse
-normalize trim fade` and the spectral nodes `pitch_shift time_stretch spectral`;
-events `once pattern poisson bounce burst on_threshold` with `grains` and
-`voices`; `sound` (an instance of another sound); physical models `modal contact
-friction` and the foley ones `bubble air glottis tract syrinx thunder`; `output`.
-Each has its own section below.
+Families (107 types; groups marked * have a section under "More nodes, by
+group" below):
 
-Recipes:
+- sources: `osc noise impulse sample` and `fm wavetable`*; control `lfo wander
+  sample_hold slew ramp` and `chaos fbm curve switch pitch_follow
+  centroid_follow`*; envelopes `env adsr decay follower` and `trigger_env
+  event_gate seq notes`*; maths `math remap gain`, `expr`.
+- filters `filter onepole comb allpass resonators` and `ladder eq filterbank
+  vocoder multiband`*; time `delay convolve`, `reverb` (models)* and `ir`*;
+  nonlinear `shape compress limit` and `ringmod transient gate sub exciter`*;
+  modulation effects `chorus flanger phaser freq_shift`*; lo-fi and loops
+  `crossfade_loop resample tape stutter`*.
+- mix `mix pan width` and `haas decorrelate doppler`*; offline `reverse
+  normalize trim fade` and the spectral nodes `pitch_shift time_stretch
+  spectral` (with new modes)*.
+- events `once pattern poisson bounce burst on_threshold shatter`* with
+  `grains cloud`* and `voices`; `sound` (an instance of another sound).
+- physical models `modal contact friction` (with shapes)*, the foley ones
+  `bubble air glottis tract syrinx thunder` (voice upgrades)*, waveguides
+  `tube string`*, surfaces `rolling cloth footstep`*, water `water splash`*,
+  elements `fire wind spark`*, machines `engine motor`*, blasts `explosion
+  gunshot`*; `output`.
+
+Recipes (the JSON in the sections below renders as written):
 
 - **Pitch sweep (laser, zap):** `ramp` 2000 -> 200 `curve: "exp"` into an
   `osc` `freq`, times a `decay`, through a `filter` whose `freq` is a scaled
   copy of the ramp (a `math` mul).
 - **Struck object (knock, bell, click):** an `impulse` (or a short noise burst
-  times a fast `decay`) into `resonators` `[[hz, decay_s, gain], ...]`.
-  `extract_modes` starts from a real recording.
-- **Texture (wind, hiss):** `noise` pink into a `filter` bp whose `freq` is a
-  `wander` range; shape the level with another `wander`.
-- **Loudness:** set `output.lufs`; it normalizes, then the ceiling limiter
-  (-1 dBFS, lookahead) keeps peaks in. A very peaky sound cannot reach a high
-  target; the render warns when it misses by more than 1 LU.
-- **Edges:** the output fades 2 ms in and 5 ms out by default (0 for loops).
+  times a fast `decay`) into `resonators` `[[hz, decay_s, gain], ...]`, or a
+  `contact` into `modal` (pick a `shape`). `extract_modes` starts from a real
+  recording.
+- **Texture (wind, hiss):** `wind`, `fire`, `water` do it in one node; or
+  `noise` pink into a `filter` bp whose `freq` is a `wander` range, the level
+  shaped by another `wander`.
+- **Machine / vehicle:** `ramp` or `wander` into `engine` / `motor` `rpm`.
+- **Impact, break, step:** `footstep`, `explosion`, `gunshot`, `splash`, or
+  `shatter` -> `voices` of a small `modal` per fragment.
+- **Thick or moving:** `osc` `unison`; `chorus` / `phaser`; `doppler` for a
+  fly-by; `reverb` `model` or `convolve` an `ir`.
+- **Loudness:** set `output.lufs` (sustained sounds) or `output.peak_db`
+  (clicks, short hits); see "The output stage".
+- **Edges:** the output fades 2 ms in and 5 ms out by default (0 for loops);
+  set `fade_in: 0` for a hit at t = 0.
 
 ## Feedback loops
 
@@ -173,6 +237,9 @@ length**: a longer result is cut, a shorter one zero-padded.
   sine of that level; `morph` {other, amount 0..1, a signal} interpolates
   magnitudes from `input` (0) to `other` (1).
 
+`spectral` also has `shift stretch smear hps` and `pitch_shift` has `formant`
+(see "Spectral additions" under "More nodes, by group").
+
 Recipe, a tail for a hit: `pitch_shift` the hit down 7 semitones, run it
 through `time_stretch` factor 3 (set `duration` to fit), `gain` it -12 dB and
 `mix` it under the dry hit with a small `at` offset.
@@ -196,6 +263,11 @@ per event) will after it lands. Every generator takes `values {min, max,
 | `burst` | `count`, `spread` (first to last event), `[curve]` timing density (linear even, exp dense early, smooth dense at both ends), `[at]` |
 | `on_threshold` | `input` (mono audio), `level`, `[hold 0.01]`: an event at each rising crossing (interpolated time), value = the signal there; a signal that starts above `level` fires at 0 |
 | `grains` | `source` (a node or a `.wav`), `events`, `size` s, `[position 0..1 or signal]` where each grain starts reading, `[pitch]` ratio, `[window hann\|tri\|rect]`, `[pan_spread 0..1]` (stereo, random pan per grain), `[jitter]` (+- of the source length on the position) |
+
+`size` and `pitch` also take a signal (read at each grain's start) or a range
+`{min, max, [curve]}` (a value drawn per grain); `shatter` is another event
+generator and `cloud` makes grains from a density signal with no stream (see
+"Grains and clouds" under "More nodes, by group").
 
 `grains` places one windowed grain per event at the event time, scaled by the
 event value; the output has exactly the document's length. Recipes: **rain** =
@@ -264,10 +336,19 @@ impact strength), or later `voices`; **a crackle** = `poisson` with a
   Only the server can reach other sounds: a bare `SoundDoc::render` needs a
   `RenderOpts.sounds` (`SoundSource`) for `sound` nodes.
 - **Loops** get `loop_seam` (not `silent_edges`) in the default checks. The
-  seam check compares the wrap sample with the loop's own roughness (a jump or a
-  slope kink) and the third-octave band levels of the last and first 0.34 s. Noise
-  loops pass easily; a smooth loop (a drone, an lfo) must be periodic in the
+  seam check has two halves: the wrap sample against the loop's own roughness
+  (a jump or a slope kink; at most 2x the 99th-percentile step) and the
+  third-octave band levels of the last and first 0.34 s (at most 6 dB apart).
+  **A noise loop does not always pass** (round 0: the spectral half fails when
+  the colour, a `wander`ed filter or a sparse crackle differs between the
+  two ends), and a smooth loop (a drone, an lfo) must be periodic in the
   duration (every lfo / oscillator frequency a multiple of 1 / duration).
+  What fixes it: `crossfade_loop` at the end of the chain (fixes the wrap jump
+  always; the spectral half unless the spectrum changes faster than about
+  every 2 s: a longer `fade` helps); `fire`, `wind`, `spark`, `water` take
+  `loop: true` (the default in a `kind: loop` document) and render periodic in
+  the duration; for hand-built textures make every `wander` / `lfo` slow or
+  periodic. Keep control signals (`intensity`, `speed`, `flow`) periodic too.
 
 ## Physical models: modal, contact, friction
 
@@ -293,6 +374,12 @@ impact strength), or later `voices`; **a crackle** = `poisson` with a
   The `excite` signal is the strike: modal is linear, so a `contact`
   pulse, an `impulse`, a noise burst or a `friction` stream all work.
   Stereo excite rings each channel alone.
+  **`modal` normalizes its output**: a unit impulse (1.0 at one sample, or a
+  `contact` of mass x speed = 0.1) peaks near 0 dBFS (measured within 0.01 dB
+  over 10 materials x 6 shapes x 3 sizes); a stronger strike is louder. It has
+  `shape` (`plate bar tube membrane string shell`) and `stiffness`; the lowest
+  mode now falls with size (the `modes` bank always keeps the lowest half).
+  See "Physical models and recipes" below for the other shapes.
 - `contact` {speed, mass, material, [hardness 0.7], [at]}: a half-sine force
   pulse as long as the Hertz contact time (foley's `hertz_time`) of a
   2000 kg/m3 ball of that mass whose stiffness runs from rubber (hardness 0)
@@ -327,7 +414,8 @@ until it fits; you read their moves in `summary`.
 {"name": "brightness", "value": 0.5, "doc": "how cutting the zap is",
  "claim": ["centroid", 1], "game": false,
  "map": [{"node": "cutoff", "field": "b", "from": 1.2, "to": 7, "curve": "exp"},
-         {"node": "lp", "field": "q", "from": 0.8, "to": 2.4}]}
+         {"node": "lp", "field": "q", "from": 0.8, "to": 2.4},
+         {"param": "size", "from": 0.2, "to": 0.8}]}
 ```
 
 - `value` is where it sits; `default` (the agent's setting, kept for reset)
@@ -337,15 +425,34 @@ until it fits; you read their moves in `summary`.
   (resonator `modes`); `index` / `key` set one element of a list field (a `mix`
   input's `gain`). Mapped fields are overridden: the node's own value for them
   is ignored. Two macros may not write the same field.
+- **A map entry may write a sound param** instead of a node field:
+  `{"param": "size", "from": 0.2, "to": 0.8}` (no `node`, `field`, `col`,
+  `index`). A `voices` patch (and its `map`) reads the sound's params, so this
+  is how a knob reaches the inside of a patch.
+- **`claim` is optional.** A macro without one is a plain knob (summary says
+  "unclaimed") and is not swept by `verify`. Give a claim when the name says
+  what a measure does.
+- **Replace a macro** by listing its name in `delete_macros` and in `macros` in
+  the same call (the new definition stays; the old one is deleted first).
+- **The sweep runs when you create a macro.** `sound_ops` renders each macro you
+  made or redefined at 0, .25, .5, .75, 1 and errors with the position and the
+  render error if one fails ("macro `m` at 0.75: ... too many events"), so a
+  knob that breaks the render at one end is found at once.
 - **The name is a claim.** `claim` is `[measure, direction]`: `centroid`
   (Hz), `decay` (ring-out), `crest` (dB), `lufs`, `flatness`, `swing`
-  (loudness spread); `1` rises over 0..1, `-1` falls. `verify` (macros, in
-  the defaults when a sound has any) sweeps each knob over 0, .25, .5, .75, 1
+  (loudness spread), `inharmonicity` (cents off a harmonic series; clean to
+  bell-like), `roughness` (percent of the loudness envelope's energy at
+  20-150 Hz; smooth to beating); `1` rises over 0..1, `-1` falls. `verify`
+  (macros, in the defaults when a sound has any) sweeps each knob over 0, .25, .5, .75, 1
   with the others where they are and requires the measure to move that way at
   every step and no position to peak over -0.3 dBFS. A FAIL says to rename the
   macro to what it really does, or fix what it moves. Pick names that match:
   brightness -> centroid up, weight -> centroid down, length -> decay up,
-  punch / snap -> crest up, grit / howl -> flatness, gustiness -> swing.
+  punch / snap -> crest up, grit / howl -> flatness, gustiness -> swing,
+  clang / stiffness -> inharmonicity up, rattle / buzz -> roughness up.
+  `decay`, `swing` and `crest` read the whole sound: they are unreliable on a
+  very short or multi-hit sound (several separate hits), so leave the claim
+  off there rather than rename the knob to fit.
 - `game: true` exports the knob in the manifest `inputs` (name, default, doc,
   map) for the game to set at runtime; others are baked at their value.
 - A macro **overrides** the fields it maps: editing such a field with `sound_ops`
@@ -361,14 +468,38 @@ until it fits; you read their moves in `summary`.
 
 - `listen`: one PNG (log-frequency spectrogram with octave lines, waveform with
   peak + RMS envelopes, loudness curve; seeds / sweep values tile as labelled
-  columns, 8 at most, under ~1.15 MP) and the descriptor table: level, LUFS,
-  true peak, attack / decay, onsets, YIN pitch, spectral centroid / rolloff /
-  flatness at start / middle / end, an 8 octave-band x 5 time-segment dB
-  table (your main "what does it sound like"), modes, stereo.
+  columns, 8 at most, under ~1.15 MP) and the descriptor table, one line each:
+  - `length`, `level` (peak, true peak, LUFS, momentary max, RMS, crest, DC),
+    `time` (attack, peak time, decay -20 / -60 dB, and the silence wording:
+    leading / trailing silence, or "all silent"; "loop: n/a (see steadiness)"
+    for a loop), `onsets` (times and strengths), `pitch` (YIN, voiced share,
+    harmonicity).
+  - `spectrum (start/middle/end)` centroid / rolloff / flatness, then the
+    **whole-sound** line (centroid, rolloff, full-band flatness, and flatness
+    over the **occupied band**, the middle 80 % of the energy, "none" when that
+    band is too narrow: tonal), `energy shares` (<200 Hz, 200-2k, 2k-8k, >8k),
+    `centroid by tenth` and `pitch by tenth` (ten values over the sound; "-"
+    where none), and when partials are clearly off a harmonic series an
+    `inharmonic: partials at ...` line.
+  - the 8 octave-band x 5 time-segment dB table (your main "what does it sound
+    like"), `modes`, `stereo` (correlation, width).
+  - `attack detail` (first sound to 90 % of peak, and to the sample peak, in
+    ms), `density` (events a second, from a 1 ms envelope: the count of hits in
+    a rain, a crackle or a footstep), `steadiness` (loops: loudness over 400 ms
+    windows, min / max / spread in LU), and the **onset table** (one row per
+    onset: time, strength, attack ms, -20 dB ms, centroid, pitch start>end;
+    left out for loops: read `density`).
+  - four lines for synthesis checking: `aliasing` (energy off the harmonic grid
+    above 4 kHz, relative to the total, dB; n/a without a steady pitched
+    segment), `inharmonicity` (cents, mean over the strongest 8 partials; n/a
+    under 3 clear partials), `amplitude modulation` and `pitch modulation`
+    (the strongest rates and peak-to-peak depths: Hz, dB / cents), `roughness`
+    (percent of the loudness envelope's energy at 20-150 Hz).
   `diff: true` shows your previous render of the same request, this one, and
   their dB-difference spectrogram (this minus previous; diverging colours:
   blue = quieter now, red = louder, grey = same, saturating at +-24 dB, the
-  scale is drawn). `zoom` magnifies an attack or a band.
+  scale is drawn). `zoom` magnifies an attack or a band. `descriptors: false`
+  returns the image alone.
 - `listen reference: "file.wav"` (relative to the project, or absolute): the
   reference is resampled to the sound's rate, moved so its first onset (30 dB
   under its peak) meets the sound's, and scaled to the sound's integrated
@@ -384,11 +515,34 @@ until it fits; you read their moves in `summary`.
   to 0.
 - `verify` / `expect` checks: `peak_db` `true_peak_db` `lufs` `duration`
   `silent_edges` `clicks` `dc` `finite` `loop_seam` `bands` `pitch` `onsets`
-  `variations` `rebuild` `reference` `macros`. Each line is PASS / FAIL with the measured
-  value; a FAIL says what to change. `reference {file, max_distance}` fails
+  `variations` `rebuild` `reference` `macros`, and the synthesis checks
+  `aliasing` `inharmonicity` `modulation` `roughness`. Each line is PASS /
+  FAIL with the measured value; a FAIL says what to change. Four ways to ask:
+  - no arguments: the defaults (`finite`, `peak_db` max -0.3, `silent_edges`
+    (a loop: `loop_seam`), `dc`, `rebuild`, and `macros` when the sound has
+    knobs).
+  - `checks: ["clicks"]` adds checks to the defaults; `only: ["clicks", "dc"]`
+    runs just those. Only checks that **need no settings** can be named here:
+    `finite peak_db true_peak_db silent_edges clicks dc loop_seam variations
+    rebuild macros`. A check that needs settings errors and shows the `expect`
+    form to use.
+  - `expect` (verify's `expect`, `sound_ops`'s `expect`, or the same fields at
+    verify's top level) takes the checks with settings; given alone, only
+    those run: `{"duration": {"min": 0.4, "max": 1.2}, "onsets": {"min": 1,
+    "max": 3}, "lufs": {"min": -20, "max": -14}, "peak_db": {"max": -3},
+    "clicks": true, "pitch": {"hz": 440, "tol_cents": 25}}`.
+  - Settings of the rest: `bands [{band: "1k" (or Hz), segment 0..4, min_db,
+    max_db}]`; `variations {seeds 6, lufs_spread 1, min_distance 1}`;
+    `aliasing true` or `{max_db -40}`; `inharmonicity {min, max}` cents (a
+    harmonic tone reads under 2, a bell tens); `modulation {rate_hz, tol_hz
+    0.5, min_depth (1 dB or 10 cents), mode "amplitude" | "pitch"}`;
+    `roughness {min, max}` percent; `dc {max}` dB; `reference {file,
+    max_distance}`.
+  `aliasing`, `inharmonicity`, `modulation` and `roughness` cannot be named in
+  `checks` / `only`: put them in `expect`. `reference {file, max_distance}` fails
   when the STFT distance to the WAV (aligned and loudness-matched as in
   `listen reference`) exceeds `max_distance` dB, and then names the biggest
-  band differences.
+  band differences. `variations` needs a node that reads the seed.
 - `extract_modes` fits each partial in the time domain (candidates from a long
   spectrum, then peeling: demodulate the recording minus the other modes,
   line-fit the log envelope and the phase), so decays of fast modes, close
@@ -401,7 +555,9 @@ until it fits; you read their moves in `summary`.
 
 Warnings in `summary`: a node nothing reads, a frequency above Nyquist, a
 silent output, DC over -40 dB, an output whose input is squashed by the
-ceiling limiter, a sound that never decays, one that is mostly silence.
+ceiling limiter, a sound that never decays, one that is mostly silence, an
+`output.lufs` the render missed (with the numbers and the cause), the default
+fade-in cutting a first hit, a field driven by a macro (your value is ignored).
 
 ## Sessions, history, comments
 
@@ -425,6 +581,8 @@ ceiling limiter, a sound that never decays, one that is mostly silence.
   `<name>.wav` (or `<name>_<i>.wav` for `variations: N`, seeds 1..N) and
   `<name>.sfx.json`: files with seconds / samples / LUFS / peak, kind, loop
   points, game inputs, baked macros, seeds, causal flag, source catalog entry.
+  `variations: N` warns when the files are bit-identical (no node reads the
+  seed: add a seeded node, a `pattern` with `jitter`, a `wander`, `poisson`).
 
 ## Failures explain themselves
 
@@ -462,12 +620,576 @@ then `air` (`examples/water_drips.rs`); **a vowel** = `glottis` (f0 from a
 `morph` envelope; **a distant storm** = `thunder` `distance` 3000 through
 `air` (more highs gone) and `reverb`.
 
+`glottis` and `tract` have more fields (roughness, subharmonic, fry; nasal,
+frication, growl): see "Voice upgrades" under "More nodes, by group".
+
 Honest limits: none of this has been heard. Measured: bubble peak within
 0.2 % of Minnaert, glottis f0 within 1 cent, `tract` /a/ peaks at 768 Hz and
 /i/ at 223 Hz (f0 110: harmonic spacing), `air` 100 m takes the white-noise
 centroid from 12 kHz to 3.3 kHz and the level by 46 dB, thunder at 1.5 km
 arrives at 4.4 s with centroid 32 Hz. Whether they sound like water, a voice,
 a bird or a storm is the human's call.
+
+## More nodes, by group
+
+Each group below: the fields (`[x]` is optional, a default after it), one
+recipe, and the limits that were measured. The long form (tables, every error
+message, every measured number) is the fragment in `docs/nodes/`; `describe_op
+<type>` has the schema and an example. A signal field takes a number,
+`"$param"`, `"=expr"` or a node; a **number** outside a field's range is an
+error that names the range, a **signal** is clamped per sample. Every number
+quoted is a measurement of a test signal; none of it has been heard, and a
+name like "bell" or "engine" says what the node computes, not how it sounds.
+
+Blocks marked `<!-- recipe -->` are rendered by
+`crates/sfx_analysis/tests/agents_recipes.rs` (an `output` is added when the
+block has none), so they stay valid.
+
+### Sources and oscillators (`docs/nodes/S1.md`, `S2.md`)
+
+- `osc` new fields: `sync` (a mono signal; each rising zero crossing resets
+  the phase, polyBLEP, crossing placed to a fraction of a sample), `unison`
+  1..16 (voices are **summed**: 7 voices measure 5.45 dB over one, so set `amp`
+  near 1/sqrt(unison)), `detune` cents 0..1200 (voices spread evenly from -d
+  to +d), `spread` 0..1 (above 0 the output is stereo), `pm` (phase
+  modulation in cycles; an `osc` here is FM), `seed` (unison start phases;
+  more than one voice makes the node random).
+- `noise` `color`: `white pink brown blue violet velvet crackle`. `blue` is
+  +3 dB/oct, `violet` +6 dB/oct (measured 2.98 and 5.99 dB/oct). `density`
+  (velvet default 2000, crackle 50 impulses a second) is a signal; crackle is
+  Poisson with random sign and height.
+- `fm` {freq, [ratio 1], [index 0 radians, signal], [feedback 0], [mod_ratio
+  1], [mod_shape sine|saw|square|tri], [amp]}: two-operator; sideband k is
+  J_k(index) (measured to 0.01 dB). Negative `feedback` errors.
+- `wavetable` {freq, harmonics [up to 256 amplitudes], [harmonics_to],
+  [morph 0..1, signal], [phases], [amp]}: additive, harmonics fade out toward
+  Nyquist so a sweep never aliases (5 kHz, 32 harmonics: alias -63.6 dB).
+- `impulse` `at` is a number or a list of times (seconds).
+
+<!-- recipe -->
+```json
+[
+  {"type": "ramp", "name": "pitch", "from": 400, "to": 180, "time": 0.4, "curve": "exp"},
+  {"type": "osc", "name": "stack", "shape": "saw", "freq": "pitch", "unison": 7, "detune": 18, "spread": 0.6, "amp": 0.3},
+  {"type": "decay", "name": "fall", "time": 0.25},
+  {"type": "math", "name": "zap", "op": "mul", "a": "stack", "b": "fall"}
+]
+```
+
+Macros: `detune` (width), `spread`, the ramp's `to`. Limits: a synced saw adds no
+aliasing beyond a plain polyBLEP saw, but that saw already reads -41.6 dB off
+the grid at 110 Hz and -29.8 dB at 1999 Hz; `fm` and large `pm` are not
+oversampled, so a big index at a high `freq` aliases (not measured); YIN reads
+the slave's rate on a sync sweep far above the master.
+
+### Filters, EQ, ladder (`docs/nodes/s4.md`)
+
+- `filter` new `slope` 12 | 24 | 48 dB/oct (`lp` / `hp` only; not in a
+  feedback loop). `q` retunes the last section, the default is Butterworth.
+  Measured one octave above the cutoff: -12.4 / -24.2 / -48.4 dB.
+- `ladder` {input, freq, [resonance 0], [drive 1], [mode lp|bp|hp]}: four-pole
+  ladder with a `tanh` per stage. `resonance` runs 0..1.2 and about 1
+  self-oscillates at `freq` (measured within 0.14 %) but only if something
+  excites it. Passband gain falls as 1 / (1 + 4 resonance) (no make-up).
+- `eq` {input, bands: [{mode lp|hp|bp|notch|peak|lowshelf|highshelf, freq,
+  [gain_db 0], [q 0.707]}, ...]} up to 16 bands; plain numbers, so a macro
+  cannot reach inside a band (use `filter` nodes for a knob).
+
+<!-- recipe -->
+```json
+[
+  {"type": "noise", "name": "n", "color": "white", "amp": 0.3},
+  {"type": "ramp", "name": "sweep", "from": 6000, "to": 300, "time": 0.6, "curve": "exp"},
+  {"type": "ladder", "name": "acid", "input": "n", "freq": "sweep", "resonance": 0.85, "drive": 2},
+  {"type": "eq", "name": "voiced", "input": "acid", "bands": [{"mode": "hp", "freq": 80}, {"mode": "peak", "freq": 1000, "gain_db": 6, "q": 2}]}
+]
+```
+
+Limits: the ladder's `tanh` is not oversampled (high `drive` folds back); at
+the default `q` an `eq` peak is wide (+0.78 dB two octaves away), narrow it
+with `q` 4 or more; a 48 dB filter at a few Hz has an f32 noise floor.
+
+### Dynamics (`docs/nodes/S5.md`, `S3.md`)
+
+- `transient` {input, [attack_db 0], [sustain_db 0], [speed 0.02]}: gain on
+  rising and on falling level (+-24 dB); a steady plateau is untouched.
+- `gate` {input, threshold_db, [ratio] (omit: full gate), [attack 0.001],
+  [release 0.05], [hold 0.01], [key]}: downward expander with sidechain.
+- `sub` {input (mono), [octaves 1|2], [mix 0.5], [lowpass 120]}: adds a sine
+  one or two octaves below the input's low band (monophonic divider).
+- `exciter` {input, [freq 3000], [drive 2], [mix 0.3]}: saturates the band
+  above `freq` and adds it back (odd harmonics, no oversampling).
+- `compress` new `key`: a node that drives the detector (ducking, pumping);
+  the gain is applied to `input`.
+
+<!-- recipe -->
+```json
+[
+  {"type": "pattern", "name": "hits", "every": 0.5, "count": 4},
+  {"type": "trigger_env", "name": "thump", "events": "hits", "attack": 0.001, "decay": 0.2},
+  {"type": "osc", "name": "tone", "freq": 60},
+  {"type": "math", "name": "kick", "op": "mul", "a": "tone", "b": "thump"},
+  {"type": "osc", "name": "pad_osc", "shape": "saw", "freq": 110, "amp": 0.3},
+  {"type": "compress", "name": "duck", "input": "pad_osc", "key": "kick", "threshold_db": -24, "ratio": 6, "attack": 0.002, "release": 0.15},
+  {"type": "mix", "name": "both", "inputs": ["duck", "kick"]}
+]
+```
+
+Measured: `compress` keyed by a pulse at 4:1 gave -15.00 dB in the pulses (20 dB
+over) and -0.09 dB between; `gate` took a -50 dB bed to -95 dBFS and moved the
+bursts 0.000 dB; `transient` +6 dB attack raised a noise burst's crest 9.89 to
+14.45 dB. Limits: `transient` ripples on steady tones under ~100 Hz; `gate` has
+no lookahead; `sub` needs the note under ~`lowpass`.
+
+### Shape, oversampling, ring modulation (`docs/nodes/S3.md`, `ringmod.md`)
+
+- `shape` {input, [mode tanh|clip|fold|bitcrush|rectify|asym|diode|tube|table],
+  [drive 1, signal], [bits 8] (bitcrush), [bias 0.5] (asym), [points [[x, y],
+  ...]] (table, x strictly increasing), [oversample 1|2|4|8], [mix 1, signal]}.
+  `oversample` is an error inside a feedback loop. `asym`, `diode`, `tube` leave
+  DC: follow with an `onepole` hp.
+- `ringmod` {input, freq (signal, +-sr/2), [shape sine|tri|square|saw], [mix 1]}:
+  partials at f - freq and f + freq; the input frequency is removed.
+
+<!-- recipe -->
+```json
+[
+  {"type": "osc", "name": "tone", "shape": "saw", "freq": 110},
+  {"type": "shape", "name": "grit", "input": "tone", "mode": "asym", "drive": 4, "oversample": 4, "mix": 0.6},
+  {"type": "onepole", "name": "clean", "input": "grit", "mode": "hp", "freq": 30},
+  {"type": "ringmod", "name": "clang", "input": "clean", "freq": 90, "mix": 0.5}
+]
+```
+
+Measured: a 5 kHz sine hard-clipped at drive 8 has 24.8 dB less off-grid
+energy at `oversample` 4 and 45 dB less at 8; `asym` at drive 2 puts the 2nd
+harmonic at -15.5 dBc (`tanh`: -115 dBc). Limits: oversampling removes content
+above 0.45 x the sample rate and leaves up to half a sample of offset at `mix`
+1; `bitcrush` and `fold` are meant to alias; a square or saw `ringmod` carrier
+aliases (not measured).
+
+### Modulation effects (`docs/nodes/s6.md`)
+
+- `chorus` {input (mono if `spread` > 0), [rate 0.8 Hz], [depth 0.003 s],
+  [delay 0.02 s], [voices 3, 1..8], [spread 1], [mix 0.5]}.
+- `flanger` {input, [rate 0.25], [depth 0.002], [delay 0.003], [feedback 0,
+  -0.95..0.95], [mix 0.5], [manual] (seconds; replaces the LFO)}.
+- `phaser` {input, [rate 0.5], [stages 4|6|8|12], [center 800 Hz], [depth 1
+  octave], [feedback 0], [mix 0.5]}.
+- `freq_shift` {input, shift (Hz, signal, +-sr/2), [mix 1]}: moves every
+  partial by the same Hz, so harmonic sounds turn inharmonic (single sideband).
+
+`mix` 0 returns the input bit for bit.
+
+<!-- recipe -->
+```json
+[
+  {"type": "noise", "name": "wash", "color": "pink", "seed": 3, "amp": 0.4},
+  {"type": "phaser", "name": "swirl", "input": "wash", "rate": 0.3, "stages": 8, "center": 600, "depth": 1.5, "feedback": 0.5, "mix": 0.6},
+  {"type": "mix", "name": "summed", "inputs": ["swirl"], "to": "mono"},
+  {"type": "chorus", "name": "wide", "input": "summed", "spread": 1, "voices": 4, "mix": 0.5}
+]
+```
+
+Limits: `freq_shift` image rejection was measured at 1 kHz only (48.5 dB); its
+dry path is not delay-matched for `mix` between 0 and 1; the phaser's notches
+are up to 2 % below the maths at high frequency; with the LFO running a 3 ms
+echo reads 0.880 instead of 1.0 (cause not isolated).
+
+### Space: reverb models and impulse responses (`docs/nodes/S11.md`)
+
+- `reverb` new `model` `fdn` (default, bit-identical to before) | `room` |
+  `plate` | `spring`; `er_mix` 0..1 (`room` only: early reflections vs tail;
+  an error for other models); `width` 0..2 (wet stereo width). Ports `out`
+  (dry + wet) and `wet`. Fixed internal geometry: `size` only scales it.
+- `ir` {[model room|tube|box|cabinet|phone], [size m], [absorption], [length
+  s], [seed]}: a source whose output is an impulse response for `convolve`
+  (`room` is stereo). `size` and `absorption` are errors for models that have
+  no such thing (`phone`; `cabinet` has no `absorption`).
+
+<!-- recipe -->
+```json
+[
+  {"type": "noise", "name": "n", "color": "white"},
+  {"type": "decay", "name": "e", "time": 0.004},
+  {"type": "math", "name": "snap", "op": "mul", "a": "n", "b": "e"},
+  {"type": "ir", "name": "hall", "model": "room", "size": 14, "absorption": 0.15},
+  {"type": "convolve", "name": "inroom", "input": "snap", "ir": "hall", "mix": 1.0},
+  {"type": "reverb", "name": "boing", "input": "snap", "model": "spring", "size": 0.4, "decay": 1.2, "mix": 1.0},
+  {"type": "mix", "name": "both", "inputs": ["inroom", "boing"], "to": "stereo"}
+]
+```
+
+Limits: damping makes the broadband T60 up to 13 % shorter than `decay`
+(it is the low-frequency time); `room` reflections are nearest-sample with
+frequency-independent walls and the tail is the fdn (matched in T60, not in
+spectrum); `tube` and `box` are comb filters; whether the spring's chirp
+matches a real spring was not measured. An `ir` is at most the document's length.
+
+### Motion and stereo (`docs/nodes/motion.md`)
+
+- `doppler` {input (mono), [speed 30 m/s], [closest 5 m], [at s], [pan true],
+  [air true]}, or {input, distance (signal, 0..10290 m)}: a source passing on a
+  straight line; pitch bends by the radial speed, level 1/r, optional air
+  low-pass and bearing pan. The start is silent for the starting distance / 343 s.
+- `haas` {input, [delay 0.012 s, 0..0.05], [side right|left]}: mono to stereo
+  by delaying one channel (the other is the input bit for bit).
+- `decorrelate` {input, [amount 1], [seed]}: two channels with the same
+  spectrum and no zero-lag correlation (all-pass FIRs, 3.4 to ~14 ms delay).
+
+<!-- recipe 4 -->
+```json
+[
+  {"type": "noise", "name": "engine", "color": "brown", "amp": 0.5},
+  {"type": "filter", "name": "growl", "input": "engine", "mode": "bp", "freq": 300, "q": 2},
+  {"type": "doppler", "name": "pass", "input": "growl", "speed": 25, "closest": 4, "at": 2.0}
+]
+```
+
+Limits: a point listener in still air at 343 m/s; no reflections, wind or
+directivity; `decorrelate` does not keep a mono sum (3 dB down for
+uncorrelated channels) and smears a click over ~14 ms.
+
+### Modulators and control (`docs/nodes/S9.md`)
+
+- `chaos` {[model logistic|lorenz|henon], rate, [param], [range [lo, hi]],
+  [seed]}: a chaotic control signal in -1..1 or `range`.
+- `fbm` {rate, [octaves 4, 1..12], [gain 0.5], [range], [seed]}: layered smooth
+  random motion (like `wander` in octaves).
+- `curve` {input, points [[x, y], ...], [curve linear|smooth]}: lookup table,
+  clamped at the ends.
+- `switch` {inputs [2..64 sounds], select (signal), [fade 0.005 s], [blend
+  false]}: picks an input by `select` (rounded), linear crossfade.
+- `pitch_follow` {input (mono), [min 50], [max 2000], [smooth 0.02]} and
+  `centroid_follow` {input, [window 0.02]}: audio to a Hz control signal; both
+  look ahead (not causal) and hold the last confident value.
+
+<!-- recipe -->
+```json
+[
+  {"type": "fbm", "name": "drift", "rate": 1.5, "octaves": 4, "range": [-1, 1], "seed": 5},
+  {"type": "chaos", "name": "wobble", "model": "lorenz", "rate": 6, "range": [0, 1], "seed": 2},
+  {"type": "curve", "name": "pitch", "input": "wobble", "points": [[0, 180], [0.5, 240], [1, 520]], "curve": "smooth"},
+  {"type": "math", "name": "bend", "op": "mul", "a": "drift", "b": 30},
+  {"type": "math", "name": "hz", "op": "add", "a": "pitch", "b": "bend"},
+  {"type": "osc", "name": "voice", "shape": "saw", "freq": "hz", "amp": 0.4}
+]
+```
+
+Limits: Lorenz `rho` under ~24.7 settles to a constant; `fbm` output sits well
+inside its range ends (a 20 s run used 123..270 of 100..300); `switch`'s
+crossfade is linear, so uncorrelated inputs dip in level; `pitch_follow` is
+monophonic and can make octave errors on a weak fundamental.
+
+### Events to control (`docs/nodes/sequence.md`)
+
+Event streams (`pattern poisson bounce burst once on_threshold shatter`) used
+to feed only `grains` and `voices`. These make control signals from them. An
+event at time t first affects sample ceil(t x sr).
+
+- `trigger_env` {events, [attack 0.002], [decay 0.2], [curve exp|linear|smooth],
+  [scale_by_value true], [retrigger restart|add]}: an envelope per event;
+  `exp` is a 60 dB fall that reaches exactly 0 at `attack + decay`.
+- `event_gate` {events, [length 0.05]}: 1 for `length` seconds after each event.
+- `seq` {events, values [..], [mode cycle|random|once], [glide 0 s], [seed]}:
+  steps through `values` on each event and holds.
+- `notes` {notes [[pitch, beats], ...] (a name `C4`, `Bb3`, semitones from
+  `root`, or `"rest"`), [bpm 120], [root 440], [glide], [gate 0.9]}: ports
+  `out` (Hz, held), `gate` (0/1) and `events` (one per pitched note, value =
+  Hz), read as `"tune"`, `"tune.gate"`, `"tune.events"`.
+
+<!-- recipe 4 -->
+```json
+[
+  {"type": "notes", "name": "tune", "bpm": 150, "glide": 0.03, "gate": 0.8,
+   "notes": [["A3", 1], ["C4", 1], ["E4", 1], ["rest", 1], ["A4", 2]]},
+  {"type": "osc", "name": "voice", "freq": "tune", "shape": "saw", "amp": 0.4},
+  {"type": "trigger_env", "name": "pluck", "events": "tune.events", "attack": 0.003, "decay": 0.25, "scale_by_value": false},
+  {"type": "math", "name": "line", "op": "mul", "a": "voice", "b": "pluck"}
+]
+```
+
+Limits: `notes` plays once (no loop field; use a `pattern` and `sound`
+instances); `seq` `glide` is linear in Hz, `notes` glide is linear in
+semitones; `random` can repeat a value; `trigger_env` `restart` with `attack`
+0 steps to the new peak.
+
+### Lo-fi and loops (`docs/nodes/S12.md`)
+
+- `crossfade_loop` {input, [fade 0.25 s]}: makes the wrap of a loop
+  continuous (equal-power crossfade of the end into the start; same length,
+  the middle is untouched). Put it last in a loop's chain. Not causal.
+- `resample` {input, rate (Hz, signal), [antialias false]}: sample-rate
+  reduction with hold.
+- `tape` {input, [wow 0.2 %], [flutter 0.1 %], [drive 1], [hiss_db -60], [tone
+  8000 Hz], [seed]}: speed wobble, soft saturation, hiss, tone roll-off. The
+  output is delayed by ~0.5 ms to 40 ms (the wobble's mean delay).
+- `stutter` {input, events, [slice 0.05 s], [repeats 4], [reverse false]}: the
+  last slice repeats at each event (`reverse` is not causal).
+
+<!-- recipe 2 -->
+```json
+[
+  {"type": "noise", "name": "air", "color": "pink"},
+  {"type": "wander", "name": "sweep", "rate": 0.3, "range": [300, 2500], "seed": 2},
+  {"type": "filter", "name": "band", "input": "air", "mode": "bp", "freq": "sweep", "q": 3},
+  {"type": "crossfade_loop", "name": "seamless", "input": "band", "fade": 0.4}
+]
+```
+
+as a `kind: loop` with `duration: 2`. Measured: `crossfade_loop` passes the
+wrap-jump half every time; the spectral half failed on 2 to 5 of 24 loops whose
+filter centre moves once a second or faster and on 12 of 24 at three a second.
+It changes the first and last `fade` seconds (a blend of material from
+elsewhere), can move DC (follow brown noise with a high-pass), and a steady
+drone can swell 3 dB mid-ramp.
+
+### Physical models and finished recipes
+
+Models take a few physical fields and run tuned DSP inside. Most are seeded
+(`seed` mixed with the document seed and node name), bit-identical at any
+thread count, and **not normalized**: set `output.lufs` or `output.peak_db`.
+
+**Blasts** (`docs/nodes/M1.md`): offline one-shots, mono, exactly the
+document's length (like `thunder`).
+
+- `explosion` {size (fireball radius m, 0.1..100), distance (m, 0..30000),
+  [debris] (an event node: a tick per event, value = level), [seed]}.
+- `gunshot` {caliber (mm, 2..60), [barrel 0.4 m], [suppressed false], [distance
+  0], [seed]}: blast plus an N-wave crack when the bullet is supersonic; the
+  crack leads the blast by the travel-time difference (135 ms at 100 m).
+- Both start 2.5 ms in (so the default fade-in does not cut them), delay by
+  `distance / 343` s, darken and quieten with distance, and end in `tanh`, so
+  every size peaks near 0.8: size and caliber move the sub band and the length,
+  not the level. A document shorter than the delay renders silence.
+
+**Elements** (`docs/nodes/m3.md`): `fire`, `wind`, `spark`, all with `loop`
+(bool; unset follows the document, so a `kind: loop` document renders
+periodic in its duration; `true` forces it, `false` forces a plain render).
+
+- `fire` {size (m, 0.02..10), [intensity 0.5, signal], [crackle 0.5], [seed],
+  [loop]}: roar, hiss and Poisson crackle pops under one control.
+- `wind` {speed (m/s, signal, 0..60), [gust 0.3], [whistle 0], [diameter
+  0.004 m], [seed], [loop]}: five moving resonant bands plus an optional
+  Aeolian tone. Speed 0 is exact silence.
+- `spark` {rate (strikes/s, 0.1..200), [buzz 50|60 Hz], [body 3000 Hz], [seed],
+  [loop]}: an arc gated by the mains waveform into a short resonator.
+- Not normalized (a default `fire` is about -30 LUFS, peak -8 dBFS; a pop-heavy
+  one is peaky: crest 23.5 dB). A sparse `spark` (rate under ~10) can still fail
+  the spectral half of `loop_seam` with `loop: false` (7.2 dB at rate 8); the
+  periodic render (jittered strike grid) read 0.9 dB. Memory: fire holds six
+  buffers of the document length.
+
+**Water** (`docs/nodes/M4.md`):
+
+- `water` {flow (signal 0..1; 0 is silence), [depth 0.5], [splash 0], [density
+  300 bubbles/s, 0..3000], [loop], [seed]}: a population of Minnaert bubbles
+  (rate density x flow^1.5, median radius 0.8 mm x 5^flow) plus hiss. Capped at
+  800000 bubbles a render (an error that says so).
+- `splash` {size (m, 0.005..1), [at 0], [seed]}: an impact burst, one cavity
+  bubble and a cloud of small ones; scaled to a **peak of 0.5 whatever the
+  size**. A lone splash is peaky (crest 19-23 dB): `lufs -20` lands near -21
+  with a missed-target warning, `lufs -24` is reached; use `peak_db`.
+- Measured: `flow` 0.1 / 0.35 / 0.8 at density 60 gave 1.9 / 9.4 / 17.4 onsets
+  a second and centroids 3102 / 2607 / 1971 Hz; no energy under 165 Hz (mix in
+  a rumble for a river).
+
+**Machines** (`docs/nodes/machines.md`): `rpm` is a signal, so a `ramp` or
+`wander` revs them; set a `duration` (the ramps hold their last value).
+
+- `engine` {rpm (0..20000), [cylinders 4, 1..16], [load 0.5, signal], [stroke
+  4|2], [exhaust_length 1.2 m], [seed]}: pitch is the firing rate rpm / 60 x
+  cylinders / (stroke / 2) Hz; an open-pipe exhaust comb resonates at odd
+  multiples of 343 / (4 L).
+- `motor` {rpm, [poles 4, even], [gear_teeth 0..400], [load 0.3], [whine 0.3],
+  [carrier 4000 Hz], [seed]}: hum at the pole-pair rate, a PWM whine with
+  sidebands, a gear-mesh tone at rpm / 60 x teeth, brush noise; scaled by
+  rpm / (rpm + 500), so a spin-up fades in. Partials above 0.47 x the sample
+  rate fade out instead of aliasing.
+
+**Waveguides** (`docs/nodes/waveguide.md`): causal, mono.
+
+- `tube` {length (m, 0.029..20), [excite reed|lip|jet|noise], pressure
+  (signal 0..1), [bore 0.01 m], [open_end true], [seed]}: pitch c / (2L) open,
+  c / (4L) closed at one end (odd harmonics).
+- `string` {freq (20..sr/16 Hz, signal), [excite pluck|strike|bow], [position
+  0.15], [damping 0.3], [stiffness 0], [bow_pressure 0.5, signal], [seed]}.
+- Limits: the bow locks onto a higher harmonic at some pitch / position pairs
+  and low pressures (`listen` before trusting one); the pluck and strike are
+  fixed 2 ms excitations; `tube` has no toneholes or bell (pitch error up to 1.8 %).
+
+**Surfaces** (`docs/nodes/M6.md`):
+
+- `rolling` {speed (m/s signal, 0..50), [roughness 0.5], [size 0.002 m], [seed]}:
+  the force of rolling over a rough surface, an excitation for `modal`; level is
+  proportional to speed (up to +34 dB at 50 m/s): scale it before a `modal`.
+- `cloth` {motion (signal 0..4; 0 is silence), [weight 0.5], [seed]}: rustle
+  bursts with power-law sizes in four bands (cloth, paper, foliage).
+- `footstep` {surface concrete|gravel|grass|wood, [weight 0.5], [pace walk|run|
+  sneak or 0..1], [shoe hard|boot|sneaker|bare], [at 0], [seed]}: one heel and
+  one toe (70-150 ms apart), a finished sound; a default step peaks near
+  -12 dBFS. Build a walk with several nodes or `sound` instances.
+
+**Modal shapes and `shatter`** (`docs/nodes/M7.md`):
+
+- `modal` `shape` `plate` (default) | `bar` (free-free: 1 : 2.757 : 5.404) |
+  `tube` (ring modes of a pipe wall; `size` = diameter) | `membrane` (Bessel
+  zeros; `strike_position` 0 is the centre) | `string` (sin(n pi x) / n; takes
+  `stiffness` 0..1, B in f_n = n f_1 sqrt(1 + B n^2); an error for other
+  shapes) | `shell` (the idealized bell series). `modes` 1..256: the lowest
+  half are always the lowest modes of the object (so the fundamental falls with
+  `size`: wood plate 424 / 166 / 88 / 54 / 42 Hz at 0.5 / 0.8 / 1.1 / 1.4 / 1.6
+  m). Output is normalized (unit impulse peaks near 0 dBFS). A `size` outside the
+  usable range errors with the range for that material and shape.
+- `shatter` {pieces (1..200000), [spread 0.4 s], [at 0], [exponent 2, 0.5..6],
+  [seed]}: an event stream, a crack at `at` (value 1) then fragments whose
+  sizes follow a power law (value 0.01..1) and whose times crowd after the
+  break. Feed `voices` (a small `modal` per fragment) or `grains`.
+- Limits: `size` is a pitch knob; `bar` / `tube` use the material's
+  `thickness` (metal is a 5 cm plate: pass `{young, density, poisson, loss,
+  thickness}` for a thin pipe wall); sizes and times in `shatter` are drawn
+  independently (a big piece is as likely late as early).
+
+**Voice upgrades** (`docs/nodes/M8.md`): every new field is off by default
+(the old renders are hash-pinned).
+
+- `glottis` new `roughness` 0..1 (period jitter up to +-4 %, level +-50 %),
+  `subharmonic` 0..1 (every second cycle scaled by 1 - x: a line at f0 / 2),
+  `fry` 0..1 (strong jitter, alternating long / short periods, pressed): all
+  signals, per glottal cycle.
+- `tract` new `nasal` 0..1 (a 250 Hz pole and 1 kHz zero), `frication` {freq,
+  level} (noise through a band-pass added after the formants; gate it with
+  `level`), `growl` 0..1 (AM at ~45 Hz), `seed`.
+- Limits: `glottis` still aliases above ~1.5 kHz; the nasal and growl rates are
+  fixed; the frication centroid sits above `freq` (2258 Hz for 1500).
+
+<!-- recipe 3 -->
+```json
+[
+  {"type": "ramp", "name": "revs", "from": 1200, "to": 5200, "time": 2.0, "curve": "exp"},
+  {"type": "ramp", "name": "throttle", "from": 0.2, "to": 0.9, "time": 2.0, "curve": "linear"},
+  {"type": "engine", "name": "eng", "rpm": "revs", "cylinders": 6, "load": "throttle", "exhaust_length": 1.5, "seed": 1},
+  {"type": "shatter", "name": "bits", "pieces": 40, "spread": 0.5, "at": 0.02, "seed": 4},
+  {"type": "voices", "name": "shards", "events": "bits", "length": 0.3, "max": 50,
+   "map": {"size": "0.05 + $value * 0.35"},
+   "patch": [
+     {"type": "impulse", "name": "tap", "at": [0.0]},
+     {"type": "gain", "name": "strike", "input": "tap", "gain": "$value"},
+     {"type": "modal", "name": "piece", "excite": "strike",
+      "material": {"young": 70e9, "density": 2500, "poisson": 0.22, "loss": 0.006, "thickness": 0.003},
+      "size": "$size", "modes": 16}]},
+  {"type": "gain", "name": "quiet_shards", "input": "shards", "db": -12},
+  {"type": "mix", "name": "scene", "inputs": ["eng", "quiet_shards"]}
+]
+```
+
+More recipes: a wind loop is `wind` `speed` 12 `gust` 0.6 in a `kind: loop`
+document with `output.lufs` -26; a campfire is `fire` size 0.7 with an
+`onepole` hp at 30 Hz and `lufs` -28; a rifle heard at 120 m is `gunshot`
+caliber 7.62 barrel 0.5 distance 120 with `output.lufs` -14; a brook is
+`water` with `flow` from a `wander` 0.35..0.7 plus a `splash` `at` 1.5; a
+struck pipe is a hard `contact` into `modal` `shape: "tube"` metal `size` 0.12;
+a creaky nasal vowel is `glottis` `fry` from a `ramp` into `tract` `vowel: "o"`
+`nasal` 0.5. Macros worth giving: engine `exhaust_length` and the rpm ramp's
+`to`; explosion `size` and `distance`; fire `size` and `intensity`; wind `speed`
+and `gust` (claim `swing`); water `depth` and `splash`.
+
+### Spectral additions (`docs/nodes/X1.md`)
+
+Offline, acausal, exactly the document's length; the old modes and
+`pitch_shift` / `time_stretch` without `formant` are bit-identical to before.
+
+- `spectral` new `mode`s: `shift` {hz (signal, +-sr/2)}: single-sideband shift
+  of every component (a 200/400/600 Hz tone at +50 Hz is 250/450/650);
+  `stretch` {[inharmonicity 0.01, 0..2], [f0 100 Hz]}: partial n of a series
+  at f0 lands at n f0 sqrt(1 + b n^2) (stiff-string inharmonicity);
+  `smear` {time (s, -2..2)}: an all-pass whose group delay rises linearly to
+  Nyquist (a click becomes a chirp; the tail past the document is cut, give a
+  `duration`); `hps` {[kernel 17, odd 3..101]}: median-filter split with ports
+  `out` (= `harmonic`), `harmonic`, `percussive`, read as `"name.harmonic"`;
+  the two sum back to the input. A field for another mode is an error.
+  `window` applies to `stretch` and `hps` only.
+- `pitch_shift` new `formant: true`: keeps the input's spectral envelope
+  (cepstral true envelope, +-30 dB per bin) instead of shifting it; about 44
+  extra FFTs a frame.
+
+<!-- recipe -->
+```json
+[
+  {"type": "osc", "name": "saw", "shape": "saw", "freq": 180, "amp": 0.4},
+  {"type": "decay", "name": "fall", "time": 0.4},
+  {"type": "math", "name": "note", "op": "mul", "a": "saw", "b": "fall"},
+  {"type": "spectral", "name": "split", "input": "note", "mode": "hps"},
+  {"type": "spectral", "name": "bent", "input": "split.harmonic", "mode": "stretch", "inharmonicity": 0.03, "f0": 180},
+  {"type": "mix", "name": "both", "inputs": ["bent", "split.percussive"]}
+]
+```
+
+Limits: `stretch` moves peaks by whole bins, so noise smears by a bin (8 clean
+partials stayed within 0.2 dB); `hps` splits by soft masks, not exactly where a
+click and a partial share a bin and frame; `formant` assumes envelope features
+wider than ~500 Hz (a pitch above ~400 Hz partly follows the harmonics, not
+measured); `shift` leaks slightly (-58 dB) on an abrupt start.
+
+### Bands and vocoder (`docs/nodes/X2.md`)
+
+- `filterbank` {input, bands (1..64 log-spaced from `low` to `high`), [gains
+  (one per band, linear), default all 1], [q], [low 80], [high 12000]}.
+- `vocoder` {carrier, modulator (mono), [bands 16], [attack 0.01], [release
+  0.04], [q], [low 80], [high 12000]}: the modulator's level per band scales
+  the same band of the carrier. The output is as quiet as the modulator
+  (amplitude 0.1 gives -20 dB): follow with a `gain` or `normalize`.
+- `multiband` {input, crossovers [1..7 Hz, ascending], bands: [{[drive 0],
+  [threshold_db] (turns the compressor on), [ratio 4], [attack 0.01], [release
+  0.1], [gain_db 0]}, ...]}: Linkwitz-Riley 4th-order split, per-band drive,
+  compressor and gain, summed flat. Ports `out` and `band0`..`band7`.
+  `ratio` / `attack` / `release` without `threshold_db` is an error.
+
+<!-- recipe -->
+```json
+[
+  {"type": "osc", "name": "buzz", "freq": 110, "shape": "saw", "amp": 0.5},
+  {"type": "noise", "name": "speech", "color": "pink"},
+  {"type": "wander", "name": "sweep", "rate": 3, "range": [300, 2500]},
+  {"type": "filter", "name": "formant", "input": "speech", "mode": "bp", "freq": "sweep", "q": 4},
+  {"type": "vocoder", "name": "voice", "carrier": "buzz", "modulator": "formant", "bands": 16, "attack": 0.005, "release": 0.03},
+  {"type": "multiband", "name": "thick", "input": "voice", "crossovers": [150, 1000], "bands": [{"threshold_db": -30, "ratio": 4, "gain_db": 3}, {}, {"drive": 2, "gain_db": -3}]}
+]
+```
+
+Limits: with all gains 1, `filterbank` raises white noise 2.4-3.0 dB (the bands
+overlap) and a single band-pass has 6 dB/oct skirts; `vocoder` has no
+sibilance path (noisy consonants pass only where the carrier has energy) and a
+harmonic carrier leaves bands without a harmonic quiet; `multiband` settings are
+numbers (no automation), the compressor has no lookahead, `drive` is not
+oversampled; all hold the whole document per band in memory.
+
+### Grains and clouds (`docs/nodes/X3.md`)
+
+- `grains` {source (a node or a `.wav`), events, size, [position 0..1, signal],
+  [pitch 1], [window hann|tri|rect], [pan_spread], [jitter], [seed]}: `size`
+  and `pitch` each take a number, a signal (read at the grain's start), or a
+  range `{min, max, [curve linear|exp|smooth]}` that draws a value per grain.
+- `cloud` {source, density (grains/s, signal, 0..sr), size, [position], [jitter],
+  [pitch], [pitch_spread 0 semitones, 0..120], [mode random|regular], [window],
+  [pan_spread], [seed]}: grains scheduled from a density signal, no event
+  stream (Poisson starts in `random`, even in `regular`). At most 200000 grains
+  a sound. Not normalized: the level rises with density x size.
+
+<!-- recipe -->
+```json
+[
+  {"type": "osc", "name": "tone", "freq": 330, "amp": 0.5},
+  {"type": "ramp", "name": "swell", "from": 4, "to": 160, "time": 2.0, "curve": "exp"},
+  {"type": "cloud", "name": "swarm", "source": "tone", "density": "swell",
+   "size": {"min": 0.02, "max": 0.08}, "position": 0.1, "pitch_spread": 2, "pan_spread": 0.6}
+]
+```
+
+Limits: size and pitch signals are read once at a grain's start; a grain that
+reaches the end of the source stops there (no wrap); `pitch_spread` is uniform
+in semitones, a `grains` `pitch` range with `curve: "linear"` is uniform in
+ratio.
 
 ## Playback
 

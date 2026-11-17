@@ -37,8 +37,8 @@ pub(crate) struct SoundOpsArgs {
     /// "col": 0, "from": 1.6, "to": 0.6}, {"node": "m", "field": "inputs",
     /// "index": 1, "key": "gain", "from": 0.1, "to": 0.9}]}. The name is a
     /// claim: `claim` [measure, direction] (measures centroid, decay, crest,
-    /// lufs, flatness, swing; 1 rises over 0..1, -1 falls; optional) is
-    /// checked by verify. A map entry may write a sound param instead:
+    /// lufs, flatness, swing, inharmonicity, roughness; 1 rises over 0..1, -1
+    /// falls; optional) is checked by verify. A map entry may write a sound param instead:
     /// {"param": "size", "from": 0.2, "to": 0.8}. Name knobs with an adjective; 2-4 per sound; the human turns
     /// them in the window to fit it by ear. game: true exports it as a
     /// runtime input.
@@ -135,7 +135,8 @@ pub(crate) struct VerifyArgs {
     /// checks that need no settings can be named (finite, peak_db (max
     /// -0.3), true_peak_db (max -1), silent_edges, clicks, dc, loop_seam,
     /// variations, rebuild, macros); the others (lufs, duration, bands,
-    /// pitch, onsets, reference) take settings: give them in `expect`.
+    /// pitch, onsets, reference, aliasing, inharmonicity, modulation,
+    /// roughness) take settings: give them in `expect`.
     #[serde(default)]
     pub(crate) checks: Vec<String>,
     /// Check names to run INSTEAD of the defaults: ["clicks", "dc"].
