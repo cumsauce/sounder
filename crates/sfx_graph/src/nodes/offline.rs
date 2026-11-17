@@ -55,11 +55,27 @@ fn normalize_gain(
         }
         (None, Some(l)) => {
             let now = loudness::integrated(ch, sr as u32);
-            Ok(if now > -69.0 {
-                db_to_gain(l - now)
-            } else {
-                1.0
-            })
+            if now > -69.0 {
+                return Ok(db_to_gain(l - now));
+            }
+            // `integrated` gates everything under -70 LUFS and reports
+            // exactly -70 for it, so a very quiet sound would look silent.
+            // Measure it again 40 dB hotter (up to three times, down to
+            // -190 LUFS); only a signal still under the gate is silence.
+            let mut lift = 0.0f32;
+            for _ in 0..3 {
+                lift += 40.0;
+                let g = db_to_gain(lift);
+                let hot: Vec<Vec<f32>> = ch
+                    .iter()
+                    .map(|c| c.iter().map(|x| x * g).collect())
+                    .collect();
+                let now = loudness::integrated(&hot, sr as u32);
+                if now > -69.0 {
+                    return Ok(db_to_gain(l - (now - lift)));
+                }
+            }
+            Ok(1.0)
         }
         _ => Err("give exactly one of peak_db or lufs".into()),
     }
@@ -199,9 +215,17 @@ pub struct Output {
     #[serde(default)]
     pub gain_db: Option<f32>,
     /// Then normalize to this integrated loudness, LUFS (default: leave).
+    /// A very peaky or short sound cannot reach a high target under the
+    /// ceiling: use `peak_db` for it. Not together with `peak_db`.
     #[serde(default)]
     pub lufs: Option<f32>,
+    /// Or normalize the pre-limiter sample peak to this, dBFS (clicks,
+    /// ticks, short hits; default: leave). Not together with `lufs`; not
+    /// above `ceiling_db`. `gain_db` is added on top, as it is for `lufs`.
+    #[serde(default)]
+    pub peak_db: Option<f32>,
     /// Edge fades, seconds (defaults 0.002 in, 0.005 out; 0 for a loop).
+    /// A hit that starts inside the fade-in is cut by it: set `fade_in` 0.
     #[serde(default)]
     pub fade_in: Option<f32>,
     #[serde(default)]
@@ -211,18 +235,44 @@ pub struct Output {
     pub ceiling_db: Option<f32>,
 }
 
+/// The output stage in its three steps, kept apart for the warnings.
+pub struct Staged {
+    /// After gain and normalization, before the limiter.
+    pub pre_limiter: Vec<Vec<f32>>,
+    /// After the limiter, before the edge fades.
+    pub limited: Vec<Vec<f32>>,
+    /// Edge fades in seconds, as applied.
+    pub fade_in: f32,
+    pub fade_out: f32,
+}
+
+fn peak_of(ch: &[Vec<f32>]) -> f32 {
+    ch.iter().flatten().fold(0.0f32, |m, x| m.max(x.abs()))
+}
+
 impl Output {
-    /// The output stage over a whole buffer (also re-run by the renderer
-    /// after the auto-duration length is found).
-    pub fn process(
-        &self,
-        mut ch: Vec<Vec<f32>>,
-        sr: f32,
-        looped: bool,
-    ) -> Result<Vec<Vec<f32>>, String> {
+    /// Gain, normalization and limiter over a whole buffer, no fades.
+    pub fn stage(&self, mut ch: Vec<Vec<f32>>, sr: f32, looped: bool) -> Result<Staged, String> {
+        if self.lufs.is_some() && self.peak_db.is_some() {
+            return Err(
+                "lufs and peak_db are both set: pick one (lufs for sustained sounds, peak_db for clicks, ticks and short hits)"
+                    .into(),
+            );
+        }
+        let ceiling_db = self.ceiling_db.unwrap_or(-1.0);
+        if let Some(p) = self.peak_db {
+            if !p.is_finite() {
+                return Err(format!("peak_db: {p}: give a level in dBFS, e.g. -3"));
+            }
+            if p > ceiling_db {
+                return Err(format!(
+                    "peak_db: {p} is above ceiling_db {ceiling_db}: the limiter would take it back; lower peak_db or raise ceiling_db"
+                ));
+            }
+        }
         let g = db_to_gain(self.gain_db.unwrap_or(0.0));
-        if let Some(l) = self.lufs {
-            let g2 = normalize_gain(&ch, None, Some(l), sr)?;
+        if self.lufs.is_some() || self.peak_db.is_some() {
+            let g2 = normalize_gain(&ch, self.peak_db, self.lufs, sr)?;
             for v in ch.iter_mut().flatten() {
                 *v *= g * g2;
             }
@@ -231,22 +281,130 @@ impl Output {
                 *v *= g;
             }
         }
-        let mut ch =
-            super::nonlinear::limit(ch, db_to_gain(self.ceiling_db.unwrap_or(-1.0)), 0.05, sr);
+        let limited = super::nonlinear::limit(ch.clone(), db_to_gain(ceiling_db), 0.05, sr);
         let (fi, fo) = if looped { (0.0, 0.0) } else { (0.002, 0.005) };
-        fade_edges(
-            &mut ch,
-            non_negative("fade_in", self.fade_in.unwrap_or(fi))?,
-            non_negative("fade_out", self.fade_out.unwrap_or(fo))?,
-            sr,
-        );
+        Ok(Staged {
+            pre_limiter: ch,
+            limited,
+            fade_in: non_negative("fade_in", self.fade_in.unwrap_or(fi))?,
+            fade_out: non_negative("fade_out", self.fade_out.unwrap_or(fo))?,
+        })
+    }
+
+    /// The output stage over a whole buffer (also re-run by the renderer
+    /// after the auto-duration length is found).
+    pub fn process(
+        &self,
+        ch: Vec<Vec<f32>>,
+        sr: f32,
+        looped: bool,
+    ) -> Result<Vec<Vec<f32>>, String> {
+        let s = self.stage(ch, sr, looped)?;
+        let mut ch = s.limited;
+        fade_edges(&mut ch, s.fade_in, s.fade_out, sr);
         Ok(ch)
+    }
+
+    /// The warning for a `lufs` target the render missed, or None when it
+    /// was met. `final_lufs` is the exported sound's loudness; `ch` is the
+    /// output's input at the exported length.
+    pub fn missed_target_warning(
+        &self,
+        ch: Vec<Vec<f32>>,
+        sr: f32,
+        looped: bool,
+        final_lufs: f32,
+    ) -> Option<String> {
+        let target = self.lufs?;
+        // The loudness gate floors the measure at -70: nothing to compare.
+        if target <= -69.0 || (final_lufs - target).abs() <= 1.0 {
+            return None;
+        }
+        let s = self.stage(ch, sr, looped).ok()?;
+        let ceiling_db = self.ceiling_db.unwrap_or(-1.0);
+        let db = |g: f32| 20.0 * g.max(1e-9).log10();
+        let pre = db(peak_of(&s.pre_limiter));
+        let post = db(peak_of(&s.limited));
+        let n = s.pre_limiter.first().map_or(0, Vec::len).max(1) as f64;
+        let energy: f64 = s
+            .pre_limiter
+            .iter()
+            .flatten()
+            .map(|x| f64::from(*x).powi(2))
+            .sum::<f64>()
+            / (n * s.pre_limiter.len().max(1) as f64);
+        let rms = 10.0 * (energy.max(1e-18)).log10() as f32;
+        let crest = pre - rms;
+        let took = (pre - post).max(0.0);
+        let head = format!(
+            "output lufs {target} came out at {final_lufs:.1} LUFS (pre-limiter peak {pre:+.1} dBFS, post-limiter peak {post:+.1} dBFS, crest {crest:.1} dB, limiter removed {took:.1} dB)"
+        );
+        if took >= 0.5 {
+            if crest >= 20.0 {
+                return Some(format!(
+                    "{head}: the sound is too short or too sparse to reach this loudness: use peak_db, or lower the target"
+                ));
+            }
+            return Some(format!(
+                "{head}: the limiter took {took:.1} dB off the peak (ceiling_db {ceiling_db}): lower the target, raise ceiling_db, or compress / shape before the output"
+            ));
+        }
+        // The peak is not the reason: say what else changed the loudness.
+        let lim_lufs = loudness::integrated(&s.limited, sr as u32);
+        let fades = lim_lufs - final_lufs;
+        if fades > 1.0 && (s.fade_in > 0.0 || s.fade_out > 0.0) {
+            return Some(format!(
+                "{head}: the edge fades (fade_in {} s, fade_out {} s) took {fades:.1} LU: shorten them (the sound is short) or raise the target",
+                s.fade_in, s.fade_out
+            ));
+        }
+        Some(format!(
+            "{head}: the peak is {:.1} dB under its limit, so the peak did not cause it: the sound may be too short or too sparse to measure; use peak_db",
+            ceiling_db - pre
+        ))
+    }
+
+    /// A warning when the first hit starts inside the fade-in, or None.
+    /// `ch` is the output's input at the exported length.
+    pub fn fade_in_warning(&self, ch: Vec<Vec<f32>>, sr: f32, looped: bool) -> Option<String> {
+        let s = self.stage(ch, sr, looped).ok()?;
+        let a = ((s.fade_in * sr) as usize).min(s.limited.first().map_or(0, Vec::len));
+        if a == 0 {
+            return None;
+        }
+        let th = db_to_gain(-60.0);
+        let n = s.limited[0].len();
+        let first = (0..n).find(|&i| s.limited.iter().any(|c| c[i].abs() > th))?;
+        if first >= a {
+            return None;
+        }
+        // The first hit: from its start to a few ms past the fade.
+        let end = (first + a.max((0.005 * sr) as usize)).min(n);
+        let mut faded = s.limited.clone();
+        fade_edges(&mut faded, s.fade_in, 0.0, sr);
+        let hit =
+            |c: &[Vec<f32>]| peak_of(&c.iter().map(|x| x[first..end].to_vec()).collect::<Vec<_>>());
+        let (before, after) = (hit(&s.limited), hit(&faded));
+        let cut = (20.0 * (before / after.max(1e-9)).log10()).min(60.0);
+        if cut < 1.0 {
+            return None;
+        }
+        let which = if self.fade_in.is_some() {
+            "the"
+        } else {
+            "the default"
+        };
+        Some(format!(
+            "{which} {:.0} ms fade-in is cutting the first hit by {cut:.1} dB (it starts at {:.1} ms): set fade_in 0 or start the hit later",
+            s.fade_in * 1000.0,
+            first as f32 / sr * 1000.0
+        ))
     }
 }
 
 impl Describe for Output {
     const BLURB: &'static str =
-        "the sound: gain, loudness target, edge fades and a ceiling limiter; exactly one";
+        "the sound: gain, loudness or peak target, edge fades and a ceiling limiter; exactly one";
     fn example() -> serde_json::Value {
         serde_json::json!({"input": "mix1", "lufs": -16})
     }
@@ -254,7 +412,7 @@ impl Describe for Output {
 
 impl Eval for Output {
     fn causal(&self) -> bool {
-        self.lufs.is_none()
+        self.lufs.is_none() && self.peak_db.is_none()
     }
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let input = cx.audio("input", &self.input)?;

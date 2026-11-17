@@ -328,18 +328,7 @@ impl SoundDoc {
             .collect();
         warnings.extend(self.warnings(&ev, &audio));
         let lufs = loudness::integrated(&audio.channels, sr);
-        if let Some(target) = ev
-            .nodes
-            .iter()
-            .find(|p| p.ty == "output")
-            .and_then(|p| p.body.get("lufs"))
-            .and_then(Value::as_f64)
-            && (f64::from(lufs) - target).abs() > 1.0
-        {
-            warnings.push(format!(
-                "output lufs {target} came out at {lufs:.1} LUFS: the ceiling limiter took the rest back (the sound is too peaky for that loudness: lower the target, raise ceiling_db, or compress / shape before the output)"
-            ));
-        }
+        warnings.extend(self.output_stage_warnings(&ev, &audio, lufs, looped));
         let peak_db = gain_to_db(audio.peak());
         Ok(Rendered {
             audio,
@@ -352,6 +341,30 @@ impl SoundDoc {
             lufs,
             peak_db,
         })
+    }
+
+    /// The output stage's own warnings: a missed `lufs` target (with the
+    /// numbers) and a fade-in that cuts the first hit.
+    fn output_stage_warnings(
+        &self,
+        ev: &Evaluated,
+        audio: &Audio,
+        lufs: f32,
+        looped: bool,
+    ) -> Vec<String> {
+        let mut w = Vec::new();
+        let sr = self.sample_rate as f32;
+        if let Some(p) = ev.nodes.iter().find(|p| p.ty == "output")
+            && let crate::node::Node::Output(o) = &p.node
+            && let Some(input) = p.body.get("input").and_then(Value::as_str)
+            && let Ok(buf) = ev.buf(input)
+            && let Ok(mut a) = Audio::from_buf(self.sample_rate, &buf)
+        {
+            a.truncate(audio.len());
+            w.extend(o.missed_target_warning(a.channels.clone(), sr, looped, lufs));
+            w.extend(o.fade_in_warning(a.channels, sr, looped));
+        }
+        w
     }
 
     fn warnings(&self, ev: &Evaluated, audio: &Audio) -> Vec<String> {
