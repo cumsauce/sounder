@@ -47,8 +47,9 @@ pub(crate) struct SoundOpsArgs {
     /// "col": 0, "from": 1.6, "to": 0.6}, {"node": "m", "field": "inputs",
     /// "index": 1, "key": "gain", "from": 0.1, "to": 0.9}]}. The name is a
     /// claim: `claim` [measure, direction] (measures centroid, decay, crest,
-    /// lufs, flatness, swing, inharmonicity, roughness; 1 rises over 0..1, -1
-    /// falls; optional) is checked by verify. A map entry may write a sound param instead:
+    /// lufs, flatness, swing, inharmonicity, roughness, density, attack,
+    /// spacing; 1 rises over 0..1, -1 falls; optional) is checked by verify,
+    /// which also fails a knob that moves its measure by under 2 %. A map entry may write a sound param instead:
     /// {"param": "size", "from": 0.2, "to": 0.8}. Name knobs with an adjective; 2-4 per sound; the human turns
     /// them in the window to fit it by ear. game: true exports it as a
     /// runtime input.
@@ -75,8 +76,9 @@ pub(crate) struct SoundOpsArgs {
     pub(crate) sample_rate: Option<u32>,
     /// Checks to run in the same call (the same fields as verify's
     /// `expect`): {"duration": {"min": 0.4, "max": 1.2}, "onsets": {"min": 1,
-    /// "max": 3}, "clicks": true}. A failed check is an error but the batch
-    /// stays applied.
+    /// "max": 3, "spacing_ms": 5}, "clicks": true}. `spacing_ms` (default 40)
+    /// is the onset merge distance: 5 counts dense ticks. A failed check is an
+    /// error but the batch stays applied.
     #[serde(default)]
     pub(crate) expect: Option<Expect>,
     /// Run on this open sound instead of your active one (see `sound`).

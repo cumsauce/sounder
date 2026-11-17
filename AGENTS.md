@@ -42,7 +42,9 @@ modeler's `MODELER_*`.
 
 1. `summary` — what is open, what the human asked for (open comments).
 2. `new_sound` (or `sound_ops` with `sound: "name"`), then `sound_ops` to build.
-   `describe_op` lists the 107 node types; `describe_op {kind: "filter"}` gives
+   Look at "Which ready-made node for which sound" first: a brief that fits a
+   ready-made node is one node and a few knobs, not a rebuilt graph.
+   `describe_op` lists the 108 node types; `describe_op {kind: "filter"}` gives
    one's example and schema (`type` and `node` are aliases of `kind`). To
    remove a node put `{"type": "delete", "name": "x"}` in `ops` (one item per
    node; a top-level `delete` is not a field and errors).
@@ -56,13 +58,13 @@ modeler's `MODELER_*`.
 |---|---|
 | `summary` | state, nodes (what reads what), params, macros + claim status, the human's knob moves since last read (reading clears them), open comments, warnings, causal yes/no, descriptors |
 | `sound_ops` | atomic batch: `ops` (node upserts; `{"type": "delete", "name": ...}` removes), `params`, `macros`, `delete_macros`, `kind`, `duration` (null or 0 = automatic length again), `seed`, `sample_rate`, `expect`; renders for real; one history step if anything changed |
-| `listen` | the image + descriptor table; `node`, `seeds`, `sweep`, `zoom`, `diff`, `reference` |
+| `listen` | the image + descriptor table; `node`, `seeds`, `sweep {param, values: [..]}`, `zoom {t: [a, b], hz: [lo, hi]}`, `diff`, `reference` (a bad `zoom` / `sweep` error shows the accepted shape) |
 | `verify` | PASS / FAIL checks (`checks`, `only`, `expect`; see Senses); any FAIL is an error |
 | `describe_op` | node types, one line each; or one type's example + schema (`kind`, aliases `type` / `node`) |
 | `extract_modes` | strongest partials of a WAV as a ready `resonators` node |
 | `play` | plays on the speakers for the human (the window, or `--headless --audio`); a plain headless server answers with an error saying so |
-| `new_sound` | opens a sound beside the others (`kind`, `duration`, `seed` can be set at once, so a loop is one call); an open name is refused |
-| `catalog` | `list describe save load delete close` |
+| `new_sound` | opens a sound beside the others (`kind`, `duration` 0..600 s, `seed` can be set at once, so a loop is one call; a loop with no `duration` is an error naming the field); an open name is refused |
+| `catalog` | `list describe save load delete close`; the sound is `name` or `doc` (both given and different is an error) |
 | `export` | WAVs + `<name>.sfx.json` manifest |
 | `undo redo jump history` | the history tree; one `sound_ops` call is one step |
 | `add_annotation` | comment on a node / region, or `resolve` / `reopen` one |
@@ -87,8 +89,8 @@ every call.
 - `kind` `oneshot` with no `duration` renders until the output stays under
   -80 dBFS for 50 ms (doubling 2 s up to 30 s; then a warning that it never
   decays), then trims the trailing silence. A `loop` needs a `duration`.
-- `duration` in `sound_ops`: a number fixes the length; **`0` returns to
-  automatic length** (`null` or leaving it out changes nothing). Nodes that
+- `duration` in `sound_ops`: a number fixes the length; **`null` (or `0`)
+  returns to automatic length** (leaving it out changes nothing). Nodes that
   end after the document (`time_stretch`, `smear`, a long `reverb` tail,
   `thunder`) need a `duration` long enough, or they are cut.
 - `seed` drives every random node (mixed with the node's name and its own
@@ -103,14 +105,20 @@ every call.
   `range: [lo, hi]` (not `min` / `max`; `range` omitted is -1..1). `ramp`
   defaults to an `exp` curve (`"curve": "linear"` for a straight one) and
   holds its last value, so a sound whose level follows a `ramp` never decays
-  by itself: set a `duration`.
+  by itself: set a `duration`. `gain` takes `db` or `gain_db` (the same field;
+  both is an error) or a linear `gain`; `mix` inputs are names or objects
+  (see "`mix` inputs").
 
 ### The output stage
 
 Exactly one `output` node: `{input, [gain_db], [lufs] or [peak_db],
 [fade_in 0.002], [fade_out 0.005], [ceiling_db -1]}` (fades are 0 in a loop).
 Gain, then the loudness target, then a lookahead ceiling limiter, then the
-edge fades.
+edge fades. **The target is met after the fades**: `peak_db` and `lufs` are
+measured on the faded signal when the fades move the gain (by over 0.02 dB for
+a peak, 0.1 LU for loudness), so a hit at t = 0 with `fade_in: 0.0005` and
+`peak_db: -1.5` is delivered at -1.5 dBFS (+-0.1), not at the lower level the
+fade used to leave. A sound the fades barely touch keeps its exact gain.
 
 - `lufs` normalizes integrated loudness (up from as low as -70 LUFS too). A
   **short or peaky sound cannot reach a high `lufs`** under the ceiling: use
@@ -125,8 +133,15 @@ edge fades.
   fades took N LU" (shorten them).
 - The **default 2 ms fade-in cuts a hit that starts at t = 0** (a click, a
   gunshot). The render warns "the default 2 ms fade-in is cutting the first hit
-  by N dB": set `fade_in: 0` (or start the hit a few ms later, as `explosion`
-  and `gunshot` do themselves).
+  by N dB (it starts at X ms)": set **`fade_in: 0.0005`** (0.5 ms: the fade
+  reaches zero at sample 0, so `silent_edges` still passes; `fade_in: 0` keeps
+  the hit whole but `silent_edges` then fails on the non-zero first sample), or
+  start the hit a few ms later, as `explosion`, `gunshot` and `splash` do
+  themselves.
+- The limiter-squash warning ("the ceiling limiter is squashing it")
+  does not fire when `peak_db` is used and the delivered peak reaches the
+  target; with `gain_db` pushing a `peak_db` target over the ceiling it still
+  does.
 
 ## Nodes
 
@@ -136,7 +151,7 @@ fields take a number, `"$param"`, `"=expr"` (`+ - * /`, parentheses, `$name`)
 or the **name of another node** (`"freq": "sweep"`: audio-rate modulation, a
 port as `"verb.wet"`).
 
-Families (107 types; groups marked * have a section under "More nodes, by
+Families (108 types; groups marked * have a section under "More nodes, by
 group" below):
 
 - sources: `osc noise impulse sample` and `fm wavetable`*; control `lfo wander
@@ -153,7 +168,8 @@ group" below):
   spectral` (with new modes)*.
 - events `once pattern poisson bounce burst on_threshold shatter`* with
   `grains cloud`* and `voices`; `sound` (an instance of another sound).
-- physical models `modal contact friction` (with shapes)*, the foley ones
+- physical models `modal contact friction` (with shapes, `loss`, `tilt`)*,
+  mechanism clicks `click`*, the foley ones
   `bubble air glottis tract syrinx thunder` (voice upgrades)*, waveguides
   `tube string`*, surfaces `rolling cloth footstep`*, water `water splash`*,
   elements `fire wind spark`*, machines `engine motor`*, blasts `explosion
@@ -164,7 +180,7 @@ Recipes (the JSON in the sections below renders as written):
 - **Pitch sweep (laser, zap):** `ramp` 2000 -> 200 `curve: "exp"` into an
   `osc` `freq`, times a `decay`, through a `filter` whose `freq` is a scaled
   copy of the ramp (a `math` mul).
-- **Struck object (knock, bell, click):** an `impulse` (or a short noise burst
+- **Struck object (knock, bell; a latch or switch click is the `click` node):** an `impulse` (or a short noise burst
   times a fast `decay`) into `resonators` `[[hz, decay_s, gain], ...]`, or a
   `contact` into `modal` (pick a `shape`). `extract_modes` starts from a real
   recording.
@@ -179,7 +195,91 @@ Recipes (the JSON in the sections below renders as written):
 - **Loudness:** set `output.lufs` (sustained sounds) or `output.peak_db`
   (clicks, short hits); see "The output stage".
 - **Edges:** the output fades 2 ms in and 5 ms out by default (0 for loops);
-  set `fade_in: 0` for a hit at t = 0.
+  set `fade_in: 0.0005` for a hit at t = 0.
+
+## Which ready-made node for which sound
+
+Round-1 testers built every footstep from primitives and never tried `fire` or
+`footstep`: the nodes below exist so that a brief that names one of these
+sounds is one node plus a few knobs. **Building from primitives is still
+fine** (and right for anything not listed: a laser, a UI blip, a whoosh, a
+drone); `describe_op {kind}` gives each node's fields and an example, and the
+sections below give the measured limits. None of these has been heard: pick by
+the brief, then `listen`, `verify` and let the human's macros do the rest.
+
+| Brief | Node | Start with | Fits |
+|---|---|---|---|
+| a footstep, a walk | `footstep` | `surface` concrete / gravel / grass / wood, `weight`, `pace`, `shoe` | one heel + toe step with the surface's texture. A walk is several steps: `pattern` + `sound` instances, or a few `footstep` nodes with different `seed` / `at` in a `mix` |
+| fire, a campfire, crackle | `fire` | `size`, `intensity`, `crackle`, `loop` | roar + hiss + Poisson pops; loops by itself in a `kind: loop` document |
+| wind, a gale, howling | `wind` | `speed` (signal), `gust`, `whistle`, `loop` | five moving bands (+ an Aeolian tone); a `ramp` on `speed` is a rising gale |
+| electric arcs, sparks | `spark` | `rate`, `buzz`, `body` | mains-gated crackle into a short resonator |
+| a stream, a brook, rain on water | `water` | `flow` (signal), `density`, `splash`, `depth` | a Minnaert bubble population plus hiss; a loop in a loop document |
+| a splash, something dropped in water | `splash` | `size` (m) | bright, brief impact burst, then a bubble cloud whose pitch falls (the centroid falls through the sound); a transient: use `peak_db` |
+| a single drip, a blip of water | `bubble` | `radius_mm`, `jitter`; in `voices` `map` a `$rand` radius | one Minnaert bubble: drips, water_drips example |
+| cloth, paper, foliage rustle | `cloth` | `motion` (signal), `weight` | power-law rustle bursts in four bands; shape `motion` with a `wander` or `ramp` |
+| rolling, scraping, sliding | `rolling`, `friction` | `speed` (signal), `roughness` | an excitation: put it through `modal` (a scale first: `rolling` is loud at high speed) |
+| breaking glass, shards, debris | `shatter` into `voices` | `pieces`, `spread`, `exponent`; a small `modal` per fragment | a crack then power-law fragments; `modal` glass with `loss` and `tilt` per shard |
+| explosion, gunshot, blast | `explosion`, `gunshot` | `size`, `distance`; `caliber`, `barrel`, `suppressed` | finished one-shots, start 2.5 ms in (the default fade-in does not cut them); distance delays and darkens |
+| engine, motor, vehicle | `engine`, `motor` | `rpm` (a `ramp` or `wander`), `cylinders` / `poles`, `load` | rpm-driven pitch; set a `duration` (ramps hold) |
+| a pipe, a flute, a string, a bow | `tube`, `string` | `length` / `freq`, `excite`, `pressure` | waveguides: winds, plucks, strikes, bowed notes |
+| a latch, a switch, a button, a lock, a buckle | `click` | `kind` latch / switch / button / lock / clasp, `size`, `hardness` | one or two transients through small resonators; a hit at t = 0: `fade_in` 0.0005 |
+| thunder, a distant storm | `thunder` | `distance`, `brightness`, `length`, `duration` | foley's N-wave and rumble; `brightness` tilts above 100 Hz, `length` stretches the rumble; a `duration` that fits |
+| a struck object: panel, bell, pipe, keys, a door's thud | `modal` fed by `contact`, `impulse` or a noise burst | `shape` plate / bar / tube / membrane / string / shell, `material`, `size`, `loss`, `tilt` | normalized; `size` is a pitch knob; `loss` 0.5 rings twice as long; `tilt` flattens a one-mode plate |
+| a robot voice, speech-like texture, band dynamics | `vocoder`, `multiband`, `filterbank` | a pitched `carrier` + a noisy `modulator`; `crossovers` + `bands` | see "Bands and vocoder" |
+| a swarm, a swell, a granular wash | `cloud`, `grains` | `source`, `density` (signal), `size`, `pitch_spread` | grains from any node or WAV |
+| a vowel, a creature call | `glottis` into `tract` | `f0` (signal), `tension`, `vowel`, `scale` | "Foley models" |
+
+Scene sounds layer these: a door slam is a `click` (the latch) under a `modal`
+thud, a campfire is `fire` plus a few `spark`s, rain is `poisson` into `voices`.
+One `sound` per layer and a `mix` with `gain` / `at` keeps each one editable.
+
+### Variation
+
+`seed` (the sound's, `new_sound` / `sound_ops` `seed`) is mixed into every
+random node, so **a seed changes only what reads it**: `noise`, `wander`,
+`poisson`, `voices` (`$rand`), `grains`, `cloud`, `shatter`, `pattern` with
+`jitter` or `values`, `bubble` with `jitter`, and the seeded model nodes
+(`footstep`, `click`, `fire`, `wind`, `thunder`, ...). A chain of `osc`,
+`filter`, `ramp`, `decay`, a `pattern` without jitter, a `bubble` without
+jitter, `modal` fed by a plain `impulse` renders the same bits for every seed,
+so `export` with `variations: N` writes N identical files and warns ("all N
+variations are bit-identical"), and `verify expect variations` fails. To get
+four different takes:
+
+- jitter the timing: `pattern` `jitter` (seconds), `poisson` for a stream;
+- randomize the voice: `voices` with a `map` of `$rand` expressions (pitch,
+  `modal` `size`, level), `bubble` `jitter` (0..0.9) or `grains` `jitter` /
+  per-grain ranges.
+
+<!-- recipe -->
+```json
+[
+  {"type": "pattern", "name": "taps", "every": 0.25, "count": 6, "jitter": 0.04,
+   "values": {"min": 0.4, "max": 1}, "seed": 3},
+  {"type": "voices", "name": "knocks", "events": "taps", "length": 0.5, "max": 16,
+   "map": {"size": "0.2 + $rand * 0.3"},
+   "patch": [
+     {"type": "impulse", "name": "tap", "at": [0.0]},
+     {"type": "gain", "name": "strike", "input": "tap", "gain": "$value"},
+     {"type": "modal", "name": "panel", "excite": "strike", "material": "wood", "size": "$size", "loss": 1.5}]},
+  {"type": "footstep", "name": "step", "surface": "wood", "weight": 0.6, "pace": "walk"},
+  {"type": "mix", "name": "scene", "inputs": [
+    {"input": "knocks", "gain": 0.6},
+    {"input": "step", "gain": 0.9, "pan": -0.3, "at": 1.0}]}
+]
+```
+
+### `mix` inputs
+
+`mix` `inputs` is a list whose items are a node name or an object
+`{"input": "node", "gain": 0.5, "pan": -0.3, "at": 0.1}`: `input` (required),
+`gain` (linear; a number or a node, so a `decay` envelope works), `pan` (-1..1,
+makes the mix stereo), `at` (seconds of delay: a tail after a transient). Names
+and objects mix freely, `to: "mono" | "stereo"` forces the width. The gain is
+`gain`, not `gain_db`: use a `gain` node with `db` (or `gain_db`) before the mix
+for decibels. A macro can move one input's level: `{"node": "scene", "field":
+"inputs", "index": 1, "key": "gain", "from": 0.1, "to": 0.9}`. Inside a feedback
+loop a `mix` takes no `pan` / `at`.
 
 ## Feedback loops
 
@@ -358,7 +458,8 @@ impact strength), or later `voices`; **a crackle** = `poisson` with a
 {"type": "friction", "name": "hinge", "speed": "swing", "pressure": 0.8, "roughness": 0.3}
 ```
 
-- `modal` {excite, material, size, [strike_position 0.3], [modes 48], [seed]}:
+- `modal` {excite, material, size, [strike_position 0.3], [modes 48], [loss 1],
+  [tilt 0], [seed]}:
   a simply supported square plate `size` metres a side. `material` is a foley
   name (`stone wood metal glass ice earth granular plant soft snow`) or
   `{young, density, poisson, loss, thickness}`. Mode Hz = pi/2 * thickness *
@@ -378,8 +479,22 @@ impact strength), or later `voices`; **a crackle** = `poisson` with a
   `contact` of mass x speed = 0.1) peaks near 0 dBFS (measured within 0.01 dB
   over 10 materials x 6 shapes x 3 sizes); a stronger strike is louder. It has
   `shape` (`plate bar tube membrane string shell`) and `stiffness`; the lowest
-  mode now falls with size (the `modes` bank always keeps the lowest half).
+  mode falls with size (the `modes` bank always keeps the lowest half).
   See "Physical models and recipes" below for the other shapes.
+  **`loss`** (0.01..100, default 1) multiplies the material's loss, named or
+  `{young, ...}`: `"material": "wood", "loss": 0.5` rings twice as long (the
+  20 dB decay time measured 1.95x), 2 half as long; a mode's T60 is capped at
+  20 s. **`tilt`** (dB per octave, -12..12, default 0) multiplies each kept
+  mode's gain by `10^(tilt log2(f / f_lowest) / 20)`: positive lifts the upper
+  modes (a glass plate at `strike_position` 0.31 puts 98.6 % of its energy in
+  the lowest mode; `tilt` 6 brings that to 91 %, 12 to 57 %), negative
+  darkens; the unit-impulse level stays near 0 dBFS. **`size` range**: the
+  lowest mode must fall between 24 Hz and 90 % of the top of the band (18 kHz
+  at 48 kHz), which makes 3 mm glass usable from 0.029 m to 0.78 m and a metal
+  plate from 0.12 m; outside it the error gives the range, and a size that
+  leaves no mode in band says which thickness would fix it (pass `{young,
+  density, poisson, loss, thickness}`). Modes above the band are dropped, not
+  folded.
 - `contact` {speed, mass, material, [hardness 0.7], [at]}: a half-sine force
   pulse as long as the Hertz contact time (foley's `hertz_time`) of a
   2000 kg/m3 ball of that mass whose stiffness runs from rubber (hardness 0)
@@ -428,7 +543,10 @@ until it fits; you read their moves in `summary`.
 - **A map entry may write a sound param** instead of a node field:
   `{"param": "size", "from": 0.2, "to": 0.8}` (no `node`, `field`, `col`,
   `index`). A `voices` patch (and its `map`) reads the sound's params, so this
-  is how a knob reaches the inside of a patch.
+  is how a knob reaches the inside of a patch. A map entry naming a node that
+  exists only inside a `voices` patch is an error that says so and shows the
+  recipe: declare a param with `sound_ops` `params`, use it in the patch as
+  `"=$name"` (or `$name` in the `voices` `map`), map `{"param": ...}`.
 - **`claim` is optional.** A macro without one is a plain knob (summary says
   "unclaimed") and is not swept by `verify`. Give a claim when the name says
   what a measure does.
@@ -442,23 +560,33 @@ until it fits; you read their moves in `summary`.
   (Hz), `decay` (ring-out), `crest` (dB), `lufs`, `flatness`, `swing`
   (loudness spread), `inharmonicity` (cents off a harmonic series; clean to
   bell-like), `roughness` (percent of the loudness envelope's energy at
-  20-150 Hz; smooth to beating); `1` rises over 0..1, `-1` falls. `verify`
+  20-150 Hz; smooth to beating), `density` (events per second at the fine 1 ms
+  hop of `listen`'s `density` line: rain, crackle, ticks), `attack` (ms from
+  the first sample over -60 dBFS to the first 0.25 ms frame at 90 % of the
+  peak: a swell or one hit), `spacing` (s, the median gap between the
+  strongest onsets: a bounce, a roll, a footfall pair; 0 under two onsets);
+  `1` rises over 0..1, `-1` falls. `verify`
   (macros, in the defaults when a sound has any) sweeps each knob over 0, .25, .5, .75, 1
   with the others where they are and requires the measure to move that way at
-  every step and no position to peak over -0.3 dBFS. A FAIL says to rename the
-  macro to what it really does, or fix what it moves. Pick names that match:
-  brightness -> centroid up, weight -> centroid down, length -> decay up,
-  punch / snap -> crest up, grit / howl -> flatness, gustiness -> swing,
-  clang / stiffness -> inharmonicity up, rattle / buzz -> roughness up.
-  `decay`, `swing` and `crest` read the whole sound: they are unreliable on a
-  very short or multi-hit sound (several separate hits), so leave the claim
-  off there rather than rename the knob to fit.
+  every step and no position to peak over -0.3 dBFS, **and that the knob moves
+  the measure by at least 2 % of its largest value across 0..1** ("the knob
+  barely moves X: widen its map, or rename the macro"). A FAIL says to rename
+  the macro to what it really does, or fix what it moves. Pick names that
+  match: brightness -> centroid up, weight -> centroid down, length -> decay
+  up, punch / snap -> crest up, grit / howl -> flatness, gustiness -> swing,
+  clang / stiffness -> inharmonicity up, rattle / buzz -> roughness up,
+  rate / busyness -> density up, softness / swell -> attack up, spread /
+  bounciness -> spacing up. `decay`, `swing` and `crest` read the whole sound:
+  they are unreliable on a very short or multi-hit sound (several separate
+  hits), so give those a `density`, `attack` or `spacing` claim, or leave the
+  claim off, rather than rename the knob to fit.
 - `game: true` exports the knob in the manifest `inputs` (name, default, doc,
   map) for the game to set at runtime; others are baked at their value.
 - A macro **overrides** the fields it maps: editing such a field with `sound_ops`
   changes nothing audible, and the result says so ("WARNING node `amp` field
   `time` is driven by macro `weight`: your value is ignored"). Edit the macro's
-  map or value instead.
+  map or value instead. No warning when the node and the macro are made in the
+  same call (you wrote both).
 - The human's moves arrive in `summary` ("brightness 0.50 -> 0.72"). Keep
   them: re-issue the macro with `value` (and so `default`) set to where they
   left it, or re-centre its range. Moves are not history steps.
@@ -530,7 +658,11 @@ until it fits; you read their moves in `summary`.
     verify's top level) takes the checks with settings; given alone, only
     those run: `{"duration": {"min": 0.4, "max": 1.2}, "onsets": {"min": 1,
     "max": 3}, "lufs": {"min": -20, "max": -14}, "peak_db": {"max": -3},
-    "clicks": true, "pitch": {"hz": 440, "tol_cents": 25}}`.
+    "clicks": true, "pitch": {"hz": 440, "tol_cents": 25}}`. `onsets` takes
+    `spacing_ms` (default 40, the descriptors' merge distance, so a fast
+    double like a `switch` click or a 200/s tick train reads as one): under
+    30 counts with a fine detector above 1 kHz (`spacing_ms: 5` counted a 200/s
+    click train within 10 %), over 40 merges more.
   - Settings of the rest: `bands [{band: "1k" (or Hz), segment 0..4, min_db,
     max_db}]`; `variations {seeds 6, lufs_spread 1, min_distance 1}`;
     `aliasing true` or `{max_db -40}`; `inharmonicity {min, max}` cents (a
@@ -557,7 +689,8 @@ Warnings in `summary`: a node nothing reads, a frequency above Nyquist, a
 silent output, DC over -40 dB, an output whose input is squashed by the
 ceiling limiter, a sound that never decays, one that is mostly silence, an
 `output.lufs` the render missed (with the numbers and the cause), the default
-fade-in cutting a first hit, a field driven by a macro (your value is ignored).
+fade-in cutting a first hit (it suggests `fade_in` 0.0005), a field driven by a
+macro (your value is ignored).
 
 ## Sessions, history, comments
 
@@ -607,7 +740,7 @@ follow the document's rate. `describe_op <type>` has the schema.
 | `glottis` | `f0` (signal), `[tension 0.65]`, `[breath 0.05]`, `[vibrato_cents]`, `[vibrato_hz 5.5]`, `[amp]`, `[seed]` | Foley's Liljencrants-Fant flow derivative (`lf_pulse`; tension 1 = pressed Rd 0.3, 0 = breathy Rd 2.7) with seeded breath noise. Pitch reads exactly (YIN). Aliases above ~1.5 kHz. |
 | `tract` | `input`, `[vowel a]`, `[vowel_to]`, `[morph]`, `[formants [[hz, bw]..]]`, `[scale]` | **Not foley's waveguide** (its `Tract` is private): a 4-formant Klatt cascade at Peterson-Barney vowels `a e i o u ae uh schwa`. `vowel_to` + `morph` (signal) glide; `scale` > 1 shortens the tract (child, small creature), < 1 lengthens. Feed it a `glottis`. |
 | `syrinx` | `species` or `pitch`; `[harmonic] [waver]` (whistle); `[rate] [at]` (species); `[amp] [seed]` | `species`: foley's `birdsong2`, any of 57 (`robin`, `cardinal`, `dove`, `crow`, `wood_thrush`, `boreal_owl`...; a bad name lists all), a phrase of its own length placed at `at`, cut/padded to the document; each `seed` is another individual; `rate` resamples (pitch and speed). `pitch`: a whistle from a contour signal (sine + 2nd harmonic + waver, as foley's songbirds). |
-| `thunder` | `[distance 1500]`, `[celsius]`, `[humidity 90]`, `[exposure 1]`, `[at]`, `[amp]`, `[seed]` | Foley's `strike` (Ribner-Roy N-wave over a jagged channel). Silent until `distance / 343` s, then clap and a rumble of several seconds with centroid ~30-50 Hz: set `duration` to fit (a 1.5 km flash: ~14 s). Foley levels every flash to a similar peak, so distance changes timing, brightness and length, not loudness. `exposure` 0 = shut in (low-pass to 200 Hz). |
+| `thunder` | `[distance 1500]`, `[celsius]`, `[humidity 90]`, `[exposure 1]`, `[brightness 0.5]`, `[length 1]`, `[at]`, `[amp]`, `[seed]` | Foley's `strike` (Ribner-Roy N-wave over a jagged channel). Silent until `distance / 343` s, then clap and a rumble of several seconds with centroid ~30-50 Hz: set `duration` to fit (a 1.5 km flash: ~14 s). Foley levels every flash to a similar peak, so distance changes timing, brightness and length, not loudness. `exposure` 0 = shut in (low-pass to 200 Hz). `brightness` 0..1 (0.5 = foley's spectrum, bit-identical) is a +-24 dB high shelf at 100 Hz, peak kept: above 0.5 the centroid rises. `length` 0.5..3 (1 = as foley makes it, bit-identical) stretches the rumble after the first 0.1 s clap by overlap-add of 120 ms grains, so the spectrum stays and the rumble lasts `length` times as long (a longer `duration`). |
 
 `species` / `thunder` are finished one-shots, so they are not causal for a
 live runtime (`summary` says so); the rest are. All seeded nodes are
@@ -986,10 +1119,13 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
   300 bubbles/s, 0..3000], [loop], [seed]}: a population of Minnaert bubbles
   (rate density x flow^1.5, median radius 0.8 mm x 5^flow) plus hiss. Capped at
   800000 bubbles a render (an error that says so).
-- `splash` {size (m, 0.005..1), [at 0], [seed]}: an impact burst, one cavity
-  bubble and a cloud of small ones; scaled to a **peak of 0.5 whatever the
-  size**. A lone splash is peaky (crest 19-23 dB): `lufs -20` lands near -21
-  with a missed-target warning, `lufs -24` is reached; use `peak_db`.
+- `splash` {size (m, 0.005..1), [at 0], [seed]}: a bright, brief impact burst
+  (starts 2.5 ms in, so the default fade-in does not cut it), then a cloud of
+  bubbles that grow with time and end in the main cavity bubble, so the
+  centroid **falls** through the sound (round-1 redesign; it used to rise);
+  scaled to a **peak of 0.5 whatever the size**. `lufs -24` is reached by every
+  size and `-20` by 0.1 and 0.5; the 0.17 s pebble (0.02) lands at -21.9 with a
+  missed-target warning: for a short splash use `peak_db`.
 - Measured: `flow` 0.1 / 0.35 / 0.8 at density 60 gave 1.9 / 9.4 / 17.4 onsets
   a second and centroids 3102 / 2607 / 1971 Hz; no energy under 165 Hz (mix in
   a rumble for a river).
@@ -1030,6 +1166,34 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
   one toe (70-150 ms apart), a finished sound; a default step peaks near
   -12 dBFS. Build a walk with several nodes or `sound` instances.
 
+**Mechanism clicks** (`docs/nodes/click.md`):
+
+- `click` {kind latch|switch|button|lock|clasp, [size 0.5], [hardness 0.7],
+  [at 0], [double true], [seed]}: one or two transients (a press, then a
+  release or second snick 24-72 ms later by kind: latch 45, switch 24, button
+  70, lock 72, clasp 35 ms) through three or four small body resonances at
+  1.5-8 kHz. `size` 0..1 scales the modes by 4^(0.5 - size) (bigger is lower and
+  longer; a `switch` centroid ran 4.7 kHz at 0.1 to 2.1 kHz at 0.9),
+  `hardness` 0..1 is the contact sharpness; the seed moves modes and gap by
+  +-3 %. The press peaks at 0.5 (-6 dBFS) whatever the settings: scale it with
+  a `gain`, or `peak_db` on the output. **A click at `at: 0` starts at sample
+  0 and the default fade-in cuts it** (peak 0.50 became 0.30): give the
+  `output` `fade_in: 0.0005`, or `at: 0.005`.
+- Recipe: a door latch is `click` `kind: "latch"` (size 0.6, hardness 0.8)
+  after the thud of a `modal` panel; a light switch is `kind: "switch"` size
+  0.35 hardness 0.85. Macros on `size` (claim `centroid`, -1) and `hardness`
+  (claim `centroid`, 1) work. The descriptors' onset table merges the 24 ms
+  `switch` double: count it with `expect onsets {spacing_ms: 5}`.
+
+<!-- recipe -->
+```json
+[
+  {"type": "click", "name": "latch", "kind": "latch", "size": 0.6, "hardness": 0.8, "at": 0.0},
+  {"type": "gain", "name": "hit", "input": "latch", "gain_db": -2},
+  {"type": "output", "name": "out", "input": "hit", "fade_in": 0.0005, "peak_db": -3}
+]
+```
+
 **Modal shapes and `shatter`** (`docs/nodes/M7.md`):
 
 - `modal` `shape` `plate` (default) | `bar` (free-free: 1 : 2.757 : 5.404) |
@@ -1040,7 +1204,9 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
   half are always the lowest modes of the object (so the fundamental falls with
   `size`: wood plate 424 / 166 / 88 / 54 / 42 Hz at 0.5 / 0.8 / 1.1 / 1.4 / 1.6
   m). Output is normalized (unit impulse peaks near 0 dBFS). A `size` outside the
-  usable range errors with the range for that material and shape.
+  usable range (lowest mode 24 Hz .. 90 % of the top of the band) errors with
+  the range for that material and shape. `loss` and `tilt` work on every shape
+  (see "Physical models: modal, contact, friction").
 - `shatter` {pieces (1..200000), [spread 0.4 s], [at 0], [exponent 2, 0.5..6],
   [seed]}: an event stream, a crack at `at` (value 1) then fragments whose
   sizes follow a power law (value 0.01..1) and whose times crowd after the
