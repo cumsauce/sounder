@@ -1,0 +1,190 @@
+{
+  "name": "slam_a",
+  "format_version": 1,
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 0.5,
+  "seed": 1,
+  "nodes": [
+    {
+      "type": "impulse",
+      "name": "click_i",
+      "at": 0.003
+    },
+    {
+      "type": "resonators",
+      "name": "click_r",
+      "input": "click_i",
+      "modes": [
+        [
+          2400,
+          0.012,
+          1
+        ],
+        [
+          3700,
+          0.008,
+          0.7
+        ],
+        [
+          1500,
+          0.02,
+          0.6
+        ]
+      ]
+    },
+    {
+      "type": "impulse",
+      "name": "body_i",
+      "at": 0.012
+    },
+    {
+      "type": "resonators",
+      "name": "body_r",
+      "input": "body_i",
+      "modes": [
+        [
+          48,
+          0.35,
+          1
+        ],
+        [
+          72,
+          0.28,
+          0.8
+        ],
+        [
+          105,
+          0.2,
+          0.6
+        ],
+        [
+          135,
+          0.12,
+          0.4
+        ]
+      ]
+    },
+    {
+      "type": "noise",
+      "name": "n",
+      "color": "brown"
+    },
+    {
+      "type": "decay",
+      "name": "nd",
+      "time": 0.06
+    },
+    {
+      "type": "math",
+      "name": "thump_n",
+      "op": "mul",
+      "a": "n",
+      "b": "nd"
+    },
+    {
+      "type": "filter",
+      "name": "thump",
+      "input": "thump_n",
+      "mode": "lp",
+      "freq": 140
+    },
+    {
+      "type": "gain",
+      "name": "click_g",
+      "input": "click_r",
+      "gain": 0.2
+    },
+    {
+      "type": "gain",
+      "name": "body_g",
+      "input": "body_r",
+      "gain": 0.1
+    },
+    {
+      "type": "gain",
+      "name": "thump_g",
+      "input": "thump",
+      "gain": 0.5
+    },
+    {
+      "type": "mix",
+      "name": "m",
+      "inputs": [
+        "click_g",
+        "body_g",
+        "thump_g"
+      ]
+    },
+    {
+      "type": "output",
+      "name": "out",
+      "input": "m",
+      "lufs": -28
+    }
+  ],
+  "params": {},
+  "macros": [
+    {
+      "name": "brightness",
+      "value": 0.6,
+      "default": 0.6,
+      "doc": "how much latch click sits over the body",
+      "claim": [
+        "centroid",
+        1
+      ],
+      "game": false,
+      "map": [
+        {
+          "node": "click_g",
+          "field": "gain",
+          "from": 0.08,
+          "to": 0.45,
+          "curve": "exp"
+        }
+      ]
+    },
+    {
+      "name": "length",
+      "value": 0.5,
+      "default": 0.5,
+      "doc": "how long the body rings",
+      "claim": [
+        "decay",
+        1
+      ],
+      "game": false,
+      "map": [
+        {
+          "node": "body_r",
+          "field": "modes",
+          "from": 0.5,
+          "to": 1.6,
+          "col": 1
+        }
+      ]
+    },
+    {
+      "name": "weight",
+      "value": 0.5,
+      "default": 0.5,
+      "doc": "lowers the pitch of the body modes",
+      "claim": [
+        "centroid",
+        -1
+      ],
+      "game": false,
+      "map": [
+        {
+          "node": "body_r",
+          "field": "modes",
+          "from": 1.15,
+          "to": 0.6,
+          "col": 0
+        }
+      ]
+    }
+  ],
+  "version": 3
+}

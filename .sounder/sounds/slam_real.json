@@ -1,0 +1,25 @@
+{
+  "name": "slam_real",
+  "format_version": 1,
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 1.6,
+  "seed": 1,
+  "nodes": [
+    {
+      "type": "sample",
+      "name": "rec",
+      "file": "refs/freesound/src_571797_slam.wav",
+      "at": 0.005
+    },
+    {
+      "type": "output",
+      "name": "out",
+      "input": "rec",
+      "lufs": -28
+    }
+  ],
+  "params": {},
+  "macros": [],
+  "version": 2
+}

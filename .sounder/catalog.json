@@ -18,5 +18,84 @@
       "fart_pitch",
       "fart_wet"
     ]
+  },
+  {
+    "name": "slam_a",
+    "description": "Phase 0 A: the round-0 agent door slam, rebuilt as it was; output set to -28 LUFS for the listening test.",
+    "tags": [
+      "phase0",
+      "door"
+    ],
+    "kind": "oneshot",
+    "length": 0.5,
+    "lufs": -28.004827,
+    "macros": [
+      "brightness",
+      "length",
+      "weight"
+    ]
+  },
+  {
+    "name": "slam_b",
+    "description": "Phase 0 B: layered synthetic door slam with a bus chain and room, tuned by search against two CC0 references (mean STFT distance 10.08 dB). -28 LUFS.",
+    "tags": [
+      "phase0",
+      "door"
+    ],
+    "kind": "oneshot",
+    "length": 1.6,
+    "lufs": -28.0,
+    "macros": [
+      "weight",
+      "room",
+      "crack"
+    ]
+  },
+  {
+    "name": "slam_b2",
+    "description": "Phase 0 B2, after the listening notes: dry and mono, atonal noise weight (no sine), wood modal excited by noise, friction brush before the hit, wood-on-wood knock instead of the metal latch/rattle. Search-tuned; brush held at -10 dB. -28 LUFS.",
+    "tags": [
+      "phase0",
+      "door"
+    ],
+    "prompt": "B still sounds a bit too melodic like a tuned drum; the real door is atonal, weightier and snappier; SFX should be dry; real recording has a subtle frictional sound before the hit; the second hit sounds like a chime or rusted metal, not wood on wood.",
+    "kind": "oneshot",
+    "length": 0.8,
+    "lufs": -28.0,
+    "macros": [
+      "stick",
+      "weight",
+      "snap",
+      "knock"
+    ]
+  },
+  {
+    "name": "slam_c",
+    "description": "Phase 0 C: recorded slam (Freesound 571797, CC0) pitched down plus synthetic sub, latch, bus chain and room, tuned by search (9.49 dB). -28 LUFS.",
+    "tags": [
+      "phase0",
+      "door"
+    ],
+    "kind": "oneshot",
+    "length": 1.6,
+    "lufs": -28.001783,
+    "macros": [
+      "weight",
+      "room",
+      "pitch"
+    ]
+  },
+  {
+    "name": "slam_real",
+    "description": "Phase 0 control: the unprocessed CC0 recording (Freesound 571797), -28 LUFS. Its distance to the two scoring refs is 10.40 dB.",
+    "tags": [
+      "phase0",
+      "door",
+      "control"
+    ],
+    "kind": "oneshot",
+    "length": 1.6,
+    "lufs": -28.0,
+    "macros": []
   }
 ]
