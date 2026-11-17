@@ -97,6 +97,8 @@ function pullState(docName) {
 }
 function defaultSel(s) { return (s.nodes.find(n => n.type === 'filter') || s.nodes[0] || {}).name || null; }
 function applyState(s) {
+  // No sound is open for the window yet (an agent made one, or none exists): open the first one.
+  if (!s.sound) { if (s.sounds && s.sounds.length && !ST) setTimeout(() => pullState(s.sounds[0].name), 0); return; }
   const prev = ST;
   if (KD && prev && s.sound && prev.sound) { const m = s.sound.macros.find(x => x.name === KD.name), o = prev.sound.macros.find(x => x.name === KD.name); if (m && o) m.value = o.value; }
   ST = s; PLOTREV = Math.max(PLOTREV, s.rev || 0);
@@ -268,7 +270,7 @@ function renderGraph() {
   const W = Math.max(...Object.values(pos).map(p => p[0])) + 170, H = Math.max(...Object.values(pos).map(p => p[1])) + 80;
   const wires = nodes.flatMap(n => n.reads.filter(r => has.has(r)).map(r => { const [x0, y0] = pos[r], [x1, y1] = pos[n.name]; const a = [x0 + 150, y0 + 28], b = [x1, y1 + 28]; return `<path d="M${a[0]},${a[1]} C${a[0] + 40},${a[1]} ${b[0] - 40},${b[1]} ${b[0]},${b[1]}" stroke="${S.sel === n.name || S.sel === r ? '#6fa8ff' : '#3a404c'}" stroke-width="1.5" fill="none"/>`; })).join('');
   const hotNodes = S.hot ? macroTargets(S.hot) : [];
-  host.innerHTML = `<div class="graph" style="width:${W}px;height:${H}px"><svg class="wires">${wires}</svg>${nodes.map(n => `<div class="gnode ${n.type === 'output' ? 'out' : ''} ${S.sel === n.name ? 'sel' : ''} ${ST.solo === n.name ? 'solo' : ''} ${hotNodes.includes(n.name) ? 'mac' : ''}" data-node="${esc(n.name)}" style="left:${pos[n.name][0]}px;top:${pos[n.name][1]}px"><div class="n">${ic(ICON[n.type] || 'wave')}${esc(n.name)}</div><button class="gsolo ${ST.solo === n.name ? 'on' : ''}" data-solo="${esc(n.name)}" aria-label="Solo ${esc(n.name)}" title="Hear this node">${ic('phones')}</button><div class="gbadges"><span class="t">${esc(n.type)}</span>${n.open_comments ? `<span class="pinc" title="open comments on this node">${n.open_comments}</span>` : ''}${n.unread ? `<span class="warnc" title="nothing reads this node">${ic('warn')}</span>` : ''}</div><canvas data-gspark="${esc(n.name)}"></canvas></div>`).join('')}</div>`;
+  host.innerHTML = `<div class="graph" style="width:${W}px;height:${H}px"><svg class="wires">${wires}</svg>${nodes.map(n => `<div class="gnode ${n.type === 'output' ? 'out' : ''} ${S.sel === n.name ? 'sel' : ''} ${ST.solo === n.name ? 'solo' : ''} ${hotNodes.includes(n.name) ? 'mac' : ''}" data-node="${esc(n.name)}" style="left:${pos[n.name][0]}px;top:${pos[n.name][1]}px"><div class="n">${ic(ICON[n.type] || 'wave')}${esc(n.name)}</div><button class="gsolo ${ST.solo === n.name ? 'on' : ''}" data-solo="${esc(n.name)}" aria-label="Solo ${esc(n.name)}" title="Hear this node">${ic('phones')}</button><div class="gbadges"><span class="t">${esc(n.type)}</span>${n.open_comments ? `<span class="pinc" title="open comments on this node">${n.open_comments}</span>` : ''}${n.unread ? `<span class="warnc" title="changed by an agent since you last looked (open the sound to mark it seen)">${ic('warn')}</span>` : ''}</div><canvas data-gspark="${esc(n.name)}"></canvas></div>`).join('')}</div>`;
   host.querySelectorAll('[data-gspark]').forEach(c => { const name = c.dataset.gspark, doc0 = ST.doc; getSpark(name).then(x => { if (c.isConnected && ST.doc === doc0) drawSpark(c, x); }).catch(() => {}); });
 }
 
