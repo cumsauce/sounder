@@ -1,0 +1,13 @@
+{"sound": "wind_loop", "round": 3, "finished": true,
+ "calls": 17, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["wind", "lfo", "gain", "math", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "macro claims / howl",
+   "wanted": "a knob that adds an Aeolian whistle over the rush, with a claim that proves it",
+   "tried": "claim flatness -1 on the wind whistle level",
+   "workaround": "it passes verify but full-band flatness only moves 0.022 -> 0.021; the claim is true but nearly meaningless",
+   "severity": 1}],
+ "wishlist": ["a 'tonality' / 'harmonicity' macro claim for a whistle over noise", "wind: a loop-periodic speed contour built in (e.g. swell period) so an lfo + gain + math is not needed", "listen: loudness curve without the 400 ms edge dip on loops"],
+ "what_worked": ["wind node with loop default passed loop_seam at once (0.6x, 0.6 dB)", "lfo -> gain -> math add as speed signal gave a periodic 2-swell contour; steadiness spread 8.5 LU", "macros brightness / gustiness claims passed first try with monotone sweeps"]}

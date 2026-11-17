@@ -1,0 +1,13 @@
+{"sound": "footstep_wood_floor", "round": 3, "finished": true,
+ "calls": 13, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 7,
+ "nodes_used": ["footstep", "filter", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "listen descriptors on a two-hit sound",
+   "wanted": "a clean read of attack and body modes of a heel+toe step",
+   "tried": "listen on the default render",
+   "workaround": "used the swell/attack headline (2.8 ms), onset table and the spectrogram instead of 'attack 0.111 s' and the 'sustained' mode rows",
+   "severity": 1}],
+ "wishlist": ["footstep fields for heel/toe level balance and tick brightness (shoe is a string, not macro-mappable)", "a per-layer view of footstep (body vs tick) without building it from primitives"],
+ "what_worked": ["footstep surface wood gave a body mode at 163-172 Hz (decay ~0.5 s) under a broadband tick on the first try, onsets 2 at 0 and 107 ms", "macros on step.weight, step.body and a filter freq passed claim sweeps first time (centroid 896->471, 500->1.3k, 185->795 Hz)", "verify expect variations / onsets / duration, listen seeds, catalog save and export variations:4 all worked: 4 different takes, peak -6 dBFS each"]}

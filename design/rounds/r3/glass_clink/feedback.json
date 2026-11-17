@@ -1,0 +1,18 @@
+{"sound": "glass_clink", "round": 3, "finished": true,
+ "calls": 15, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 7,
+ "nodes_used": ["contact", "modal", "filter", "output"],
+ "blockers": [
+  {"kind": "missing_field", "where": "modal",
+   "wanted": "keep only modes in 1.5-6 kHz (a min/max mode frequency)",
+   "tried": "modes: 8 and tilt 7: still returns partials at 10.5k and 14k (-44/-53 dB)",
+   "workaround": "lp filter at 6.5 kHz after the modal",
+   "severity": 1},
+  {"kind": "sense_gap", "where": "listen pitch by tenth",
+   "wanted": "a pitch track that matches the whole-sound pitch",
+   "tried": "read it: 814 Hz in the first two tenths vs 1618 Hz overall (YIN octave error on the attack)",
+   "workaround": "trusted the modes line and the spectrogram instead",
+   "severity": 1}],
+ "wishlist": ["modal min/max frequency for kept modes", "a 'glass' preset of size/thickness for small objects (found 0.095 m x 3 mm for a 1.6 kHz fundamental by arithmetic from a measured 4.06 kHz at 0.06 m)"],
+ "what_worked": ["contact -> modal glass with thickness/loss/tilt gave inharmonic modes (1.62k, 4.05k, 4.15k, 6.58k) at once", "macros on tilt, loss and contact hardness all passed their claims first time", "listen modes line and 'inharmonic' partial list made the mode check direct"]}

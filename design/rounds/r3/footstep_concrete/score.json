@@ -1,0 +1,11 @@
+{"sound": "footstep_concrete", "round": 3,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults: PASS finite, peak_db -6.00, silent_edges, dc -61 dB, macros (brightness, weight, length claims), rebuild bit-identical; no FAIL."},
+  "time_shape": {"score": 2, "evidence": "Length 0.40 s (inside 0.15-0.4, at the top edge; audible content ends ~0.196 s, -60 dB at 0.21 s). Attack 10-90% 0.0 ms (swell headline 0.5 ms; seeds 0.2-0.8 ms, worst seed 2 sample-peak 2.96 ms), all under 10 ms. Onsets: 2, at 0.000 and 0.107 s, a 107 ms gap (seeds 96/107/107/108 ms), inside 60-150 ms."},
+  "spectrum": {"score": 2, "evidence": "Centroid 1.84k start / 1.70k mid (whole 1.84k; seeds 1.84-2.01k), inside 0.8-3 kHz. Bands: 0-20% segment strongest at 2k (-29.6 dB), 500 Hz/1k/4k within 3 dB, 63-125 Hz thump -36/-41 dB; 8k+ only -41 dB. Rolloff 3.3 kHz, energy 200-2k 54%, 2-8k 34%. Same pattern in the toe segment; end segments silent."},
+  "parts": {"score": 2, "evidence": "Heel and toe are two separate vertical blocks in the spectrogram at 0 and ~0.107 s, each with a 31-125 Hz thump column and a broadband click up to 8k, with a quiet gap between. Onset table: heel strength 1.0 (1.91k centroid), toe 0.5 (1.66k). Waveform shows two bursts, toe smaller."},
+  "control_variation": {"score": 2, "evidence": "3 macros (brightness, weight, length), all claims PASS: brightness centroid 720->2.3k Hz, weight 2.1k->1.7k, length decay 0.14->0.19 s. 4 seeds differ measurably: onset gap 96-108 ms, centroid 1.84-2.01k, LUFS -27.9 to -29.1, toe strength 0.3-0.5, 2k-8k share 34-49%; all stay inside the brief."}},
+ "total": 10,
+ "notes": ["Document length is 0.40 s but only the first ~0.2 s has sound: half of the exported file is silence (and it sits on the upper edge of the 0.15-0.4 s range).",
+           "brightness at 0 gives centroid 719 Hz, below the brief's 0.8 kHz floor (default 0.7 is fine), and its fine-onset count rises to 5 there.",
+           "weight and length macros have small ranges (weight centroid only 2.1k->1.7k; length decay 0.14->0.19 s), so audible effect may be weak."]}

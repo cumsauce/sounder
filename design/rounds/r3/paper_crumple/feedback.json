@@ -1,0 +1,18 @@
+{"sound": "paper_crumple", "round": 3, "finished": true,
+ "calls": 17, "failed_calls": 2,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["wander", "crumple", "adsr", "math", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "verify macros / claim",
+   "wanted": "a busyness knob (crumple density) held to its name by verify",
+   "tried": "claim crest -1 and flatness +1 on a macro mapping the density wander range 15..90 / 50..220",
+   "workaround": "left that macro unclaimed (verify passes with a note); replaced the claimed third knob with a 'length' macro on the adsr (decay +1)",
+   "severity": 1},
+  {"kind": "doc_gap", "where": "descriptors onsets",
+   "wanted": "headline onset count to reflect a dense crackle (brief: 20+ onsets)",
+   "tried": "default descriptors read 'onsets 13 (40 ms merge); fine 77 (5 ms)'",
+   "workaround": "verify expect onsets {min 20, spacing_ms 5} reads 84 and passes",
+   "severity": 1}],
+ "wishlist": ["a density / onset-rate claim measure for macros", "an onset count that does not merge dense textures by default"],
+ "what_worked": ["crumple with a wander density met the brief on the first render (centroid 5.4 kHz, ~97 fine onsets/s)", "hardness and size macros passed their centroid claims first time", "describe_op / docs for crumple were accurate"]}

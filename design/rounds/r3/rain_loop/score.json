@@ -1,0 +1,11 @@
+{"sound": "rain_loop", "round": 3,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults: PASS finite, peak_db -1.00 dBFS, dc -126 dB, loop_seam (wrap discontinuity 0.11x, spectral change 0.4 dB vs max 6), all 3 macro claims, rebuild bit-identical. No FAIL."},
+  "time_shape": {"score": 2, "evidence": "4.000 s loop, no leading/trailing silence. Steadiness: 400 ms loudness -21.4 to -19.4 LUFS, spread 2.0 LU (seeds 1.7-2.4 LU); the LUFS curve in the picture is flat. Density 54 events/s, by tenth 43-60, no gaps or surges; AM peaks only about 1.4 dB."},
+  "spectrum": {"score": 2, "evidence": "Centroid 6.25k/6.01k/6.14k Hz start/middle/end (whole 6.13k), inside 3-8 kHz, no drift. Flatness 0.62 full band, 0.82 in 609 Hz-14 kHz. Octave bands rise smoothly to 8k+ (-26 dB) with identical start/middle/end rows. Energy 2k-8k 46%, >8k 27%. Spectrogram is a broadband wash with vertical tick streaks."},
+  "parts": {"score": 2, "evidence": "Brief names no separate components. Hiss bed, tick patter and low body are all visible: a broadband wash, vertical drop streaks above 2 kHz, and a 63-500 Hz body at -48 to -34 dB. The weight sweep isolates the body: centroid 8.3k -> 3.5k, flatness 0.35 at 1."},
+  "control_variation": {"score": 2, "evidence": "3 macros (busyness, brightness, weight), all PASS. Busyness: 20 -> 84 events/s. Brightness: centroid 5.8k -> 7.05k. Weight: 8.27k/8.01k/3.49k. Seeds differ measurably (onset lists differ; whole centroid 6.13k/5.90k/6.16k/6.05k; density 54/49/52/51) and all stay in 3-8k, steady 1.7-2.4 LU, loop_seam is not re-checked per seed."}},
+ "total": 10,
+ "notes": ["weight macro is very non-linear: 0 to 0.5 moves the centroid only 8.27k -> 8.01k, then 3.49k at 1, and the 0 and 0.5 positions sit at or above the 8 kHz brief ceiling.",
+           "Seed variation is small (centroid spread about 0.25 kHz): different drop timings, but the same texture.",
+           "The loop seam was only verified on the default seed; seed 2 and 3 DC was -94 to -96 dB (fine)."]}

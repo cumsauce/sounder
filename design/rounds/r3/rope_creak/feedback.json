@@ -1,0 +1,18 @@
+{"sound": "rope_creak", "round": 3, "finished": true,
+ "calls": 21, "failed_calls": 2,
+ "difficulty": 1,
+ "self_score": 7,
+ "nodes_used": ["ramp", "wander", "math", "adsr", "friction", "filter", "gain", "noise", "mix", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "listen pitch descriptor",
+   "wanted": "a numeric pitch track confirming the 150-900 Hz glide",
+   "tried": "listen / summary pitch lines; first builds read 'voiced 14%' and a jumping 'pitch by tenth' (74 220 131 46 - 605) while the spectrogram showed one clean line",
+   "workaround": "read the spectrogram PNG and the modes list; a later version read 156 -> 894 Hz by tenth",
+   "severity": 1},
+  {"kind": "missing_field", "where": "macros claim",
+   "wanted": "a claim measure for raggedness / roughness (friction roughness knob)",
+   "tried": "claim flatness (moved 0.004 -> 0.005) and swing (flat 11 LU): both FAIL",
+   "workaround": "left the grit macro unclaimed (verify notes it is not swept)",
+   "severity": 1}],
+ "wishlist": ["a claim measure for roughness / irregularity of the slip (e.g. onset-interval jitter)", "a pitch descriptor that tracks a friction saw reliably"],
+ "what_worked": ["ramp + wander -> friction speed gives a pitched glide at once (speed x grain Hz)", "listen image and the 'pitch by tenth' line, once it locked, matched the target range", "macro verify sweeps caught nothing wrong with centroid/flatness claims"]}

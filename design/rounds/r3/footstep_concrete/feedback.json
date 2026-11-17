@@ -1,0 +1,18 @@
+{"sound": "footstep_concrete", "round": 3, "finished": true,
+ "calls": 21, "failed_calls": 2,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["footstep", "filter", "expr", "math", "gain", "output"],
+ "blockers": [
+  {"kind": "missing_field", "where": "macro map on expr",
+   "wanted": "a macro for the ring-out of the step (a per-hit-safe tail envelope)",
+   "tried": "map {node: hold, field: inputs, key: k} on an expr constant; error 'has key but no index'. A plain decay envelope also kills the toe at 107 ms because it multiplies the whole sound from t=0",
+   "workaround": "an expr envelope (flat until 0.14 s, then exp fall at rate k) whose k reads a helper gain node; the macro maps the gain's field",
+   "severity": 1},
+  {"kind": "sense_gap", "where": "macro claims / footstep",
+   "wanted": "knobs with a real range on a finished recipe: the length knob only moves the decay measure 0.14 s -> 0.19 s because the step's own tail is short, and weight moves the centroid only 2.1k -> 1.7k",
+   "tried": "widened the exp range 60..8 to 250..10",
+   "workaround": "accepted; claims pass but the knobs are subtle",
+   "severity": 1}],
+ "wishlist": ["footstep: a tail/length field and a heel-toe gap field (not only pace)", "macro map able to write expr inputs / state constants", "output field to set a fixed duration trim without leaving 0.17 s of trailing silence (duration 0.4 kept it)"],
+ "what_worked": ["footstep surface concrete shoe hard met the brief in one node: onsets at 0 and 107 ms, attack 0.5 ms, centroid 2.5 kHz (1.8 kHz after my lowpass)", "listen's onset table and fine onsets line answered the heel-toe question directly", "macro sweep claims in verify caught my first length knob (it silenced the toe)"]}

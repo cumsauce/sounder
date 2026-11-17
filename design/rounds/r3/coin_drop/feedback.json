@@ -1,0 +1,18 @@
+{"sound": "coin_drop", "round": 3, "finished": true,
+ "calls": 20, "failed_calls": 2,
+ "difficulty": 2,
+ "self_score": 7,
+ "nodes_used": ["bounce", "voices", "impulse", "gain", "modal", "output"],
+ "blockers": [
+  {"kind": "wrong_result", "where": "verify macro claim spacing",
+   "wanted": "a bounciness / drop_height knob with a passing spacing claim (the doc suggests spacing for bounce knobs)",
+   "tried": "bounce restitution 0.5..0.75 + first 0.15..0.26; then bounce first 0.12..0.3 alone",
+   "workaround": "left the drop_height macro unclaimed (plain knob)",
+   "severity": 1},
+  {"kind": "sense_gap", "where": "listen modes line",
+   "wanted": "per-hit mode check that modes sit in 3-9 kHz",
+   "tried": "modes table of the whole sound: lists 3.5k and 8.5-9.3k (in range) but also 13-17k plate modes",
+   "workaround": "thickness 0.0012 and tilt -4 pull the main modes into range; the high modes stay at low level; accepted",
+   "severity": 1}],
+ "wishlist": ["a spacing measure that holds for decaying bounces (first gap or geometric mean)", "modal option to drop modes above a given Hz", "a coin or small-disc modal shape preset"],
+ "what_worked": ["bounce -> voices -> modal metal with thickness 0.0012 gave a coin-like ping at once", "macro map {param} reaching inside a voices patch", "bounce jitter made the 4 export variations differ"]}

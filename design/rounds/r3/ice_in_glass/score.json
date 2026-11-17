@@ -1,0 +1,13 @@
+{"sound": "ice_in_glass", "round": 3,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults: finite, peak_db -3.00, silent_edges -200/-200, dc -75 dB, rebuild bit-identical, all 4 macro claims PASS. No FAIL."},
+  "time_shape": {"score": 2, "evidence": "0.673 s (brief 0.4-1.2). Spectrogram and waveform show 3 clinks at about 0.00, 0.16 and 0.395 s (brief 2-4), each with a sharp attack (0.25-0.75 ms), -20 dB in 40-58 ms and -60 dB at 0.23 s from the main 1.97 kHz mode. Seeds 1-4: 3-4 clink columns, lengths 0.65-0.72 s."},
+  "spectrum": {"score": 2, "evidence": "Strongest modes 1.97 kHz (0.23 s, -18 dB) and 4.96 kHz (-20 dB), then 7.95 kHz (-35 dB). Band table: 2k band -23 dB and 4k band -26 dB against 8k+ -36 dB. Energy shares 200-2k 63 %, 2k-8k 36 %, >8k 1 %. Centroid 2.86k / 3.15k / 1.99k Hz (start / middle / end), rolloff 4.7-5.0 kHz. This sits inside 1.5-5 kHz."},
+  "parts": {"score": 2, "evidence": "Clinks are separate columns with horizontal ringing lines at 2 and 5 kHz. The crackle is separate, as short low-level broadband ticks at 0.053, 0.096 and 0.32 s (onset strengths 0.5, 0.2, 0.2; the 0.32 s tick has a 4.5 ms -20 dB time). With the crackle knob at 0, onsets drop from 6 to 3 and the ticks vanish from the density table, so the crackle is a separable layer. The ticks are quiet next to the clinks."},
+  "control_variation": {"score": 2, "evidence": "4 macros (brightness, crackle, ring, pitch), all claims PASS: centroid 2.1k to 4.5k, density 6.9 to 14.1 /s, decay 0.44 to 0.70 s, centroid 2.3k to 3.9k. Seeds differ in length (0.65-0.72 s), pitch (1642-1964 Hz), onset times (7 fine onsets in seed 2 against 5 in seed 1) and the 2-8k share (32-61 %), and all stay inside the brief (3-4 clinks, 2/5 kHz modes, short crackle)."}},
+ "total": 10,
+ "notes": [
+  "Sweep extremes leave the brief: pitch=0 moves the main mode to 1.29 kHz (below 1.5 kHz) with its energy mostly under 2 kHz. ring=0 gives aliasing -30 dB and a smeared 8-12 kHz tick pattern that looks like a different sound.",
+  "The crackle macro is flat over 0 to 0.25 (6.9 events/s at both) and 0.5 to 0.75 (8.6 against 8.7). The claim passes but the knob has dead zones.",
+  "Seed 4 peaks at 0.17 s with a -20 dB decay of 0.30 s, so the second clink there is the loudest. Seed 2 starts with no leading silence and a 399 ms attack figure. The descriptors work like this because the first clink's level is random."
+ ]}
