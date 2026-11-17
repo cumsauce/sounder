@@ -851,6 +851,17 @@ pub struct Thunder {
     /// lasts `length` times as long (set the document `duration` to fit).
     #[serde(default)]
     pub length: Option<f32>,
+    /// 0..1, a continuous low bed under the rumble (default 0, off, bit-
+    /// identical to before). Foley's tail is a string of separate spikes;
+    /// this adds seeded noise band-limited to 25-90 Hz from the first sound
+    /// to the end of the audible tail (the last sample over -60 dB of the
+    /// peak). Its rms is `sqrt(rumble)` times the rms of the flash's loudest
+    /// 0.4 s window (1 = equal to it, 0.6 = 2.2 dB under, 0.25 = 6 dB under),
+    /// falling 3 dB over the tail. Added
+    /// before `exposure`, `brightness` and `amp`; the level is not
+    /// re-normalised.
+    #[serde(default)]
+    pub rumble: Option<f32>,
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
@@ -912,6 +923,71 @@ fn stretch_rumble(x: &[f32], length: f32, sr: f32, limit: usize) -> Vec<f32> {
     out
 }
 
+/// Window for the level reference of the rumble bed, seconds.
+const BED_WINDOW_S: f32 = 0.4;
+/// How far the bed falls from the first sound to the end of the audible
+/// tail, dB.
+const BED_FALL_DB: f32 = 3.0;
+/// Where the audible tail ends, as a fraction of the peak (-60 dB).
+const BED_TAIL: f32 = 1e-3;
+
+/// Adds a continuous 25-90 Hz noise bed to the thunder `x` (see
+/// `Thunder::rumble`). `x` is foley's output (or its stretch): nothing is
+/// added before the first sound, or after the last sample over -60 dB of
+/// the peak (the bed ends with a 0.25 s fade). The bed's rms is
+/// `sqrt(amount)` times the rms of the loudest 0.4 s window of `x` at the first
+/// sound, then falls in dB, linearly, by `BED_FALL_DB` to the end of the tail.
+fn add_rumble(x: &mut [f32], amount: f32, sr: f32, rng: &mut Rng) {
+    let Some(a) = x.iter().position(|v| *v != 0.0) else {
+        return;
+    };
+    let peak = x.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+    let Some(end) = x.iter().rposition(|v| v.abs() > BED_TAIL * peak) else {
+        return;
+    };
+    if end <= a {
+        return;
+    }
+    // The loudest window, by cumulative sums (hop 0.1 s).
+    let mut cum = vec![0.0f64; x.len() + 1];
+    for (i, v) in x.iter().enumerate() {
+        cum[i + 1] = cum[i] + f64::from(*v) * f64::from(*v);
+    }
+    let w = ((BED_WINDOW_S * sr) as usize).max(1).min(x.len());
+    let hop = ((0.1 * sr) as usize).max(1);
+    let mut loud = 0.0f64;
+    let mut s = 0;
+    while s + w <= x.len() {
+        loud = loud.max((cum[s + w] - cum[s]) / w as f64);
+        s += hop;
+    }
+    let amp = amount.sqrt() * loud.sqrt() as f32;
+    // Band-limit white noise to 25-90 Hz, then give it unit rms.
+    let mut hp = Biquad::new();
+    let mut lp = Biquad::new();
+    hp.set(FilterMode::Hp, 25.0, 0.707, 0.0, sr);
+    lp.set(FilterMode::Lp, 90.0, 0.707, 0.0, sr);
+    let bed: Vec<f32> = (a..=end)
+        .map(|_| {
+            let u = (rng.next_u64() >> 11) as f64 / (1u64 << 53) as f64;
+            lp.tick(hp.tick((u * 2.0 - 1.0) as f32))
+        })
+        .collect();
+    let r = (bed.iter().map(|v| v * v).sum::<f32>() / bed.len() as f32).sqrt();
+    if r < 1e-12 {
+        return;
+    }
+    let attack = ((0.05 * sr) as usize).max(1);
+    let fade = ((0.25 * sr) as usize).max(1);
+    let len = bed.len();
+    for (k, v) in bed.iter().enumerate() {
+        let fall = 10f32.powf(-BED_FALL_DB * (k as f32 / len as f32) / 20.0);
+        let ramp = ((k + 1) as f32 / attack as f32).min(1.0);
+        let out = ((len - k) as f32 / fade as f32).min(1.0);
+        x[a + k] += v / r * amp * fall * ramp * out;
+    }
+}
+
 impl Describe for Thunder {
     const BLURB: &'static str = "one flash of thunder from its distance (foley's N-wave model): clap, then rumble; silent until the sound arrives";
     fn example() -> serde_json::Value {
@@ -963,6 +1039,17 @@ impl Eval for Thunder {
         }
         if length != 1.0 {
             x = stretch_rumble(&x, length, cx.sr, cx.n);
+        }
+        let rumble = self.rumble.unwrap_or(0.0);
+        if !(0.0..=1.0).contains(&rumble) {
+            return Err(format!(
+                "rumble: {rumble}: give 0..1 (0 = foley's tail as it is, 1 = a bed as loud as the flash's loudest 0.4 s)"
+            ));
+        }
+        if rumble > 0.0 {
+            // A stream of its own: the draws above are untouched.
+            let mut bed_rng = cx.rng(self.seed ^ 0x5255_4d42_4c45);
+            add_rumble(&mut x, rumble, cx.sr, &mut bed_rng);
         }
         if exposure < 1.0 {
             let cutoff = 20_000.0 * (200.0f32 / 20_000.0).powf(1.0 - exposure);
