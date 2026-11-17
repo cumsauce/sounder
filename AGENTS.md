@@ -146,6 +146,32 @@ can modulate anything in the loop.
 - Loops are cached and deterministic like everything else; changing a node in
   a loop re-runs the whole loop, not the nodes that only feed it.
 
+## Offline pitch / time / spectral
+
+Three acausal nodes (a phase vocoder: Hann window 2048 by default, 75 %
+overlap, identity phase locking). They take mono or stereo (each channel on
+its own), are deterministic, and **every output is exactly the document's
+length**: a longer result is cut, a shorter one zero-padded.
+
+- `pitch_shift` {input, `semitones` or `ratio`, [window]}: stretches by the
+  ratio, then reads back at that rate, so the length is unchanged. Shifting up
+  drops content above Nyquist / ratio. The ratio is rounded to a whole number
+  of hop samples (a few cents of error at most).
+- `time_stretch` {input, `factor`, [window]}: 2 = twice as long. The result is
+  cut at the document length, so a stretched sound needs a longer `duration`
+  (or auto length can't see it: set `duration`). Sharp transients smear over
+  about one window; use a smaller `window` for clicks.
+- `spectral` {input, `mode`, [window], [seed]}: `freeze` {at, [length]} holds
+  the spectrum at `at` as a texture with seeded random phases from there (the
+  input plays before `at`); `blur` {amount 0..1, a signal} smooths magnitudes
+  over frequency and time; `gate` {threshold_db} zeroes bins quieter than a
+  sine of that level; `morph` {other, amount 0..1, a signal} interpolates
+  magnitudes from `input` (0) to `other` (1).
+
+Recipe, a tail for a hit: `pitch_shift` the hit down 7 semitones, run it
+through `time_stretch` factor 3 (set `duration` to fit), `gain` it -12 dB and
+`mix` it under the dry hit with a small `at` offset.
+
 ## Macros: knobs for the human
 
 You cannot hear, so give the human a front panel: a few knobs that move
