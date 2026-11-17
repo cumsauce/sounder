@@ -312,7 +312,8 @@ node_types! {
 
     // slot S3
 
-    // slot S4
+    "ladder" => Ladder,
+    "eq" => Equalizer,
 
     // slot S5
 

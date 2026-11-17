@@ -595,11 +595,20 @@ fn ticker(node: &Node, b: &Build, node_seed: u64) -> Result<Box<dyn Ticker>, Str
                 back: 0.0,
             })
         }
-        Node::Filter(n) => Box::new(FilterT {
-            svf: Svf::default(),
-            n: n.clone(),
-            sr,
-        }),
+        Node::Filter(n) => {
+            if let Some(s) = n.slope
+                && s != 12.0
+            {
+                return Err(format!(
+                    "slope: {s}: a loop runs one 12 dB section; use slope 12 inside it and put the steeper filter after the loop"
+                ));
+            }
+            Box::new(FilterT {
+                svf: Svf::default(),
+                n: n.clone(),
+                sr,
+            })
+        }
         Node::Onepole(n) => Box::new(OnepoleT {
             f: OnePole::default(),
             n: n.clone(),
