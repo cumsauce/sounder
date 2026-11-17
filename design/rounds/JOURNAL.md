@@ -76,3 +76,4 @@ ROUND 4 STATUS (usage limit hit): 28 testers launched; all feedback.json written
 R4 triage done: stop test NOT met -> fixes R4-A..D (worktrees .swarm/wt/R4-*), then docs R4-E, then round 5
 R4-A..D merged (ring claim, listen per-onset detail, macro reach+gain_db, splash/thunder/water fields); workspace tests green; docs pass R4-E next, then round 5
 ROUND 5 setup (binary c3c6e98); 28 sounds (24 core + arrow_twang heartbeat_loop bike_bell squeaky_hinge)
+ROUND 5 done (core judge 9.38, diff 1.33). No fixes after r5 (last round). REPORT.md written.

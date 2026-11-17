@@ -1,0 +1,18 @@
+{"sound": "coin_drop", "round": 5, "finished": true,
+ "calls": 18, "failed_calls": 2,
+ "difficulty": 2,
+ "self_score": 7,
+ "nodes_used": ["bounce", "voices", "impulse", "gain", "modal", "output"],
+ "blockers": [
+  {"kind": "doc_gap", "where": "macro claim spacing",
+   "wanted": "a bounciness knob (bounce.first) whose spacing claim verifies",
+   "tried": "bounce with jitter 0.02-0.05, first mapped 0.12..0.36",
+   "workaround": "set jitter 0 (variation then comes only from $rand pitch in voices)",
+   "severity": 1},
+  {"kind": "doc_gap", "where": "modal f0 + f_min/f_max + macro",
+   "wanted": "a pitch knob keeping several modes in 3-9 kHz",
+   "tried": "f0 4200 gave only ONE mode in band (plate modes 1:2.5:4:5); a pitch macro on f0 gave non-monotonic centroid as modes cross f_min/f_max",
+   "workaround": "f0 ~1400-1800 with f_min 2800, f_max 9500 (modes at 2.5x, 4x, 5x f0); narrowed macro range",
+   "severity": 1}],
+ "wishlist": ["a coin / small-metal-disc preset on modal or a coin node (non-plate mode ratios)", "macro sweep error that reports the per-position onset times for spacing"],
+ "what_worked": ["bounce -> voices of a modal gave shrinking gaps in one node", "modal f0 + f_min/f_max picks the ring band directly", "listen onset table and modes list made the check easy"]}

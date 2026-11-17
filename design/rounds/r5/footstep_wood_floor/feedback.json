@@ -1,0 +1,13 @@
+{"sound": "footstep_wood_floor", "round": 5, "finished": true,
+ "calls": 10, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["footstep", "output"],
+ "blockers": [
+  {"kind": "missing_field", "where": "footstep",
+   "wanted": "separate level or pitch for the heel tick vs the body ring, and a way to make a single step (one hit) instead of heel + toe 107 ms apart",
+   "tried": "nothing; kept heel + toe as the node makes them",
+   "workaround": "none needed for the brief; macros only move body and weight",
+   "severity": 1}],
+ "wishlist": ["footstep: tick_level / body_level knobs", "footstep: heel-toe gap or a toe on/off field"],
+ "what_worked": ["footstep surface=wood gave a 163 Hz body mode (decay 0.5 s) under a broadband tick at 0 s in one node", "macros on body (claim centroid up) and weight (centroid down) passed verify first time", "listen sweep of a macro showed the body line moving ~120 to ~260 Hz"]}

@@ -1,0 +1,13 @@
+{"sound": "footstep_grass", "round": 5, "finished": true,
+ "calls": 21, "failed_calls": 1,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["footstep", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "macro claims / footstep body",
+   "wanted": "a pitch-of-the-thud knob (footstep `body`) held to a claim in verify",
+   "tried": "claim centroid -1 on a macro mapping `body`: FAIL, whole-sound centroid stays 3.7k Hz across 0..1 (body moves only the low band)",
+   "workaround": "left the `depth` macro unclaimed",
+   "severity": 1}],
+ "wishlist": ["a low-band centroid / low-mode pitch claim for verify"],
+ "what_worked": ["footstep surface=grass met the brief with defaults: swell/attack 32.8 ms, centroid 3.8 kHz, no pitch, 0.51 s", "swish and weight macros pass their centroid claims on seeds 1-4", "listen descriptors gave all the brief's numbers directly"]}

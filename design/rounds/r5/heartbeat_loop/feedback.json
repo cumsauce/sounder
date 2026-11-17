@@ -1,0 +1,18 @@
+{"sound": "heartbeat_loop", "round": 5, "finished": true,
+ "calls": 13, "failed_calls": 1,
+ "difficulty": 2,
+ "self_score": 8,
+ "nodes_used": ["pattern", "trigger_env", "math", "osc", "mix", "filter", "output"],
+ "blockers": [
+   {"kind": "sense_gap", "where": "verify loop_seam",
+    "wanted": "know why the spectral half failed for a sparse hit train",
+    "tried": "first build had hits mid-loop and silence in the last 0.34 s; spectral change read 26.2 dB",
+    "workaround": "moved the dub to wrap across the seam (event at 0.02 s standing for 2.02 s) so both end windows hold a thump (3.1 dB)",
+    "severity": 1},
+   {"kind": "doc_gap", "where": "loop / event nodes",
+    "wanted": "a way to wrap an event past the loop end, or doc that sparse hit trains need energy in both end windows; 2 s loop only allows 60 bpm (1 or 2 beats, an integer number)",
+    "tried": "read loop_seam text in the manual",
+    "workaround": "hand-placed wrapped event times",
+    "severity": 1}],
+ "wishlist": ["a pattern `wrap`/`period` option that wraps events past the loop end", "loop_seam FAIL text naming which end window is quieter"],
+ "what_worked": ["trigger_env + osc with a bend envelope gave a pitched thump in one pass", "verify seeds:3 and onsets expect with spacing_ms 5 and the macro claim passed on first try", "delete ops in sound_ops"]}

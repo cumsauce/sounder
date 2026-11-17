@@ -1,0 +1,18 @@
+{"sound": "sword_whoosh", "round": 5, "finished": true,
+ "calls": 18, "failed_calls": 3,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["ramp", "curve", "noise", "filter", "math", "output"],
+ "blockers": [
+   {"kind": "sense_gap", "where": "verify macros / attack claim",
+    "wanted": "a speed knob (ramp time 0.5..0.2 s) claiming attack falls, passing at every seed",
+    "tried": "claim attack -1; passes seed 1 (88.9 > 69.2 > 65.7 > 54.2 > 35.5 ms) but verify seeds:4 fails seeds 3 and 4 (e.g. 57.4 then 78.6 ms): the attack measure on a noise source is seed-noisy and plateaus in steps. With the narrower range 0.45..0.3 it failed even seed 1 (68.9, 69.2, 69.6, 54.0, 54.1 ms).",
+    "workaround": "dropped the claim; the knob is plain (unclaimed)",
+    "severity": 1},
+   {"kind": "doc_gap", "where": "curve / ramp for up-then-down control",
+    "wanted": "a one-node rise-then-fall control signal (centroid sweep up then down)",
+    "tried": "ramp 0..1 (linear) into two curve nodes with points: one for filter freq, one for level",
+    "workaround": "that worked; no blocker, but the manual has no recipe for a non-monotonic sweep",
+    "severity": 1}],
+ "wishlist": ["a claim-stable swell/attack measure for noise (smoothed envelope, seed-robust)", "a 'sweep' recipe for up-then-down control in the manual"],
+ "what_worked": ["ramp -> curve gave both the centroid arc (1.1k to 3.3k to 0.96k by tenth) and the level swell in two nodes", "swell/attack headline line (87.5 ms at first build) read directly against the brief", "verify clicks and seeds:4 passing, export variations differ since noise reads the seed"]}

@@ -1,0 +1,12 @@
+{"sound": "keys_jingle", "round": 5,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults: PASS finite, peak_db (-3.00), silent_edges (-200/-200), dc (-200 dB), macro brightness (centroid 5.4k->6.4k), macro busyness (density 10.5->15.6/s), rebuild bit-identical; no FAIL; render warnings: none."},
+  "time_shape": {"score": 2, "evidence": "length 1.150 s (brief 0.6-1.5). 13 onsets at 0, 96, 171, 267, 309, 416, 480, 576, 651, 715, 811, 896, 971 ms (brief >= 8), 9 strong / 4 weak, gaps 38-105 ms, density 12/s. Each key decays fast (-20 dB 31-52 ms per onset table), trailing silence from 1.083 s."},
+  "spectrum": {"score": 2, "evidence": "97% of energy in 2k-8k, <200 Hz 0%, 200-2k 0%; 4k and 8k+ bands sit at -20 to -37 dB while all bands below 2k are under -49 dB. Centroid 4.85k/5.69k/6.19k Hz (start/mid/end), whole 5.55k. Detected modes 4.30k, 5.35k, 5.79k, 5.89k, 6.47k, 6.80k Hz, all inside 3-10 kHz; inharmonic line reports partials 467 cents off whole ratios, inharmonicity 351 cents; spectrogram shows bright horizontal lines at ~4.2k, 6-7k, 9k+ per key."},
+  "parts": {"score": 2, "evidence": "Spectrogram and waveform show 13 separate key strikes with distinct per-key ringing lines (pitch varies per key: 4.3k, 6k, 4.5k, 8k+4k pair at 0.42/0.48 s, 6.5-6.8k later); waveform has 13 distinct decaying bursts with silence between; onset table lists each with centroid 4.3k-8.1k."},
+  "control_variation": {"score": 2, "evidence": "3 macros (brightness, busyness claimed, ring unclaimed); both claims pass the verify sweep. Sweeps: brightness 0 gives centroid 5.45k, mid-section drops 5.06k at end, still in 4-7k modes; busyness 0 gives 12 onsets, 11/s; ring 0 shortens modes to ~0.05 s and -20 LUFS vs -16.1. Seeds 1-4: onsets 13 each but timings differ (e.g. 2nd onset 96/96/75/64 ms), strengths differ (first onset 0.5/0.4/1.0/0.8), centroids 4.85-6.07k start, modes differ (seed 3 only 5.09k and 5.82k found, seed 4 six modes 4.5-6.3k); all in 3-10 kHz, 13 onsets, length 1.15 s."}},
+ "total": 10,
+ "notes": [
+  "Seeds look quite alike in timing (the pattern grid is shared; onsets within 5-30 ms of each other across seeds), so variation is mostly in level, pitch and mode set, not in rhythm.",
+  "brightness macro moves the centroid only 5.4k->6.4k and its claim passes with little margin (5.4k, 5.5k, 5.5k, 5.8k, 6.4k: flat across the bottom half).",
+  "busyness 0 (and by implication low values) makes the last key ring to the file end: decay -20 dB 'never', no trailing silence; the tail is cut at 1.15 s."]}

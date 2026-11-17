@@ -1,0 +1,14 @@
+{"sound": "glass_clink", "round": 5,
+ "lines": {
+  "checks": {"score": 2, "evidence": "Default verify: finite, peak_db -3.00 dBFS, silent_edges -200/-200, dc -79 dB, rebuild bit-identical, macros PASS; no FAIL. Also passed for seeds 1-4 (verify seeds:4)."},
+  "time_shape": {"score": 2, "evidence": "Length 0.473 s (brief 0.3-1.5 s). One onset (onsets 1, fine 1, at 0.000 s; 1 strong, 0 weak). Attack 0.0 ms, to sample peak 1.25 ms. Decay -20 dB at 0.120 s, -60 dB at 0.380 s; loudness curve falls in a straight line in dB and the waveform envelope is a clean exponential, with no bumps or second hits. density by tenth: 21 events/s in the first tenth, 0 after."},
+  "spectrum": {"score": 2, "evidence": "Modes 1.81 kHz (0.43 s), 2.54 kHz (0.31 s), 5.01 kHz (0.16 s), all inside 1.5-6 kHz. Not a harmonic series: 362 cents off whole ratios, ratios 1:1.40:2.77. Energy shares 2k-8k 83%, 200-2k 16%, <200 Hz 0%, >8k 0%. Dominant bands 2k and 4k. Centroid 2.83k at the start falling to 2.09k in the middle (the 5 kHz mode dies first, as the 4k band goes -24 to -57 to -95 dB). Rolloff 4.99k to 2.53k. Spectrogram shows three thin horizontal lines at about 1.8, 2.5 and 5 kHz, with a short broadband tick at the start."},
+  "parts": {"score": 2, "evidence": "The brief names inharmonic modes and a single onset. The three partials are separately visible as distinct lines in the spectrogram and in the modes list, with different decays (0.43, 0.31 and 0.16 s). A short low-band wash (about 10-15 ms, 63 Hz to 1k bands at -42 to -56 dB in the first fifth only) is the contact tick, visible at the left edge of the spectrogram."},
+  "control_variation": {"score": 2, "evidence": "3 macros: brightness (claim centroid up) PASS, centroid 2.0k, 2.3k, 2.8k, 3.3k, 3.5k Hz; length (claim decay up) PASS, 0.06, 0.11, 0.21, 0.37, 0.70 s; pitch unclaimed, modes move 1.5k to 2.2k Hz (pitch=0 reads 1.50k/2.09k/4.14k/5.2k). Seeds 1-4: length 0.470-0.474 s, same -60 dB time 0.38 s, mode 2 at 2.52-2.57 kHz, mode 3 at 5.00-5.01 kHz, inharmonicity 21.4 / 47.8 / 49.8 / 50.3 cents, centroid start 2.82-2.85k. All four stay inside the brief, but the differences are small (about 1.5 % mode mistuning, and nothing else changes)."}
+ },
+ "total": 10,
+ "notes": [
+  "The seeds differ only by a seeded mode mistuning of about 1.5 %: four takes are measurably different (inharmonicity 21 to 50 cents) but would be hard to tell apart.",
+  "length macro at 0 gives a 0.144 s sound, under the brief's 0.3 s minimum; the default (0.47 s) and the macro at 0.5 to 1 (0.21 to 0.70 s total ring-out) are fine. The macro range partly leaves the brief at its low end.",
+  "The pitch macro has no claim, so verify does not hold it to anything; the aliasing check reads -8.5 dB (the 5 kHz mode is off the harmonic grid by design, so this is probably the estimator, but it was not checked by ear)."
+ ]}

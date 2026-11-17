@@ -1,0 +1,8 @@
+{"sound": "punch_thud", "round": 5, "finished": true,
+ "calls": 11, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["ramp", "osc", "decay", "math", "noise", "filter", "gain", "mix", "output"],
+ "blockers": [],
+ "wishlist": ["a listen line giving the level of a chosen band (e.g. 1-4 kHz) relative to the peak band in the first 20 ms, to judge a slap without reading the 5-segment band table (segments are fifths of a 0.2 s sound, so the slap is blurred into one cell)"],
+ "what_worked": ["ramp -> osc * decay for the thump plus bp noise * fast decay for the slap worked on the first try", "peak_db with fade_in 0.0005 delivered exactly -3.0 dBFS with attack 1.5 ms", "macro claims (centroid up/down, decay up) passed on the first sweep, and verify seeds:4 passed on all seeds"]}

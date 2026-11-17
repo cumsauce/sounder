@@ -1,0 +1,13 @@
+{"sound": "knock_wood", "round": 5, "finished": true,
+ "calls": 13, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["pattern", "voices", "impulse", "gain", "modal", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "macro claim decay",
+   "wanted": "a 'length' knob (per-knock ring-out) with a decay claim that measures each knock's ring",
+   "tried": "claim decay on a modal loss param; verify passes but the measure is 0.46 -> 0.52 s over the whole knob because it reads time to the last hit",
+   "workaround": "accepted the weak pass; the knob is real (loss 8 -> 1.2)",
+   "severity": 1}],
+ "wishlist": ["a per-hit decay claim (mean -20 dB time from the onset table) for multi-hit sounds"],
+ "what_worked": ["pattern -> voices with modal f0 + $rand gave 3 varied, seed-dependent knocks in one call", "modal f0 / loss / tilt as params reachable by macros via {param}", "verify expect onsets gap + seeds:4 checked the brief directly"]}

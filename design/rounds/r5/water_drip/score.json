@@ -1,0 +1,10 @@
+{"sound": "water_drip", "round": 5,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults: PASS finite, peak_db -3.0 dBFS, silent_edges, dc -74 dB, rebuild bit-identical; macros drop_size (centroid falls 2.8k->1.1k) and spacing (0.20->0.55 s) PASS, plink_rise unclaimed. No FAIL."},
+  "time_shape": {"score": 2, "evidence": "length 0.797 s (brief 0.4-1.5); 3 onsets at 0.011/0.363/0.747 s (1-3 drips); per-drip -20 dB 13-15 ms, -60 dB 32-40 ms (inside 30-120 ms); attack 0 ms; trailing silence 15 ms. Spacing macro keeps it 0.45-1.15 s."},
+  "spectrum": {"score": 1, "evidence": "Dominant bands 1k/2k (-31/-25 dB) with 96% energy 200-2k, centroid 1.5k/1.8k/1.4k; onset table glides up 1.62k>2.18k, 1.97k>2.60k, 1.51k>2.01k: rising, but drip 2 ends at 2.6k, slightly above the 2500 Hz limit. Spectrogram also shows a broadband vertical smear down to 31 Hz at each onset (about -50 dB bands)."},
+  "parts": {"score": 2, "evidence": "Three separate drips visible in waveform, spectrogram and onset table (strengths 1.0/0.6/0.5), silence between them (loudness curve drops to -48 LUFS or lower)."},
+  "control_variation": {"score": 1, "evidence": "3 macros (drop_size, spacing, plink_rise); claims pass and each moves the sound as named. Seeds 1-4 differ in pitch (2224/2096/2780/2430 Hz) and centroid but onset times are identical (0.011/0.363/0.747) and seeds 3 and 4 push pitch out of range (seed 3 glide 1.96>2.59k, pitch by tenth 2.97k; seed 4 3.21k). drop_size 0 gives ~3 kHz (out of brief), plink_rise 1 gives 2.9-3.5 kHz (out of brief)."}
+ },
+ "total": 8,
+ "notes": ["Seed 3 reports sample peak at 0.750 s (third drip) though onset strengths say the first is loudest: odd level/onset-strength mismatch.", "Seeds change only pitch, not timing: variation is narrow.", "Broadband low-frequency click smear under each drip (spectrogram to 31 Hz) may read as a thump rather than a pure drip."]}

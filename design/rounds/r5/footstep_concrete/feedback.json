@@ -1,0 +1,13 @@
+{"sound": "footstep_concrete", "round": 5, "finished": true,
+ "calls": 13, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["footstep", "output"],
+ "blockers": [
+  {"kind": "doc_gap", "where": "footstep pace / body",
+   "wanted": "know what numeric pace maps to and a claim for a body macro",
+   "tried": "pace 0.4, macro on pace (claim spacing -1 passes: gap 0.15 s to 0.07 s); macro on body with claim centroid failed (centroid flat 2.5k), since body only moves the ~120 Hz thud",
+   "workaround": "left the body macro unclaimed",
+   "severity": 1}],
+ "wishlist": ["a claim measure for low-band pitch (lowest mode Hz) so a thud-pitch knob can be held to its name"],
+ "what_worked": ["one footstep node met the whole brief at first render (2 onsets 107 ms apart, attack 0.5 ms, centroid 2.5 kHz)", "expect onsets with gap verified heel-toe spacing", "macro sweep claims passed on weight (centroid) and pace (spacing)"]}

@@ -1,0 +1,13 @@
+{"sound": "keys_jingle", "round": 5, "finished": true,
+ "calls": 11, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 7,
+ "nodes_used": ["pattern", "voices", "impulse", "gain", "modal", "onepole", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "listen/verify inharmonicity",
+   "wanted": "tell whether each key's own modes are inharmonic and in 3-10 kHz in a many-voice jingle",
+   "tried": "whole-sound inharmonic line, verify expect inharmonicity {min:50} per seed, spectrogram",
+   "workaround": "read the spectrogram (two or three partials per hit between 4 and 9 kHz) and the modes line (4.3k-6.8k); inharmonicity read 76-351 cents by seed",
+   "severity": 1}],
+ "wishlist": ["a per-onset modes column in listen", "a decay claim usable on multi-hit sounds for a ring knob"],
+ "what_worked": ["pattern with jitter -> voices of a modal with f0 from $rand mapped in voices map gave 13 onsets and per-key pitch at once", "modal f0 + f_max + loss + tilt placed modes in 3-10 kHz", "macros with param entries reached inside the voices patch; verify swept them"]}

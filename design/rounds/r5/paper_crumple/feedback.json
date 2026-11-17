@@ -1,0 +1,13 @@
+{"sound": "paper_crumple", "round": 5, "finished": true,
+ "calls": 15, "failed_calls": 2,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["wander", "crumple", "math", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "verify macros with seeds",
+   "wanted": "knob claims that hold on every seed with a sensible map",
+   "tried": "hardness 0.3..0.9 and size 0.15..0.8; seed 3 was non-monotone at one end",
+   "workaround": "widened maps (hardness 0.05..1, size 0.3..1); passes seeds 1-4",
+   "severity": 1}],
+ "wishlist": ["a doc line on how wide a crumple knob map must be for its centroid claim to hold across seeds", "a density macro that does not saturate near 150/s at 1 s"],
+ "what_worked": ["one crumple node fed by a wander met the brief at once: 112 fine onsets, centroid 6.3 kHz, default verify passed", "listen's fine-onset density and whole-sound centroid made the brief checkable"]}

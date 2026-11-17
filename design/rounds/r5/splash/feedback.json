@@ -1,0 +1,18 @@
+{"sound": "splash", "round": 5, "finished": true,
+ "calls": 15, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 7,
+ "nodes_used": ["splash", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "splash / listen",
+   "wanted": "the opening burst to be the loudest moment, then a quieter bubbling tail",
+   "tried": "burst 2 (max) at size 0.06 and 0.09; peak_db output",
+   "workaround": "accepted: the final cavity bubble is the sample peak (0.58-0.68 s) although the waveform shows the burst spike about as tall; listen's 'peak at' reports the bubble",
+   "severity": 1},
+  {"kind": "doc_gap", "where": "splash length",
+   "wanted": "which size/tail give 0.6-1.8 s",
+   "tried": "size 0.06 tail 2 gave 0.51 s; size 0.09 tail 3 gave 0.84 s",
+   "workaround": "size ~0.1 (macro 0.45), tail 2.5; length is set by tail and size together, not documented",
+   "severity": 1}],
+ "wishlist": ["splash `length` field in seconds (so the brief's 0.6-1.8 s is one number)", "splash burst-vs-bubble level that makes the burst the peak"],
+ "what_worked": ["one splash node plus peak_db output met the brief shape: centroid by tenth 4.37k to 238 Hz, burst broadband to >8k", "macros weight/slap/bubbling all passed their claims on the first try; verify seeds 4 passed", "expect duration in sound_ops confirmed 0.765 s in range"]}

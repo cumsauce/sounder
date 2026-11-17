@@ -1,0 +1,14 @@
+{"sound": "paper_crumple", "round": 5,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults: finite, peak_db -1.24 dBFS, silent_edges -200/-200, dc -90 dB, macros busyness/hardness/size all PASS, rebuild bit-identical; verify seeds 4 also all PASS (peak -1.0 to -1.42, dc -82 to -90 dB)."},
+  "time_shape": {"score": 2, "evidence": "length 1.000 s (brief 0.6-1.5). Fine (5 ms) onsets 109 (seed 1), 110/117/128 for seeds 2-4; density 116 events/s, density by tenth 74-159, last event at 0.996 s; waveform shows a continuous train of ticks with no gaps. Default 40 ms merged count is only 11 (10/13/17 on other seeds) because the ticks sit 5-20 ms apart (108 pairs within 20 ms), so the 20+ onsets requirement holds only at fine resolution. Swell/attack 43 ms; no decay by design (a crackle that stops at the end)."},
+  "spectrum": {"score": 2, "evidence": "centroid 4.62k/5.00k/5.09k Hz start/middle/end, whole 4.90k, rolloff 7.64k, inside 3-8 kHz; centroid by tenth 4.0k-5.8k. Energy shares: 2-8k 77%, >8k 13%, 200-2k 9%, <200 Hz 0%. Octave bands: 4k band -26 to -28 dB and 8k+ -28 to -29 dB dominate, 2k at -30 dB, 63-250 Hz below -52 dB. Spectrogram: bright band 3-10 kHz across the whole length, steady, no stated movement required."},
+  "parts": {"score": 2, "evidence": "The brief names only the crackle (single component). Waveform shows discrete clicks with some larger snaps (22 strong, 87 weak events at >=0.5 of the loudest onset) over a dense small-tick bed, visible as vertical striations in the spectrogram."},
+  "control_variation": {"score": 2, "evidence": "3 macros (busyness claim density, hardness claim centroid up, size claim centroid down), all claims hold on seeds 1-4. Sweeps stay in brief: busyness 0/.5/1 density 46/116/146 per s, centroid 4.81k/4.90k/5.21k; hardness 0/.5/1 centroid 4.03k/4.90k/6.21k; size 0/.5/1 centroid 6.43k/4.90k/4.11k, fine onsets 45-137 everywhere. Seeds differ: fine onsets 109/110/117/128, whole centroid 4.90k/5.07k/4.98k/5.09k, peak time 0.45/0.25/0.70/0.08 s, different onset times, but differences are modest and all inside the brief."}
+ },
+ "total": 10,
+ "notes": [
+  "Default 40 ms onsets line reads 9-19 across sweeps and 10-17 across seeds (under 20); busyness 1 gives fewer merged onsets (9) than busyness 0 (19) because ticks merge. Only the fine count or density line shows the crackle is dense.",
+  "hardness=0 reports density 248 events/s but only 76 fine onsets (and peak -4.3 dBFS vs -1.0 elsewhere): the density estimate and the fine onset count disagree there.",
+  "The 'modes' line lists 2-3.5 kHz partials with 2-3 s decay and 'inharmonic 283 cents' on what should be a noise-like crackle; looks like an artifact of the measure, not the sound."
+ ]}

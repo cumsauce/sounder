@@ -1,0 +1,18 @@
+{"sound": "squeaky_hinge", "round": 5, "finished": true,
+ "calls": 10, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 7,
+ "nodes_used": ["ramp", "wander", "math", "friction", "filter", "output"],
+ "blockers": [
+   {"kind": "sense_gap", "where": "listen / verify",
+    "wanted": "tell whether the squeak reads as a hinge squeak rather than a whistle or a saw buzz",
+    "tried": "pitch / spectrum / modes lines and the spectrogram: they confirm a single rising line 1.1k to 2.1k Hz, no onset transient, but not the character",
+    "workaround": "none needed for the numbers; character is left to the human",
+    "severity": 1},
+   {"kind": "doc_gap", "where": "friction",
+    "wanted": "the speed to Hz rule stated for planning a pitch (speed x grain)",
+    "tried": "read it in the manual (speed * grain Hz); measured pitch matched (speed 5 -> ~1.1k Hz)",
+    "workaround": "none",
+    "severity": 1}],
+ "wishlist": ["friction with a pitch (Hz) field and a resonance/body option for a squeal with formant-like peaks", "a macro claim for pitch / pitch range"],
+ "what_worked": ["friction with a ramped speed plus wander gave a moving pitch directly", "listen pitch-by-tenth and onset-table pitch glide made the pitch sweep easy to check", "macro claims (centroid, flatness, attack) passed first try"]}
