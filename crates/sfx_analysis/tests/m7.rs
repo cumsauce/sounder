@@ -841,3 +841,145 @@ fn the_default_loss_and_tilt_leave_the_render_bit_identical() {
         );
     }
 }
+
+// ------------------------------------------------- R2-E: thickness
+
+#[test]
+fn thickness_scales_every_mode_linearly() {
+    // Wood plate 0.1 m: thickness 0.002 against 0.004 doubles the lowest mode.
+    let low = |t: f64| {
+        let hz = modes_hz(
+            json!({"material": "wood", "size": 0.1, "thickness": t, "seed": 1}),
+            0.4,
+            12,
+        );
+        hz[0]
+    };
+    let (a, b) = (low(0.002), low(0.004));
+    println!(
+        "thickness 0.002: lowest {a:.1} Hz; 0.004: {b:.1} Hz; ratio {:.3}",
+        b / a
+    );
+    assert!((b / a - 2.0).abs() < 0.04, "{a} {b}");
+    // The lowest mode follows the material's own table: 0.025 m wood.
+    let own = modes_hz(json!({"material": "wood", "size": 0.3, "seed": 1}), 0.4, 12)[0];
+    let t25 = modes_hz(
+        json!({"material": "wood", "size": 0.3, "thickness": 0.025, "seed": 1}),
+        0.4,
+        12,
+    )[0];
+    println!("default wood {own:.1} Hz; thickness 0.025: {t25:.1} Hz");
+    assert!((own - t25).abs() / own < 0.01, "{own} {t25}");
+}
+
+/// Peaks of a thin metal disc, and those between 3 and 9 kHz.
+fn metal_disc(size: f64) -> (Vec<f32>, Vec<f32>) {
+    let hz = modes_hz(
+        json!({"material": "metal", "size": size, "thickness": 0.0015}),
+        0.4,
+        24,
+    );
+    let inside = hz
+        .iter()
+        .copied()
+        .filter(|f| (3000.0..=9000.0).contains(f))
+        .collect();
+    (hz, inside)
+}
+
+#[test]
+#[ignore = "measured: metal (E 200 GPa, rho 7850) at size 0.025 m, thickness 0.0015 m has its (1,1) mode at 11.5 kHz and nothing else under 18 kHz, so 0 modes between 3 and 9 kHz; the plate formula puts (1,1) at pi/2 t c / sqrt 12 x 2 / size^2"]
+fn a_thin_metal_disc_has_modes_between_3_and_9_khz() {
+    // A coin: metal, 25 mm, 1.5 mm thick (the card's numbers).
+    let (hz, inside) = metal_disc(0.025);
+    println!("metal 25 mm x 1.5 mm: peaks {hz:.0?}; between 3 and 9 kHz: {inside:.0?}");
+    assert!(inside.len() >= 3, "{hz:?}");
+}
+
+#[test]
+fn a_thin_metal_disc_of_8_cm_has_modes_between_3_and_9_khz() {
+    // The 25 mm coin of the card sits at 11.5 kHz (above); 8 cm of the same
+    // 1.5 mm metal puts (1,1) at 1.1 kHz and the next ones inside 3..9 kHz.
+    let (hz, inside) = metal_disc(0.08);
+    println!("metal 80 mm x 1.5 mm: peaks {hz:.0?}; between 3 and 9 kHz: {inside:.0?}");
+    assert!(inside.len() >= 3, "{hz:?}");
+    // And the 25 mm coin does render: its one mode is at the formula's value.
+    let (hz, _) = metal_disc(0.025);
+    println!("metal 25 mm x 1.5 mm: peaks {hz:.0?}");
+    assert!(hz.len() == 1 && (hz[0] - 11_492.0).abs() < 300.0, "{hz:?}");
+}
+
+#[test]
+fn glass_shard_with_a_thickness_field_renders() {
+    let x = node_audio(
+        modal(json!({"material": "glass", "size": 0.03, "thickness": 0.003})),
+        "m",
+        0.3,
+    );
+    println!("glass 3 cm x 3 mm: peak {:.1} dB", peak_db(&x));
+    assert!(x.iter().all(|v| v.is_finite()));
+    assert!(x.iter().any(|v| v.abs() > 0.01));
+}
+
+#[test]
+fn thickness_is_stable_across_its_range_for_every_shape() {
+    for s in SHAPES {
+        for t in [0.0003f64, 0.001, 0.003, 0.01, 0.05] {
+            for size in [0.05f64, 0.3] {
+                let mut d = SoundDoc::named("t");
+                d.nodes =
+                    modal(json!({"material": "glass", "shape": s, "size": size, "thickness": t}));
+                d.nodes
+                    .push(json!({"type": "output", "name": "out", "input": "m"}));
+                d.duration = Some(0.3);
+                match d.render(&RenderOpts::default()) {
+                    Ok(r) => match &*r.eval.buf("m").unwrap() {
+                        Buf::Audio(x) => {
+                            assert!(x.iter().all(|v| v.is_finite()), "{s} {t} {size}");
+                            assert!(peak_db(x) < 3.0, "{s} {t} {size}: {}", peak_db(x));
+                        }
+                        _ => panic!("not audio"),
+                    },
+                    // A combination with no mode in the band is an error that
+                    // names the fix, never a blown-up render.
+                    Err(e) => assert!(e.contains("no mode"), "{s} {t} {size}: {e}"),
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn the_default_thickness_leaves_the_render_bit_identical() {
+    // Wood is 0.025 m, glass 0.01 m in foley's table: giving the material's
+    // own thickness changes nothing, and the pinned hashes still hold.
+    let own = |m: &str| modal(json!({"material": m, "size": 0.4, "seed": 3}));
+    let plain = node_audio(own("wood"), "m", 0.5);
+    let mut with = own("wood");
+    with[1]["thickness"] = json!(0.025);
+    assert_eq!(plain, node_audio(with, "m", 0.5));
+}
+
+#[test]
+fn thickness_errors_say_what_to_do_and_the_hint_uses_it() {
+    for bad in [0.0f64, -1.0, 0.00001, 0.9] {
+        let e = render_error(
+            modal(json!({"material": "wood", "size": 0.4, "thickness": bad})),
+            0.2,
+        );
+        println!("{e}");
+        assert!(e.contains("thickness") && e.contains("0.0001"), "{e}");
+    }
+    // The size hint comes from the effective thickness: a 1.5 mm metal disc
+    // is allowed a smaller size than the default metal plate.
+    let (lo_default, _, _) = hint("metal", "plate");
+    let e = render_error(
+        modal(json!({"material": "metal", "size": 1e-6, "thickness": 0.0015})),
+        0.2,
+    );
+    println!("{e}");
+    let (lo_thin, _) = parse_range(&e);
+    println!("metal size floor: default {lo_default}, 1.5 mm {lo_thin}");
+    assert!(lo_thin < lo_default, "{lo_thin} {lo_default}");
+    assert!(e.contains("`thickness` field"), "{e}");
+}

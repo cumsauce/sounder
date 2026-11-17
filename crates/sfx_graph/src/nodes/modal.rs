@@ -390,7 +390,7 @@ fn no_mode_error(
         // Thinner material lowers every mode in proportion.
         let t = sig2(props.thickness * RANGE_TOP_FRACTION * top / lowest, false);
         format!(
-            "its lowest mode would be {} Hz, above the top of the band ({top:.0} Hz): make the size bigger, or give a thinner material ({{young, density, poisson, loss, thickness}} with thickness {t} m or less)",
+            "its lowest mode would be {} Hz, above the top of the band ({top:.0} Hz): make the size bigger, or give a thinner material ({{young, density, poisson, loss, thickness}} with thickness {t} m or less, or set the `thickness` field to {t} or less)",
             sig2(lowest, true)
         )
     } else if lowest >= FLOOR_HZ {
@@ -400,7 +400,7 @@ fn no_mode_error(
     } else {
         let t = sig2(props.thickness * RANGE_BOTTOM_HZ / lowest, true);
         format!(
-            "its lowest mode would be {} Hz, under 20 Hz: make the size smaller, or give a thicker material (thickness {t} m or more)",
+            "its lowest mode would be {} Hz, under 20 Hz: make the size smaller, or give a thicker material (thickness {t} m or more, or set the `thickness` field to {t} or more)",
             sig2(lowest, false)
         )
     };
@@ -650,6 +650,14 @@ pub struct Modal {
     /// per mode.
     #[serde(default)]
     pub loss: Option<f32>,
+    /// Thickness of the plate, bar wall, tube wall, membrane or string
+    /// stand-in, metres (default: the material's; range 0.0001..0.5). Every
+    /// mode frequency goes as the thickness, so 0.0015 gives a coin, 0.003 a
+    /// shard, 0.004 a key without a custom material. A number, `$param` or
+    /// `=expr`, read once. The size range in the error and the hint use this
+    /// thickness.
+    #[serde(default)]
+    pub thickness: Option<In>,
     /// dB per octave on the mode gains about the lowest mode (default 0,
     /// -12..12): positive lifts the upper modes (flattens a table that is
     /// all in its first mode), negative darkens. The output is normalized
@@ -666,9 +674,12 @@ pub struct Modal {
 const MIN_LOSS: f32 = 0.01;
 const MAX_LOSS: f32 = 100.0;
 const MAX_TILT: f32 = 12.0;
+/// `thickness` limits, metres.
+const MIN_THICKNESS: f32 = 0.0001;
+const MAX_THICKNESS: f32 = 0.5;
 
 impl Describe for Modal {
-    const BLURB: &'static str = "a struck object: excite audio rings modes computed from material, size, shape (plate bar tube membrane string shell) and strike position (bigger = lower); loss scales the ring time, tilt (dB/oct) the mode balance; a unit impulse peaks near 0 dBFS";
+    const BLURB: &'static str = "a struck object: excite audio rings modes computed from material, size, shape (plate bar tube membrane string shell) and strike position (bigger = lower); thickness (m) overrides the material's; loss scales the ring time, tilt (dB/oct) the mode balance; a unit impulse peaks near 0 dBFS";
     fn example() -> serde_json::Value {
         serde_json::json!({"excite": "contact1", "material": "wood", "size": 0.5,
             "strike_position": 0.3, "modes": 48})
@@ -689,6 +700,15 @@ impl Eval for Modal {
             ));
         }
         props.loss *= loss;
+        if let Some(t) = &self.thickness {
+            let t = cx.mono("thickness", t)?.at(0);
+            if !(t.is_finite() && (MIN_THICKNESS..=MAX_THICKNESS).contains(&t)) {
+                return Err(format!(
+                    "thickness: {t}: give metres in {MIN_THICKNESS}..{MAX_THICKNESS} (a coin 0.0015, a shard 0.003, a key 0.004; leave it out for the material's own)"
+                ));
+            }
+            props.thickness = t;
+        }
         let tilt_db = self.tilt.unwrap_or(0.0);
         if !(tilt_db.is_finite() && (-MAX_TILT..=MAX_TILT).contains(&tilt_db)) {
             return Err(format!(
