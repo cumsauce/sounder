@@ -11,9 +11,36 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub type Params = BTreeMap<String, f64>;
 
-/// True when `s` is a parameter reference or expression.
-fn is_expr(s: &str) -> bool {
-    s.starts_with('$') || s.starts_with('=')
+/// True when `s` is a parameter reference or expression: it starts with `$`
+/// or `=`, or (so `"1.5 * $value"` works without the `=`) it contains a `$`,
+/// or it is arithmetic on plain numbers (`"2*3"`, `"-1"`, `"0.5"`).
+/// A string that is a valid node or `node.port` name (`lp`, `verb.wet`,
+/// `a_1`) or a `.wav` path is never an expression.
+pub fn is_expr(s: &str) -> bool {
+    if s.starts_with('$') || s.starts_with('=') {
+        return true;
+    }
+    if crate::node::is_file(s) {
+        return false;
+    }
+    let ident =
+        |t: &str| !t.is_empty() && t.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_');
+    let is_name = match s.split_once('.') {
+        None => ident(s),
+        Some((a, b)) => ident(a) && ident(b),
+    };
+    if is_name {
+        // `1.5` is a number, not node `1` port `5`.
+        return s.split_once('.').is_some_and(|(a, b)| {
+            a.bytes().all(|c| c.is_ascii_digit()) && b.bytes().all(|c| c.is_ascii_digit())
+        });
+    }
+    if s.contains('$') {
+        return true;
+    }
+    s.bytes().any(|b| b.is_ascii_digit())
+        && s.bytes()
+            .all(|b| b.is_ascii_digit() || b.is_ascii_whitespace() || b"+-*/().".contains(&b))
 }
 
 /// Keys of a node object whose strings are expression source for the node's

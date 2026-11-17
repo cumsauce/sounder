@@ -139,7 +139,7 @@ pub fn parse(nodes: &[Value], params: &Params) -> Result<Vec<Parsed>, String> {
                     .map(|n| format!(" (did you mean `{n}`?)"))
                     .unwrap_or_default();
                 return Err(format!(
-                    "node `{}` ({}): reads `{r}`, which is not a node{near} (nodes: {}; files end in .wav)",
+                    "node `{}` ({}): reads `{r}`, which is not a node; write expressions with a leading `=`, e.g. \"=1.5 * $value\"{near} (nodes: {}; files end in .wav)",
                     p.name,
                     p.ty,
                     names.join(", ")

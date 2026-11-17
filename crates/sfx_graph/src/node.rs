@@ -535,6 +535,7 @@ fn refs_with(own: &[&str], body: &Value) -> Vec<(String, String)> {
                 if key.is_some_and(|k| WORDS.contains(&k) || own.contains(&k))
                     || (key == Some("to") && (s == "mono" || s == "stereo"))
                     || is_file(s)
+                    || crate::params::is_expr(s)
                 {
                     return;
                 }
