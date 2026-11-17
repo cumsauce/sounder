@@ -323,6 +323,10 @@ node_types! {
     "exciter" => Exciter,
 
     // slot S6
+    "chorus" => Chorus,
+    "flanger" => Flanger,
+    "phaser" => Phaser,
+    "freq_shift" => FreqShift,
 
     // slot S7
 
