@@ -1,0 +1,826 @@
+#!/usr/bin/env python3
+"""Drive the sounder MCP server over stdio (fallback while the session's
+MCP tool list is frozen without mcp__sounder__* tools).
+
+Proxy (what the MCP config runs: one shared server and window for every
+Claude session):
+    mcp_driver.py --proxy [--offscreen | --headless] [--socket PATH]
+        an MCP stdio server that passes JSON-RPC through to the daemon,
+        starting it (windowed by default, detached) when none answers. Every
+        session's proxy shares that one daemon, so there is one sounder server
+        and one preview window however many sessions are open. Closing the
+        window ends the server; the next call restarts it from autosave.
+        The socket is /tmp/sounder-mcp.sock for every project: each call
+        names the caller's project (`_meta` "sounder/project") and the server
+        works in it for that call, so one window shows all the work.
+
+Daemon (keeps ONE sounder process — and its preview window — alive across
+many driver invocations):
+    mcp_driver.py --daemon [--windowed | --headless] [--socket PATH]
+        spawns the sounder server (offscreen by default: agent_views render,
+        no window; --windowed adds the preview window, --headless no renderer), listens on a unix socket, executes tool
+        calls from any number of connected clients (each on its own thread;
+        calls interleave one at a time, so a long batch doesn't block other
+        agents). Stays up when clients disconnect; `quit` stops it.
+
+Client (connects to the daemon, or spawns a throwaway server):
+    mcp_driver.py --connect [--socket PATH] --calls calls.json [--save-shot p]
+    mcp_driver.py --calls calls.json ...          # throwaway mode, as before
+Several agents may share one daemon: every call carries its client (the
+agent session behind the calling shell, or --client NAME) to the server,
+which keeps each client's own active document (switching back, and saying
+so, when another client switched away), credits history steps to it, tells
+it what other clients changed in its document since its last call, refuses
+an undo that would revert another client's step (undo force: true
+overrides) and warns when a batch replaces ops another client wrote.
+--doc NAME pins the document for this run (opened from the catalog, or new,
+if not open).
+Image options: --save-shot PATH (the run's first image to PATH, every later
+image from any call of the same client run to PATH_2, PATH_3, ...),
+--save-dir DIR (every image, numbered), --b64 (also print base64; off by default).
+--json: when a tool returns structured content (scene_summary, apply_ops,
+verify), print it as "json" and drop the prose "text" (structured content is
+always included as "json"; --json only removes the duplicate prose).
+Calls JSON: [{"name": "...", "args": {...}}, ...]
+Without --calls in client/throwaway mode, reads calls line-by-line on stdin;
+"quit" in daemon mode stops the daemon.
+
+Results print as JSON lines: {"ok":..., "text": [...], "json": {...}?,
+"n_images": ..., "saved_images": [paths]}.
+
+The daemon keeps the server's stderr in <catalog dir>/daemon.log (rotated at
+1 MB; SOUNDER_STDERR=<file> overrides) and, when the server has died, its
+restart note quotes the server's last "sounder: exit: <reason>" line.
+"""
+import json
+import subprocess, sys, base64, os, signal, socket, stat, time
+
+# The server binary: SOUNDER_BINARY, else target/debug/sounder next to
+# this script (the repo checkout it lives in).
+BINARY = os.environ.get("SOUNDER_BINARY") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "target", "debug", "sounder")
+# The daemon socket: SOUNDER_SOCKET (one daemon per agent), else the one
+# shared daemon. --socket PATH overrides both.
+SOCKET = os.environ.get("SOUNDER_SOCKET") or "/tmp/sounder-mcp.sock"
+LOG_ROTATE_BYTES = 1 << 20
+EXIT_PREFIX = "sounder: exit: "
+
+
+def daemon_log_path(socket_path=None):
+    """SOUNDER_STDERR if set, else <catalog dir>/daemon.log (the server says
+    where its catalog dir is, so project / FRIENDSLOP_DATA_DIR rules hold).
+    A daemon on another socket than the shared one logs to
+    daemon.<slot>.log, so side-by-side daemons don't read each other's
+    startup notes (autosave slot, exit reason)."""
+    log = os.environ.get("SOUNDER_STDERR")
+    if log:
+        return log
+    try:
+        out = subprocess.run([BINARY, "--print-catalog-dir"], capture_output=True,
+                             text=True, timeout=30)
+        d = out.stdout.strip()
+    except Exception:
+        d = ""
+    if not d:
+        return None
+    os.makedirs(d, exist_ok=True)
+    name = "daemon.log"
+    if socket_path and os.path.abspath(socket_path) != os.path.abspath("/tmp/sounder-mcp.sock"):
+        name = f"daemon.{daemon_slot(socket_path)}.log"
+    path = os.path.join(d, name)
+    try:
+        if os.path.getsize(path) > LOG_ROTATE_BYTES:
+            os.replace(path, path + ".1")
+    except OSError:
+        pass
+    return path
+
+
+class ShotNamer:
+    """Names --save-shot images: one counter per client run, so the first
+    image goes to PATH and every later one (any call) to PATH_2, PATH_3 ..."""
+
+    def __init__(self):
+        self.count = 0
+
+    def next(self, save_shot):
+        self.count += 1
+        if self.count == 1:
+            return save_shot
+        stem, ext = os.path.splitext(save_shot)
+        return f"{stem}_{self.count}{ext or '.png'}"
+
+
+class SounderSession:
+    """Owns the sounder process and the JSON-RPC conversation."""
+
+    def __init__(self, mode="headless", log=None, slot=None):
+        # mode: "windowed" (preview window), "offscreen" (renders agent views,
+        # no window), "headless" (no renderer at all).
+        # No window yet (phase 5): every mode serves headless.
+        cmd = [BINARY, "--headless"]
+        cmd.append("--restore")  # daemon restarts and throwaway runs pick up the autosave
+        env = dict(os.environ)
+        if slot:
+            # A server that does not own the main autosave writes
+            # session.<slot>.json; a stable slot lets a restart find it.
+            env["SOUNDER_SLOT"] = slot
+        # `log` (the daemon's daemon.log, or SOUNDER_STDERR=<path>) keeps the
+        # server's stderr (panics, bake errors, the exit reason) instead of
+        # discarding it.
+        log = log or os.environ.get("SOUNDER_STDERR")
+        self.log = log
+        self.log_start = 0
+        if log:
+            err = open(log, "ab")
+            self.log_start = err.tell()  # this run's lines start here
+        else:
+            err = subprocess.DEVNULL
+        self.proc = subprocess.Popen(
+            cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=err, bufsize=0, env=env)
+        if log:
+            err.close()  # the child holds its own handle
+        self.next_id = 0
+        self.shots = ShotNamer()
+        self._handshake()
+        self.slot_note = self._slot_note()
+        # From here on requests may come from several threads at once (the
+        # daemon's clients): one writer lock, and a reader thread handing
+        # each response to the request that waits for its id, so a slow
+        # render doesn't hold up another agent's quick call.
+        import threading
+        self._wlock = threading.Lock()
+        self._waiting = {}
+        self._closed = False
+        threading.Thread(target=self._reader, daemon=True).start()
+
+    def _slot_note(self):
+        """When another server owns the main autosave, the server says so on
+        stderr at startup ("sounder: autosave SLOT ..."): return a note."""
+        if not self.log:
+            return None
+        try:
+            with open(self.log, "rb") as f:
+                f.seek(self.log_start)
+                for line in f.read().decode("utf-8", "replace").splitlines():
+                    if line.startswith("sounder: autosave SLOT"):
+                        return ("daemon: " + line[len("sounder: "):]
+                                + " (restored on restart; save_prefab to share work)")
+        except OSError:
+            pass
+        return None
+
+    def exit_reason(self):
+        """Why the server exited: its own "sounder: exit:" line from this
+        run's log, else the signal that killed it."""
+        code = self.proc.returncode
+        reason = None
+        if self.log:
+            try:
+                with open(self.log, "rb") as f:
+                    f.seek(self.log_start)
+                    for line in f.read().decode("utf-8", "replace").splitlines():
+                        if line.startswith(EXIT_PREFIX):
+                            reason = line[len(EXIT_PREFIX):].strip()
+            except OSError:
+                pass
+        if reason is None and code is not None and code < 0:
+            try:
+                reason = f"killed by {signal.Signals(-code).name}"
+            except ValueError:
+                reason = f"killed by signal {-code}"
+        if reason is None:
+            reason = "no exit reason logged" + (f", see {self.log}" if self.log else "")
+        return f"code {code}: {reason}"
+
+    def _send(self, obj):
+        data = (json.dumps(obj) + "\n").encode()
+        lock = getattr(self, "_wlock", None)
+        if lock is None:
+            self.proc.stdin.write(data)
+            self.proc.stdin.flush()
+            return
+        with lock:
+            self.proc.stdin.write(data)
+            self.proc.stdin.flush()
+
+    def _reader(self):
+        """Routes every response line to the request waiting for its id."""
+        while True:
+            line = self.proc.stdout.readline()
+            if not line:
+                break
+            try:
+                resp = json.loads(line)
+            except ValueError:
+                continue
+            q = self._waiting.pop(resp.get("id"), None) if isinstance(resp, dict) else None
+            if q is not None:
+                q.put(resp)
+        self._closed = True
+        for q in list(self._waiting.values()):
+            q.put(None)
+
+    def _request(self, msg):
+        """Sends one request (any thread) and waits for its response."""
+        import queue
+        with self._wlock:
+            rid = self.next_id
+            self.next_id += 1
+        msg["id"] = rid
+        q = queue.Queue(1)
+        self._waiting[rid] = q
+        if self._closed:
+            self._waiting.pop(rid, None)
+            raise RuntimeError("server closed stdout")
+        self._send(msg)
+        resp = q.get()
+        if resp is None:
+            raise RuntimeError("server closed stdout")
+        return resp
+
+    def _recv(self):
+        line = self.proc.stdout.readline()
+        if not line:
+            raise RuntimeError("server closed stdout")
+        return json.loads(line)
+
+    def _handshake(self):
+        self._send({"jsonrpc": "2.0", "id": self.next_id, "method": "initialize",
+                    "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+                               "clientInfo": {"name": "mcp-driver", "version": "0"}}})
+        # Kept for --proxy: every MCP client of a shared daemon gets the
+        # server's own initialize answer (instructions, capabilities).
+        self.init_result = self._recv().get("result", {})
+        self._send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+        self.next_id += 1
+
+    def tool_names(self):
+        resp = self._request({"jsonrpc": "2.0", "method": "tools/list", "params": {}})
+        return sorted(t["name"] for t in resp["result"]["tools"])
+
+    def raw(self, method, params=None):
+        """One JSON-RPC request passed through as is (for --proxy): returns
+        {"result": ...} or {"error": ...}, images and all."""
+        msg = {"jsonrpc": "2.0", "method": method}
+        if params is not None:
+            msg["params"] = params
+        resp = self._request(msg)
+        return {k: resp[k] for k in ("result", "error") if k in resp}
+
+    def call(self, name, args=None, save_shot=None, save_dir=None, b64=False, shots=None,
+             meta=None):
+        params = {"name": name, "arguments": args or {}}
+        if meta:
+            params["_meta"] = meta  # which agent is calling (see daemon_mode)
+        resp = self._request({"jsonrpc": "2.0", "method": "tools/call", "params": params})
+        while True:
+            if "error" in resp:  # JSON-RPC protocol error (bad args, unknown tool, ...)
+                err = resp["error"]
+                return {"ok": False,
+                        "text": [f"{err.get('message', 'error')}: {err.get('data', '')}"],
+                        "n_images": 0}
+            result = resp.get("result", {})
+            texts, images = [], []
+            for c in result.get("content", []):
+                if c.get("type") == "text":
+                    texts.append(c.get("text", ""))
+                elif c.get("type") == "image":
+                    images.append(c)
+            out = {"ok": not result.get("isError", False), "text": texts,
+                   "n_images": len(images), "saved_images": []}
+            if result.get("structuredContent") is not None:
+                out["json"] = result["structuredContent"]
+            if images:
+                if b64:  # opt-in: the base64 blobs drown the useful output
+                    out["images_b64"] = [i.get("data", "") for i in images]
+                saved = []
+                if save_shot:
+                    # The run's first image to the exact path; every later one
+                    # (this call or a later call) gets _2, _3 ... suffixes.
+                    namer = shots or self.shots
+                    for img in images:
+                        path = namer.next(save_shot)
+                        with open(path, "wb") as f:
+                            f.write(base64.b64decode(img["data"]))
+                        saved.append(path)
+                if save_dir:
+                    os.makedirs(save_dir, exist_ok=True)
+                    self.shot_seq = getattr(self, "shot_seq", 0) + 1
+                    for k, img in enumerate(images):
+                        path = os.path.join(save_dir, f"{self.shot_seq:03d}-{name}-{k + 1}.png")
+                        with open(path, "wb") as f:
+                            f.write(base64.b64decode(img["data"]))
+                        saved.append(path)
+                out["saved_images"] = saved
+            return out
+
+    def close(self):
+        # EOF first: a headless server exits on its own (logging its exit
+        # line and dropping its session lock); a windowed one is terminated.
+        try:
+            self.proc.stdin.close()
+        except Exception:
+            pass
+        try:
+            self.proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            self.proc.terminate()
+
+
+def trim(out, json_only):
+    """--json: drop the prose when structured content is present."""
+    if json_only and "json" in out:
+        out = dict(out)
+        out.pop("text", None)
+    return out
+
+
+def run_calls(session, calls, save_shot=None, save_dir=None, b64=False, json_only=False):
+    for c in calls:
+        if isinstance(c, str):
+            print(json.dumps({"ok": True, "text": [c], "n_images": 0, "saved_images": []}),
+                  flush=True)
+            continue
+        out = session.call(c["name"], c.get("args", {}), save_shot, save_dir, b64)
+        print(json.dumps(trim(out, json_only)), flush=True)
+
+
+def claim_socket(socket_path):
+    """Refuses to start over a live daemon; removes only a stale socket."""
+    try:
+        st = os.stat(socket_path)
+    except FileNotFoundError:
+        return
+    if not stat.S_ISSOCK(st.st_mode):
+        print(f"{socket_path} exists and is not a socket; remove it or pass --socket",
+              flush=True)
+        sys.exit(1)
+    # A refused connect means nobody listens (or, on macOS, a full backlog):
+    # ask a few times before calling the socket stale.
+    for attempt in range(3):
+        probe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            probe.connect(socket_path)
+            break  # something answered
+        except FileNotFoundError:
+            return
+        except ConnectionRefusedError:
+            if attempt == 2:
+                os.unlink(socket_path)  # nobody listening: a dead daemon's leftover
+                return
+            time.sleep(0.2)
+        except OSError as e:
+            print(f"cannot check {socket_path} ({e.strerror}); not starting", flush=True)
+            sys.exit(1)
+        finally:
+            probe.close()
+    print(f"a sounder daemon is already running on {socket_path}", flush=True)
+    sys.exit(1)
+
+
+def client_identity_of(pid):
+    """An MCP proxy's parent is the agent session itself; the driver's
+    shells are its children, so both name the same client."""
+    return f"pid:{pid}"
+
+
+def client_identity():
+    """Who is calling: the agent session behind this shell. Each agent's
+    commands run in fresh shells under one long-lived process, so the
+    shell's parent identifies the session; --client NAME overrides."""
+    if "--client" in sys.argv:
+        return sys.argv[sys.argv.index("--client") + 1]
+    try:
+        out = subprocess.run(["ps", "-o", "ppid=", "-p", str(os.getppid())],
+                             capture_output=True, text=True, timeout=2).stdout.strip()
+        return f"pid:{int(out)}"
+    except Exception:
+        return f"pid:{os.getppid()}"
+
+
+def daemon_slot(socket_path):
+    """A stable autosave slot per daemon socket."""
+    import hashlib
+    return "d" + hashlib.sha1(os.path.abspath(socket_path).encode()).hexdigest()[:8]
+
+
+def daemon_mode(socket_path, mode):
+    claim_socket(socket_path)
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    srv.bind(socket_path)  # before spawning: a racing second daemon fails here
+    srv.listen(16)
+    log = daemon_log_path(socket_path)
+    try:
+        first = SounderSession(mode=mode, log=log, slot=daemon_slot(socket_path))
+    except Exception:
+        srv.close()
+        os.unlink(socket_path)
+        raise
+    print(f"sounder daemon ready on {socket_path}"
+          + (f" (server log: {log})" if log else ""), flush=True)
+    # Several agents share one daemon. Each connection gets its own thread
+    # and calls go to the server concurrently (it answers by request id), so
+    # one agent's slow render doesn't hold every other agent at the door; the
+    # lock only guards respawning a server that exited.
+    # Every call carries its agent in `_meta` ("sounder/client", plus
+    # "sounder/doc" for --doc): the server keeps each agent's own active
+    # document, credits history steps to it, and tells it what other agents
+    # changed in its document since its last call.
+    import threading
+    state = {"session": first, "stop": False}
+    lock = threading.Lock()
+    told_slot = set()  # clients already told this server autosaves to a slot
+
+    def live_session():
+        """The running server (call with the lock held), respawned first when
+        it has exited (killed, crashed, rebuilt, window closed): autosave
+        restores the session. Returns (session, note or None)."""
+        session = state["session"]
+        if session.proc.poll() is None and getattr(session, "_closed", False):
+            # Its output is closed but it is still shutting down (a Bevy app
+            # takes a few seconds after SIGTERM): wait for it rather than
+            # failing every call until it is gone.
+            try:
+                session.proc.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                session.proc.kill()
+                session.proc.wait()
+        if session.proc.poll() is None:
+            return session, None
+        why = session.exit_reason()
+        session = SounderSession(mode=mode, log=daemon_log_path(socket_path),
+                                 slot=daemon_slot(socket_path))
+        state["session"] = session
+        return session, (f"daemon: the sounder server had exited ({why}); "
+                         "restarted it; unsaved documents are parked, not open (scene restore lists them)"
+                         + (" (its own slot file)" if session.slot_note else ""))
+
+    def serve(conn):
+        shots = ShotNamer()  # one --save-shot counter per client run
+        client, pin, project, pending_note = None, None, None, None
+        with conn:
+            f = conn.makefile("r")
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    c = json.loads(line)
+                    if isinstance(c, dict) and "hello" in c:
+                        h = c["hello"]
+                        client, pin, project = h.get("client"), h.get("doc"), h.get("project")
+                        with lock:
+                            session = state["session"]
+                            if session.slot_note and (client, session.proc.pid) not in told_slot:
+                                told_slot.add((client, session.proc.pid))
+                                pending_note = session.slot_note
+                        continue
+                    is_quit = c == "quit" or (isinstance(c, dict) and c.get("name") == "quit")
+                    if is_quit:
+                        state["stop"] = True  # first: the sender may not wait for the reply
+                        try:
+                            conn.sendall((json.dumps(
+                                {"ok": True, "text": ["daemon stopping"],
+                                 "n_images": 0, "saved_images": []}) + "\n").encode())
+                        except OSError:
+                            pass
+                        try:  # wake accept()
+                            w = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                            w.connect(socket_path)
+                            w.close()
+                        except OSError:
+                            pass
+                        return
+                    if isinstance(c, dict) and ("raw" in c or "init" in c):
+                        # --proxy: MCP JSON-RPC passed through untouched.
+                        with lock:
+                            session, note = live_session()
+                        if "init" in c:
+                            out = {"result": session.init_result}
+                        else:
+                            req = c["raw"]
+                            params = req.get("params")
+                            if req.get("method") == "tools/call" and client:
+                                params = dict(params or {})
+                                m = dict(params.get("_meta") or {})
+                                m.setdefault("sounder/client", client)
+                                if project is not None:
+                                    m.setdefault("sounder/project", project)
+                                params["_meta"] = m
+                            out = session.raw(req.get("method"), params)
+                        if pending_note:
+                            note = f"{note}\n{pending_note}" if note else pending_note
+                            pending_note = None
+                        res = out.get("result")
+                        if note and isinstance(res, dict) and isinstance(res.get("content"), list):
+                            res["content"] = [{"type": "text", "text": note}] + res["content"]
+                        elif note:
+                            pending_note = note  # says it on the next tool call
+                        conn.sendall((json.dumps(out) + "\n").encode())
+                        continue
+                    meta = {}
+                    if client:
+                        meta["sounder/client"] = client
+                    if pin:
+                        meta["sounder/doc"] = pin
+                    if project is not None:
+                        meta["sounder/project"] = project
+                    with lock:
+                        session, note = live_session()
+                    out = session.call(c["name"], c.get("args", {}),
+                                       c.get("save_shot"), c.get("save_dir"),
+                                       c.get("b64", False), shots, meta)
+                    if pending_note:
+                        note = f"{note}\n{pending_note}" if note else pending_note
+                        pending_note = None
+                    if note:
+                        out["text"] = [note] + list(out.get("text", []))
+                except Exception as e:  # bad line or dead server
+                    msg = f"daemon error: {e}"
+                    session = state["session"]
+                    if session.proc.poll() is not None:
+                        msg += f" (the sounder server exited: {session.exit_reason()})"
+                    out = {"ok": False, "text": [msg], "n_images": 0, "saved_images": []}
+                try:
+                    conn.sendall((json.dumps(out) + "\n").encode())
+                except OSError:
+                    return  # the client went away mid-call
+
+    try:
+        while not state["stop"]:
+            conn, _ = srv.accept()
+            if state["stop"]:
+                conn.close()
+                break
+            threading.Thread(target=serve, args=(conn,), daemon=True).start()
+    finally:
+        with lock:
+            state["session"].close()
+        srv.close()
+        if os.path.exists(socket_path):
+            os.unlink(socket_path)
+
+
+def find_project(start):
+    """The game project a directory belongs to (the server's own rule): the
+    nearest ancestor with a .sounder/ folder, or a Cargo.toml beside assets/."""
+    env = os.environ.get("SOUNDER_PROJECT")
+    if env:
+        return os.path.abspath(env)
+    d = os.path.abspath(start)
+    while True:
+        if os.path.isdir(os.path.join(d, ".sounder")) or (
+                os.path.isfile(os.path.join(d, "Cargo.toml"))
+                and os.path.isdir(os.path.join(d, "assets"))):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            return None
+        d = parent
+
+
+def default_socket(cwd=None):
+    """The one shared daemon: a single server (and preview window) serves
+    every project, switching to each caller's project per call."""
+    return SOCKET
+
+
+def project_below(start, depth=3):
+    """The one game project (a folder with .sounder/) a few levels under
+    `start`, when there is exactly one: a session in a repo's root whose
+    game lives in crates/game. None when there are none or several."""
+    start = os.path.abspath(start)
+    if start in (os.path.expanduser("~"), "/"):
+        return None
+    found = []
+    skip = {"target", "node_modules", "vendor", "dist", "build"}
+    for root, dirs, _ in os.walk(start):
+        if ".sounder" in dirs:
+            found.append(root)
+        rel = os.path.relpath(root, start)
+        level = 0 if rel == "." else rel.count(os.sep) + 1
+        dirs[:] = [d for d in dirs if not d.startswith(".") and d not in skip
+                   and level < depth]
+        if len(found) > 1:
+            return None
+    return found[0] if found else None
+
+
+def project_of(cwd=None):
+    """The caller's project for `_meta` "sounder/project": the project its
+    folder is in, else the one project just below it (a repo root), else ""
+    for the shared library."""
+    cwd = cwd or os.getcwd()
+    return find_project(cwd) or project_below(cwd) or ""
+
+
+def ensure_daemon(socket_path, mode="headless", wait=90):
+    """Connects to the daemon on socket_path, starting one (detached, so it
+    outlives this process) when none answers. Returns the connected socket."""
+    def connect():
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            s.connect(socket_path)
+            return s
+        except OSError:
+            s.close()
+            return None
+    s = connect()
+    if s:
+        return s
+    # The server's own home is the shared library: each call names the
+    # caller's project (`_meta` "sounder/project").
+    env = dict(os.environ)
+    env.pop("SOUNDER_PROJECT", None)
+    cmd = [sys.executable, os.path.abspath(__file__), "--daemon", "--socket", socket_path]
+    if mode == "windowed":
+        cmd.append("--windowed")
+    elif mode == "headless":
+        cmd.append("--headless")
+    # A racing second proxy starts one too: claim_socket makes it exit.
+    subprocess.Popen(cmd, cwd=os.path.expanduser("~"), env=env,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, start_new_session=True)
+    deadline = time.time() + wait
+    while time.time() < deadline:
+        time.sleep(0.2)
+        s = connect()
+        if s:
+            return s
+    raise RuntimeError(f"no sounder daemon came up on {socket_path} within {wait} s")
+
+
+def proxy_mode(socket_path, mode):
+    """An MCP stdio server that is only a doorway: every Claude session runs
+    its own proxy (the MCP config's command), and all of them share one
+    daemon, so there is one sounder server and one preview window however
+    many sessions are open. The daemon is started on first use and outlives
+    the sessions; closing the window just restarts the server (from
+    autosave) on the next call."""
+    client = client_identity_of(os.getppid())
+    conn = {"s": None, "f": None}
+
+    def link():
+        s = ensure_daemon(socket_path, mode)
+        conn["s"], conn["f"] = s, s.makefile("r")
+        s.sendall((json.dumps({"hello": {"client": client, "project": project_of()}})
+                   + "\n").encode())
+
+    def ask(payload):
+        for attempt in (0, 1):  # the daemon was stopped: start it again once
+            try:
+                if conn["s"] is None:
+                    link()
+                conn["s"].sendall((json.dumps(payload) + "\n").encode())
+            except OSError:
+                pass  # not sent: safe to start the daemon and send again
+            else:
+                try:
+                    line = conn["f"].readline()
+                except OSError:
+                    line = ""
+                if line:
+                    return json.loads(line)
+                # Sent, but the daemon went away before answering: the call
+                # may have run, so don't send it twice.
+                try:
+                    conn["s"].close()
+                except OSError:
+                    pass
+                conn["s"] = None
+                return {"error": {"code": -32603, "message":
+                                  "the sounder server exited during this call; it may or may "
+                                  "not have been applied: check (scene_summary / history) "
+                                  "before retrying"}}
+            try:
+                conn["s"] and conn["s"].close()
+            except OSError:
+                pass
+            conn["s"] = None
+        return {"error": {"code": -32603, "message":
+                          f"sounder daemon on {socket_path} is not answering"}}
+
+    out = sys.stdout
+    def reply(rid, body):
+        msg = {"jsonrpc": "2.0", "id": rid}
+        msg.update(body if ("result" in body or "error" in body)
+                   else {"error": {"code": -32603, "message": str(body)}})
+        out.write(json.dumps(msg) + "\n")
+        out.flush()
+
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            req = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(req, dict) or "method" not in req:
+            continue  # a response to us (we send no requests): ignore
+        method, rid = req["method"], req.get("id")
+        if rid is None:
+            continue  # notifications (initialized, cancelled) stay here
+        if method == "initialize":
+            body = ask({"init": True})
+            if "result" in body:
+                res = dict(body["result"])
+                want = (req.get("params") or {}).get("protocolVersion")
+                # Answer in the client's version when it is no newer than the
+                # server's (dated versions compare as strings).
+                if want and want <= res.get("protocolVersion", want):
+                    res["protocolVersion"] = want
+                body = {"result": res}
+            reply(rid, body)
+        elif method == "ping":
+            reply(rid, {"result": {}})
+        else:
+            reply(rid, ask({"raw": {"method": method, "params": req.get("params")}}))
+
+
+def client_mode(socket_path, calls_path, save_shot, save_dir=None, b64=False, json_only=False):
+    calls = json.load(open(calls_path)) if calls_path != "/dev/stdin" else json.load(sys.stdin)
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        s.connect(socket_path)
+    except OSError as e:
+        print(json.dumps({"ok": False, "text": [
+            f"no sounder daemon on {socket_path} ({e.strerror}). Start one with: "
+            "python3 mcp_driver.py --daemon --windowed &  (or without --windowed: agent views, no window)"], "n_images": 0,
+            "saved_images": []}), flush=True)
+        sys.exit(1)
+    with s:
+        f = s.makefile("r")
+        hello = {"client": client_identity(), "project": project_of()}
+        if "--doc" in sys.argv:
+            hello["doc"] = sys.argv[sys.argv.index("--doc") + 1]
+        s.sendall((json.dumps({"hello": hello}) + "\n").encode())
+        for c in calls:
+            payload = dict(c)
+            if save_shot:
+                payload["save_shot"] = os.path.abspath(save_shot)  # the daemon's cwd differs
+            if save_dir:
+                payload["save_dir"] = os.path.abspath(save_dir)
+            if b64:
+                payload["b64"] = True
+            s.sendall((json.dumps(payload) + "\n").encode())
+            line = f.readline().strip()
+            try:
+                print(json.dumps(trim(json.loads(line), json_only)), flush=True)
+            except ValueError:
+                print(line, flush=True)
+
+
+def main():
+    argv = sys.argv
+    daemon = "--daemon" in argv
+    connect = "--connect" in argv
+    windowed = "--windowed" in argv
+    # No window yet (phase 5): every mode serves headless.
+    mode = "windowed" if windowed else "headless"
+    socket_path = default_socket()
+    if "--socket" in argv:
+        socket_path = argv[argv.index("--socket") + 1]
+    save_shot = None
+    if "--save-shot" in argv:
+        save_shot = argv[argv.index("--save-shot") + 1]
+    save_dir = None
+    if "--save-dir" in argv:
+        save_dir = argv[argv.index("--save-dir") + 1]
+    b64 = "--b64" in argv
+    json_only = "--json" in argv
+    calls_path = None
+    if "--calls" in argv:
+        calls_path = argv[argv.index("--calls") + 1]
+
+    if "--proxy" in argv:
+        # The MCP config's command.
+        proxy_mode(socket_path, "headless")
+    elif daemon:
+        daemon_mode(socket_path, mode)
+    elif connect:
+        client_mode(socket_path, calls_path, save_shot, save_dir, b64, json_only)
+    else:
+        # Throwaway mode: own server, dies with this invocation.
+        session = SounderSession(mode="windowed" if windowed else "headless")
+        print(json.dumps({"tools": session.tool_names()}), flush=True)
+        try:
+            if calls_path:
+                run_calls(session, json.load(open(calls_path)), save_shot, save_dir, b64,
+                          json_only)
+            else:
+                for line in sys.stdin:
+                    line = line.strip()
+                    if not line or line == "quit":
+                        break
+                    c = json.loads(line)
+                    out = session.call(c["name"], c.get("args", {}), save_shot, save_dir, b64)
+                    print(json.dumps(trim(out, json_only)), flush=True)
+        finally:
+            session.close()
+
+
+if __name__ == "__main__":
+    main()

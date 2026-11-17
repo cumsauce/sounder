@@ -1,0 +1,308 @@
+[
+ {
+  "name": "new_sound",
+  "args": {
+   "name": "laser"
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "sweep",
+     "from": 2000,
+     "to": 200,
+     "time": 0.25,
+     "curve": "exp"
+    },
+    {
+     "type": "osc",
+     "name": "tone",
+     "shape": "saw",
+     "freq": "sweep"
+    },
+    {
+     "type": "decay",
+     "name": "amp",
+     "time": 0.3
+    },
+    {
+     "type": "math",
+     "name": "zap",
+     "op": "mul",
+     "a": "tone",
+     "b": "amp"
+    },
+    {
+     "type": "math",
+     "name": "cutoff",
+     "op": "mul",
+     "a": "sweep",
+     "b": 3
+    },
+    {
+     "type": "filter",
+     "name": "lp",
+     "input": "zap",
+     "mode": "lp",
+     "freq": "cutoff",
+     "q": 1.5
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "lp",
+     "lufs": -18
+    }
+   ],
+   "expect": {
+    "peak_db": {
+     "max": -0.3
+    },
+    "silent_edges": true
+   }
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "ops": [
+    {
+     "type": "osc",
+     "name": "extra",
+     "freq": 440
+    },
+    {
+     "type": "filter",
+     "name": "lp",
+     "input": "zap",
+     "frq": 800
+    }
+   ]
+  }
+ },
+ {
+  "name": "summary",
+  "args": {}
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "macros": [
+    {
+     "name": "brightness",
+     "value": 0.5,
+     "doc": "how cutting the zap is",
+     "claim": [
+      "centroid",
+      1
+     ],
+     "map": [
+      {
+       "node": "cutoff",
+       "field": "b",
+       "from": 1.2,
+       "to": 7,
+       "curve": "exp"
+      },
+      {
+       "node": "lp",
+       "field": "q",
+       "from": 0.8,
+       "to": 2.4
+      }
+     ]
+    },
+    {
+     "name": "weight",
+     "value": 0.4,
+     "doc": "how heavy it lands",
+     "claim": [
+      "centroid",
+      -1
+     ],
+     "map": [
+      {
+       "node": "sweep",
+       "field": "to",
+       "from": 480,
+       "to": 80,
+       "curve": "exp"
+      },
+      {
+       "node": "amp",
+       "field": "time",
+       "from": 0.18,
+       "to": 0.55,
+       "curve": "exp"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "verify",
+  "args": {}
+ },
+ {
+  "name": "listen",
+  "args": {}
+ },
+ {
+  "name": "listen",
+  "args": {
+   "sweep": {
+    "param": "brightness",
+    "values": [
+     0,
+     0.5,
+     1
+    ]
+   },
+   "descriptors": false
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "macros": [
+    {
+     "name": "snap",
+     "value": 0.5,
+     "claim": [
+      "crest",
+      1
+     ],
+     "map": [
+      {
+       "node": "tone",
+       "field": "amp",
+       "from": 1.0,
+       "to": 0.98
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "verify",
+  "args": {
+   "macros": true
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "delete_macros": [
+    "snap"
+   ]
+  }
+ },
+ {
+  "name": "add_annotation",
+  "args": {
+   "text": "the first 70 ms whistle is too resonant",
+   "time": [
+    0,
+    0.07
+   ],
+   "hz": [
+    2500,
+    9000
+   ]
+  }
+ },
+ {
+  "name": "summary",
+  "args": {}
+ },
+ {
+  "name": "add_annotation",
+  "args": {
+   "resolve": 1,
+   "text": "lowered lp q"
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "ops": [
+    {
+     "type": "decay",
+     "name": "amp",
+     "time": 0.25
+    }
+   ]
+  }
+ },
+ {
+  "name": "undo",
+  "args": {}
+ },
+ {
+  "name": "redo",
+  "args": {}
+ },
+ {
+  "name": "history",
+  "args": {}
+ },
+ {
+  "name": "jump",
+  "args": {
+   "id": 4
+  }
+ },
+ {
+  "name": "jump",
+  "args": {
+   "id": 99
+  }
+ },
+ {
+  "name": "catalog",
+  "args": {
+   "action": "save",
+   "description": "a laser zap",
+   "tags": [
+    "scifi",
+    "weapon"
+   ],
+   "prompt": "make a laser"
+  }
+ },
+ {
+  "name": "catalog",
+  "args": {
+   "action": "list"
+  }
+ },
+ {
+  "name": "export",
+  "args": {
+   "path": "@OUT@",
+   "variations": 3
+  }
+ },
+ {
+  "name": "play",
+  "args": {}
+ },
+ {
+  "name": "extract_modes",
+  "args": {
+   "file": "@OUT@/laser_1.wav",
+   "count": 4
+  }
+ },
+ {
+  "name": "session_log",
+  "args": {
+   "limit": 5
+  }
+ }
+]

@@ -2,19 +2,19 @@
 //! `expect`): each prints PASS / FAIL with the measured value, and a FAIL
 //! says what to change. Modeled on modeler's `MatExpect` + `MatDoc::check`.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sfx_graph::{Kind, RenderOpts, Rendered, SoundDoc, db_to_gain, gain_to_db};
 
 use crate::descriptors::{self, BAND_LABELS, BANDS, Descriptors, SEGMENTS};
 use crate::stft;
 
-#[derive(Clone, Debug, Default, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Max {
     pub max: f32,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Range {
     #[serde(default)]
@@ -24,7 +24,7 @@ pub struct Range {
 }
 
 /// `true`, or the check's settings.
-#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum Toggle<T> {
     On(bool),
@@ -41,7 +41,7 @@ impl<T: Default + Clone> Toggle<T> {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DcCheck {
     /// Largest DC offset, dB (default -40).
@@ -50,7 +50,7 @@ pub struct DcCheck {
 }
 
 /// One cell (or a whole row) of the band table.
-#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BandCheck {
     /// "63", "125", "250", "500", "1k", "2k", "4k", "8k" (or a number of Hz:
@@ -65,7 +65,7 @@ pub struct BandCheck {
     pub max_db: Option<f32>,
 }
 
-#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PitchCheck {
     pub hz: f32,
@@ -74,7 +74,7 @@ pub struct PitchCheck {
     pub tol_cents: Option<f32>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Variations {
     /// Seeds 1..=N rendered (default 6).
@@ -89,7 +89,7 @@ pub struct Variations {
 }
 
 /// The checks. With none given, `verify` runs [`Expect::defaults`].
-#[derive(Clone, Debug, Default, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Expect {
     /// Sample peak at most `max` dBFS.
@@ -134,9 +134,32 @@ pub struct Expect {
     /// An uncached re-render is bit-identical.
     #[serde(default)]
     pub rebuild: Option<bool>,
+    /// Every macro keeps its claim: swept over 0, .25, .5, .75, 1 (the others
+    /// where they are), its measure moves the claimed way at every step and
+    /// no position peaks over -0.3 dBFS.
+    #[serde(default)]
+    pub macros: Option<bool>,
 }
 
 impl Expect {
+    /// No check chosen (every field absent): `verify` then runs the defaults.
+    pub fn is_empty(&self) -> bool {
+        serde_json::to_value(self)
+            .map(|v| {
+                v.as_object()
+                    .is_none_or(|m| m.values().all(serde_json::Value::is_null))
+            })
+            .unwrap_or(true)
+    }
+
+    /// `defaults`, plus `macros` when the sound has any.
+    pub fn defaults_for(doc: &SoundDoc) -> Expect {
+        Expect {
+            macros: (!doc.macros.is_empty()).then_some(true),
+            ..Expect::defaults()
+        }
+    }
+
     /// `finite`, `peak_db` max -0.3, `silent_edges`, `dc`, `rebuild`.
     pub fn defaults() -> Expect {
         Expect {
@@ -271,6 +294,51 @@ fn seam_spectral(tail: &[f32], head: &[f32], sr: u32) -> f32 {
         }
     }
     if k == 0 { 0.0 } else { sum / k as f32 }
+}
+
+/// Sweeps one macro; (pass, text).
+fn macro_check(cx: &CheckCx, m: &sfx_graph::Macro) -> Result<(bool, String), String> {
+    use crate::measure::{fmt, measure};
+    let sfx_graph::Claim(measure_of, dir) = m.claim;
+    let xs = [0.0, 0.25, 0.5, 0.75, 1.0];
+    let (mut vals, mut peaks) = (Vec::new(), Vec::new());
+    for x in xs {
+        let r = cx.doc.render(&RenderOpts {
+            macros: [(m.name.clone(), x)].into(),
+            seed: Some(cx.rendered.seed),
+            ..cx.opts.clone()
+        })?;
+        vals.push(measure(&r.audio, measure_of));
+        peaks.push(r.peak_db);
+    }
+    let d = f32::from(dir);
+    let tol = ((vals[4] - vals[0]).abs() * 0.01).max(1e-6);
+    let steady = vals.windows(2).all(|w| (w[1] - w[0]) * d > -tol);
+    let net = (vals[4] - vals[0]) * d > tol;
+    let clip = peaks.iter().position(|p| *p > -0.3);
+    let shown: Vec<String> = vals.iter().map(|v| fmt(measure_of, *v)).collect();
+    let word = if dir > 0 { "rise" } else { "fall" };
+    let list = shown.join(" -> ");
+    Ok(match (steady && net, clip) {
+        (true, None) => (
+            true,
+            format!("{} {}s over 0..1: {list}", measure_of.name(), word),
+        ),
+        (_, Some(i)) => (
+            false,
+            format!(
+                "clips at {} (peak {:.1} dBFS): lower the gains it drives, or limit before the output",
+                xs[i], peaks[i]
+            ),
+        ),
+        (false, None) => (
+            false,
+            format!(
+                "{} does not {word} over 0..1 ({list}): rename the macro to what it really does (claim), or fix what it moves",
+                measure_of.name()
+            ),
+        ),
+    })
 }
 
 /// What the checks read.
@@ -629,6 +697,12 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
             why += ": the seeds sound alike; let the seed drive more (noise seeds, wander, random pitch)";
         }
         push("variations", ok_spread && ok_dist, why);
+    }
+    if e.macros == Some(true) {
+        for m in &cx.doc.macros {
+            let r = macro_check(cx, m)?;
+            push(&format!("macro {}", m.name), r.0, r.1);
+        }
     }
     if e.rebuild == Some(true) {
         let fresh = cx.doc.render(&RenderOpts {

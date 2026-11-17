@@ -14,7 +14,8 @@ use serde_json::Value;
 
 use crate::buf::{Audio, Buf};
 use crate::eval::{self, Ctx, Evaluated};
-use crate::params::Params;
+use crate::macros::{self, Macro};
+use crate::params::{self, Params};
 use crate::{gain_to_db, loudness};
 
 /// On-disk schema version of a sound document.
@@ -35,28 +36,6 @@ pub enum Kind {
     Oneshot,
     /// Repeats seamlessly; needs a duration.
     Loop,
-}
-
-/// A named game-facing knob, read as `$name` like a param and recorded in
-/// the export manifest.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct InputSpec {
-    pub default: f64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub min: Option<f64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max: Option<f64>,
-    /// What the knob means to the game ("impact speed, m/s").
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub doc: Option<String>,
-}
-
-impl InputSpec {
-    fn clamp(&self, v: f64) -> f64 {
-        let v = self.min.map_or(v, |m| v.max(m));
-        self.max.map_or(v, |m| v.min(m))
-    }
 }
 
 /// A procedural sound: a graph of nodes ending in one `output` node.
@@ -80,8 +59,10 @@ pub struct SoundDoc {
     pub nodes: Vec<Value>,
     #[serde(default)]
     pub params: Params,
+    /// Named 0..1 knobs (see [`crate::macros`]); `game` ones are the
+    /// game-facing inputs.
     #[serde(default)]
-    pub inputs: BTreeMap<String, InputSpec>,
+    pub macros: Vec<Macro>,
     /// Changes with every recorded edit.
     #[serde(default)]
     pub version: u64,
@@ -105,7 +86,7 @@ impl Default for SoundDoc {
             seed: default_seed(),
             nodes: Vec::new(),
             params: Params::new(),
-            inputs: BTreeMap::new(),
+            macros: Vec::new(),
             version: 0,
         }
     }
@@ -118,8 +99,8 @@ pub struct RenderOpts {
     pub cached: bool,
     /// Render with this seed instead of the document's (variations).
     pub seed: Option<u64>,
-    /// Override input values (clamped to their ranges).
-    pub inputs: BTreeMap<String, f64>,
+    /// Override macro values (clamped to 0..1): sweeps, the game's inputs.
+    pub macros: BTreeMap<String, f64>,
     /// Relative file paths (`sample`, `convolve`) resolve here.
     pub base_dir: Option<PathBuf>,
 }
@@ -129,7 +110,7 @@ impl Default for RenderOpts {
         RenderOpts {
             cached: true,
             seed: None,
-            inputs: BTreeMap::new(),
+            macros: BTreeMap::new(),
             base_dir: None,
         }
     }
@@ -170,7 +151,9 @@ impl Rendered {
 #[derive(Clone, Debug, Default)]
 pub struct DocEdit {
     pub params: Option<Params>,
-    pub inputs: Option<BTreeMap<String, InputSpec>>,
+    /// Upsert macros by name; a name in `delete_macros` removes one.
+    pub macros: Option<Vec<Macro>>,
+    pub delete_macros: Vec<String>,
     pub kind: Option<Kind>,
     /// Some(None) clears the duration (automatic length).
     pub duration: Option<Option<f32>>,
@@ -215,23 +198,14 @@ impl SoundDoc {
         v.get("name").and_then(Value::as_str)
     }
 
-    /// Params plus input values (defaults, or `overrides`), as `$name`s.
-    pub fn resolved_params(&self, overrides: &BTreeMap<String, f64>) -> Result<Params, String> {
-        let mut p = self.params.clone();
-        for (k, spec) in &self.inputs {
-            if p.contains_key(k) {
-                return Err(format!(
-                    "`{k}` is both a param and an input: rename one (inputs are the game-facing knobs)"
-                ));
-            }
-            let v = overrides.get(k).copied().unwrap_or(spec.default);
-            p.insert(k.clone(), spec.clamp(v));
-        }
+    /// The graph as evaluated: nodes with `$param`s resolved and macros
+    /// applied (`overrides` replace macro values).
+    pub fn graph(&self, overrides: &BTreeMap<String, f64>) -> Result<Vec<Value>, String> {
         for k in overrides.keys() {
-            if !self.inputs.contains_key(k) {
-                let known: Vec<&str> = self.inputs.keys().map(String::as_str).collect();
+            if !self.macros.iter().any(|m| &m.name == k) {
+                let known: Vec<&str> = self.macros.iter().map(|m| m.name.as_str()).collect();
                 return Err(format!(
-                    "no input named `{k}` (inputs: {})",
+                    "no macro named `{k}` (macros: {})",
                     if known.is_empty() {
                         "none".into()
                     } else {
@@ -240,12 +214,19 @@ impl SoundDoc {
                 ));
             }
         }
-        Ok(p)
+        let resolved: Vec<Value> = self
+            .nodes
+            .iter()
+            .enumerate()
+            .map(|(k, n)| params::resolve(n, &self.params).map_err(|e| format!("node #{k}: {e}")))
+            .collect::<Result<_, _>>()?;
+        macros::apply(&resolved, &self.macros, overrides)
     }
 
     /// Renders the sound.
     pub fn render(&self, opts: &RenderOpts) -> Result<Rendered, String> {
-        let params = self.resolved_params(&opts.inputs)?;
+        let nodes = self.graph(&opts.macros)?;
+        let params = Params::new();
         let seed = opts.seed.unwrap_or(self.seed);
         let sr = self.sample_rate;
         if !(8000..=192_000).contains(&sr) {
@@ -273,7 +254,7 @@ impl SoundDoc {
                 if !(d > 0.0 && d <= 600.0) {
                     return Err(format!("duration: {d}: give seconds in 0..600"));
                 }
-                let ev = eval::evaluate(&self.nodes, &params, &ctx(d), opts.cached)?;
+                let ev = eval::evaluate(&nodes, &params, &ctx(d), opts.cached)?;
                 let a = out_of(&ev)?;
                 (ev, a, false)
             }
@@ -283,7 +264,7 @@ impl SoundDoc {
             None => {
                 let mut secs = 2.0f32;
                 loop {
-                    let ev = eval::evaluate(&self.nodes, &params, &ctx(secs), opts.cached)?;
+                    let ev = eval::evaluate(&nodes, &params, &ctx(secs), opts.cached)?;
                     let a = out_of(&ev)?;
                     let tail = (0.05 * sr as f32) as usize;
                     let th = crate::db_to_gain(SILENCE_DB);
@@ -449,15 +430,25 @@ impl SoundDoc {
         if let Some(p) = edit.params {
             next.params.extend(p);
         }
-        if let Some(i) = edit.inputs {
-            for (k, spec) in &i {
-                if let (Some(a), Some(b)) = (spec.min, spec.max)
-                    && a > b
-                {
-                    return Err(format!("inputs.{k}: min {a} is above max {b}"));
+        if let Some(list) = edit.macros {
+            for mut m in list {
+                if m.default.is_none() {
+                    m.default = Some(m.value);
+                }
+                // An agent setting a macro sets both where it sits and its default.
+                m.value = m.value.clamp(0.0, 1.0);
+                match next.macros.iter().position(|x| x.name == m.name) {
+                    Some(at) => next.macros[at] = m,
+                    None => next.macros.push(m),
                 }
             }
-            next.inputs.extend(i);
+        }
+        for name in &edit.delete_macros {
+            let before = next.macros.len();
+            next.macros.retain(|m| &m.name != name);
+            if next.macros.len() == before {
+                return Err(format!("delete_macros: no macro named `{name}`"));
+            }
         }
         if let Some(k) = edit.kind {
             next.kind = k;
@@ -515,6 +506,38 @@ impl SoundDoc {
                 }
             }
         }
+        // The graph at the macros' current values: plain graph errors come
+        // out as they are; one only the macros cause names them, with a hint.
+        let hint = |e: String| {
+            if e.starts_with("macro ")
+                || e.starts_with("with every macro")
+                || e.starts_with("with the macros")
+            {
+                format!(
+                    "{e} (fix the macro with sound_ops macros, or remove it with delete_macros)"
+                )
+            } else {
+                e
+            }
+        };
+        macros::validate_shape(&next.nodes, &next.params, &next.macros).map_err(hint)?;
+        let resolved: Vec<Value> = next
+            .nodes
+            .iter()
+            .enumerate()
+            .map(|(k, n)| params::resolve(n, &next.params).map_err(|e| format!("node #{k}: {e}")))
+            .collect::<Result<_, _>>()?;
+        let current = macros::apply(&resolved, &next.macros, &BTreeMap::new()).map_err(hint)?;
+        if let Err(e) = eval::parse(&current, &Params::new()) {
+            let macros_to_blame =
+                !next.macros.is_empty() && eval::parse(&resolved, &Params::new()).is_ok();
+            return Err(if macros_to_blame {
+                hint(format!("with the macros at their values: {e}"))
+            } else {
+                e
+            });
+        }
+        macros::validate_ends(&next.nodes, &next.params, &next.macros).map_err(hint)?;
         // Render for real: kernel errors (a filter fed an event stream)
         // surface now, and leave the document untouched.
         let rendered = next.render(opts)?;

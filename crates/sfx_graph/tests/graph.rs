@@ -260,43 +260,153 @@ fn auto_length_ends_when_the_sound_decays() {
 }
 
 #[test]
-fn params_inputs_and_expressions_resolve() {
+fn params_macros_and_expressions_resolve() {
+    use sfx_graph::{Claim, Macro, MapCurve, MapEntry, Measure};
     let mut d = doc_with(vec![
         json!({"type": "osc", "name": "o", "freq": "=$base * 2"}),
-        json!({"type": "output", "name": "out", "input": "o", "gain_db": "$level"}),
+        json!({"type": "output", "name": "out", "input": "o", "gain_db": -6}),
     ]);
     d.params.insert("base".into(), 220.0);
-    d.inputs.insert(
-        "level".into(),
-        sfx_graph::InputSpec {
-            default: -12.0,
-            min: Some(-40.0),
-            max: Some(0.0),
-            doc: None,
-        },
-    );
+    d.macros.push(Macro {
+        name: "loud".into(),
+        value: 0.5,
+        default: Some(0.5),
+        doc: "level".into(),
+        claim: Claim(Measure::Lufs, 1),
+        game: true,
+        map: vec![MapEntry {
+            node: "out".into(),
+            field: "gain_db".into(),
+            from: -24.0,
+            to: 0.0,
+            curve: MapCurve::Linear,
+            col: None,
+            index: None,
+            key: None,
+        }],
+    });
     d.duration = Some(0.2);
     let r = d.render(&RenderOpts::default()).unwrap();
+    // The macro overrides the node's own gain_db: -12 dB at 0.5.
     assert!((r.peak_db + 12.0).abs() < 0.1, "{}", r.peak_db);
-    // Overrides are clamped to the input's range.
     let loud = d
         .render(&RenderOpts {
-            inputs: [("level".to_string(), 30.0)].into(),
+            macros: [("loud".to_string(), 1.0)].into(),
             ..RenderOpts::default()
         })
         .unwrap();
     assert!(
         loud.peak_db <= -0.99,
-        "clamped to 0 dB then the -1 dB ceiling: {}",
+        "0 dB then the -1 dBFS ceiling: {}",
         loud.peak_db
     );
-    assert!(
-        d.render(&RenderOpts {
-            inputs: [("nope".to_string(), 1.0)].into(),
+    let e = d
+        .render(&RenderOpts {
+            macros: [("nope".to_string(), 1.0)].into(),
             ..RenderOpts::default()
         })
-        .unwrap_err()
-        .contains("no input named `nope`")
+        .unwrap_err();
+    assert!(e.contains("no macro named `nope`"), "{e}");
+}
+
+#[test]
+fn macro_validation_names_the_problem() {
+    use sfx_graph::{Claim, Macro, MapEntry, Measure};
+    let entry = |node: &str, field: &str, from: f64, to: f64| MapEntry {
+        node: node.into(),
+        field: field.into(),
+        from,
+        to,
+        curve: sfx_graph::MapCurve::Linear,
+        col: None,
+        index: None,
+        key: None,
+    };
+    let mac = |name: &str, map: Vec<MapEntry>| Macro {
+        name: name.into(),
+        value: 0.5,
+        default: None,
+        doc: String::new(),
+        claim: Claim(Measure::Centroid, 1),
+        game: false,
+        map,
+    };
+    let base = vec![
+        json!({"type": "osc", "name": "o", "freq": 440}),
+        json!({"type": "filter", "name": "f", "input": "o", "freq": 1000}),
+        json!({"type": "output", "name": "out", "input": "f"}),
+    ];
+    let mut d = doc_with(base.clone());
+    let ok = |d: &mut SoundDoc, m: Vec<Macro>| {
+        d.apply(
+            vec![],
+            DocEdit {
+                macros: Some(m),
+                duration: Some(Some(0.1)),
+                ..DocEdit::default()
+            },
+            &RenderOpts::default(),
+        )
+    };
+    let e = ok(
+        &mut d,
+        vec![mac("bright", vec![entry("g", "freq", 1.0, 2.0)])],
+    )
+    .unwrap_err();
+    assert!(
+        e.contains("no node named `g`") && e.contains("nodes: o, f, out"),
+        "{e}"
+    );
+    let e = ok(
+        &mut d,
+        vec![
+            mac("a", vec![entry("f", "freq", 100.0, 5000.0)]),
+            mac("b", vec![entry("f", "freq", 1.0, 2.0)]),
+        ],
+    )
+    .unwrap_err();
+    assert!(e.contains("both write f.freq"), "{e}");
+    // A field the node does not have: the graph no longer parses at the ends.
+    let e = ok(
+        &mut d,
+        vec![mac("c", vec![entry("f", "frq", 100.0, 5000.0)])],
+    )
+    .unwrap_err();
+    assert!(
+        e.contains("frq") && e.contains("with the macros at their values"),
+        "{e}"
+    );
+    let mut bad_exp = entry("f", "freq", 0.0, 5000.0);
+    bad_exp.curve = sfx_graph::MapCurve::Exp;
+    let e = ok(&mut d, vec![mac("d", vec![bad_exp])]).unwrap_err();
+    assert!(e.contains("curve exp needs from and to above 0"), "{e}");
+    let e = ok(
+        &mut d,
+        vec![mac("two words", vec![entry("f", "freq", 1.0, 2.0)])],
+    )
+    .unwrap_err();
+    assert!(e.contains("one word"), "{e}");
+    assert!(d.macros.is_empty());
+    // A good one is stored with its default, and deleting the node it maps is refused.
+    ok(
+        &mut d,
+        vec![mac("brightness", vec![entry("f", "freq", 300.0, 6000.0)])],
+    )
+    .unwrap();
+    assert_eq!(d.macros[0].default, Some(0.5));
+    let e = d
+        .apply(
+            vec![
+                json!({"type": "delete", "name": "f"}),
+                json!({"type": "output", "name": "out", "input": "o"}),
+            ],
+            DocEdit::default(),
+            &RenderOpts::default(),
+        )
+        .unwrap_err();
+    assert!(
+        e.contains("no node named `f`") && e.contains("delete_macros"),
+        "{e}"
     );
 }
 

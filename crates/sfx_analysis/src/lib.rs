@@ -15,10 +15,11 @@
 pub mod checks;
 pub mod descriptors;
 pub mod image;
+pub mod measure;
 pub mod pitch;
 pub mod raster;
 pub mod stft;
 
 pub use checks::{CheckCx, CheckResult, Expect, report, run};
-pub use descriptors::{Descriptors, describe};
+pub use descriptors::{Descriptors, describe, modes_node};
 pub use image::{Column, View, listen_png};

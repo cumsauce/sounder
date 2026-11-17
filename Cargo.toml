@@ -30,7 +30,13 @@ type_complexity = "allow"
 [dependencies]
 sfx_graph.workspace = true
 sfx_analysis.workspace = true
+serde.workspace = true
 serde_json.workspace = true
+schemars.workspace = true
+png.workspace = true
+base64 = "0.22"
+rmcp = { version = "1", features = ["server", "transport-io", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
 
 [lints]
 workspace = true

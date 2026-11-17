@@ -20,16 +20,16 @@ pub mod doc;
 pub mod dsp;
 pub mod eval;
 pub mod loudness;
+pub mod macros;
 pub mod node;
 mod nodes;
 pub mod params;
 pub mod wav;
 
 pub use buf::{Audio, Buf, Event, Sig};
-pub use doc::{
-    ApplyReport, DocEdit, InputSpec, Kind, RenderOpts, Rendered, SOUND_FORMAT_VERSION, SoundDoc,
-};
+pub use doc::{ApplyReport, DocEdit, Kind, RenderOpts, Rendered, SOUND_FORMAT_VERSION, SoundDoc};
 pub use eval::{Ctx, Evaluated, Parsed, clear_cache, evaluate};
+pub use macros::{Claim, KnobMove, Macro, MapCurve, MapEntry, Measure};
 pub use node::{In, NODE_TYPES, describe, example};
 pub use params::Params;
 

@@ -290,3 +290,105 @@ fn the_listen_image_fits_the_budget() {
     .unwrap();
     assert!(png.len() > 1000);
 }
+
+fn knob(
+    name: &str,
+    claim: (sfx_graph::Measure, i8),
+    map: Vec<sfx_graph::MapEntry>,
+) -> sfx_graph::Macro {
+    sfx_graph::Macro {
+        name: name.into(),
+        value: 0.5,
+        default: Some(0.5),
+        doc: String::new(),
+        claim: sfx_graph::Claim(claim.0, claim.1),
+        game: false,
+        map,
+    }
+}
+
+fn entry(node: &str, field: &str, from: f64, to: f64, exp: bool) -> sfx_graph::MapEntry {
+    sfx_graph::MapEntry {
+        node: node.into(),
+        field: field.into(),
+        from,
+        to,
+        curve: if exp {
+            sfx_graph::MapCurve::Exp
+        } else {
+            sfx_graph::MapCurve::Linear
+        },
+        col: None,
+        index: None,
+        key: None,
+    }
+}
+
+#[test]
+fn the_macros_check_keeps_names_honest() {
+    use sfx_graph::Measure;
+    let mut d = doc(
+        vec![
+            json!({"type": "noise", "name": "n", "color": "white", "amp": 0.3}),
+            json!({"type": "decay", "name": "e", "time": 0.3}),
+            json!({"type": "math", "name": "m", "op": "mul", "a": "n", "b": "e"}),
+            json!({"type": "filter", "name": "f", "input": "m", "mode": "lp", "freq": 1000, "q": 1}),
+            json!({"type": "filter", "name": "h", "input": "f", "mode": "hp", "freq": 100}),
+            json!({"type": "output", "name": "out", "input": "h", "lufs": -20}),
+        ],
+        None,
+    );
+    d.macros = vec![
+        // Opening the filter raises the centroid: an honest name.
+        knob(
+            "brightness",
+            (Measure::Centroid, 1),
+            vec![entry("f", "freq", 300.0, 8000.0, true)],
+        ),
+        // A high-pass opened up raises the centroid, but claimed "weight"
+        // (centroid falls): the check fails.
+        knob(
+            "weight",
+            (Measure::Centroid, -1),
+            vec![entry("h", "freq", 100.0, 6000.0, true)],
+        ),
+        knob(
+            "length",
+            (Measure::Decay, 1),
+            vec![entry("e", "time", 0.05, 0.5, true)],
+        ),
+        // Claimed to change decay but wired to the filter only: fails.
+        knob(
+            "ring",
+            (Measure::Decay, 1),
+            vec![entry("f", "q", 0.7, 0.8, false)],
+        ),
+    ];
+    let opts = RenderOpts::default();
+    let r = d.render(&opts).unwrap();
+    let res = run(
+        &Expect::defaults_for(&d),
+        &CheckCx {
+            doc: &d,
+            rendered: &r,
+            opts: &opts,
+        },
+    )
+    .unwrap();
+    let by = |n: &str| {
+        res.iter()
+            .find(|c| c.name == format!("macro {n}"))
+            .unwrap_or_else(|| panic!("{n}: {res:?}"))
+    };
+    assert!(by("brightness").pass, "{:?}", by("brightness"));
+    assert!(by("length").pass, "{:?}", by("length"));
+    let w = by("weight");
+    assert!(
+        !w.pass && w.detail.contains("does not fall") && w.detail.contains("rename the macro"),
+        "{w:?}"
+    );
+    assert!(!by("ring").pass, "{:?}", by("ring"));
+    // A sound with no macros gets no macro check by default.
+    d.macros.clear();
+    assert!(Expect::defaults_for(&d).macros.is_none());
+}

@@ -604,3 +604,28 @@ impl Descriptors {
         o
     }
 }
+
+/// A ready `resonators` node from a recording: the strongest `count` modes
+/// as [hz, decay_s, gain] (gain 1 = the strongest), fed by `input`.
+pub fn modes_node(audio: &Audio, count: usize, name: &str, input: &str) -> serde_json::Value {
+    let d = describe(audio);
+    let mut modes = d.modes;
+    modes.sort_by(|a, b| b.level_db.total_cmp(&a.level_db));
+    modes.truncate(count.clamp(1, 12));
+    modes.sort_by(|a, b| a.hz.total_cmp(&b.hz));
+    let top = modes.iter().map(|m| m.level_db).fold(f32::MIN, f32::max);
+    let round = |v: f32, k: f32| (v * k).round() / k;
+    serde_json::json!({
+        "type": "resonators",
+        "name": name,
+        "input": input,
+        "modes": modes
+            .iter()
+            .map(|m| serde_json::json!([
+                round(m.hz, 10.0),
+                round(m.decay_s.min(10.0), 100.0),
+                round(10f32.powf((m.level_db - top) / 20.0), 1000.0),
+            ]))
+            .collect::<Vec<_>>(),
+    })
+}
