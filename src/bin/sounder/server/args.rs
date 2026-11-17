@@ -37,8 +37,9 @@ pub(crate) struct SoundOpsArgs {
     /// "col": 0, "from": 1.6, "to": 0.6}, {"node": "m", "field": "inputs",
     /// "index": 1, "key": "gain", "from": 0.1, "to": 0.9}]}. The name is a
     /// claim: `claim` [measure, direction] (measures centroid, decay, crest,
-    /// lufs, flatness, swing; 1 rises over 0..1, -1 falls) is checked by
-    /// verify. Name knobs with an adjective; 2-4 per sound; the human turns
+    /// lufs, flatness, swing; 1 rises over 0..1, -1 falls; optional) is
+    /// checked by verify. A map entry may write a sound param instead:
+    /// {"param": "size", "from": 0.2, "to": 0.8}. Name knobs with an adjective; 2-4 per sound; the human turns
     /// them in the window to fit it by ear. game: true exports it as a
     /// runtime input.
     #[serde(default)]

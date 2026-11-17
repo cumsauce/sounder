@@ -63,7 +63,7 @@ fn macro_json(m: &Macro, result: Option<(bool, &str)>) -> Value {
         "claim": m.claim,
         "game": m.game,
         "map": m.map.iter().map(|e| json!({
-            "node": e.node, "field": e.field, "from": e.from, "to": e.to,
+            "node": e.node, "field": e.field, "param": e.param, "from": e.from, "to": e.to,
             "curve": e.curve, "col": e.col, "index": e.index, "key": e.key,
         })).collect::<Vec<_>>(),
         "result": result.map(|(pass, detail)| json!({"pass": pass, "detail": detail})),
