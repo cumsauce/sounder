@@ -61,3 +61,4 @@
 - merged R2-C descriptors; integrator todo: wire descriptors_window into listen zoom text
 - merged R2-D crumple; all R2 fixes merged; docs pass R2-H next
 - merged R2-H docs; ROUND 3 setup (binary f5c7f06); 28 sounds (24 core + rock_debris ice_in_glass boiling_loop rope_creak)
+- ROUND 3: testers 1-12 launched; queue: stream splash rain wind fire thunder cloth paper sword punch switch keys + rock_debris ice_in_glass boiling_loop rope_creak; then judges
