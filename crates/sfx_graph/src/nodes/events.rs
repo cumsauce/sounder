@@ -22,6 +22,18 @@ fn unit(rng: &mut Rng) -> f64 {
     (rng.next_u64() >> 11) as f64 / (1u64 << 53) as f64
 }
 
+/// One draw between `min` and `max` along `curve` (one RNG draw).
+fn draw_between(min: f32, max: f32, curve: CurveSpec, rng: &mut Rng) -> f32 {
+    let u = unit(rng);
+    let (a, b) = (f64::from(min), f64::from(max));
+    let v = match curve {
+        CurveSpec::Linear => a + (b - a) * u,
+        CurveSpec::Smooth => a + (b - a) * u * u * (3.0 - 2.0 * u),
+        CurveSpec::Exp => a * (b / a).powf(u),
+    };
+    v as f32
+}
+
 /// Per-event randomness for the event `value` (default: always 1).
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -36,14 +48,7 @@ pub struct Values {
 
 impl Values {
     fn draw(&self, rng: &mut Rng) -> f32 {
-        let u = unit(rng);
-        let (a, b) = (f64::from(self.min), f64::from(self.max));
-        let v = match self.curve {
-            CurveSpec::Linear => a + (b - a) * u,
-            CurveSpec::Smooth => a + (b - a) * u * u * (3.0 - 2.0 * u),
-            CurveSpec::Exp => a * (b / a).powf(u),
-        };
-        v as f32
+        draw_between(self.min, self.max, self.curve, rng)
     }
 
     fn check(&self) -> Result<(), String> {
@@ -442,6 +447,208 @@ impl GrainWindow {
     }
 }
 
+/// A random range drawn once per grain.
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GrainRange {
+    /// Lower end of the range (min <= max).
+    pub min: f32,
+    /// Upper end of the range.
+    pub max: f32,
+    /// linear (uniform, default), exp (geometric: both ends > 0), smooth
+    /// (favours the ends).
+    #[serde(default)]
+    pub curve: CurveSpec,
+}
+
+/// A per-grain quantity: a number, a signal read at the grain's start, or a
+/// `{min, max, [curve]}` range drawn for each grain.
+#[derive(Clone, Debug)]
+pub enum PerGrain {
+    Signal(In),
+    Range(GrainRange),
+}
+
+impl<'de> Deserialize<'de> for PerGrain {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        use serde::de::Error;
+        let v = serde_json::Value::deserialize(d)?;
+        if v.is_object() {
+            serde_json::from_value::<GrainRange>(v)
+                .map(PerGrain::Range)
+                .map_err(D::Error::custom)
+        } else {
+            serde_json::from_value::<In>(v)
+                .map(PerGrain::Signal)
+                .map_err(D::Error::custom)
+        }
+    }
+}
+
+impl schemars::JsonSchema for PerGrain {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        "PerGrain".into()
+    }
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        let signal = generator.subschema_for::<In>();
+        let range = generator.subschema_for::<GrainRange>();
+        schemars::json_schema!({
+            "description": "a number, a signal (\"$param\", \"=expr\" or a node name) read at the grain's start, or a {min, max, curve} range drawn for each grain",
+            "anyOf": [signal, range]
+        })
+    }
+}
+
+/// A [`PerGrain`] with its signals resolved.
+enum Draw {
+    Signal(crate::buf::Sig),
+    Range(GrainRange),
+}
+
+impl Draw {
+    /// `lowest` is the smallest value the field accepts (`strict`: the
+    /// value must be above it, not equal).
+    fn resolve(
+        cx: &Cx,
+        field: &str,
+        spec: &PerGrain,
+        lowest: f32,
+        strict: bool,
+    ) -> Result<Draw, String> {
+        match spec {
+            PerGrain::Signal(i) => Ok(Draw::Signal(cx.mono(field, i)?)),
+            PerGrain::Range(r) => {
+                let (a, b) = (r.min, r.max);
+                if !(a.is_finite() && b.is_finite()) {
+                    return Err(format!(
+                        "{field}: min {a} and max {b} must be numbers: give e.g. {{\"min\": 0.5, \"max\": 2}}"
+                    ));
+                }
+                if a > b {
+                    return Err(format!("{field}: min {a} is above max {b}: swap them"));
+                }
+                let bad = if strict { a <= lowest } else { a < lowest };
+                if bad {
+                    let rel = if strict { "above" } else { "at least" };
+                    return Err(format!(
+                        "{field}: min {a}: give a range that stays {rel} {lowest}"
+                    ));
+                }
+                if matches!(r.curve, CurveSpec::Exp) && !(a > 0.0 && b > 0.0) {
+                    return Err(format!(
+                        "{field}: curve \"exp\" needs min and max above 0 (got {a}..{b}): use \"linear\""
+                    ));
+                }
+                Ok(Draw::Range(r.clone()))
+            }
+        }
+    }
+
+    /// The value for a grain starting at sample `onset`. A range draws once
+    /// from `rng`; a signal draws nothing.
+    fn value(&self, onset: usize, rng: &mut Rng) -> f32 {
+        match self {
+            Draw::Signal(s) => s.at(onset),
+            Draw::Range(r) => draw_between(r.min, r.max, r.curve, rng),
+        }
+    }
+}
+
+/// Most samples of grain work one node may do.
+const MAX_GRAIN_WORK: f64 = 2.0e9;
+
+/// The source as one mono channel, and its rate relative to ours.
+fn load_source(cx: &Cx, source: &str) -> Result<(Vec<f32>, f64), String> {
+    if is_file(source) {
+        let a = crate::wav::read(&cx.path(source))
+            .map_err(|e| format!("source: {e} (put the WAV in the project and give its path)"))?;
+        Ok((a.mix_mono(), f64::from(a.sample_rate) / f64::from(cx.sr)))
+    } else {
+        let s = cx.audio("source", &In::Name(source.to_string()))?;
+        Ok(((0..cx.n).map(|i| s.at(i)).collect(), 1.0))
+    }
+}
+
+/// Grain length in samples for `size` seconds.
+fn grain_len(size: f32, sr: f32) -> usize {
+    ((size * sr).round() as usize).max(2)
+}
+
+/// A size read from a signal or drawn: finite and not negative (the
+/// length is then at least two samples).
+fn clean_size(size: f32) -> f32 {
+    if size.is_finite() { size.max(0.0) } else { 0.0 }
+}
+
+/// The two channel gains of a pan position in -1..1 (1, 1 when mono).
+fn pan_gains(pan: f32, stereo: bool) -> (f32, f32) {
+    let a = (f64::from(pan) + 1.0) * 0.25 * std::f64::consts::PI;
+    if stereo {
+        (a.cos() as f32, a.sin() as f32)
+    } else {
+        (1.0, 1.0)
+    }
+}
+
+/// The output channels grains are summed into.
+struct GrainBus {
+    left: Vec<f32>,
+    right: Vec<f32>,
+    stereo: bool,
+}
+
+impl GrainBus {
+    fn new(n: usize, stereo: bool) -> Self {
+        GrainBus {
+            left: vec![0.0; n],
+            right: if stereo { vec![0.0; n] } else { Vec::new() },
+            stereo,
+        }
+    }
+
+    /// One windowed grain of `src` read from `pos` at `step` source samples
+    /// per output sample, `glen` long, starting at output sample `onset`.
+    #[allow(clippy::too_many_arguments)]
+    fn add(
+        &mut self,
+        src: &[f32],
+        mut pos: f64,
+        step: f64,
+        glen: usize,
+        window: GrainWindow,
+        gains: (f32, f32),
+        value: f32,
+        onset: usize,
+    ) {
+        let slen = src.len();
+        let n = self.left.len();
+        for j in 0..glen {
+            let o = onset + j;
+            if o >= n || pos >= (slen - 1) as f64 {
+                break;
+            }
+            let k = pos as usize;
+            let f = (pos - k as f64) as f32;
+            let v = (src[k] + (src[k + 1] - src[k]) * f)
+                * window.at((j as f64 + 0.5) / glen as f64)
+                * value;
+            self.left[o] += v * gains.0;
+            if self.stereo {
+                self.right[o] += v * gains.1;
+            }
+            pos += step;
+        }
+    }
+
+    fn finish(self) -> Outs {
+        one(if self.stereo {
+            Buf::from_channels(vec![self.left, self.right])
+        } else {
+            Buf::Audio(self.left)
+        })
+    }
+}
+
 /// Granular playback: one windowed grain of the source per event.
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -450,15 +657,20 @@ pub struct Grains {
     pub source: String,
     /// An event stream node.
     pub events: In,
-    /// Grain length, seconds.
-    pub size: f32,
+    /// Grain length, seconds, above 0: a number, a `{min, max, [curve]}`
+    /// range drawn for each grain, or a signal read at the grain's start.
+    /// A length under two samples counts as two.
+    pub size: PerGrain,
     /// Where in the source each grain starts reading, 0..1 of its length
     /// (a number or a signal read at the event time; default 0).
     #[serde(default)]
     pub position: Option<In>,
-    /// Playback ratio (2 = an octave up; a number or a signal; default 1).
+    /// Playback ratio (2 = an octave up; default 1): a number, a signal read
+    /// at the grain's start (negative counts as 0), or a `{min, max, [curve]}`
+    /// range drawn for each grain (min >= 0; use curve exp for an even
+    /// spread in octaves).
     #[serde(default)]
-    pub pitch: Option<In>,
+    pub pitch: Option<PerGrain>,
     /// hann (default), tri, rect.
     #[serde(default)]
     pub window: GrainWindow,
@@ -473,7 +685,7 @@ pub struct Grains {
 }
 
 impl Describe for Grains {
-    const BLURB: &'static str = "granular playback of a node or WAV, one windowed grain per event";
+    const BLURB: &'static str = "granular playback of a node or WAV, one windowed grain per event; size and pitch can be ranges or signals";
     fn example() -> serde_json::Value {
         serde_json::json!({"source": "noise1", "events": "ev", "size": 0.03, "pan_spread": 0.5})
     }
@@ -484,48 +696,52 @@ impl Eval for Grains {
         true
     }
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
-        let size = positive("size", self.size)?;
+        let size = Draw::resolve(cx, "size", &self.size, 0.0, true)?;
+        if let Draw::Signal(s) = &size
+            && let Some(v) = s.constant()
+        {
+            positive("size", v)?;
+        }
         let events = cx.events("events", &self.events)?;
         let position = cx.mono_or("position", &self.position, 0.0)?;
-        let pitch = cx.mono_or("pitch", &self.pitch, 1.0)?;
+        let pitch = match &self.pitch {
+            Some(p) => Draw::resolve(cx, "pitch", p, 0.0, false)?,
+            None => Draw::Signal(crate::buf::Sig::Const(1.0)),
+        };
         let spread = self.pan_spread.unwrap_or(0.0);
         if !(0.0..=1.0).contains(&spread) {
             return Err(format!("pan_spread: {spread}: give 0..1"));
         }
         let jitter = non_negative("jitter", self.jitter.unwrap_or(0.0))?;
-        // The source as one mono channel, and its rate relative to ours.
-        let (src, ratio): (Vec<f32>, f64) = if is_file(&self.source) {
-            let a = crate::wav::read(&cx.path(&self.source)).map_err(|e| {
-                format!("source: {e} (put the WAV in the project and give its path)")
-            })?;
-            (a.mix_mono(), f64::from(a.sample_rate) / f64::from(cx.sr))
-        } else {
-            let s = cx.audio("source", &crate::node::In::Name(self.source.clone()))?;
-            ((0..cx.n).map(|i| s.at(i)).collect(), 1.0)
-        };
+        let (src, ratio) = load_source(cx, &self.source)?;
         let mut rng = cx.rng(self.seed);
-        let glen = ((size * cx.sr).round() as usize).max(2);
         let stereo = spread > 0.0;
-        let mut left = vec![0.0f32; cx.n];
-        let mut right = if stereo {
-            vec![0.0f32; cx.n]
-        } else {
-            Vec::new()
+        let mut bus = GrainBus::new(cx.n, stereo);
+        // A fixed size or a range has a longest grain: the work is bounded
+        // before anything renders. A signal is counted as it goes.
+        let longest = match &size {
+            Draw::Signal(s) => s.constant().map(|v| (grain_len(v, cx.sr), v)),
+            Draw::Range(r) => Some((grain_len(r.max, cx.sr), r.max)),
         };
-        let work = events.len() as f64 * glen.min(cx.n) as f64;
-        if work > 2.0e9 {
-            return Err(format!(
-                "{} events of {size} s grains is about {work:.0} samples of work (limit 2e9): shorten size or thin the events",
-                events.len()
-            ));
+        if let Some((glen, longest_size)) = longest {
+            let work = events.len() as f64 * glen.min(cx.n) as f64;
+            if work > MAX_GRAIN_WORK {
+                return Err(format!(
+                    "{} events of {longest_size} s grains is about {work:.0} samples of work (limit 2e9): shorten size or thin the events",
+                    events.len()
+                ));
+            }
         }
         let slen = src.len();
         if slen == 0 {
             return Err("source is empty".into());
         }
+        let mut work = 0.0f64;
         for e in &events {
             // Draw first so the stream consumed per event never depends on
-            // what the grain reads.
+            // what the grain reads. Existing draws (pan, jitter) come first
+            // and the new ones (size, pitch) after them, so a document that
+            // uses neither draws exactly what it always did.
             let pan = if stereo {
                 spread * (2.0 * unit(&mut rng) as f32 - 1.0)
             } else {
@@ -537,41 +753,221 @@ impl Eval for Grains {
                 0.0
             };
             let onset = (e.t * f64::from(cx.sr)).round() as usize;
+            let gsize = size.value(onset, &mut rng);
+            let gpitch = pitch.value(onset, &mut rng);
             if onset >= cx.n {
                 continue;
             }
-            let p = (position.at(onset) + jit).clamp(0.0, 1.0);
-            let step = f64::from(pitch.at(onset).max(0.0)) * ratio;
-            let mut pos = f64::from(p) * slen as f64;
-            let (gl, gr) = {
-                let a = (f64::from(pan) + 1.0) * 0.25 * std::f64::consts::PI;
-                if stereo {
-                    (a.cos() as f32, a.sin() as f32)
-                } else {
-                    (1.0, 1.0)
+            let glen = grain_len(clean_size(gsize), cx.sr);
+            if longest.is_none() {
+                work += glen.min(cx.n) as f64;
+                if work > MAX_GRAIN_WORK {
+                    return Err(format!(
+                        "size: the grains so far are about {work:.0} samples of work (limit 2e9): give a shorter size or thin the events"
+                    ));
                 }
-            };
-            for j in 0..glen {
-                let o = onset + j;
-                if o >= cx.n || pos >= (slen - 1) as f64 {
-                    break;
-                }
-                let k = pos as usize;
-                let f = (pos - k as f64) as f32;
-                let v = (src[k] + (src[k + 1] - src[k]) * f)
-                    * self.window.at((j as f64 + 0.5) / glen as f64)
-                    * e.value;
-                left[o] += v * gl;
-                if stereo {
-                    right[o] += v * gr;
-                }
-                pos += step;
             }
+            let p = (position.at(onset) + jit).clamp(0.0, 1.0);
+            let step = f64::from(gpitch.max(0.0)) * ratio;
+            let gains = pan_gains(pan, stereo);
+            bus.add(
+                &src,
+                f64::from(p) * slen as f64,
+                step,
+                glen,
+                self.window,
+                gains,
+                e.value,
+                onset,
+            );
         }
-        Ok(one(if stereo {
-            Buf::from_channels(vec![left, right])
-        } else {
-            Buf::Audio(left)
-        }))
+        Ok(bus.finish())
+    }
+}
+
+/// How `cloud` spaces its grains.
+#[derive(Clone, Copy, Debug, Default, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum CloudMode {
+    /// Grain starts are a Poisson process: gaps are exponential around
+    /// 1 / density (default).
+    #[default]
+    Random,
+    /// One grain each time density has accumulated to 1: even spacing at a
+    /// steady density.
+    Regular,
+}
+
+/// A grain cloud: grains of a source scheduled by a density signal, with no
+/// event stream.
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Cloud {
+    /// A node name (its audio) or a `.wav` file path.
+    pub source: String,
+    /// Grains per second: a number or a signal (read every sample; negative
+    /// counts as 0, above the sample rate as the sample rate). 0 makes no
+    /// grains. At most 200000 grains in a sound.
+    pub density: In,
+    /// Grain length, seconds, above 0: a number, a `{min, max, [curve]}`
+    /// range drawn for each grain, or a signal read at the grain's start.
+    pub size: PerGrain,
+    /// Where each grain starts reading, 0..1 of the source (a number or a
+    /// signal read at the grain's start; default 0).
+    #[serde(default)]
+    pub position: Option<In>,
+    /// Random shift of each grain's position, +-jitter of the source
+    /// (0..1, default 0).
+    #[serde(default)]
+    pub jitter: Option<f32>,
+    /// Playback ratio before the spread (2 = an octave up; a number or a
+    /// signal read at the grain's start; default 1).
+    #[serde(default)]
+    pub pitch: Option<In>,
+    /// Random detune per grain, +- this many semitones around `pitch`
+    /// (>= 0, default 0; uniform in semitones).
+    #[serde(default)]
+    pub pitch_spread: Option<f32>,
+    /// random (default) or regular spacing.
+    #[serde(default)]
+    pub mode: CloudMode,
+    /// hann (default), tri, rect.
+    #[serde(default)]
+    pub window: GrainWindow,
+    /// 0..1: random pan per grain; makes the output stereo.
+    #[serde(default)]
+    pub pan_spread: Option<f32>,
+    #[serde(default)]
+    pub seed: u64,
+}
+
+impl Describe for Cloud {
+    const BLURB: &'static str = "grain cloud: grains of a node or WAV scheduled by a density signal, with random size, detune and pan";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"source": "tone", "density": 80, "size": {"min": 0.02, "max": 0.06},
+            "position": 0.2, "pitch_spread": 3, "pan_spread": 0.5})
+    }
+}
+
+impl Eval for Cloud {
+    fn causal(&self) -> bool {
+        false
+    }
+    fn random(&self) -> bool {
+        true
+    }
+    fn eval(&self, cx: &Cx) -> Result<Outs, String> {
+        let density = cx.mono("density", &self.density)?;
+        if let Some(d) = density.constant()
+            && !(d.is_finite() && (0.0..=cx.sr).contains(&d))
+        {
+            return Err(format!(
+                "density: {d}: give grains per second from 0 to {} (the sample rate)",
+                cx.sr
+            ));
+        }
+        let size = Draw::resolve(cx, "size", &self.size, 0.0, true)?;
+        if let Draw::Signal(s) = &size
+            && let Some(v) = s.constant()
+        {
+            positive("size", v)?;
+        }
+        let position = cx.mono_or("position", &self.position, 0.0)?;
+        let pitch = cx.mono_or("pitch", &self.pitch, 1.0)?;
+        let jitter = non_negative("jitter", self.jitter.unwrap_or(0.0))?;
+        let detune = non_negative("pitch_spread", self.pitch_spread.unwrap_or(0.0))?;
+        if detune > 120.0 {
+            return Err(format!(
+                "pitch_spread: {detune}: give semitones from 0 to 120"
+            ));
+        }
+        let spread = self.pan_spread.unwrap_or(0.0);
+        if !(0.0..=1.0).contains(&spread) {
+            return Err(format!("pan_spread: {spread}: give 0..1"));
+        }
+        let (src, ratio) = load_source(cx, &self.source)?;
+        if src.is_empty() {
+            return Err("source is empty".into());
+        }
+        let slen = src.len();
+        let mut rng = cx.rng(self.seed);
+        let stereo = spread > 0.0;
+        let mut bus = GrainBus::new(cx.n, stereo);
+        let regular = matches!(self.mode, CloudMode::Regular);
+        let max_density = f64::from(cx.sr);
+        // Accumulated density against the next threshold: 1 for regular
+        // spacing, an Exp(1) draw for a Poisson process (so a changing
+        // density stays exact).
+        let threshold = |rng: &mut Rng| {
+            if regular {
+                1.0
+            } else {
+                -(1.0 - unit(rng)).ln()
+            }
+        };
+        let mut next = threshold(&mut rng);
+        let mut acc = 0.0f64;
+        let mut count = 0usize;
+        let mut work = 0.0f64;
+        for onset in 0..cx.n {
+            let d = f64::from(density.at(onset));
+            let d = if d.is_finite() {
+                d.clamp(0.0, max_density)
+            } else {
+                0.0
+            };
+            acc += d / f64::from(cx.sr);
+            if acc < next {
+                continue;
+            }
+            acc -= next;
+            next = threshold(&mut rng);
+            count += 1;
+            if count > MAX_EVENTS {
+                return Err(format!(
+                    "density: more than {MAX_EVENTS} grains by {:.2} s: lower density or shorten the sound",
+                    onset as f32 / cx.sr
+                ));
+            }
+            // Draws per grain, in this order: pan, position jitter, size,
+            // detune.
+            let pan = if stereo {
+                spread * (2.0 * unit(&mut rng) as f32 - 1.0)
+            } else {
+                0.0
+            };
+            let jit = if jitter > 0.0 {
+                jitter * (2.0 * unit(&mut rng) as f32 - 1.0)
+            } else {
+                0.0
+            };
+            let gsize = size.value(onset, &mut rng);
+            let semis = if detune > 0.0 {
+                detune * (2.0 * unit(&mut rng) as f32 - 1.0)
+            } else {
+                0.0
+            };
+            let glen = grain_len(clean_size(gsize), cx.sr);
+            work += glen.min(cx.n) as f64;
+            if work > MAX_GRAIN_WORK {
+                return Err(format!(
+                    "size: the grains so far are about {work:.0} samples of work (limit 2e9): give a shorter size or lower density"
+                ));
+            }
+            let p = (position.at(onset) + jit).clamp(0.0, 1.0);
+            let ratio_detune = 2f64.powf(f64::from(semis) / 12.0);
+            let step = f64::from(pitch.at(onset).max(0.0)) * ratio_detune * ratio;
+            bus.add(
+                &src,
+                f64::from(p) * slen as f64,
+                step,
+                glen,
+                self.window,
+                pan_gains(pan, stereo),
+                1.0,
+                onset,
+            );
+        }
+        Ok(bus.finish())
     }
 }

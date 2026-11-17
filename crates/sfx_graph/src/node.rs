@@ -392,6 +392,7 @@ node_types! {
     // slot X2
 
     // slot X3
+    "cloud" => Cloud,
 }
 
 /// "unknown node type", naming the closest types.
