@@ -1,0 +1,671 @@
+[
+ {
+  "name": "sound_ops",
+  "args": {
+   "sound": "ui_click",
+   "ops": [
+    {
+     "type": "impulse",
+     "name": "hit"
+    },
+    {
+     "type": "resonators",
+     "name": "body",
+     "input": "hit",
+     "modes": [
+      [
+       2400,
+       0.035,
+       1
+      ],
+      [
+       5100,
+       0.02,
+       0.5
+      ],
+      [
+       8300,
+       0.012,
+       0.3
+      ]
+     ]
+    },
+    {
+     "type": "noise",
+     "name": "grit",
+     "seed": 2
+    },
+    {
+     "type": "decay",
+     "name": "fast",
+     "time": 0.012
+    },
+    {
+     "type": "math",
+     "name": "tick",
+     "op": "mul",
+     "a": "grit",
+     "b": "fast"
+    },
+    {
+     "type": "filter",
+     "name": "hp",
+     "input": "tick",
+     "mode": "hp",
+     "freq": 3000
+    },
+    {
+     "type": "mix",
+     "name": "m",
+     "inputs": [
+      "body",
+      {
+       "input": "hp",
+       "gain": 0.4
+      }
+     ]
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "m",
+     "lufs": -30
+    }
+   ],
+   "expect": {
+    "finite": true,
+    "silent_edges": true,
+    "dc": true,
+    "rebuild": true,
+    "duration": {
+     "max": 0.3
+    },
+    "peak_db": {
+     "max": -0.3
+    },
+    "lufs": {
+     "min": -33,
+     "max": -27
+    },
+    "onsets": {
+     "min": 1,
+     "max": 3
+    }
+   }
+  }
+ },
+ {
+  "name": "export",
+  "args": {
+   "doc": "ui_click",
+   "path": "@OUT@"
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "sound": "laser",
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "sweep",
+     "from": 2000,
+     "to": 200,
+     "time": 0.25,
+     "curve": "exp"
+    },
+    {
+     "type": "osc",
+     "name": "tone",
+     "shape": "saw",
+     "freq": "sweep"
+    },
+    {
+     "type": "decay",
+     "name": "amp",
+     "time": 0.3
+    },
+    {
+     "type": "math",
+     "name": "zap",
+     "op": "mul",
+     "a": "tone",
+     "b": "amp"
+    },
+    {
+     "type": "math",
+     "name": "cutoff",
+     "op": "mul",
+     "a": "sweep",
+     "b": 3
+    },
+    {
+     "type": "filter",
+     "name": "lp",
+     "input": "zap",
+     "mode": "lp",
+     "freq": "cutoff",
+     "q": 1.5
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "lp",
+     "lufs": -18
+    }
+   ],
+   "expect": {
+    "finite": true,
+    "silent_edges": true,
+    "dc": true,
+    "rebuild": true,
+    "duration": {
+     "min": 0.3,
+     "max": 0.6
+    },
+    "lufs": {
+     "min": -19.5,
+     "max": -16.5
+    },
+    "peak_db": {
+     "max": -0.3
+    }
+   }
+  }
+ },
+ {
+  "name": "export",
+  "args": {
+   "doc": "laser",
+   "path": "@OUT@"
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "sound": "door_creak",
+   "duration": 1.5,
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "swing",
+     "from": 0.25,
+     "to": 0.95,
+     "time": 1.4,
+     "curve": "smooth"
+    },
+    {
+     "type": "wander",
+     "name": "weight",
+     "rate": 1.5,
+     "range": [
+      0.45,
+      1.0
+     ],
+     "seed": 5
+    },
+    {
+     "type": "friction",
+     "name": "hinge",
+     "speed": "swing",
+     "pressure": "weight",
+     "grain": 280,
+     "roughness": 0.35,
+     "seed": 2
+    },
+    {
+     "type": "modal",
+     "name": "door",
+     "excite": "hinge",
+     "material": "wood",
+     "size": 0.45,
+     "strike_position": 0.2,
+     "seed": 1
+    },
+    {
+     "type": "onepole",
+     "name": "no_dc",
+     "input": "door",
+     "mode": "hp",
+     "freq": 25
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "no_dc",
+     "lufs": -22
+    }
+   ],
+   "expect": {
+    "finite": true,
+    "silent_edges": true,
+    "dc": true,
+    "rebuild": true,
+    "duration": {
+     "min": 1.4,
+     "max": 1.6
+    },
+    "lufs": {
+     "min": -23,
+     "max": -21
+    },
+    "bands": [
+     {
+      "band": "63",
+      "segment": 4,
+      "max_db": -45
+     },
+     {
+      "band": "500",
+      "segment": 4,
+      "min_db": -26
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "export",
+  "args": {
+   "doc": "door_creak",
+   "path": "@OUT@"
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "sound": "gravel_step",
+   "ops": [
+    {
+     "type": "once",
+     "name": "heel_at",
+     "at": 0.0
+    },
+    {
+     "type": "noise",
+     "name": "thump_n",
+     "color": "brown",
+     "seed": 5
+    },
+    {
+     "type": "decay",
+     "name": "thump_e",
+     "time": 0.09
+    },
+    {
+     "type": "math",
+     "name": "thump",
+     "op": "mul",
+     "a": "thump_n",
+     "b": "thump_e"
+    },
+    {
+     "type": "filter",
+     "name": "heel",
+     "input": "thump",
+     "mode": "lp",
+     "freq": 220
+    },
+    {
+     "type": "burst",
+     "name": "stones_at",
+     "count": 70,
+     "spread": 0.22,
+     "curve": "exp",
+     "at": 0.005,
+     "values": {
+      "min": 0.15,
+      "max": 1.0,
+      "curve": "exp"
+     }
+    },
+    {
+     "type": "voices",
+     "name": "stones",
+     "events": "stones_at",
+     "length": 0.04,
+     "max": 100,
+     "map": {
+      "hz": "900 + $rand * 4500",
+      "q": "2 + $rand * 5"
+     },
+     "patch": [
+      {
+       "type": "noise",
+       "name": "n",
+       "color": "white"
+      },
+      {
+       "type": "filter",
+       "name": "tick",
+       "input": "n",
+       "mode": "bp",
+       "freq": "$hz",
+       "q": "$q"
+      },
+      {
+       "type": "decay",
+       "name": "shape",
+       "time": 0.006
+      },
+      {
+       "type": "math",
+       "name": "stone",
+       "op": "mul",
+       "a": "tick",
+       "b": "shape"
+      },
+      {
+       "type": "gain",
+       "name": "level",
+       "input": "stone",
+       "gain": "$value"
+      }
+     ]
+    },
+    {
+     "type": "mix",
+     "name": "mixed",
+     "inputs": [
+      {
+       "input": "heel",
+       "gain": 0.8
+      },
+      {
+       "input": "stones",
+       "gain": 1.0
+      }
+     ]
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "mixed",
+     "lufs": -26
+    }
+   ],
+   "expect": {
+    "finite": true,
+    "silent_edges": true,
+    "dc": true,
+    "rebuild": true,
+    "variations": {
+     "seeds": 6,
+     "lufs_spread": 1.0,
+     "min_distance": 1.0
+    }
+   }
+  }
+ },
+ {
+  "name": "export",
+  "args": {
+   "doc": "gravel_step",
+   "path": "@OUT@",
+   "variations": 6
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "sound": "rain_loop",
+   "kind": "loop",
+   "duration": 4,
+   "ops": [
+    {
+     "type": "noise",
+     "name": "hiss",
+     "color": "pink",
+     "seed": 1
+    },
+    {
+     "type": "filter",
+     "name": "bed",
+     "input": "hiss",
+     "mode": "bp",
+     "freq": 3500,
+     "q": 0.4
+    },
+    {
+     "type": "wander",
+     "name": "swell",
+     "rate": 0.7,
+     "range": [
+      0.7,
+      1.0
+     ],
+     "seed": 2
+    },
+    {
+     "type": "math",
+     "name": "bed_level",
+     "op": "mul",
+     "a": "bed",
+     "b": "swell"
+    },
+    {
+     "type": "poisson",
+     "name": "drops",
+     "rate": 120,
+     "seed": 3,
+     "values": {
+      "min": 0.25,
+      "max": 1.0
+     }
+    },
+    {
+     "type": "voices",
+     "name": "rain",
+     "events": "drops",
+     "length": 0.05,
+     "max": 700,
+     "seed": 4,
+     "map": {
+      "hz": "1500 + $rand * 5500"
+     },
+     "patch": [
+      {
+       "type": "noise",
+       "name": "n",
+       "color": "white"
+      },
+      {
+       "type": "filter",
+       "name": "tick",
+       "input": "n",
+       "mode": "bp",
+       "freq": "$hz",
+       "q": 4
+      },
+      {
+       "type": "decay",
+       "name": "shape",
+       "time": 0.012
+      },
+      {
+       "type": "math",
+       "name": "drop",
+       "op": "mul",
+       "a": "tick",
+       "b": "shape"
+      },
+      {
+       "type": "gain",
+       "name": "level",
+       "input": "drop",
+       "gain": "$value"
+      }
+     ]
+    },
+    {
+     "type": "mix",
+     "name": "mixed",
+     "inputs": [
+      {
+       "input": "bed_level",
+       "gain": 0.35
+      },
+      {
+       "input": "rain",
+       "gain": 1.0
+      }
+     ]
+    },
+    {
+     "type": "onepole",
+     "name": "no_dc",
+     "input": "mixed",
+     "mode": "hp",
+     "freq": 30
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "no_dc",
+     "lufs": -24
+    }
+   ],
+   "expect": {
+    "finite": true,
+    "dc": true,
+    "rebuild": true,
+    "loop_seam": true,
+    "peak_db": {
+     "max": -0.3
+    }
+   }
+  }
+ },
+ {
+  "name": "export",
+  "args": {
+   "doc": "rain_loop",
+   "path": "@OUT@"
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "sound": "attempt",
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "sweep",
+     "from": 1200,
+     "to": 500,
+     "time": 0.12,
+     "curve": "exp"
+    },
+    {
+     "type": "osc",
+     "name": "tone",
+     "shape": "saw",
+     "freq": "sweep"
+    },
+    {
+     "type": "decay",
+     "name": "amp",
+     "time": 0.3
+    },
+    {
+     "type": "math",
+     "name": "zap",
+     "op": "mul",
+     "a": "tone",
+     "b": "amp"
+    },
+    {
+     "type": "math",
+     "name": "cutoff",
+     "op": "mul",
+     "a": "sweep",
+     "b": 1.2
+    },
+    {
+     "type": "filter",
+     "name": "lp",
+     "input": "zap",
+     "mode": "lp",
+     "freq": "cutoff",
+     "q": 1.5
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "lp",
+     "lufs": -18
+    }
+   ]
+  }
+ },
+ {
+  "name": "listen",
+  "args": {
+   "doc": "attempt",
+   "reference": "@OUT@/laser.wav",
+   "descriptors": false
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "doc": "attempt",
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "sweep",
+     "from": 2000,
+     "to": 300,
+     "time": 0.2,
+     "curve": "exp"
+    },
+    {
+     "type": "math",
+     "name": "cutoff",
+     "op": "mul",
+     "a": "sweep",
+     "b": 2.5
+    }
+   ]
+  }
+ },
+ {
+  "name": "listen",
+  "args": {
+   "doc": "attempt",
+   "reference": "@OUT@/laser.wav",
+   "descriptors": false
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "doc": "attempt",
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "sweep",
+     "from": 2000,
+     "to": 200,
+     "time": 0.25,
+     "curve": "exp"
+    },
+    {
+     "type": "math",
+     "name": "cutoff",
+     "op": "mul",
+     "a": "sweep",
+     "b": 3
+    }
+   ]
+  }
+ },
+ {
+  "name": "listen",
+  "args": {
+   "doc": "attempt",
+   "reference": "@OUT@/laser.wav",
+   "descriptors": false
+  }
+ }
+]

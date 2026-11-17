@@ -36,13 +36,13 @@ cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings 
 
 ## Status
 
-**Phase 4, lane modal: `modal` (a struck plate from foley's material table), `contact` (Hertz force pulse), `friction` (stick-slip) in `nodes/modal.rs`, plus `examples/door_creak.rs` and `examples/glass_break.rs`; see "Physical models" in AGENTS.md.**
+**Phases 1-5 are built and merged.** What is not verified by anything but a human: how any of it *sounds*, and how the window *looks* when it renders (nothing here could screenshot or listen). Launch the window with `cargo run` (opens the webview on the session; the MCP server runs on stdio as usual) and `cargo run -- --headless --audio` to let agents play on the speakers.
 
-**Phase 4, foley models (lane p4-foley): `bubble air glottis tract syrinx thunder` in `nodes/foley.rs`, wrapping the foley crates; see "Foley models" in AGENTS.md. Foley's `Tract` is private, so `tract` is a formant cascade over foley's LF glottal pulse; the `thunder` and species `syrinx` nodes return foley's finished one-shot buffers.**
+- **Phase 5 (window + playback): done.** `src/player.rs` (device-free `Engine`, `PlayerControl`, cpal `Player`; `play` tool; `--audio`), `src/bin/sounder/window/` (wry on tao, `sounder://` protocol, calls over `Session` as client `window`), `crates/sfx_analysis/src/view.rs` (the bulk data), `ui/` (the page: no DSP, drawn from `Session` data; a fixture for plain browsers). The Rust side and the page were built in parallel against `design/window-api.md`; `tests/window_contract.rs` keeps the fixture and the real `window_state` on the same keys. A `--no-default-features` build has no wry / tao / cpal.
+- **Phase 4 (physical models, reference compare): done.** `modal contact friction` and `bubble air glottis tract syrinx thunder`; `listen reference`, a dB-difference `listen diff`, the `reference` check, a rewritten `extract_modes`; `examples/door_creak.rs`, `glass_break.rs`, `water_drips.rs`.
+- **End-to-end acceptance** (`tests/acceptance.rs`, through the driver with only `sound_ops` / `listen` / `verify` / `export`): a UI click, a laser, a door creak, a gravel step (6 variations) and a rain loop pass their `expect` and export; a reference WAV is matched: STFT distance 16.62 dB for a first attempt, 4.56 dB after one iteration, 0.02 dB after two. (The human listening in the window and resolving two comments is the one manual item.) A 56 ms click cannot reach -20 LUFS under the -1 dBFS ceiling (the 400 ms measurement block averages it down), so its target is -30.
 
-**Phase 5, player lane: `src/player.rs` (a device-free `Engine`, the `PlayerControl` trait, a cpal `Player`) and the MCP `play` tool; `sounder --headless --audio` plays on the speakers. See "Playback" in AGENTS.md.**
-
-**Phase 5, window (Rust side): `sounder` opens a `wry` / `tao` webview on the session (`src/bin/sounder/window/`, `Session::window_state`, `sfx_analysis::view`); see "The window" in AGENTS.md. The page (`ui/`) and the real player are other lanes; until they merge the window serves a built-in raw-state page and `play` has no audio.**
+Per-lane build notes follow.
 
 **Phase 3 (events, voices, feedback, expr, instancing, offline pitch/time): done.** See "Phase 3 notes" below.
 
