@@ -1,0 +1,18 @@
+{"sound": "footstep_gravel", "round": 4, "finished": true,
+ "calls": 17, "failed_calls": 1,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["footstep", "follower", "noise", "math", "filter", "gain", "mix", "output"],
+ "blockers": [
+   {"kind": "sense_gap", "where": "listen flatness",
+    "wanted": "'high flatness' from the brief as one number",
+    "tried": "footstep gravel alone (full-band 0.08), then added a follower-gated white-noise bed (full-band 0.03 at the final setting, 0.85 over the occupied band 1.2-7 kHz)",
+    "workaround": "read the occupied-band flatness (0.85) as the answer; full-band stays low because the thump and the empty top band dominate",
+    "severity": 1},
+   {"kind": "wrong_result", "where": "macro claim flatness on footstep swish",
+    "wanted": "a 'grit' knob on the footstep node's swish field raising flatness",
+    "tried": "swish 0..1 with claim flatness 1: verify FAIL (0.002 -> 0.007, no rise until 0.75)",
+    "workaround": "a noise bed gated by a follower of the step, its gain mapped by the macro; passes (0.002 -> 0.047)",
+    "severity": 1}],
+ "wishlist": ["footstep fields for stone count / tick density and heel-toe level", "doc line saying which flatness (full-band or occupied-band) a brief means"],
+ "what_worked": ["footstep surface gravel gave 12 onsets, centroid 3.8 kHz, 0.57 s on the first call", "macros with claims swept and reported in verify with numbers", "follower of a node as a gate for a noise bed"]}

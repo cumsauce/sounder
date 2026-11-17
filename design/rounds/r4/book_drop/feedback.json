@@ -1,0 +1,13 @@
+{"sound": "book_drop", "round": 4, "finished": true,
+ "calls": 16, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 7,
+ "nodes_used": ["noise", "filter", "decay", "math", "ramp", "osc", "contact", "modal", "mix", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "listen onsets",
+   "wanted": "confirm the thud arrives as a separate event after the slap",
+   "tried": "listen onsets / events lines and the spectrogram",
+   "workaround": "read the spectrogram: broadband burst at 0-20 ms, then 143/294 Hz tails; the 12 ms thud offset is too close for the onset detector",
+   "severity": 1}],
+ "wishlist": ["a per-layer timing readout (onsets inside a zoom window below 20 ms apart)"],
+ "what_worked": ["peak_db + fade_in 0.0005 delivered a t=0 hit exactly at target", "mix inputs with at/gain made the slap/thud layering one node", "macro claims all passed first try; centroid readout made rebalancing quick"]}

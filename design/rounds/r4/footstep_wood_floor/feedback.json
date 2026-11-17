@@ -1,0 +1,13 @@
+{"sound": "footstep_wood_floor", "round": 4, "finished": true,
+ "calls": 12, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["footstep", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "listen modes table",
+   "wanted": "a clear list of the real resonances of a short footstep",
+   "tried": "read the modes line: 157 Hz 0.42 s and 284 Hz 0.55 s are real, but 1.39k / 1.59k / 2.45k Hz are listed as 'sustained' (600 s) from a 0.3 s sound",
+   "workaround": "ignored the sustained entries and read the band table and spectrogram instead",
+   "severity": 1}],
+ "wishlist": ["footstep wood: a separate level knob for the tick versus the body (only body pitch, weight and pace exist)", "variation seeds that keep loudness closer: export LUFS spread over 4 seeds was -24.7 to -28.5 at a fixed peak"],
+ "what_worked": ["the ready-made footstep node with surface wood is exactly 'a low body mode under a short tick': body mode at 157-162 Hz decaying ~0.4 s, tick above 500 Hz, found at once via the manual's node table", "macros on footstep fields (weight, body, pace) passed their centroid and spacing claims first time", "doc-seed variations differ by length and level, so export gave four distinct takes without extra jitter work"]}

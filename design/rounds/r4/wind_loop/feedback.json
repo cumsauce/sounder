@@ -1,0 +1,13 @@
+{"sound": "wind_loop", "round": 4, "finished": true,
+ "calls": 13, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 9,
+ "nodes_used": ["lfo", "math", "wind", "crossfade_loop", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "listen descriptors on a noise loop",
+   "wanted": "descriptor lines meaningful for a texture",
+   "tried": "read density / inharmonicity / modes lines",
+   "workaround": "ignored them; used centroid by tenth, steadiness, spectrogram and loudness curve",
+   "severity": 1}],
+ "wishlist": ["a loop-specific 'centroid range / swing' summary line (min-max of centroid by tenth)", "wind macro fields that can be mapped to gust directly with a claim of swing (done via my own speed signal instead)"],
+ "what_worked": ["wind node in a loop doc: loop_seam passed at all 4 seeds first try", "periodic lfo into wind speed gave 12.8 LU loudness swing and centroid 390-940 Hz", "macro sweep verification with claims centroid/swing passed first time"]}

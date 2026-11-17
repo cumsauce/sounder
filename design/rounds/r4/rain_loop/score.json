@@ -1,0 +1,12 @@
+{"sound": "rain_loop", "round": 4,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults: PASS finite, peak_db -8.24, dc -107 dB, loop_seam (wrap 0.33x, spectral change 0.8 dB), 3 macros, rebuild. With seeds 1-4 all PASS; loop_seam wrap 0.31-0.70x, spectral change 0.4-0.8 dB."},
+  "time_shape": {"score": 2, "evidence": "4.00 s loop, no leading/trailing silence. Steadiness: 400 ms loudness -24.6 to -23.2 LUFS, spread 1.4 LU (flat line in the loudness panel). Density 588 events/s, by tenth 330-750 (only last tenth low). Amplitude modulation under 1.5 dB p-p. Crest 18.9 dB is rain-like, no swell (swell attack 127 ms)."},
+  "spectrum": {"score": 2, "evidence": "Centroid 6.58k/6.65k/6.63k Hz (whole 6.62k), inside 3-8 kHz, flat across time (by tenth 6.49k-6.81k). Energy shares 2k-8k 70%, >8k 26%, <200 Hz 0%. Octave bands 4k -31 and 8k+ -30 dB at every segment. Flatness full band 0.38 (not very high), but 0.80 in the occupied band 2.62k-12.61k; mist knob reaches 0.62 at 1. Spectrogram is a uniform broadband haze with no tonal lines, rolloff 10.5k."},
+  "parts": {"score": 2, "evidence": "The brief names no separate components. Rain drops (poisson into voices ticks) over a hiss bed: mist=0 exposes the ticks (18 onsets, fine 287, flatness 0.23), default merges them into a diffuse wash. Separable by the knobs."},
+  "control_variation": {"score": 2, "evidence": "3 macros (brightness centroid up, mist flatness up, rate density up), all claims PASS at every seed. Sweeps: brightness 0/.5/1 centroid 6.11k/6.8k/~7.7k; mist 0 gives flatness 0.23, rate 0 gives density 142/s centroid 7.8k. 4 seeds differ: peak -8.2/-7.1/-7.9/-8.0, crest 18.9/20.1, fine onsets 196/223, onsets 1 vs 3. All stay at centroid 6.6-6.7k, -24 LUFS, loop_seam PASS."}
+ },
+ "total": 10,
+ "notes": ["Flatness: full-band 0.38 is moderate; only the occupied-band measure (0.80) is high. A stricter reading of 'high flatness' could cost a point.",
+           "The density measure saturates at 588 events/s for macro rate 0.75 and 1 (identical values), so the top of the rate knob is not measurable.",
+           "Seed 1 shows a single onset, seed 2 shows 3 (0.0, 1.259, 3.637); the output peak varies up to 1.1 dB between seeds despite the LUFS target."]}

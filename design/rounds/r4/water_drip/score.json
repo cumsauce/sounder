@@ -1,0 +1,10 @@
+{"sound": "water_drip", "round": 4,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults all PASS (finite, peak -3.00 dBFS, silent_edges, dc -74 dB, rebuild, 3 macro claims); verify seeds:4 all PASS for seeds 1-4."},
+  "time_shape": {"score": 1, "evidence": "Length 0.537 s (0.4-1.5 ok), 2 drips (fine onsets 0.021 and 0.491 s, gap 0.47 s; 1-3 ok), attack 0 ms. But each drip is short: -20 dB at 12-14 ms, -60 dB at ~40 ms from onset; zoom shows the visible waveform ~20-25 ms (0.033-0.055 s). Brief asks 30-120 ms, so a near miss on drip length."},
+  "spectrum": {"score": 1, "evidence": "Rising pitch is visible: zoomed spectrogram shows a ridge climbing from ~1.6 kHz (dominant 2k band -23 dB at start) up to 4-5 kHz within the drip; centroid by tenth 1.68k -> 4.74k (zoom 1.15k -> 5.1k). Brief says 600-2500 Hz, so the glide overshoots (YIN 3.68 kHz, 21% energy in 2-8k). Broadband low smear down to 31 Hz under each drip (63-500 Hz bands -53..-42 dB), not a clean tone. Second drip centroid 1.99k, no rise measured there."},
+  "parts": {"score": 2, "evidence": "Two separate drips with silence between (density by tenth 19 0 0 0 0 0 0 0 0 19; spectrogram shows two distinct blobs), each with the rising-pitch ridge; strengths 1.0 and 0.85."},
+  "control_variation": {"score": 2, "evidence": "3 macros (size, brightness, sparkle), all claims pass at every seed. Sweeps: size 0/.5/1 centroid 2.57k/1.68k/1.24k; brightness 1.50k/1.68k/1.72k; sparkle 1.41k/1.68k/1.92k. Seeds 1-4 start centroid 1.68k/1.41k/1.71k/1.43k, pitch 3.68k/none/3.80k/none, lengths 0.537-0.544 s; all stay 2 drips at the same times, so seed variation is small (spectral only, no timing change). Brightness is a weak knob (1.50k->1.72k) and sparkle overlaps with it."}
+ },
+ "total": 8,
+ "notes": ["Pitch glide overshoots the 2.5 kHz ceiling (ridge to ~5 kHz) and each drip is ~25 ms, under the 30 ms minimum.", "Seeds differ only slightly in spectrum; drip times identical across seeds (0.021 / 0.491 s).", "Broadband low-frequency smear (31-500 Hz) under each drip in the spectrogram is not a drip-like tone."]}

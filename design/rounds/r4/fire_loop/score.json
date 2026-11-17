@@ -1,0 +1,32 @@
+{
+ "sound": "fire_loop",
+ "round": 4,
+ "lines": {
+  "checks": {
+   "score": 2,
+   "evidence": "verify defaults all PASS incl. loop_seam: wrap 0.44x of 99th-pct step (max 2), spectral change 4.2 dB (max 6); also PASS on seeds 1-4 (spectral change 2.5-4.2 dB, wrap 0.24-0.50x); 3 macro claims and rebuild PASS."
+  },
+  "time_shape": {
+   "score": 2,
+   "evidence": "loop, 5.000 s exactly. Crackle rate: density 14/s (63 fine onsets, 38 merged at 40 ms) vs brief >=5/s; seeds 2-4 give 15, 14, 18 /s. Density by tenth for seed 1 ranges 4-26/s (two tenths of 0.5 s at 4 and 6/s, but the 1 s average stays above 5). Loudness steadiness 5.6 LU spread over 400 ms windows (3.7-4.9 on other seeds), bed is continuous, no leading/trailing silence."
+  },
+  "spectrum": {
+   "score": 2,
+   "evidence": "Roar under 300 Hz: <200 Hz holds 46% of energy (51-52% on seeds 2-3); 63/125/250 Hz bands -37/-35/-36 dB, with a 500 Hz drop to -43 dB; modes 49 Hz sustained -29 dB. Hiss: 4k and 8k+ bands -37.5/-37.0 dB, steady in all five time segments (-35 to -38); rolloff 5.5 kHz, whole-sound centroid 2.78k (pulled up by hiss+crackle). No spectral drift expected for a loop; start/middle/end centroid 2.48k/3.63k/2.57k on seed 1 (middle higher from a crackle cluster), 2.26k/2.44k/2.75k on seed 2."
+  },
+  "parts": {
+   "score": 2,
+   "evidence": "Three parts separately visible. Roar: solid red-pink band below ~500 Hz across the whole spectrogram. Hiss: even purple noise band 4-16 kHz. Crackles: vertical streaks of 1-8 kHz across the picture, ~63 fine onsets in 5 s, listed fine onsets at 0.000, 0.085, 0.160, 0.213... with strengths 0.4-1.0 against the bed; waveform shows spikes over a flat bed. Dark gap at 1-2 kHz keeps roar and hiss apart. intensity=0 sweep isolates the roar (centroid 292 Hz, 2k+ near silent)."
+  },
+  "control_variation": {
+   "score": 2,
+   "evidence": "3 macros (crackliness claim density up, size claim centroid down, intensity claim centroid up): all PASS at seeds 1-4, e.g. density 1.4 -> 20.6 /s, size centroid 4.6k -> 1.4k Hz, intensity 292 -> 4.8k Hz. Seeds differ measurably: peak -5.7/-7.6/-7.1/-8.6 dBFS, merged onsets 38/50/52/44, fine onsets 63/68/66/83, crest 22.6/20.3/20.8/19.5 dB; all stay inside the brief (14-18 events/s, <200 Hz 46-52%, loop_seam passes). Note crackliness=0 gives 1/s (below brief) but the default 0.6 is inside it."
+  }
+ },
+ "total": 10,
+ "notes": [
+  "Seed 1 has a dip to 4-6 events/s in tenths 4-6 (1.5-3 s) while the first 1 s runs at 26/s: crackles are clumpy.",
+  "Sweeping crackliness to 0 leaves 1 event/s, below the brief's 5/s floor (macro range reaches outside the brief).",
+  "Whole-sound centroid 2.8k Hz is high for fire described as roar under 300 Hz; the hiss and crackle energy at 4k-8k equals the low band, so it may read as hissier than a roar."
+ ]
+}

@@ -1,0 +1,18 @@
+{"sound": "rain_loop", "round": 4, "finished": true,
+ "calls": 20, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["poisson", "voices", "noise", "filter", "decay", "math", "gain", "mix", "crossfade_loop", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "listen density / flatness",
+   "wanted": "a flatness reading that is high for rain (a band-limited hiss) without adding unrelated spectrum",
+   "tried": "full-band flatness was 0.23 for 2-8 kHz ticks (occupied-band flatness 0.92); raising it to 0.4-0.6 needed a broadband white bed which also pushed the centroid up (9.2 kHz at flatness 0.62)",
+   "workaround": "low-level white bed (hp 120, lp 21k) at gain 0.12 and ticks 2-6.5 kHz: centroid 6.6 kHz, flatness 0.38 full band / 0.80 occupied band",
+   "severity": 1},
+  {"kind": "sense_gap", "where": "density claim",
+   "wanted": "a density reading above ~590 events/s",
+   "tried": "rate macro 0.75 and 1.0 both read 588.2 events/s in verify, though the poisson rate differs (about 400 vs 700)",
+   "workaround": "none needed; the claim still passed",
+   "severity": 1}],
+ "wishlist": ["a flatness measure that says whether the sound is noise-like within its own band (the occupied-band figure is in listen; verify has no check for it)", "listen/verify settings on the whole-sound flatness target so a brief like 'high flatness' can be checked with expect"],
+ "what_worked": ["poisson -> voices of band-passed noise ticks + crossfade_loop passed loop_seam on seeds 1-4 at the first try", "param-driven voices map plus macros mapping a param, node field and gain all swept clean", "loop_seam / steadiness / centroid descriptors in listen made the targets checkable"]}

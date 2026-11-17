@@ -1,0 +1,11 @@
+{"sound": "car_door", "round": 4,
+ "lines": {
+  "checks": {"score": 2, "evidence": "Default verify: no FAIL (finite, peak -3.0 dBFS, silent_edges -200/-200, dc -55 dB, macros weight and length PASS, rebuild bit-identical). verify seeds:4 also all PASS."},
+  "time_shape": {"score": 2, "evidence": "Length 0.80 s (brief 0.4-1.0). Two onsets at 0.000 s and 0.043 s (40 ms merge); latch then thump. Thump attack to peak 52 ms, -20 dB at 0.13 s, -60 dB at 0.39 s, trailing silence from 0.404 s, so a clean dull decay with no tail click."},
+  "spectrum": {"score": 2, "evidence": "Whole-sound centroid 145 Hz, rolloff 164 Hz, energy <200 Hz 93%. Dominant band is 125 Hz (-16.9 dB in the first fifth, vs 250 Hz -28.1, 63 Hz -28.9). Strongest mode 136 Hz (0.40 s), pitch 139 Hz, inside 80-250 Hz. First onset centroid 2.33 kHz (latch), second 144 Hz (thump); 2k-8k only 0% of the energy so the thump is dull."},
+  "parts": {"score": 2, "evidence": "Onset table separates them: 0.000 s strength 0.8, 14 ms -20 dB, centroid 2.33 kHz, pitch 1.09 kHz; 0.043 s strength 1.0, 109 ms -20 dB, centroid 144 Hz. Spectrogram shows a short broadband click (1-5 kHz smudges) at left, then the 125-250 Hz band starting at ~0.05 s. Latch precedes thump by 43 ms."},
+  "control_variation": {"score": 2, "evidence": "3 macros: weight (claim centroid falls, 199>164>145>134>121 Hz, PASS), length (decay rises, 0.09>0.14>0.22>0.35>0.57 s, PASS), snap (unclaimed, latch centroid 2.17k>2.33k>2.70k). Sweeps keep body in 80-250 Hz at weight 0 (217 Hz) and 1 (89 Hz) and length within 0.4-1.0 s. Seeds 1-4 differ: body pitch 138.9/142.4/138.9/141.6 Hz, LUFS -23.8/-24.1/-23.8/-24.0, -60 dB 0.39/0.38/0.39/0.39, fine onsets 4/5/3/3, latch pitch glide 1.09k vs 560>2.57k vs 400>2.68k; all inside the brief, but variation is small."}},
+ "total": 10,
+ "notes": ["Seed differences are small (body pitch +-2%, level +-0.3 dB); mostly in the latch and tail ripple, so the four takes would sound very alike.",
+  "The latch is weak: strength 0.8 and its 2k band sits about 30 dB under the thump's 125 Hz band; the snap macro barely moves anything and is unclaimed.",
+  "Fine-onset count (3-5 at 5 ms) flips between seeds from ripple in the thump tail (94, 104 ms) at weights 0.5-1; 0.4 s of the 0.8 s file is silence."]}

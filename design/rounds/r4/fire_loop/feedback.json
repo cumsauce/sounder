@@ -1,0 +1,9 @@
+{"sound": "fire_loop", "round": 4, "finished": true,
+ "calls": 9, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["fire", "output"],
+ "blockers": [],
+ "wishlist": ["a separate level for roar vs hiss vs crackle on the fire node (only size / intensity / crackle move them together)", "a listen line that reports the fraction of energy under 300 Hz directly"],
+ "what_worked": ["one fire node in a loop document met the brief; loop_seam passed on seeds 1-4 (0.24x-0.52x discontinuity, 2.5-4.2 dB spectral)", "macros on crackle (density claim), size and intensity (centroid claims) all passed their claims on 4 seeds"],
+ "measured": "density 14 events/s (fine onsets 63 in 5 s); energy shares <200 Hz 46%, 200-2k 23%, 2k-8k 19%, >8k 11%; sustained mode 49 Hz; hiss above 4 kHz present in the spectrogram; -28 LUFS, peak -5.7 dBFS seed 1; whether it sounds like fire is not judged. Caveat: whole-sound centroid is 2.8 kHz (hiss strong); roar is under 300 Hz per the bands table but is not the only dominant part."}

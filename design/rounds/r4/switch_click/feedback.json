@@ -1,0 +1,11 @@
+{"sound":"switch_click","round":4,"finished":true,"calls":11,"failed_calls":0,
+ "difficulty":1,"self_score":8,
+ "nodes_used":["click","output"],
+ "blockers":[
+  {"kind":"sense_gap","where":"listen/verify onsets",
+   "wanted":"one number for the number of clicks in a switch double",
+   "tried":"default onsets (40 ms merge) reads 1, fine detector reads 2 (0 and 24 ms); verify onsets needs spacing_ms 5 to count 2",
+   "workaround":"expect onsets with spacing_ms 5 (1..2 passes either way); documented in the manual",
+   "severity":1}],
+ "wishlist":["a click macro-friendly field for the gap between the two snicks (double gap), so a knob can move the release spacing"],
+ "what_worked":["click kind switch gave 2 snicks 24 ms apart, centroid 3.9 kHz, in one node","macro claims on hardness (centroid up) and size (centroid down) passed at once","seeds 1-4 verify and variations export all passed first time"]}

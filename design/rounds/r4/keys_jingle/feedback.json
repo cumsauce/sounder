@@ -1,0 +1,7 @@
+{"sound":"keys_jingle","round":4,"finished":true,"calls":14,"failed_calls":0,"difficulty":1,"self_score":7,
+"nodes_used":["pattern","voices","impulse","gain","modal","mix","filter","output"],
+"blockers":[
+{"kind":"sense_gap","where":"listen pitch / onset table","wanted":"a pitch reading for bright inharmonic ringing hits","tried":"read pitch, pitch by tenth, onset-table pitch","workaround":"used the modes line and the spectrogram; pitch columns showed octave errors (2.3k, 766>4.97k, 1.13k>3.4k) against modes at 3.4-4.7k",  "severity":1},
+{"kind":"confusing_error","where":"verify macro sweep","wanted":"a hint why a pitch macro's centroid was non-monotonic","tried":"raised modal f_max from 11000 to 16000 (a mode left the band as the knob rose)","workaround":"f_max 16000 plus a lowpass node","severity":1}],
+"wishlist":["pitch column that is honest (or 'n/a') on inharmonic modal hits","a way to ring a key set as a set (a chord of free-free bars) without a voices patch"],
+"what_worked":["pattern jitter into voices with modal f0 from $rand gave 11 onsets and a different take per seed at once","modal bar + plate layer with f_min/f_max/f0 put modes at 3.4-11 kHz, inharmonicity 321 cents","a param read by the voices patch plus a macro {param} entry worked first time"]}

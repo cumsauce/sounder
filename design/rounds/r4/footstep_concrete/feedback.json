@@ -1,0 +1,13 @@
+{"sound": "footstep_concrete", "round": 4, "finished": true,
+ "calls": 15, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["noise", "filter", "decay", "math", "impulse", "resonators", "mix", "output"],
+ "blockers": [
+  {"kind": "sense_gap", "where": "verify macro length / summary decay",
+   "wanted": "a decay measure per onset, so a 'length' knob that stretches each hit shows a clear move",
+   "tried": "decay claim on the knob",
+   "workaround": "none needed; it passes but moves only 0.10 s to 0.13 s because the second hit's fixed onset dominates the whole-sound -20 dB decay",
+   "severity": 1}],
+ "wishlist": ["a per-onset decay-based macro claim", "a heel/toe or footfall preset node"],
+ "what_worked": ["decay node's `at` field made two timed hits without events", "macro map with index/key worked first try on a mix input gain", "summary onset table (per-onset centroid, attack, -20 dB) showed heel vs toe at once"]}

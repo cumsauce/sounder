@@ -1,0 +1,13 @@
+{"sound": "punch_thud", "round": 4, "finished": true,
+ "calls": 10, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["ramp", "osc", "decay", "math", "noise", "filter", "gain", "mix", "output"],
+ "blockers": [
+   {"kind": "sense_gap", "where": "listen",
+    "wanted": "a direct read of how far the 1-4 kHz slap sits under the thud, and its duration",
+    "tried": "octave-band table and energy shares (2k-8k = 3%)",
+    "workaround": "read band levels per time segment; slap about 20 dB under the body in the first 20% segment",
+    "severity": 1}],
+ "wishlist": ["a band-level-vs-peak line for a chosen band range in listen", "a ready-made impact/punch node (pitch-dropped body plus slap)"],
+ "what_worked": ["sine on an exp ramp times decay plus lp noise plus bp noise slap built it in one sound_ops call", "macro sweeps in verify confirmed all three claims at once", "peak_db plus fade_in 0.0005 gave exact -3.0 dBFS with attack 1.8 ms"]}

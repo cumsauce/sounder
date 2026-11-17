@@ -1,0 +1,18 @@
+{"sound": "stream_loop", "round": 4, "finished": true,
+ "calls": 10, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 8,
+ "nodes_used": ["water", "output"],
+ "blockers": [
+  {"kind": "missing_field", "where": "water",
+   "wanted": "a brightness / tone control so the 4-6 kHz part of the 300 Hz-6 kHz target carries more energy (measured: 200-2k 80%, 2k-8k 19%, 8k+ about -42 dB, centroid 1.6 kHz, rolloff 2.2 kHz)",
+   "tried": "nothing beyond depth (depth 0 gives centroid ~3.1 kHz but also changes level shape); a filter/eq after the looped source would risk loop_seam and warn",
+   "workaround": "left the default; depth macro covers the centroid range 0.68-3.1 kHz",
+   "severity": 1},
+  {"kind": "sense_gap", "where": "verify macros / density",
+   "wanted": "flow macro density sweep to show a usable range",
+   "tried": "flow map 0.3..0.9",
+   "workaround": "claim passes; density reads 253->272->317->501->588 events/s (seed 1), plateau at 588 for seeds 2,3 at 0.75 and 1.0, so the top of the knob is not distinguishable by this measure",
+   "severity": 1}],
+ "wishlist": ["a brightness field on water", "density measure that does not plateau above ~500/s"],
+ "what_worked": ["one water node in a loop document passed loop_seam on seeds 1-4 with no crossfade", "density measure reads 294 events/s (dense bubble onsets) with a corrected-rate note when events overlap", "macros claimed density and centroid passed first try"]}
