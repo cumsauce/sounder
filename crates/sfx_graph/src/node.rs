@@ -377,6 +377,9 @@ node_types! {
     // slot M5
 
     // slot M6
+    "rolling" => Rolling,
+    "cloth" => Cloth,
+    "footstep" => Footstep,
 
     // slot M7
 

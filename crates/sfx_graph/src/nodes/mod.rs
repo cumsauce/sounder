@@ -64,6 +64,7 @@ mod water;
 // slot M5
 
 // slot M6
+mod surface;
 
 // slot M7
 
@@ -138,6 +139,7 @@ pub use water::*;
 // slot M5
 
 // slot M6
+pub use surface::*;
 
 // slot M7
 
