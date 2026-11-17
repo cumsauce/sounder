@@ -84,6 +84,8 @@ pub fn measure(audio: &Audio, m: Measure) -> f32 {
             let last40 = lev.iter().rposition(|v| *v > top - 40.0).unwrap_or(0);
             (last40.saturating_sub(end)) as f32 * fr as f32 / sr as f32
         }
+        Measure::Inharmonicity => inharmonicity_cents(audio).unwrap_or(0.0),
+        Measure::Roughness => roughness_pct(audio),
         Measure::Swing => {
             // Loudness over 0.2 s windows every 0.05 s; a sound under 0.6 s
             // uses a third of its length (20 ms at the least), so a short

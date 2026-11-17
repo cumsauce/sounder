@@ -32,16 +32,24 @@ pub enum Measure {
     Flatness,
     /// p90 - p10 of short-term loudness, LU (steady to gusty).
     Swing,
+    /// Mean deviation of the strongest partials from integer multiples of
+    /// the pitch, cents (clean to bell-like).
+    Inharmonicity,
+    /// Percent of the loudness envelope's energy at 20-150 Hz (smooth to
+    /// rough, beating).
+    Roughness,
 }
 
 impl Measure {
-    pub const ALL: [Measure; 6] = [
+    pub const ALL: [Measure; 8] = [
         Measure::Centroid,
         Measure::Decay,
         Measure::Crest,
         Measure::Lufs,
         Measure::Flatness,
         Measure::Swing,
+        Measure::Inharmonicity,
+        Measure::Roughness,
     ];
 
     pub fn name(self) -> &'static str {
@@ -52,6 +60,8 @@ impl Measure {
             Measure::Lufs => "lufs",
             Measure::Flatness => "flatness",
             Measure::Swing => "swing",
+            Measure::Inharmonicity => "inharmonicity",
+            Measure::Roughness => "roughness",
         }
     }
 
@@ -63,6 +73,8 @@ impl Measure {
             Measure::Lufs => "LUFS",
             Measure::Flatness => "",
             Measure::Swing => "LU",
+            Measure::Inharmonicity => "cents",
+            Measure::Roughness => "%",
         }
     }
 }

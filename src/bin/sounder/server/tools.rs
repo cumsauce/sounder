@@ -287,6 +287,10 @@ fn do_listen(s: &mut Session, a: ListenArgs) -> R {
                 text += &format!("== {label} ==\n");
             }
             text += &d.table();
+            for l in sfx_analysis::measure::extra(au).lines() {
+                text += &l;
+                text.push('\n');
+            }
             descs.push(json!({"label": label, "descriptors": d}));
         }
     }
