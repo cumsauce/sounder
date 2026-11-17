@@ -251,11 +251,18 @@ function showRegbar() {
 }
 
 // ---------- centre: graph ----------
+// Previews are keyed on the sound's own content hash (not the session rev, which moves on any
+// change anywhere), kept as resolved values so a rebuilt node / tile draws in the same frame.
+function cached(map, key, max, load) {
+  let e = map.get(key);
+  if (!e) { e = { v: null, p: load().then(v => (e.v = v), err => { map.delete(key); throw err; }) }; map.set(key, e); while (map.size > max) map.delete(map.keys().next().value); }
+  return e;
+}
+const docKey = h => h != null ? h : `${PLOTREV}.${PLOTBUST}`;
 const SPARKS = new Map();
 function getSpark(name) {
-  const key = `${ST.doc}|${PLOTREV}|${PLOTBUST}|${name}`;
-  if (!SPARKS.has(key)) { if (SPARKS.size > 400) SPARKS.clear(); SPARKS.set(key, bulk(`render/${ST.doc}/node/${name}/spark`, { rev: PLOTREV, b: PLOTBUST }).then(b => new Float32Array(b))); }
-  return SPARKS.get(key);
+  const k = docKey(ST.sound.hash), key = `${ST.doc}|${k}|${name}`;
+  return cached(SPARKS, key, 400, () => bulk(`render/${ST.doc}/node/${name}/spark`, { rev: k }).then(b => new Float32Array(b)));
 }
 function drawSpark(c, x) {
   const g = c.getContext('2d'), W = c.width = 92, H = c.height = 32; g.clearRect(0, 0, W, H); if (!x || !x.length) return; let pk = 1e-9; for (const v of x) pk = Math.max(pk, Math.abs(v)); g.fillStyle = 'rgba(120,200,255,.75)';
@@ -271,7 +278,7 @@ function renderGraph() {
   const wires = nodes.flatMap(n => n.reads.filter(r => has.has(r)).map(r => { const [x0, y0] = pos[r], [x1, y1] = pos[n.name]; const a = [x0 + 150, y0 + 28], b = [x1, y1 + 28]; return `<path d="M${a[0]},${a[1]} C${a[0] + 40},${a[1]} ${b[0] - 40},${b[1]} ${b[0]},${b[1]}" stroke="${S.sel === n.name || S.sel === r ? '#6fa8ff' : '#3a404c'}" stroke-width="1.5" fill="none"/>`; })).join('');
   const hotNodes = S.hot ? macroTargets(S.hot) : [];
   host.innerHTML = `<div class="graph" style="width:${W}px;height:${H}px"><svg class="wires">${wires}</svg>${nodes.map(n => `<div class="gnode ${n.type === 'output' ? 'out' : ''} ${S.sel === n.name ? 'sel' : ''} ${ST.solo === n.name ? 'solo' : ''} ${hotNodes.includes(n.name) ? 'mac' : ''}" data-node="${esc(n.name)}" style="left:${pos[n.name][0]}px;top:${pos[n.name][1]}px"><div class="n">${ic(ICON[n.type] || 'wave')}${esc(n.name)}</div><button class="gsolo ${ST.solo === n.name ? 'on' : ''}" data-solo="${esc(n.name)}" aria-label="Solo ${esc(n.name)}" title="Hear this node">${ic('phones')}</button><div class="gbadges"><span class="t">${esc(n.type)}</span>${n.open_comments ? `<span class="pinc" title="open comments on this node">${n.open_comments}</span>` : ''}${n.unread ? `<span class="warnc" title="changed by an agent since you last looked (open the sound to mark it seen)">${ic('warn')}</span>` : ''}</div><canvas data-gspark="${esc(n.name)}"></canvas></div>`).join('')}</div>`;
-  host.querySelectorAll('[data-gspark]').forEach(c => { const name = c.dataset.gspark, doc0 = ST.doc; getSpark(name).then(x => { if (c.isConnected && ST.doc === doc0) drawSpark(c, x); }).catch(() => {}); });
+  host.querySelectorAll('[data-gspark]').forEach(c => { const name = c.dataset.gspark, doc0 = ST.doc, e = getSpark(name); if (e.v) { drawSpark(c, e.v); return; } e.p.then(x => { if (c.isConnected && ST.doc === doc0) drawSpark(c, x); }).catch(() => {}); });
 }
 
 // ---------- macro knobs ----------
@@ -320,7 +327,7 @@ async function sendKnob(name) {
 // merge a move_knob reply (macros, moves, seconds, peak_db, lufs) into state.sound
 function mergeSound(r, keep) {
   const d = doc(); if (!r) return;
-  for (const k of ['seconds', 'peak_db', 'lufs', 'moves']) if (r[k] !== undefined) d[k] = r[k];
+  for (const k of ['seconds', 'peak_db', 'lufs', 'moves', 'hash']) if (r[k] !== undefined) d[k] = r[k];
   if (r.macros) d.macros = r.macros.map(m => { const old = d.macros.find(x => x.name === m.name); return (keep === m.name || (KD && KD.name === m.name)) && old ? { ...m, value: old.value } : m; });
 }
 async function finishMacro(name, from) {
@@ -378,7 +385,7 @@ function renderRight() {
       <div class="sect"><div class="sh">Fields</div>${Object.entries(n.fields).map(([k, v]) => fieldRow(n, k, v)).join('')}</div>
       <div class="sect"><div class="sh">Wiring</div><dl class="kv"><dt>reads</dt><dd>${n.reads.filter(x => d.nodes.some(y => y.name === x)).map(link).join(', ') || '—'}</dd><dt>read by</dt><dd>${readBy.map(link).join(', ') || (n.type === 'output' ? 'the sound' : '<span style="color:var(--warn)">nothing</span>')}</dd><dt>peak</dt><dd data-nodepeak="${esc(n.name)}">…</dd></dl></div>
       <div class="sect"><div class="sh">JSON <span class="hint" style="text-transform:none;letter-spacing:0">what sound_ops sends</span></div><pre class="mono" style="margin:0;white-space:pre-wrap;color:var(--dim);font-size:11px">${esc(JSON.stringify({ type: n.type, name: n.name, ...n.fields }))}</pre></div>`;
-      const name = n.name, doc0 = ST.doc; getSpark(name).then(x => { const el = document.querySelector(`[data-nodepeak="${name}"]`); if (el && ST.doc === doc0) { let pk = 0; for (const v of x) pk = Math.max(pk, Math.abs(v)); el.textContent = `${(20 * Math.log10(Math.max(pk, 1e-10))).toFixed(1)} dBFS`; } }).catch(() => {}); }
+      const name = n.name, doc0 = ST.doc; getSpark(name).p.then(x => { const el = document.querySelector(`[data-nodepeak="${name}"]`); if (el && ST.doc === doc0) { let pk = 0; for (const v of x) pk = Math.max(pk, Math.abs(v)); el.textContent = `${(20 * Math.log10(Math.max(pk, 1e-10))).toFixed(1)} dBFS`; } }).catch(() => {}); }
   } else if (S.tab === 'sound') {
     const ds = d.descriptors || {}, bmax = -6, bmin = -72;
     const cell = v => { const t = Math.max(0, Math.min(1, (v - bmin) / (bmax - bmin))); const k = Math.round((t * 0.92 + 0.04) * 255) * 4; return `<span style="background:rgb(${CMAP[k]},${CMAP[k + 1]},${CMAP[k + 2]})" title="${v.toFixed(1)} dB">${v < -99 ? '' : Math.round(v)}</span>`; };
@@ -408,16 +415,18 @@ const THUMBS = new Map();
 function renderOverview() {
   $('#overview').hidden = S.view !== 'grid'; if (S.view !== 'grid') return;
   const sounds = ST.sounds;
-  $('#ovgrid').innerHTML = `<div class="ovsec">${esc(ST.project || 'friendSLOP')} · ${sounds.length} open${(ST.recent || []).length ? ` · ${ST.recent.length} saved` : ''}</div>` + sounds.map(d => `<div class="tile" data-doc="${esc(d.name)}" tabindex="0"><div class="thumb"><canvas data-th="${esc(d.name)}"></canvas>${d.working ? `<span class="chip working" style="font-size:11px"><i class="dot live" style="background:${agentColor(d.by)}"></i>${esc(d.by)} editing</span>` : ''}<button class="tp" data-audition="${esc(d.name)}" aria-label="Play ${esc(d.name)}">${ic('play')}</button></div><div class="info"><span class="n">${esc(d.name)}</span><span class="badge ${d.kind === 'loop' ? 'loop' : ''}">${esc(d.kind)}</span></div><div class="sub"><span class="grow">${d.seconds != null ? `${d.seconds.toFixed(2)} s${d.lufs != null ? ` · ${d.lufs.toFixed(1)} LUFS` : ''}` : ''}</span><span>${esc(d.by)} · ${esc(d.ago)}${d.saved ? '' : ' · <span style="color:var(--warn)">unsaved</span>'}</span></div></div>`).join('')
+  const gridHTML = `<div class="ovsec">${esc(ST.project || 'friendSLOP')} · ${sounds.length} open${(ST.recent || []).length ? ` · ${ST.recent.length} saved` : ''}</div>` + sounds.map(d => `<div class="tile" data-doc="${esc(d.name)}" tabindex="0"><div class="thumb"><canvas data-th="${esc(d.name)}"></canvas>${d.working ? `<span class="chip working" style="font-size:11px"><i class="dot live" style="background:${agentColor(d.by)}"></i>${esc(d.by)} editing</span>` : ''}<button class="tp" data-audition="${esc(d.name)}" aria-label="Play ${esc(d.name)}">${ic('play')}</button></div><div class="info"><span class="n">${esc(d.name)}</span><span class="badge ${d.kind === 'loop' ? 'loop' : ''}">${esc(d.kind)}</span></div><div class="sub"><span class="grow">${d.seconds != null ? `${d.seconds.toFixed(2)} s${d.lufs != null ? ` · ${d.lufs.toFixed(1)} LUFS` : ''}` : ''}</span><span>${esc(d.by)} · ${esc(d.ago)}${d.saved ? '' : ' · <span style="color:var(--warn)">unsaved</span>'}</span></div></div>`).join('')
     + (ST.recent || []).map(d => `<div class="tile" data-load="${esc(d.name)}" tabindex="0" title="Saved sound: click to open"><div class="thumb"></div><div class="info"><span class="n">${esc(d.name)}</span><span class="badge ${d.kind === 'loop' ? 'loop' : ''}">${esc(d.kind)}</span></div><div class="sub"><span class="grow">${Number.isFinite(d.seconds) ? `${d.seconds.toFixed(2)} s` : ''}${Number.isFinite(d.lufs) && d.lufs > -90 ? ` · ${d.lufs.toFixed(1)} LUFS` : ''}</span><span>saved · ${esc(d.ago)}</span></div></div>`).join('');
+  const og = $('#ovgrid'); if (og.dataset.html !== gridHTML) { og.dataset.html = gridHTML; og.innerHTML = gridHTML; }
   $('#feed').innerHTML = (ST.feed || []).map(f => { const i = f.what.indexOf(' · '); const what = i > 0 ? `<b>${esc(f.what.slice(0, i))}</b>${esc(f.what.slice(i))}` : esc(f.what);
     return `<div class="ev" data-doc="${esc(f.doc)}"><i class="dot" style="background:${agentColor(f.agent)}"></i><span class="what"><span class="mono">${esc(f.tool)}</span> ${what}</span><time>${esc(f.ago)}</time></div>`; }).join('');
-  requestAnimationFrame(() => document.querySelectorAll('[data-th]').forEach(async c => {
-    const name = c.dataset.th, W = c.width = Math.max(8, Math.round(c.clientWidth * DPR)), H = c.height = Math.max(8, Math.round(c.clientHeight * DPR)); if (!CMAP) return;
-    const key = `${name}|${PLOTREV}|${PLOTBUST}|${W}x${H}`;
-    if (!THUMBS.has(key)) { if (THUMBS.size > 60) THUMBS.clear(); THUMBS.set(key, bulk(`render/${name}/spectrogram`, { rev: PLOTREV, b: PLOTBUST, w: W, h: H }).then(b => specCanvas(parseSpec(b)))); }
-    try { const sc = await THUMBS.get(key); if (c.isConnected) c.getContext('2d').drawImage(sc, 0, 0, W, H); } catch (e) { THUMBS.delete(key); }
-  }));
+  const hashes = new Map(sounds.map(d => [d.name, d.hash]));
+  document.querySelectorAll('[data-th]').forEach(c => {
+    if (!CMAP) return; const name = c.dataset.th, W = c.width = Math.max(8, Math.round(c.clientWidth * DPR)), H = c.height = Math.max(8, Math.round(c.clientHeight * DPR));
+    const k = docKey(hashes.get(name)), e = cached(THUMBS, `${name}|${k}|${W}x${H}`, 120, () => bulk(`render/${name}/spectrogram`, { rev: k, w: W, h: H }).then(b => specCanvas(parseSpec(b))));
+    const draw = sc => { if (c.isConnected) c.getContext('2d').drawImage(sc, 0, 0, W, H); };
+    if (e.v) draw(e.v); else e.p.then(draw).catch(() => {});
+  });
 }
 
 // ---------- toast, render all ----------

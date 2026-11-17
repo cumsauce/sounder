@@ -176,6 +176,8 @@ impl Session {
                     "open_comments": s.open_annotations().count(),
                     "seconds": stats.get(n).and_then(|x| x.0),
                     "lufs": stats.get(n).and_then(|x| x.1),
+                    // Changes only when this sound's render can change: the page keys its previews on it.
+                    "hash": format!("{:x}", s.doc_hash(self.generation)),
                 })
             })
             .collect();
@@ -300,6 +302,7 @@ impl Session {
             "name": d.name,
             "kind": kind_name(d.kind),
             "version": d.version,
+            "hash": format!("{hash:x}"),
             "seed": d.seed,
             "sample_rate": d.sample_rate,
             "duration": d.duration,
@@ -461,6 +464,7 @@ impl Session {
             })
             .collect();
         Ok(json!({
+            "hash": format!("{hash:x}"),
             "macros": macros,
             "moves": sound.knob_moves.iter().map(|k| json!({"name": k.name, "from": k.from, "to": k.to})).collect::<Vec<_>>(),
             "seconds": rendered.audio.seconds(),
