@@ -154,25 +154,28 @@ impl ModalShape {
 
 // ------------------------------------------------------------ mode tables
 //
-// Sources of every ratio table below (from memory of the standard texts, and
-// checked in the unit tests by recomputing them from the defining equations,
-// not copied as numbers):
+// Sources of every ratio table below. The references are the standard texts
+// as cited from memory (chapter-level, not page-level: not re-checked against
+// the books). The ratios themselves are not typed in: the unit tests below
+// recompute them from the defining equations and compare with the published
+// values (bar 2.757 / 5.404 / 8.933, membrane 1.593 / 2.136 / 2.295 / 2.653).
 //
 // - Plate: simply supported rectangular plate, f(m,n) ~ (m^2 + n^2) (Leissa,
 //   "Vibration of Plates", 1969; Fletcher & Rossing, "The Physics of Musical
-//   Instruments", 2nd ed. 1998, ch. 3). Foley's table, as before.
+//   Instruments", 2nd ed. 1998, the chapter on plates). Foley's table, as before.
 // - Bar: free-free Euler-Bernoulli bar. The frequency equation is
 //   cos(x) cosh(x) = 1, roots x_k = beta_k L = 4.7300, 7.8532, 10.9956,
 //   14.1372, then (k + 1/2) pi; f_k = x_k^2 / (2 pi) * (t / sqrt 12) * c / L^2
-//   (Rayleigh, "Theory of Sound" s.170; Fletcher & Rossing s.2.19; Blevins,
-//   "Formulas for Natural Frequency and Mode Shape", table 8-1). The ratios
+//   (Rayleigh, "Theory of Sound" vol. 1, bars; Fletcher & Rossing, the chapter on bars,
+//   free bars; Blevins, "Formulas for Natural Frequency and Mode Shape",
+//   the chapter on beams, free-free). The ratios
 //   are 1 : 2.757 : 5.404 : 8.933. The roots are solved here, not typed in.
 //   Mode shape for the strike weight: cosh(bx) + cos(bx) - s (sinh(bx) +
 //   sin(bx)), s = (cosh b - cos b) / (sinh b - sin b) (same references).
 // - Membrane: ideal circular membrane, f(m,n) = f(0,1) * j(m,n) / j(0,1),
 //   j(m,n) the n-th zero of the Bessel function J_m (Abramowitz & Stegun
-//   table 9.5; Fletcher & Rossing s.3.? table "modes of an ideal circular
-//   membrane"): 1 : 1.594 : 2.136 : 2.296 : 2.653 : 2.918 for (0,1) (1,1)
+//   table 9.5; Fletcher & Rossing, the chapter on drums, ideal circular membrane):
+//   1 : 1.594 : 2.136 : 2.296 : 2.653 : 2.918 for (0,1) (1,1)
 //   (2,1) (0,2) (3,1) (1,2). The zeros are found here by root-finding J_m
 //   (integral definition); the strike weight of mode (m,n) at radius r is
 //   |J_m(j(m,n) r / R)|.
@@ -182,15 +185,15 @@ impl ModalShape {
 // - Tube: the in-plane flexural ("ovalling") modes of a thin circular ring
 //   (the cross-section of a pipe or can wall), inextensional theory:
 //   omega_n = sqrt(E I / (rho A)) / R^2 * n (n^2 - 1) / sqrt(n^2 + 1), n =
-//   2, 3, ... (Den Hartog, "Mechanical Vibrations"; Blevins table 8-?
-//   "circular rings, in-plane flexure"; Love, "Mathematical Theory of
-//   Elasticity" s.? for the thin ring): 1 : 2.828 : 5.423 : 8.771. Each n is
+//   2, 3, ... (Den Hartog, "Mechanical Vibrations"; Blevins, the chapter on
+//   rings, in-plane flexure; Love, "Mathematical Theory of Elasticity", the
+//   thin ring): 1 : 2.828 : 5.423 : 8.771. Each n is
 //   a degenerate cos / sin pair, struck with weights |cos n th|, |sin n th|.
 // - Shell: the idealized church-bell partial series, relative to the prime:
 //   hum 0.5, prime 1, tierce 1.2 (minor third), quint 1.5, nominal 2, then
 //   2.5, 3, 4, 5, 6 (Rossing, "Science of Percussion Instruments" 2000, ch.
-//   on bells; Fletcher & Rossing ch. 21 table of a Hemony-style bell, rounded
-//   to the minor-third ideal). Bowls and helmets share the series here: an
+//   on bells; Fletcher & Rossing, the chapter on bells, the partials of a Hemony-style bell,
+//   rounded here to the minor-third ideal). Bowls and helmets share the series here: an
 //   honest simplification, the real ratios depend on the profile.
 //
 // Honest limits: no air loading, no membrane stiffness, no coupling of
@@ -317,8 +320,8 @@ fn lowest_mode(shape: ModalShape, props: &MaterialProps) -> (f32, f32) {
             (a, 2.0)
         }
         ModalShape::Bar => {
-            let k = props.thickness / 12f32.sqrt() * (props.young / props.density).sqrt()
-                / (2.0 * PI);
+            let k =
+                props.thickness / 12f32.sqrt() * (props.young / props.density).sqrt() / (2.0 * PI);
             ((bar_roots(1)[0].powi(2)) as f32 * k, 2.0)
         }
         ModalShape::Tube => {
@@ -463,7 +466,10 @@ impl Table<'_> {
                         continue;
                     }
                     // A degenerate cos / sin pair, split a little.
-                    let (c, s) = ((n as f32 * theta).cos().abs(), (n as f32 * theta).sin().abs());
+                    let (c, s) = (
+                        (n as f32 * theta).cos().abs(),
+                        (n as f32 * theta).sin().abs(),
+                    );
                     all.push((f * (1.0 + SHAPE_DETUNE * rng.signed()), c * tilt(f)));
                     all.push((f * (1.0 + SHAPE_DETUNE * rng.signed()), s * tilt(f)));
                 }
@@ -801,7 +807,6 @@ impl Eval for Friction {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -851,10 +856,7 @@ mod tests {
         }
         let z = bessel_zeros();
         let ratios = [z[0][0], z[1][0], z[2][0], z[0][1], z[3][0]].map(|j| j / z[0][0]);
-        println!(
-            "membrane j01 {:.4}, ratios {ratios:.4?}",
-            z[0][0]
-        );
+        println!("membrane j01 {:.4}, ratios {ratios:.4?}", z[0][0]);
         for (got, want) in ratios.iter().zip([1.0, 1.594, 2.136, 2.295, 2.653]) {
             assert!(close(*got, want, 1e-3), "{got} vs {want}");
         }
@@ -880,9 +882,15 @@ mod tests {
                 let mut steps = 0;
                 while size <= hi {
                     let m = table(shape, &p, size, 0.3);
-                    let f = m.first().unwrap_or_else(|| panic!("{name} {shape:?} {size}")).0;
+                    let f = m
+                        .first()
+                        .unwrap_or_else(|| panic!("{name} {shape:?} {size}"))
+                        .0;
                     let want = a / size.powf(pw);
-                    assert!(f < last, "{name} {shape:?} size {size}: {f} Hz after {last}");
+                    assert!(
+                        f < last,
+                        "{name} {shape:?} size {size}: {f} Hz after {last}"
+                    );
                     assert!(
                         (f / want - 1.0).abs() < 0.02,
                         "{name} {shape:?} size {size}: lowest {f} Hz, table {want} Hz"

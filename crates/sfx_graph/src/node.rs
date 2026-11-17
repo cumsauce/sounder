@@ -384,6 +384,7 @@ node_types! {
     "footstep" => Footstep,
 
     // slot M7
+    "shatter" => Shatter,
 
     // slot M8
 

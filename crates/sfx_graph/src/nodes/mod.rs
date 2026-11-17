@@ -68,6 +68,7 @@ mod waveguide;
 mod surface;
 
 // slot M7
+mod fracture;
 
 // slot M8
 
@@ -144,6 +145,7 @@ pub use waveguide::*;
 pub use surface::*;
 
 // slot M7
+pub use fracture::*;
 
 // slot M8
 
