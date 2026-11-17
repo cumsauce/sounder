@@ -138,8 +138,10 @@ impl Eval for Remap {
 #[serde(deny_unknown_fields)]
 pub struct Gain {
     pub input: In,
-    /// Gain in dB (or give gain).
-    #[serde(default)]
+    /// Gain in dB (or give gain). `gain_db` (the name the other nodes use)
+    /// is accepted as the same field; giving both is an error. Being an
+    /// alias, it works in feedback loops and macro maps too.
+    #[serde(default, alias = "gain_db")]
     pub db: Option<In>,
     /// Linear gain (or give db).
     #[serde(default)]

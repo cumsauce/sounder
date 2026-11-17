@@ -839,9 +839,77 @@ pub struct Thunder {
     /// Linear amplitude (default 1).
     #[serde(default)]
     pub amp: Option<f32>,
+    /// 0..1, a tilt after everything else: a +-24 dB high shelf at 100 Hz.
+    /// 0.5 (the default) leaves foley's spectrum untouched; above 0.5 lifts
+    /// everything over 100 Hz (the centroid rises), below 0.5 lowers it. The
+    /// peak level is kept, so it changes tone, not loudness.
+    #[serde(default)]
+    pub brightness: Option<f32>,
+    /// 0.5..3, a stretch of the rumble (default 1, off). The clap (the first
+    /// 0.1 s after the sound arrives) stays; what follows is time-stretched
+    /// by overlap-add of 120 ms grains, so the spectrum stays and the rumble
+    /// lasts `length` times as long (set the document `duration` to fit).
+    #[serde(default)]
+    pub length: Option<f32>,
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
+}
+
+/// Seconds of the clap that `length` leaves alone.
+const CLAP_S: f32 = 0.1;
+/// Grain length of the rumble stretch, seconds.
+const GRAIN_S: f32 = 0.12;
+
+/// Stretches `x` after its first sound (+ the clap) by `length` with
+/// overlap-add of sine-windowed grains read at the stretched position (half
+/// overlap, the window applied twice, so a stretch of 1 would give `x` back).
+/// The level is matched to the rms of the part after the first sound.
+/// At most `limit` samples come back.
+fn stretch_rumble(x: &[f32], length: f32, sr: f32, limit: usize) -> Vec<f32> {
+    let Some(a) = x.iter().position(|v| *v != 0.0) else {
+        return x.to_vec();
+    };
+    let head = (CLAP_S * sr) as usize;
+    let g = ((GRAIN_S * sr) as usize).max(2) & !1;
+    let hop = g / 2;
+    let rest = x.len().saturating_sub(a + head);
+    let total = (a + head + (rest as f32 * length).ceil() as usize + g).min(limit.max(1));
+    let mut out = vec![0.0f32; total];
+    let win: Vec<f32> = (0..g)
+        .map(|i| (std::f32::consts::PI * (i as f32 + 0.5) / g as f32).sin())
+        .collect();
+    let mut k = 0usize;
+    loop {
+        let c = a + k * hop; // output centre
+        if c >= total + hop {
+            break;
+        }
+        let rel = (c - a) as f32;
+        let p = if rel < head as f32 {
+            rel
+        } else {
+            head as f32 + (rel - head as f32) / length
+        };
+        let src = (a as f32 + p).round() as isize - hop as isize;
+        let dst = c as isize - hop as isize;
+        for (i, w) in win.iter().enumerate() {
+            let (si, di) = (src + i as isize, dst + i as isize);
+            if si >= 0 && (si as usize) < x.len() && di >= 0 && (di as usize) < total {
+                out[di as usize] += w * w * x[si as usize];
+            }
+        }
+        k += 1;
+    }
+    let rms = |v: &[f32]| (v.iter().map(|s| s * s).sum::<f32>() / v.len().max(1) as f32).sqrt();
+    let (before, after) = (rms(&x[a..]), rms(&out[a.min(total)..]));
+    if after > 1e-12 {
+        let g = before / after;
+        for v in &mut out {
+            *v *= g;
+        }
+    }
+    out
 }
 
 impl Describe for Thunder {
@@ -874,6 +942,18 @@ impl Eval for Thunder {
             return Err(format!("humidity: {humidity}: give a percentage 0..100"));
         }
         let exposure = self.exposure.unwrap_or(1.0).clamp(0.0, 1.0);
+        let brightness = self.brightness.unwrap_or(0.5);
+        if !(0.0..=1.0).contains(&brightness) {
+            return Err(format!(
+                "brightness: {brightness}: give 0..1 (0.5 leaves the spectrum as it is)"
+            ));
+        }
+        let length = self.length.unwrap_or(1.0);
+        if !(0.5..=3.0).contains(&length) {
+            return Err(format!(
+                "length: {length}: give 0.5..3 (1 = as long as foley makes it)"
+            ));
+        }
         let seed = cx.rng(self.seed).next_u64();
         let mut x = strike([distance, 0.0, 0.0], seed, celsius, humidity, rate(cx));
         for v in &mut x {
@@ -881,11 +961,36 @@ impl Eval for Thunder {
                 *v = 0.0;
             }
         }
+        if length != 1.0 {
+            x = stretch_rumble(&x, length, cx.sr, cx.n);
+        }
         if exposure < 1.0 {
             let cutoff = 20_000.0 * (200.0f32 / 20_000.0).powf(1.0 - exposure);
             let mut lp = LowPass::new_at(cutoff, rate(cx));
             for v in &mut x {
                 *v = lp.process(*v);
+            }
+        }
+        if brightness != 0.5 {
+            // A high shelf at 100 Hz, up to +-24 dB; the peak is kept.
+            let peak = x.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+            let mut shelf = Biquad::new();
+            shelf.set(
+                FilterMode::HighShelf,
+                100.0,
+                0.707,
+                (brightness - 0.5) * 48.0,
+                cx.sr,
+            );
+            for v in &mut x {
+                *v = shelf.tick(*v);
+            }
+            let tilted = x.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+            if tilted > 1e-12 {
+                let g = peak / tilted;
+                for v in &mut x {
+                    *v *= g;
+                }
             }
         }
         Ok(one(fit(
