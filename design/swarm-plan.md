@@ -161,9 +161,9 @@ the task owns.
     Run each as `cd <your worktree> && cargo ...` (the working directory
     does not carry between commands). The target directory is shared with
     every other worker: "Blocking waiting for file lock" means another build
-    is running; wait. **Never build or run the root crate** (`cargo build`,
-    `cargo run`, `cargo test --workspace`): its binary would overwrite the
-    one other agents are using. Never `cargo clean`. Commit to your branch;
+    is running; wait. **Never `cargo build` or `cargo run` the root crate**; `cargo check` and
+    `cargo clippy -p sounder --all-targets` are fine. Only a task whose card
+    owns root files (F1) may also run `cargo test -p sounder`. Never `cargo clean`. Commit to your branch;
     do not push, do not merge.
 13. **Report** (final message): nodes added, files touched, measured numbers,
     anything skipped and why, "needs from integrator".
@@ -247,11 +247,12 @@ No task depends on another. All need wave 0 merged.
 | S5 | new `nodes/dynamics.rs` | `transient`, `gate`, `sub`, `exciter` |
 | S6 | new `nodes/modfx.rs` | `chorus`, `flanger`, `phaser`, `freq_shift` |
 | S7 | new `nodes/motion.rs` | `doppler`, `haas`, `decorrelate` |
-| S8 | `sfx_analysis/src/{checks,descriptors,measure}.rs` | aliasing, inharmonicity, modulation, roughness |
+| S8a | `sfx_analysis/src/{checks,measure}.rs` | aliasing, inharmonicity, modulation, roughness |
+| S8b | `sfx_analysis/src/descriptors.rs` | round-0 descriptor gaps (section 4b) |
 | S9 | new `nodes/modulators.rs` | `chaos`, `fbm`, `curve`, `switch`, `pitch_follow`, `centroid_follow` |
 | S10 | new `nodes/sequence.rs` | `trigger_env`, `seq`, `notes`, `event_gate` |
 | S11 | `nodes/time.rs`, new `nodes/space.rs` | `reverb.model`, `ir` |
-| S12 | new `nodes/lofi.rs`, `Output`-free part of `nodes/offline.rs` | `crossfade_loop`, `resample`, `tape`, `stutter` |
+| S12 | new `nodes/lofi.rs` | `crossfade_loop`, `resample`, `tape`, `stutter` |
 
 ### S1: oscillator and noise
 
@@ -375,9 +376,9 @@ No task depends on another. All need wave 0 merged.
   correlation under 0.3 on noise, each channel's octave-band levels within
   1 dB of the input, mono sum within 3 dB per band.
 
-### S8: senses for the new sources
+### S8a: senses for the new sources
 
-The only wave 1 task in `sfx_analysis/src`. It adds descriptors and
+Owns `checks.rs` and `measure.rs` in `sfx_analysis/src` (S8b owns `descriptors.rs`). It adds descriptors and
 `verify` checks; it does not touch `tools.rs` (report the new check names
 and descriptor lines; the integrator documents them).
 
@@ -462,7 +463,7 @@ stream into control signals. Read streams with `cx.events`.
 
 - `crossfade_loop {input, [fade 0.25]}` (acausal): equal-power crossfade of
   the last `fade` seconds into the first, output is the document length and
-  wraps cleanly. In `offline.rs` (do not touch `Output`).
+  wraps cleanly. In `lofi.rs` (`offline.rs` belongs to F3).
 - `resample {input, rate (Hz, signal), [antialias false]}` (sample-rate
   reduction with hold), `tape {input, [wow 0.2], [flutter 0.1], [drive 1],
   [hiss_db -60], [tone 8000], [seed]}`, `stutter {input, events, [slice
@@ -474,6 +475,158 @@ stream into control signals. Read streams with `cx.events`.
   shows images of a 1 kHz sine at 7 and 9 kHz; with it they are 30 dB
   lower. `tape` wow: `modulation` of the pitch track (or a YIN track) shows
   a sub-2 Hz component of the set depth within 30 %.
+
+## 4b. Round-0 fix tasks (from the baseline feedback)
+
+Round 0 (24 sounds, mean judge score 9.1, mean difficulty 2.0, mean 4.5
+failed calls) reported these issues, counted by sounds. Only issues the
+section 9.5 rule selects are here; the rest are in `design/rounds/backlog.md`.
+Scores are near the ceiling, so from round 1 on **friction (failed calls,
+difficulty, blockers) is the main signal**, with score used to catch
+regressions. Full evidence: `design/rounds/r0/triage.md`.
+
+### F1: server tools and arguments (root crate)
+
+Owns `src/bin/sounder/server/tools.rs`, `src/session.rs`,
+`src/session/window_state.rs` (only if needed), `src/export.rs`, and
+`tests/session.rs` additions in a new file `tests/args.rs`.
+
+1. **Unknown arguments are errors** on every tool (24 of 24 sounds hit a
+   silent ignore: `describe_op` with `type`, `verify` with `checks`,
+   `listen` with `zoom`). The error names the tool, the bad key, and the
+   keys it takes. `describe_op` takes `kind` and also accepts `type` and
+   `node` as aliases.
+2. **`verify` accepts `checks`** and `expect` in the same shape as
+   `sound_ops` `expect` (read `crates/sfx_analysis/src/checks.rs` `Expect`
+   for the shape): `verify {checks: ["clicks"]}` runs the defaults plus
+   those; `verify {only: ["clicks"]}` runs only those; `verify {expect:
+   {"duration": {"min": 0.4, "max": 1.2}, "onsets": {...}}}` as in
+   `sound_ops`. Document the shape with one example in the tool's
+   description.
+3. **Top-level `delete: [...]` in `sound_ops` is an error** that shows the
+   working form `ops: [{"type": "delete", "name": "x"}]` (it was accepted
+   and did nothing). Check that the real form works for several names.
+4. **`export` with `variations: N`** warns when two variations render
+   bit-identically ("no node reads the seed: the variations are the same;
+   add jitter or a seeded node").
+5. **A node named `mono`/`stereo`** (words used by `to`) is refused with an
+   error that says so, not the current misleading one.
+6. Update `INSTRUCTIONS` (the MCP `initialize` text) with the delete form,
+   the `expect` shape and `describe_op {kind}`.
+Tests (`tests/args.rs`, drive `Session` as `tests/session.rs` does): each
+unknown-arg case errors and names the keys; the alias works; `verify
+{checks}` adds a line `clicks` to the report; the identical-variations
+warning appears for a noise-free sound and not for a seeded one; the error
+for `delete:` includes the working form.
+
+### F2: macros
+
+Owns `crates/sfx_graph/src/macros.rs`, `doc.rs`, `params.rs`,
+`crates/sfx_analysis/tests/macros.rs` (new).
+
+1. **`claim` is optional.** A macro without it is not swept by `verify`'s
+   `macros` check (the report says "N macros unclaimed"). The deserialize
+   error today names no macro; any macro error names the macro.
+2. **A macro map entry may target a doc param**: `{"param": "size", "from":
+   0.2, "to": 0.8, "curve": "exp"}` writes the sound's param `size`. A
+   `voices` patch and its `map` already see the sound's params, so a knob
+   can now drive the inside of a patch (9 of 24 sounds hit this). A param
+   written by a macro is overridden the same way mapped node fields are
+   (the "value is ignored" warning applies). Two macros may not write the
+   same param.
+3. **`delete_macros` plus `macros` naming the same macro in one
+   `sound_ops` call replaces it** (today the new one is silently dropped).
+4. A macro whose sweep fails for a reason in the render (e.g. "3251 events
+   but max is 2500" in a `poisson`) reports the position and the render
+   error in the same call that creates the macro, not only later in
+   `verify`.
+Tests: a macro driving `$size` inside a `voices` map changes the rendered
+centroid monotonically over 0..1; no claim -> no sweep, no failure; replace
+in one call keeps the new definition; a claimless macro with bad JSON names
+the macro.
+
+### F3: output stage
+
+Owns the `Output` struct in `crates/sfx_graph/src/nodes/offline.rs` and the
+warning text in `doc.rs` that reports a missed loudness target (coordinate
+with F2: F3 only edits that function), plus new test file
+`crates/sfx_analysis/tests/output.rs`.
+
+1. **`peak_db` target** on `output`: normalizes the pre-limiter peak to the
+   value instead of loudness (clicks, ticks, short peaky hits: 10 of 24
+   sounds could not reach their `lufs` target). `lufs` and `peak_db`
+   together is an error saying to pick one.
+2. **The missed-target warning tells the truth**: it states the pre-limiter
+   peak, the post-limiter peak, the crest factor, how many dB the limiter
+   removed, and either "the limiter took N dB" or "the sound is too short or
+   too sparse to reach this loudness: use peak_db". It must not blame the
+   ceiling when the peak is more than 3 dB under it.
+3. **Normalization up works**: a sound at -70 LUFS with `lufs: -20`
+   reaches -20 within 1 LU if the peak allows (round 0: the thunder case
+   stayed at -70).
+4. **`fade_in`**: if the first onset of the render (first sample above -60
+   dBFS) is within `fade_in` of 0, the summary warns once ("the default 2 ms
+   fade-in is cutting the first hit by N dB: set fade_in 0 or start the
+   hit later"). The default value is unchanged.
+Tests: `peak_db -3` on an impulse train reaches -3 within 0.1 dB; the
+warning text for a case with a 20 dB peak margin does not contain
+"ceiling"; a quiet noise burst normalizes up to a stated LUFS within 1 LU;
+a click at t=0 triggers the fade-in warning, a click at 5 ms does not.
+
+### S8b: descriptor gaps
+
+Owns `crates/sfx_analysis/src/descriptors.rs` (+ `tests/descriptors.rs`
+new). All additions are extra lines or columns in `Descriptors` and
+`table()`; existing lines keep their text and numbers (tests that read
+them must pass untouched).
+
+1. **Whole-sound centroid and rolloff** (energy-weighted) next to the
+   start / middle / end values (ask: footstep, sword, 8 sounds).
+2. **Centroid track** with 10 segments instead of 3 (sword, splash,
+   wind): one extra line "centroid by tenth: ...".
+3. **Per-onset table** (up to 24 rows): time, strength, attack ms, decay-20
+   ms, centroid, YIN pitch if voiced, start and end pitch (for chirps,
+   drips). Replaces the guesswork in knock, drip, pipe, glass.
+4. **Onset density**: onsets per second at a fine hop (5 ms) with the
+   minimum spacing used, separate from the existing onset list (which
+   merges ticks closer than about 40 ms): crackle, rain, paper, stream,
+   gravel (6 sounds). State both numbers and the spacing.
+5. **Band shares**: percent of energy below 200 Hz, 200-2k, 2k-8k, above
+   8k (punch, thunder, door).
+6. **Pitch contour**: YIN Hz per tenth of the sound when voiced (creak,
+   drip, squeak), with "inharmonic: partials at ..." when harmonicity is
+   under 0.5 (glass, keys, pipe: "listen reports 919 Hz for inharmonic
+   partials").
+7. **Attack** gets two values: time to 90 % of the peak and time from onset
+   to peak; the line says which is which (door slam, punch).
+8. **Flatness in the occupied band**: flatness computed between the 10th
+   and 90th percentile of the energy-weighted spectrum, in addition to the
+   existing full-band one (rain, gravel, cloth, wind).
+9. **Loops**: a steadiness line (loudness spread in LU over 400 ms
+   windows, min / max), and the attack, peak-at and decay lines are
+   replaced by "loop: n/a" (stream, rain, fire).
+10. **`silence start / end`** is renamed and explained in the same line
+    ("trailing silence from 0.173 s" or "none"); today `0.000 s / end
+    0.046 s` confuses (punch, slam, clink).
+Tests: synthetic signals with known answers for each item (a two-click
+signal gives two rows at the right times; a 1 kHz sine's band shares; a
+chirp's start/end pitch within 3 %; a crackle train at 200/s gives density
+within 10 %; white noise full-band flatness > 0.5 and a band-limited
+noise's occupied-band flatness > 0.5 while its full-band one < 0.2).
+
+### M7 addendum: modal bugs from round 0
+
+`modal` size/pitch (reported by footstep_wood_floor, keys_jingle, knock,
+pipe): the manual says pitch goes as 1/size^2 and wood size 0.5 gives
+about 425 Hz, but size 0.8 gave a lowest partial of 408 Hz and 1.4 gave
+537 Hz. Find out why (print the mode table for sizes 0.25 .. 4 for each
+material), fix it so the lowest mode falls monotonically with size down to
+at least 40 Hz for wood, document the real range per material in the error
+hint ("for metal try 0.1 to 0.3 m" is currently wrong), and normalize the
+node's output level (it came out +22 dBFS peak for a unit impulse: make a
+unit impulse input give a peak within 6 dB of 0 dBFS, and say so in the
+blurb). Tests: lowest mode vs size is monotonic for every material; the
+hint's range is derived from the same table.
 
 ## 5. Wave 2: models (8 agents)
 
@@ -495,7 +648,7 @@ the stated way at 3 settings** (the same idea as macro claims), and an
 | M4 | `nodes/water.rs` | `water {flow (signal), [depth], [splash], [seed]}`, `splash {size, [at], [seed]}` | A bubble population: rate and radius distribution from `flow` (log-normal radii; reuse the Minnaert / damping maths of `bubble`, summed as decaying sinusoids in one pass, no per-voice graph) plus broadband hiss. Cap bubbles per second; error over it. | `flow` up: onset density up, lufs up, centroid down (bigger bubbles). 30 s at max flow renders under a stated time budget. |
 | M5 | `nodes/waveguide.rs` | `tube {length, [excite reed\|lip\|jet\|noise], pressure (signal), [bore], [open_end]}`, `string {freq (signal), [excite pluck\|bow\|strike], [position], [damping], [stiffness], [bow_pressure] (signal)}` | Bidirectional delay lines, reflection filters, nonlinear excitation tables (reed, bow friction curve), allpass dispersion for stiffness. | Pitch = c / (2L) open-open or c / (4L) closed within 3 %; `pressure` below threshold is near silence, above it a steady tone; `stiffness` up: `inharmonicity` up; `damping` up: decay down. Finite at every extreme. |
 | M6 | `nodes/surface.rs` | `rolling {speed (signal), [roughness], [size], [seed]}`, `cloth {motion (signal), [weight], [seed]}`, `footstep {surface, [weight], [pace walk\|run\|sneak], [shoe], [at], [seed]}` | Rolling: a seeded low-passed surface profile read at `speed`, band set by `size`, as an excitation for `modal` (output is the excite signal; doc the recipe). Cloth: power-law noise bursts whose rate and band follow `motion`. Footstep: heel and toe `contact` pulses (timing from `pace`) into a surface model: hard = short resonant, loose = granular ticks. | `speed` up: centroid up, level up; speed 0 is silence. `weight` up: centroid down. `surface` gravel vs wood: flatness higher, onset count higher. Two seeds differ, STFT distance under a stated bound. |
-| M7 | `nodes/modal.rs`, new `nodes/fracture.rs` | `modal.shape plate\|bar\|tube\|membrane\|string\|shell` (default plate, bit-identical to today); `shatter {pieces, [spread], [at], [seed]}` (an event generator: power-law fragment sizes as values, times clustered early) | Mode ratios: free bar 1 : 2.757 : 5.404 : 8.933; ideal membrane 1 : 1.593 : 2.136 : 2.296 : 2.653; string harmonic with optional stiffness; tube and shell from the standard tables (cite the source in the code). | First 4 extracted mode ratios match the table within 2 % for each shape. Default output hash unchanged. `shatter` values follow the power law (log-log slope within 20 %), count = `pieces`. |
+| M7 | `nodes/modal.rs` (also the round-0 modal bugs, section 4b), new `nodes/fracture.rs` | `modal.shape plate\|bar\|tube\|membrane\|string\|shell` (default plate, bit-identical to today); `shatter {pieces, [spread], [at], [seed]}` (an event generator: power-law fragment sizes as values, times clustered early) | Mode ratios: free bar 1 : 2.757 : 5.404 : 8.933; ideal membrane 1 : 1.593 : 2.136 : 2.296 : 2.653; string harmonic with optional stiffness; tube and shell from the standard tables (cite the source in the code). | First 4 extracted mode ratios match the table within 2 % for each shape. Default output hash unchanged. `shatter` values follow the power law (log-log slope within 20 %), count = `pieces`. |
 | M8 | `nodes/foley.rs` (`Glottis`, `Tract` only) | `glottis` `[roughness]`, `[subharmonic]`, `[fry]`; `tract` `[nasal]`, `[frication {freq, level (signal)}]`, `[growl]` | Roughness: seeded jitter / shimmer per cycle. Subharmonic: alternate-cycle amplitude. Nasal: an added pole-zero pair near 250 Hz / 1 kHz. Frication: band-passed noise injected after the cascade. | Defaults bit-identical to today. `roughness` up: S8 `roughness` (or envelope 20 to 150 Hz energy) up. `subharmonic` > 0: a peak at f0 / 2. `frication.freq` moves the noise band centroid. |
 
 ## 6. Wave 3: spectral, granular, worked examples
