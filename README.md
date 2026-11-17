@@ -116,7 +116,7 @@ Per-lane build notes follow.
 - **Tools: 16, not 15.** The plan's table names 16 (`undo`, `redo`, `jump`,
   `history` count four); all are implemented. `extract_modes` is implemented
   now (strongest spectral peaks and their decay as a `resonators` node);
-  phase 4 refined it. `play` returns the headless error.
+  phase 4 refined it. `play` plays through the player (phase 5); a plain headless server returns an error saying so.
 - **Macros replace `inputs`** (plan: "Macros"). `sfx_graph::macros`: `Macro`,
   `MapEntry`, `apply` (on param-resolved nodes before evaluation),
   `validate` (names, ends, duplicate writers, and the graph must parse with
@@ -130,11 +130,11 @@ Per-lane build notes follow.
   closures sent over a channel (`Cmd::Exec`). The phase 5 window (a webview on
   the main thread) is one more sender on the same channel; the session loop
   stays as it is.
-- **`sounder` without `--headless`** exits with a message until phase 5. The
+- **`sounder` without `--headless`** opens the window since phase 5. The
   driver serves every mode headless. `--print-catalog-dir` and
   `--feedback-report` are there for the driver and a shell.
-- **`listen diff`** shows before / now / their residual (now - before), not a
-  dB-difference spectrogram with a diverging colour map. Only for single-column
+- **`listen diff`** (phase 2 note, superseded in phase 4: it is now a dB-difference
+  spectrogram with a diverging colour map). Only for single-column
   requests. `listen` shows at most 8 columns.
 - **`verify`** returns an error result when any check fails (so agents notice);
   `sound_ops expect` does too but keeps the batch.

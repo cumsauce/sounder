@@ -56,7 +56,7 @@ modeler's `MODELER_*`.
 | `verify` | PASS / FAIL checks; any FAIL is an error |
 | `describe_op` | node types, one line each; or one type's example + schema |
 | `extract_modes` | strongest partials of a WAV as a ready `resonators` node |
-| `play` | window only: the headless error says so |
+| `play` | plays on the speakers for the human (the window, or `--headless --audio`); a plain headless server answers with an error saying so |
 | `new_sound` | opens a sound beside the others; an open name is refused |
 | `catalog` | `list describe save load delete close` |
 | `export` | WAVs + `<name>.sfx.json` manifest |
@@ -92,11 +92,15 @@ fields take a number, `"$param"`, `"=expr"` (`+ - * /`, parentheses, `$name`)
 or the **name of another node** (`"freq": "sweep"`: audio-rate modulation, a
 port as `"verb.wet"`).
 
-Families (phase 1): sources `osc noise impulse sample`; envelopes `env adsr
-decay follower`; filters `filter onepole comb allpass resonators`; time
-`delay reverb convolve`; nonlinear `shape compress limit`; control `lfo
-wander sample_hold slew ramp`; maths `math remap gain`; mix `mix pan width`;
-offline `reverse normalize trim fade`; `output`.
+Families: sources `osc noise impulse sample`; envelopes `env adsr decay
+follower`; filters `filter onepole comb allpass resonators`; time `delay reverb
+convolve`; nonlinear `shape compress limit`; control `lfo wander sample_hold slew
+ramp`; maths `math remap gain` and `expr`; mix `mix pan width`; offline `reverse
+normalize trim fade` and the spectral nodes `pitch_shift time_stretch spectral`;
+events `once pattern poisson bounce burst on_threshold` with `grains` and
+`voices`; `sound` (an instance of another sound); physical models `modal contact
+friction` and the foley ones `bubble air glottis tract syrinx thunder`; `output`.
+Each has its own section below.
 
 Recipes:
 
@@ -538,11 +542,10 @@ a screenshot or click.
 
 ## Not now
 
-- A **live runtime** for the causal subset (every node here has a per-sample
-  state form; `summary` reports whether a sound is fully causal). Firewheel and
-  `bevy_seedling` are checked out for that later.
+- A **live runtime** for the causal subset (`summary` reports whether a sound is
+  fully causal; the loop-capable nodes have a per-sample form already, the rest
+  are block-evaluated and would need one). Firewheel and `bevy_seedling` are
+  checked out for that later.
 - Compressed export (ogg).
 - A project **sound style** (loudness targets per category); project-level
   macros across several sounds ("grit" on all the footsteps) belong with it.
-- Physical models (phase 4); the window and `play`
-  (phase 5).
