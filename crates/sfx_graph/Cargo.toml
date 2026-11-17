@@ -1,0 +1,22 @@
+[package]
+name = "sfx_graph"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "sounder's synthesis core: a JSON node graph evaluated offline over whole buffers. No Bevy, no MCP, no IO beyond WAV files"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+serde_path_to_error.workspace = true
+schemars.workspace = true
+rayon.workspace = true
+hound.workspace = true
+realfft.workspace = true
+foley-dsp.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+rayon.workspace = true
