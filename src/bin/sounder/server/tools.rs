@@ -282,9 +282,19 @@ fn do_listen(s: &mut Session, a: ListenArgs) -> R {
     let mut descs = Vec::new();
     if a.descriptors != Some(false) {
         for (label, au) in &cols {
-            let d = describe(au).with_loop(is_loop);
+            let d = match view.t {
+                Some([t0, t1]) => {
+                    sfx_analysis::descriptors::descriptors_window(au, t0, t1).with_loop(is_loop)
+                }
+                None => describe(au).with_loop(is_loop),
+            };
             if cols.len() > 1 {
                 text += &format!("== {label} ==\n");
+            }
+            if let Some([t0, t1]) = view.t {
+                text += &format!(
+                    "(zoom window {t0:.3}-{t1:.3} s: the numbers below describe this window; times count from {t0:.3} s)\n"
+                );
             }
             text += &d.table();
             for l in sfx_analysis::measure::extra(au).lines() {
