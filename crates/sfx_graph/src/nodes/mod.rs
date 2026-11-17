@@ -45,6 +45,7 @@ mod modulators;
 mod sequence;
 
 // slot S11
+mod space;
 
 // slot S12
 
@@ -114,6 +115,7 @@ pub use modulators::*;
 pub use sequence::*;
 
 // slot S11
+pub use space::*;
 
 // slot S12
 

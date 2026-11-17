@@ -350,6 +350,7 @@ node_types! {
     "notes" => Notes,
 
     // slot S11
+    "ir" => Ir,
 
     // slot S12
 
