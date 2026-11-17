@@ -1317,7 +1317,8 @@ impl Session {
                         format!("no: {}", r.acausal.join(", "))
                     }
                 );
-                let desc: Descriptors = sfx_analysis::describe(&r.audio);
+                let desc: Descriptors =
+                    sfx_analysis::describe(&r.audio).with_loop(d.kind == Kind::Loop);
                 out += &format!(
                     "last render: {:.3} s, peak {:.1} dBFS, {:.1} LUFS\n",
                     r.audio.seconds(),

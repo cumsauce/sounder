@@ -3,8 +3,7 @@
 Implements `design/node-roadmap.md`. The orchestrator is the Sonnet session
 the owner starts with "run design/swarm-plan.md"; it runs the whole plan,
 waves and test rounds, **start to finish with no further input** (section 0).
-Each task card below is one Sonnet agent in its own git worktree and branch,
-all sharing one cargo target directory. Written 2026-11-17 against commit
+Each task card below is one Sonnet agent in its own git worktree and branch. Written 2026-11-17 against commit
 `f0ea79a`.
 
 Contents: [running unattended](#0-running-it-unattended) ·
@@ -43,38 +42,25 @@ start. Every merge goes to `swarm/main`. Never commit to `main`, never push,
 never delete a branch that is not `swarm/*`. The owner merges `swarm/main`
 when they have listened.
 
-**One shared target directory.** Worktrees are created under the repo
-(`git worktree add .swarm/wt/<id> -b swarm/<id> swarm/main`; the harness's
-own worktrees under `.claude/worktrees/` also qualify). Cargo reads config
-from every parent directory, so one untracked file at the repo root points
-them all at the same place:
+**Target directories (measured, overrides the original "one shared dir").**
+The first design shared one cargo `target/` between all worktrees. It failed:
+cargo derives the artifact hash of a workspace crate from its package id
+relative to the workspace root, so `sfx_graph`, `sfx_analysis` and `sounder`
+from different worktrees write the same file names. Workers got "unknown node
+type" for their own new node alternating with passes (a foreign build had
+overwritten the library), and one worker's `deps/` directory vanished. Test
+results from a shared dir are not trustworthy. What runs instead:
 
-```sh
-mkdir -p .cargo .swarm && printf '[build]\ntarget-dir = "%s/target"\n' "$PWD" > .cargo/config.toml
-printf '.cargo/\n.swarm/\n' >> .git/info/exclude
-```
-
-Check it before launching anyone: in a fresh worktree,
-`cargo metadata --format-version 1 --no-deps | grep -o '"target_directory":"[^"]*"'`
-must print the repo's `target`. If it does not, put
-`CARGO_TARGET_DIR=<repo>/target` in front of every cargo command in every
-brief instead (shell variables do not survive between commands).
-
-What sharing means in practice:
-
-- Third-party crates compile once. Each worktree's own three crates still
-  compile separately (cargo keys them by path), which is correct: branches
-  differ.
-- Cargo locks the directory while compiling, so builds queue. "Blocking
-  waiting for file lock on build directory" is normal: wait, never kill it,
-  never delete the lock.
-- **Only the orchestrator builds the root crate.** Every worktree's `sounder`
-  binary would land on the same `target/debug/sounder` and overwrite the
-  others. Workers build and test `-p sfx_graph -p sfx_analysis` only. The
-  orchestrator builds the binary from `swarm/main` and copies it out
-  (section 9) before anyone runs it.
-- Do the first full build once, alone, before the first launch, so twelve
-  agents do not queue behind a cold dependency build.
+- Every worktree builds in its own `target/` (git-ignored by `/target*`).
+  A cold build is about 80 s; third-party crates compile once per worktree.
+- Nothing is shared except the registry download cache in `~/.cargo`
+  (cargo locks it: "Blocking waiting for file lock on package cache" is
+  normal; wait).
+- Delete a worktree's `target/` with the worktree once it is merged
+  (`git worktree remove --force`); a `target/` is 1 to 3 GB.
+- The orchestrator builds the round binary in the main checkout
+  (`swarm/main`), copies it to `.swarm/bin/r<N>/` immediately, and only the
+  main checkout's `cargo build` produces that binary.
 
 **Concurrency.** At most 8 building workers at once (they queue on the lock
 anyway), at most 12 sound-building testers at once (they do not compile).

@@ -139,6 +139,7 @@ fn do_listen(s: &mut Session, a: ListenArgs) -> R {
     let salt = s.generation();
     let name = plain(s.target_name(a.doc.as_deref()))?;
     let sound = plain(s.sound(Some(&name)))?;
+    let is_loop = sound.doc.kind == sfx_graph::Kind::Loop;
     let doc = sound.doc.clone();
     let mut cols: Vec<(String, Audio)> = Vec::new();
     match (&a.seeds, &a.sweep) {
@@ -281,7 +282,7 @@ fn do_listen(s: &mut Session, a: ListenArgs) -> R {
     let mut descs = Vec::new();
     if a.descriptors != Some(false) {
         for (label, au) in &cols {
-            let d = describe(au);
+            let d = describe(au).with_loop(is_loop);
             if cols.len() > 1 {
                 text += &format!("== {label} ==\n");
             }
