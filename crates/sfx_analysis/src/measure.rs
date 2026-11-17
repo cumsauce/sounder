@@ -639,24 +639,8 @@ pub fn aliasing_db(audio: &Audio) -> Option<f32> {
 // a `spacing_ms` under the spectral detector's 30 ms.
 // ---------------------------------------------------------------------------
 
-/// One event of [`fine_events`].
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct FineEvent {
-    /// Seconds from the start.
-    pub t: f32,
-    /// The loudest 1 ms RMS chunk from the event to the end of its
-    /// refractory time.
-    pub level: f32,
-}
-
-/// Events from a 1 ms RMS envelope of `x` high-passed at `hp_hz` (RBJ, Q
-/// 0.707; lower when the rate is low): a chunk at least 6 dB over the loudest
-/// of the 3 chunks before it and within 45 dB of the loudest chunk, then
-/// `refractory` chunks (ms) of silence for the detector. This is the
-/// algorithm of the descriptors' `density` line (`hp_hz` 1000, `refractory`
-/// 4), so `Measure::Density` agrees with it. A tone's ripple does not count
-/// (nothing rises over a recent crest).
-pub fn fine_events(x: &[f32], sr: u32, hp_hz: f32, refractory: usize) -> Vec<FineEvent> {
+/// RBJ high-pass (Q 0.707) of `x` at `hp_hz` (at most 0.2 of the rate).
+fn highpass(x: &[f32], sr: u32, hp_hz: f32) -> Vec<f32> {
     let mut y = x.to_vec();
     let w0 = std::f32::consts::TAU * hp_hz.min(sr as f32 * 0.2) / sr as f32;
     let (sin, cos) = w0.sin_cos();
@@ -677,6 +661,28 @@ pub fn fine_events(x: &[f32], sr: u32, hp_hz: f32, refractory: usize) -> Vec<Fin
         (x2, x1, y2, y1) = (x1, xn, y1, yn);
         *v = yn as f32;
     }
+    y
+}
+
+/// One event of [`fine_events`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FineEvent {
+    /// Seconds from the start.
+    pub t: f32,
+    /// The loudest 1 ms RMS chunk from the event to the end of its
+    /// refractory time.
+    pub level: f32,
+}
+
+/// Events from a 1 ms RMS envelope of `x` high-passed at `hp_hz` (RBJ, Q
+/// 0.707; lower when the rate is low): a chunk at least 6 dB over the loudest
+/// of the 3 chunks before it and within 45 dB of the loudest chunk, then
+/// `refractory` chunks (ms) of silence for the detector. This is the
+/// algorithm of the descriptors' `density` line (`hp_hz` 1000, `refractory`
+/// 4), so `Measure::Density` agrees with it. A tone's ripple does not count
+/// (nothing rises over a recent crest).
+pub fn fine_events(x: &[f32], sr: u32, hp_hz: f32, refractory: usize) -> Vec<FineEvent> {
+    let y = highpass(x, sr, hp_hz);
     let c = (sr as usize / 1000).max(1);
     let rms = |ch: &[f32]| (ch.iter().map(|v| v * v).sum::<f32>() / ch.len().max(1) as f32).sqrt();
     let e: Vec<f32> = y.chunks(c).map(rms).collect();
@@ -720,27 +726,286 @@ pub fn fine_onsets(audio: &Audio, spacing_ms: f32) -> Vec<f32> {
         .collect()
 }
 
-/// Events per second (`Measure::Density`): [`fine_events`] as the descriptors'
-/// `density` line counts them, over the span from the first sample over -60
-/// dBFS to the last (at least 20 ms, so one click is not 50 000 per second).
-pub fn density_per_s(audio: &Audio) -> f32 {
-    let sr = audio.sample_rate;
+/// How [`event_rate`] reached its number.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
+pub enum RateMethod {
+    /// The refractory counter's events over the span, uncorrected (regular
+    /// or sparse: nothing is hidden).
+    Count,
+    /// The counter's rate corrected for events hidden by the tail of the
+    /// one before.
+    CountCorrected,
+    /// Envelope peaks, corrected for overlap (ticks closer than the counter
+    /// can separate).
+    Peaks,
+    /// The repetition rate of a periodic train, from the envelope's
+    /// autocorrelation.
+    Period,
+}
+
+/// What [`event_rate`] found.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct EventRate {
+    /// Events per second.
+    pub per_s: f32,
+    pub method: RateMethod,
+    /// [`fine_events`]' count over the span, per second, as is.
+    pub counted_per_s: f32,
+    /// Prominent envelope peaks per second, as is.
+    pub peaks_per_s: f32,
+    /// Repetition rate (Hz) from the envelope's autocorrelation, when the
+    /// envelope repeats (ACF peak over 0.5 and envelope depth over 10 %).
+    pub period_hz: Option<f32>,
+}
+
+/// Dead time, seconds, of the counter ([`fine_events`], 4 ms refractory,
+/// 6 dB over the last 3 ms): on Poisson trains of ticks it reads
+/// rate * exp(-rate * 5.5 ms) from 20 to 160/s (measured).
+const COUNT_DEAD_S: f32 = 0.0055;
+
+/// Dead time, seconds, of the envelope-peak counter on Poisson trains of
+/// ticks with 3 ms decays: peaks / rate = exp(-rate * 1.7 ms) from 160 to
+/// 500/s (measured; the three tick families tried spread +-25 % around it).
+const PEAK_DEAD_S: f32 = 0.0017;
+
+/// The peak counter takes over from the counter at this many peaks per
+/// second (about 150 events/s of ticks), and only when the counter has
+/// collapsed (reads under 1 / 1.6 of the peaks).
+const DENSE_PEAKS_PER_S: f32 = 100.0;
+
+/// 1 ms RMS envelope of `y`, one value every `sr / hop_per_s` samples.
+fn rms_envelope_1ms(y: &[f32], sr: u32, hop_per_s: u32) -> (Vec<f32>, f32) {
+    let hop = (sr / hop_per_s).max(1) as usize;
+    let win = (sr as usize / 1000).max(hop);
+    let mut cs = vec![0.0f64; y.len() + 1];
+    for (i, v) in y.iter().enumerate() {
+        cs[i + 1] = cs[i] + f64::from(*v) * f64::from(*v);
+    }
+    let mut e = Vec::new();
+    let mut k = 0;
+    while k + win <= y.len() {
+        e.push(((cs[k + win] - cs[k]) / win as f64).sqrt() as f32);
+        k += hop;
+    }
+    (e, hop as f32 / sr as f32)
+}
+
+/// Indices of the envelope's local maxima that stand 30 % of their height
+/// above the lowest point since the previous such maximum, and within 45 dB
+/// of the loudest. White noise has almost none of these (its envelope
+/// wobbles by less: 8 per second at 48 kHz); ticks have about one each, also
+/// when the next tick lands on the tail of the last, which the 6 dB-over-the-
+/// recent-crest rule of [`fine_events`] misses.
+fn envelope_peaks(e: &[f32]) -> Vec<usize> {
+    const PROMINENCE: f32 = 0.3;
+    let top = e.iter().copied().fold(0.0f32, f32::max);
+    let floor = top * 0.0056;
+    let mut out = Vec::new();
+    if e.len() < 3 || top <= 0.0 {
+        return out;
+    }
+    let mut trough = e[0];
+    let mut rising = false;
+    for i in 1..e.len() {
+        trough = trough.min(e[i]);
+        if e[i] > e[i - 1] {
+            rising = true;
+        } else if e[i] < e[i - 1] && rising {
+            let pk = e[i - 1];
+            if pk >= floor && pk - trough >= PROMINENCE * pk {
+                out.push(i - 1);
+                trough = e[i];
+            }
+            rising = false;
+        }
+    }
+    out
+}
+
+/// The repetition rate of the envelope `e` (hop `hop_s`): the first local
+/// maximum of its autocorrelation between 1.5 ms and 60 ms that reaches
+/// 0.5 of lag 0, as 1 / lag, when the envelope swings by at least 10 % of
+/// its mean (a steady tone's ripple is under 5 %).
+fn envelope_period_hz(e: &[f32], hop_s: f32) -> Option<f32> {
+    let n = e.len();
+    let mean = e.iter().sum::<f32>() / n.max(1) as f32;
+    if n < 64 || mean <= 0.0 {
+        return None;
+    }
+    let d: Vec<f32> = e.iter().map(|v| v - mean).collect();
+    let var = d.iter().map(|v| v * v).sum::<f32>() / n as f32;
+    if var.sqrt() < 0.1 * mean {
+        return None;
+    }
+    let max_lag = ((0.06 / hop_s) as usize).min(n / 4);
+    let min_lag = ((0.0015 / hop_s).ceil() as usize).max(2);
+    let acf: Vec<f32> = (0..=max_lag + 1)
+        .map(|l| {
+            let m = n - l;
+            d[..m].iter().zip(&d[l..]).map(|(a, b)| a * b).sum::<f32>() / (m as f32 * var)
+        })
+        .collect();
+    (min_lag..=max_lag).find_map(|l| {
+        (acf[l] >= 0.3 && acf[l] >= acf[l - 1] && acf[l] > acf[l + 1]).then(|| {
+            let (off, _) = parabola(acf[l - 1], acf[l], acf[l + 1]);
+            1.0 / ((l as f32 + off) * hop_s)
+        })
+    })
+}
+
+/// Coefficient of variation of the gaps between `times` (seconds), mapped to
+/// 0 (0.3 or less: a regular train, whose ticks do not hide each other at
+/// random) .. 1 (0.7 or more: Poisson-like). 0 under 8 events.
+fn poisson_weight(times: &[f32]) -> f32 {
+    if times.len() < 8 {
+        return 0.0;
+    }
+    let gaps: Vec<f32> = times.windows(2).map(|p| p[1] - p[0]).collect();
+    let mean = gaps.iter().sum::<f32>() / gaps.len() as f32;
+    if mean <= 0.0 {
+        return 0.0;
+    }
+    let var = gaps.iter().map(|g| (g - mean) * (g - mean)).sum::<f32>() / gaps.len() as f32;
+    ((var.sqrt() / mean - 0.3) / 0.4).clamp(0.0, 1.0)
+}
+
+/// The rate whose paralyzable-dead-time reading `rate * exp(-wt * rate)` is
+/// `observed` (rising branch); saturates at 1 / wt when `observed` is past
+/// the curve's maximum, and is `observed` when `wt` is 0.
+fn undo_dead_time(observed: f32, wt: f32) -> f32 {
+    if wt <= 0.0 || observed <= 0.0 {
+        return observed;
+    }
+    if observed * wt >= (-1.0f32).exp() {
+        return 1.0 / wt;
+    }
+    let (mut lo, mut hi) = (observed, 1.0 / wt);
+    for _ in 0..40 {
+        let mid = 0.5 * (lo + hi);
+        if mid * (-wt * mid).exp() < observed {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    0.5 * (lo + hi)
+}
+
+/// Events per second of `x` over `span_s` seconds, for `Measure::Density` and
+/// the descriptors' `density` line. `events` are [`fine_events`]' (1 kHz,
+/// 4 ms refractory) over the same signal.
+///
+/// Method. The counter ([`fine_events`]: 1 ms envelope over 1 kHz, a chunk
+/// 6 dB over the loudest of the three before it, 4 ms apart) is exact while
+/// events are about 6 ms apart; closer, an event lands on the last one's tail
+/// and is missed, so on Poisson trains it reads rate * exp(-rate * 5.5 ms):
+/// 0.64x at 80/s, and it falls from 160/s up. Three corrections, in order:
+///
+/// 1. **Counter, corrected.** The counter's rate with that dead time undone
+///    (the rising branch of `r = rate * exp(-rate * T)`), weighted by how
+///    Poisson-like the gaps between the counted events are (coefficient of
+///    variation 0.3 or less, a regular train: no correction; 0.7 or more:
+///    all of it), because evenly spaced ticks do not hide each other.
+///    Valid while the counter's rate is under 1 / (e T), 67/s (about 180/s
+///    of events).
+/// 2. **Envelope peaks.** Past that the counter's reading falls, so it is
+///    replaced by the rate of prominent peaks of a 0.5 ms hop, 1 ms RMS
+///    envelope ([`envelope_peaks`], 30 % prominence), which still separate
+///    ticks 2 ms apart, corrected the same way with T = 1.7 ms (peaks lost
+///    to overlap, measured on Poisson trains of ticks with 3 ms decays:
+///    peaks / rate = exp(-rate * 1.7 ms) from 160 to 500/s). It takes over
+///    when there are more than 100 peaks per second. Peaks are not used
+///    below that: a noise burst has several envelope wobbles and would be
+///    over-counted.
+/// 3. **Repetition rate.** A regular train too dense to separate (2 to 3 ms
+///    apart) is a periodic envelope: the first autocorrelation peak of the
+///    envelope gives 1 / period ([`envelope_period_hz`]). It is used when
+///    it exceeds the result so far by 15 %.
+///
+/// Limits (measured in `tests/r3b.rs`): the dead times are calibrated on
+/// ticks with 3 ms decays; the peaks reading differs by about +-25 % between
+/// a fixed-carrier tick, a random-carrier tick and a band-passed noise burst
+/// at 500/s; longer ticks hide each other more, so read low; above ~600/s
+/// the reading saturates (the peaks reading cannot grow any more).
+pub fn event_rate(x: &[f32], sr: u32, span_s: f32, events: &[FineEvent]) -> EventRate {
+    let span = span_s.max(1e-3);
+    let counted_per_s = events.len() as f32 / span;
+    let times: Vec<f32> = events.iter().map(|e| e.t).collect();
+    let wc = poisson_weight(&times);
+    let y = highpass(x, sr, 1000.0);
+    let (e, _) = rms_envelope_1ms(&y, sr, 2000);
+    let pk = envelope_peaks(&e);
+    let peaks_per_s = pk.len() as f32 / span;
+    let dense = peaks_per_s > DENSE_PEAKS_PER_S && peaks_per_s > 1.6 * counted_per_s;
+    // The autocorrelation is the costly part: only where the counter has
+    // collapsed, on a 0.125 ms hop (a period of 3.125 ms is 25 hops).
+    let period_hz = if dense {
+        let (ef, hop_f) = rms_envelope_1ms(&y, sr, 8000);
+        envelope_period_hz(&ef, hop_f)
+    } else {
+        None
+    };
+    let mut out = EventRate {
+        per_s: counted_per_s,
+        method: RateMethod::Count,
+        counted_per_s,
+        peaks_per_s,
+        period_hz,
+    };
+    if wc > 0.0 {
+        out.per_s = undo_dead_time(counted_per_s, wc * COUNT_DEAD_S);
+        out.method = RateMethod::CountCorrected;
+    }
+    if dense {
+        let p = undo_dead_time(peaks_per_s, PEAK_DEAD_S);
+        if p > out.per_s {
+            out.per_s = p;
+            out.method = RateMethod::Peaks;
+        }
+    }
+    // A periodic envelope whose repetition rate is no lower than the events
+    // the counter saw, and not under half the peaks, is the tick rate itself
+    // (a regular train).
+    if let Some(p) = period_hz
+        && p >= 0.9 * counted_per_s
+        && p >= 0.5 * peaks_per_s
+    {
+        out.per_s = p;
+        out.method = RateMethod::Period;
+    }
+    out
+}
+
+/// The span `density_per_s` and the descriptors count events over: first
+/// sample over -60 dBFS to the last, at least 20 ms (so one click is not
+/// 50 000 per second), in seconds. None for silence.
+pub fn audible_span_s(audio: &Audio) -> Option<f32> {
     let th = sfx_graph::db_to_gain(-60.0);
     let first = audio
         .channels
         .iter()
         .filter_map(|c| c.iter().position(|v| v.abs() > th))
-        .min();
+        .min()?;
     let last = audio
         .channels
         .iter()
         .filter_map(|c| c.iter().rposition(|v| v.abs() > th))
-        .max();
-    let (Some(first), Some(last)) = (first, last) else {
+        .max()?;
+    Some(((last + 1 - first) as f32 / audio.sample_rate as f32).max(0.02))
+}
+
+/// Events per second (`Measure::Density`): [`event_rate`] over the span from
+/// the first sample over -60 dBFS to the last (at least 20 ms, so one click
+/// is not 50 000 per second). Rises with the true rate of tick trains from 10
+/// to 500/s; see [`event_rate`] for the method and its limits.
+pub fn density_per_s(audio: &Audio) -> f32 {
+    let Some(span_s) = audible_span_s(audio) else {
         return 0.0;
     };
-    let span_s = ((last + 1 - first) as f32 / sr as f32).max(0.02);
-    fine_events(&audio.mix_mono(), sr, 1000.0, 4).len() as f32 / span_s
+    let x = audio.mix_mono();
+    let sr = audio.sample_rate;
+    let events = fine_events(&x, sr, 1000.0, 4);
+    event_rate(&x, sr, span_s, &events).per_s
 }
 
 /// Milliseconds from the first sample over -60 dBFS to the first 0.25 ms

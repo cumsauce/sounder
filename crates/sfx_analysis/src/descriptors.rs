@@ -3,6 +3,7 @@
 use serde::Serialize;
 use sfx_graph::{Audio, gain_to_db, loudness};
 
+use crate::measure::{FineEvent, RateMethod, event_rate, fine_events};
 use crate::pitch;
 use crate::stft::{self, Spectra, db};
 
@@ -68,6 +69,23 @@ pub struct Density {
     pub span_s: f32,
     /// Events closer than this count as one, milliseconds.
     pub min_spacing_ms: f32,
+    /// How `per_s` was reached (see [`crate::measure::event_rate`]): the
+    /// counter's rate when events are far apart, corrected when they overlap.
+    pub method: RateMethod,
+    /// The counter's rate, as is (`count` / `span_s`).
+    pub counted_per_s: f32,
+}
+
+/// The fine events by strength, and where the last one is.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct EventSummary {
+    /// Events whose level is at least half (-6 dB) of the loudest event's.
+    pub strong: usize,
+    pub weak: usize,
+    /// Seconds from the start to the last fine event (None: no events).
+    pub last_s: Option<f32>,
+    /// Seconds from the last event to the last sample above -60 dBFS.
+    pub tail_s: f32,
 }
 
 /// Loudness spread over 400 ms windows (what a loop should keep small).
@@ -150,6 +168,8 @@ pub struct Descriptors {
     /// Up to 24 rows, one per onset of `onsets`.
     pub onset_rows: Vec<OnsetRow>,
     pub density: Density,
+    /// Strong / weak fine events and the last one's time (the `events:` line).
+    pub events: EventSummary,
     /// Percent of the energy under 200 Hz, 200-2k, 2k-8k, over 8k.
     pub band_shares: [f32; 4],
     /// Median YIN f0 in each tenth of the sound (None: unvoiced / quiet).
@@ -514,64 +534,47 @@ fn onset_rows(
 
 /// Events per second from a 1 ms envelope of the sound above 1 kHz: an event
 /// is a 1 ms chunk at least 6 dB over the loudest of the 3 chunks before it
-/// (and within 45 dB of the loudest chunk), then 4 ms of refractory time.
-/// Unlike the merged onset list this resolves clicks 5 ms apart. A tone's
-/// ripple does not count (nothing rises over a recent crest), nor does a
-/// bass thump (high-passed away).
-fn density(x: &[f32], sr: u32, span: (usize, usize)) -> (Density, Vec<f32>) {
+/// (and within 45 dB of the loudest chunk), then 4 ms of refractory time
+/// ([`fine_events`]). Unlike the merged onset list this resolves
+/// clicks 5 ms apart. A tone's ripple does not count (nothing rises over a
+/// recent crest), nor does a bass thump (high-passed away). `per_s` is
+/// [`event_rate`] over the events: the count over the span while
+/// events are far apart, corrected when they overlap (the counter misses an
+/// event that lands on the last one's tail), so it keeps rising with the true
+/// rate up to about 500 events/s where the plain count falls from 100.
+fn density(x: &[f32], sr: u32, span: (usize, usize)) -> (Density, Vec<FineEvent>) {
     const SPACING_CHUNKS: usize = 4;
-    let mut y = x.to_vec();
-    // RBJ high-pass, 1 kHz (lower when the rate is low), Q 0.707.
-    let w0 = std::f32::consts::TAU * 1000.0f32.min(sr as f32 * 0.2) / sr as f32;
-    let (sin, cos) = w0.sin_cos();
-    let alpha = sin / (2.0 * std::f32::consts::FRAC_1_SQRT_2);
-    let a0 = 1.0 + alpha;
-    let (b0, b1, b2) = (
-        (1.0 + cos) / 2.0 / a0,
-        -(1.0 + cos) / a0,
-        (1.0 + cos) / 2.0 / a0,
-    );
-    let (a1, a2) = (-2.0 * cos / a0, (1.0 - alpha) / a0);
-    let (mut x1, mut x2, mut y1, mut y2) = (0.0f64, 0.0f64, 0.0f64, 0.0f64);
-    for v in y.iter_mut() {
-        let xn = f64::from(*v);
-        let yn = f64::from(b0) * xn + f64::from(b1) * x1 + f64::from(b2) * x2
-            - f64::from(a1) * y1
-            - f64::from(a2) * y2;
-        (x2, x1, y2, y1) = (x1, xn, y1, yn);
-        *v = yn as f32;
-    }
-    let c = (sr as usize / 1000).max(1);
-    let e: Vec<f32> = y.chunks(c).map(rms).collect();
-    let peak = e.iter().copied().fold(0.0f32, f32::max);
-    let floor = peak * 0.0056;
-    let mut count = 0;
-    let mut times: Vec<f32> = Vec::new();
-    let mut k = 0;
-    while k < e.len() && peak > 0.0 {
-        let prev = (k.saturating_sub(3)..k)
-            .map(|j| e[j])
-            .fold(0.0f32, f32::max);
-        if e[k] >= floor && e[k] >= 2.0 * prev {
-            count += 1;
-            times.push((k * c) as f32 / sr as f32);
-            k += SPACING_CHUNKS;
-        } else {
-            k += 1;
-        }
-    }
+    let events = fine_events(x, sr, 1000.0, SPACING_CHUNKS);
     let span_s = (span.1.saturating_sub(span.0)) as f32 / sr as f32;
+    let c = (sr as usize / 1000).max(1);
+    let rate = event_rate(x, sr, span_s, &events);
     let d = Density {
-        per_s: if span_s > 0.0 {
-            count as f32 / span_s
+        per_s: if span_s > 0.0 { rate.per_s } else { 0.0 },
+        count: events.len(),
+        span_s,
+        min_spacing_ms: SPACING_CHUNKS as f32 * c as f32 / sr as f32 * 1000.0,
+        method: rate.method,
+        counted_per_s: if span_s > 0.0 {
+            rate.counted_per_s
         } else {
             0.0
         },
-        count,
-        span_s,
-        min_spacing_ms: SPACING_CHUNKS as f32 * c as f32 / sr as f32 * 1000.0,
     };
-    (d, times)
+    (d, events)
+}
+
+/// Strong (level at least half of the loudest fine event's) and weak events,
+/// the last event's time and the audible tail after it.
+fn event_summary(events: &[FineEvent], audible_end_s: f32) -> EventSummary {
+    let top = events.iter().map(|e| e.level).fold(0.0f32, f32::max);
+    let strong = events.iter().filter(|e| e.level >= 0.5 * top).count();
+    let last_s = events.last().map(|e| e.t);
+    EventSummary {
+        strong,
+        weak: events.len() - strong,
+        last_s,
+        tail_s: last_s.map_or(0.0, |t| (audible_end_s - t).max(0.0)),
+    }
 }
 
 /// The headline attack, seconds: from `first_loud` (the first sample above
@@ -1016,12 +1019,25 @@ pub fn describe(audio: &Audio) -> Descriptors {
         }
     };
     let span = (first_loud, last_loud.map_or(first_loud, |l| l + 1));
-    let (density, fine_onsets) = density(&x, sr, span);
+    let (density, fev) = density(&x, sr, span);
+    let fine_onsets: Vec<f32> = fev.iter().map(|e| e.t).collect();
+    let events = event_summary(&fev, last_loud.map_or(0.0, |l| (l + 1) as f32 / sr as f32));
+    // The tenths count the same events, scaled by what the overlap correction
+    // added to the count (1 when events are far apart).
+    let tenth_scale = if density.counted_per_s > 0.0 {
+        (density.per_s / density.counted_per_s).clamp(1.0, 20.0)
+    } else {
+        1.0
+    };
     let density_tenths: Vec<f32> = (0..10)
         .map(|i| {
             let (t0, t1) = (seconds * i as f32 / 10.0, seconds * (i + 1) as f32 / 10.0);
             let k = fine_onsets.iter().filter(|t| **t >= t0 && **t < t1).count();
-            if t1 > t0 { k as f32 / (t1 - t0) } else { 0.0 }
+            if t1 > t0 {
+                k as f32 / (t1 - t0) * tenth_scale
+            } else {
+                0.0
+            }
         })
         .collect();
     let swell_attack_s = swell_attack(&x, sr, first_loud);
@@ -1078,6 +1094,7 @@ pub fn describe(audio: &Audio) -> Descriptors {
         centroid_tenths,
         onset_rows,
         density,
+        events,
         band_shares,
         pitch_tenths,
         inharmonic_partials,
@@ -1224,6 +1241,28 @@ impl Descriptors {
         self
     }
 
+    /// The `events:` line: how many fine events are strong and how many
+    /// weak, and where the last one is. None for a loop (no ends to speak of)
+    /// and when there are no events.
+    fn events_line(&self) -> Option<String> {
+        let last = self.events.last_s?;
+        if self.is_loop {
+            return None;
+        }
+        let tail = if self.events.tail_s < 0.1 {
+            "silence follows it".to_string()
+        } else {
+            format!(
+                "then {:.2} s of sound with no new event: a decaying or continuous tail",
+                self.events.tail_s
+            )
+        };
+        Some(format!(
+            "events: {} strong (>= 0.5 of the loudest onset), {} weak; last event at {:.3} s ({})\n",
+            self.events.strong, self.events.weak, last, tail
+        ))
+    }
+
     /// The silence wording of the `time:` line.
     fn silence_words(&self) -> String {
         if self.silence_start_s >= self.seconds - 1e-6 {
@@ -1305,6 +1344,18 @@ impl Descriptors {
             "density: {:.0} events/s ({} in {:.2} s; 1 ms envelope over 1 kHz, 6 dB rise, {:.0} ms apart; onsets above merge under 40 ms)\n",
             d.per_s, d.count, d.span_s, d.min_spacing_ms
         );
+        if d.count > 0 && (d.per_s - d.counted_per_s).abs() > 0.1 * d.counted_per_s.max(1.0) {
+            o += &format!(
+                "density estimate: the counter reads {:.0}/s but events overlap ({}); {:.0}/s is the corrected rate (tenths scaled the same)\n",
+                d.counted_per_s,
+                match d.method {
+                    RateMethod::Period => "a regular train, rate from the envelope's repetition",
+                    RateMethod::Peaks => "rate from envelope peaks",
+                    _ => "rate corrected for events hidden by the one before",
+                },
+                d.per_s
+            );
+        }
         if self.density.count > 0 {
             o += &format!(
                 "density by tenth (events/s): {}\n",
@@ -1314,6 +1365,9 @@ impl Descriptors {
                     .collect::<Vec<_>>()
                     .join(" ")
             );
+        }
+        if let Some(line) = self.events_line() {
+            o += &line;
         }
         if !self.is_loop && !self.fine_onsets.is_empty() {
             // Compact, 20 to a line; the last row says the unit.
