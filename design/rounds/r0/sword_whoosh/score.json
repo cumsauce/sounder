@@ -1,0 +1,12 @@
+{"sound": "sword_whoosh", "round": 0,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults: 8 lines, all PASS (finite, peak -7.6 dBFS, silent_edges -200/-200, dc -94 dB, three macro claims, rebuild bit-identical). An explicit clicks check request returned only the same default lines, so no separate click verdict; the edges are clean and the wave picture shows no spike."},
+  "time_shape": {"score": 2, "evidence": "length 0.478 s (brief 0.25-0.6); attack 0.116 s with peak at 0.110 s (swell 50-150 ms); seeds 2-4 attack 0.071/0.058/0.058 s, all in range; decay -20 dB at 0.29 s, -60 dB at 0.36 s; LUFS curve rises smoothly to about 0.15 s then falls. Detected onsets (0.085, 0.128 s; seed 4 only one) are noise fluctuations in a broadband swell, not events."},
+  "spectrum": {"score": 2, "evidence": "centroid 1.92k start / 2.89k middle / 1.65k end Hz: rises then falls as briefed. Dominant band moves 1k (-25 dB, 0-20%) to 2k (-19.8, 20-40%) to 4k (-22.4, 40-60%) and back to 2k/1k by 80-100%. Spectrogram shows a clear arch, bright ridge rising from about 600 Hz to 3 kHz and descending. Flatness 0.01-0.02, a band-limited whoosh, not white hiss."},
+  "parts": {"score": 2, "evidence": "The brief names one continuous gesture (swell, centroid arc), no separate components. The swell-in (LUFS -30 to -12 over about 0.12 s), the peak and the fade-out, plus the rise-then-fall of the centroid, are each visible in the descriptors and the spectrogram."},
+  "control_variation": {"score": 2, "evidence": "3 macros (brightness, length, focus), every claim PASS: centroid 1.3k->1.7k->2.4k->3.3k->4.5k; decay 0.10->0.21 s; flatness 0.039->0.008. 4 seeds differ measurably (peak -7.6/-6.0/-6.9/-7.3 dBFS, crest 13.5 vs 15.1 dB, attack 0.116/0.071/0.058/0.058 s, 63-125 Hz band differences up to 5 dB, differing mode lists) and all stay inside the brief (length 0.477-0.479 s, centroid arc 1.9k/2.9k/1.65k in each)."}},
+ "total": 10,
+ "notes": [
+  "Knob extremes leave the brief: length=1 gives 0.68 s (over 0.6) and a centroid that only falls (2.63k/2.02k/647 Hz, no rise); length=0 gives 0.278 s with a centroid that only rises (930/2.40k/3.18k Hz). Default and seeds are fine.",
+  "brightness=1 pushes the centroid to 3.65k/5.52k/3.14k Hz and the flatness to 0.04-0.07 (hissier, three onsets); brightness=0 is 1.0k/1.5k/0.86k Hz. The arc holds at both ends.",
+  "Not measured: the explicit clicks check gave no separate line; 'no click' rests on silent_edges, the peak/crest numbers and the waveform picture."]}

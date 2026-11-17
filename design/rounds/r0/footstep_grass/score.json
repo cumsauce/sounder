@@ -1,0 +1,12 @@
+{"sound": "footstep_grass", "round": 0,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults: PASS finite, peak_db -1.00 dBFS, silent_edges -200/-200, dc -79 dB, macro brightness/length/rustle, rebuild bit-identical. No FAIL."},
+  "time_shape": {"score": 2, "evidence": "length 0.327 s (brief 0.25-0.6); attack 0.015 s, peak at 0.010 s (brief 10-40 ms; seeds 1-4: 0.015/0.014/0.018/0.011 s); -20 dB at 0.10 s, -60 dB at 0.25 s; one onset at 0.000; no pitch (voiced 0%, harmonicity 0.29). Spectrogram and waveform show one soft-edged burst decaying smoothly to silence by about 0.22 s."},
+  "spectrum": {"score": 2, "evidence": "centroid 3.46k start / 3.66k middle (brief 1.5-5 kHz; seeds 3.40-3.72k). Dominant bands 2k and 4k at -21.9/-21.8 dB in the first fifth, then 8k+, 1k; the 63 Hz band is 17 dB below the peak band. Rolloff 5.8-5.9 kHz, flatness 0.08 (noisy, not tonal). Centroid at end is 0 only because the tail is silent."},
+  "parts": {"score": 2, "evidence": "The brief names no separate components beyond the grass noise. The spectrogram shows a distinct low thump below 250 Hz over about 0-60 ms (63 Hz -39 dB, 125 Hz -42 dB in the first fifth, falling to -61/-57 dB in the second) under the broadband 1-8 kHz rustle, which is visible across seeds 1-4. Strictly nothing named is missing."},
+  "control_variation": {"score": 2, "evidence": "3 macros (brightness, length, rustle); all claims PASS. Brightness 0/.5/1: centroid 2.18k/3.46k/5.27k. Length 0/.5/1: 0.182/0.327/0.626 s. Rustle 0/.5/1: crest 21.7/22.3/22.7 dB. 4 seeds differ measurably (peak -1.0/-1.9/-3.4/-2.5 dBFS, crest 22.3/20.8/19.3/20.2 dB, -60 dB time 0.23-0.26 s, different mode lists) and all stay inside the brief (length 0.321-0.334 s, attack 11-18 ms, centroid 3.4-3.7k)."}},
+ "total": 10,
+ "notes": [
+  "Knob extremes leave the brief: brightness 1 gives centroid 5.27k (over 5 kHz), length 0 gives 0.182 s and length 1 gives 0.626 s (outside 0.25-0.6 s). Defaults and seeds are inside.",
+  "rustle is nearly inert: crest moves only 21.7 to 22.7 dB, centroid and flatness unchanged. The claim passes but the knob does little to measure.",
+  "Seed variation is mostly level and shape: peak spreads -1.0 to -3.4 dBFS at near-equal LUFS, so the limiter or normalizer is doing the leveling. All 4 seeds share the same centroid band (about 3.4-3.7k), so timbral variation is narrow."]}

@@ -1,0 +1,13 @@
+{"sound": "paper_crumple", "round": 0,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults: finite, peak_db -1.00, silent_edges -200/-200, dc -99 dB, macros brightness/snap/fizz, rebuild all PASS; no FAIL, no summary warnings."},
+  "time_shape": {"score": 2, "evidence": "length 1.00 s (brief 0.6-1.5). 21 onsets at defaults (brief >= 20); seeds 1-4 give 21/21/20/20, so inside but with no margin. Waveform shows many more discrete transients than the onset detector counts, scattered 0.0-0.93 s with silent gaps (0.47-0.60 s). Level is steady (loudness curve about -24 LUFS throughout); tail ends 0.065 s before the end, i.e. a hard stop rather than a decay, which suits crumple."},
+  "spectrum": {"score": 2, "evidence": "centroid 6.28k/6.18k/5.77k Hz at start/middle/end (brief 3-8 kHz), rolloff about 8.1 kHz, flatness 0.01. Dominant bands 8k+ (-28 dB) and 4k (-31 dB) in every fifth, 2k at -38 dB, below 500 Hz under -59 dB: bright broadband crackle, no stated movement in the brief and none needed."},
+  "parts": {"score": 2, "evidence": "The brief names only the dense crackle. Fine ticks and louder snaps are separable: spectrogram shows broadband vertical bars of varying height and brightness with a thin low-frequency thump under the strongest; waveform shows a dense small-amplitude cloud plus tall isolated spikes (~0.1, 0.2, 0.27, 0.45, 0.7, 0.77 s). Sweeps confirm: snap=0 leaves 17 onsets and crest 23.5 dB, fizz=1 does the same."},
+  "control_variation": {"score": 2, "evidence": "3 macros (brightness, snap, fizz); all three claims PASS in verify (brightness centroid 4.8k->6.7k; snap crest 23.5->25.7 dB; fizz crest 25.7->23.7 dB). Seeds 1-4 differ in onset times, attack (0.095-0.374 s), decay20 (0.22-0.61 s) and start/mid/end centroid, all within 5.75-6.41 kHz and 20-21 onsets, so within the brief. Seed differences in level/crest are small (24.6-25.1 dB)."}
+ },
+ "total": 10,
+ "notes": [
+  "Onset count is marginal: 20 on seeds 3 and 4, and 17-23 across macro extremes (snap=0 or fizz=1 drop to 17, below the brief's 20); the brief only holds in the middle of the knob ranges.",
+  "snap and fizz are near-duplicate controls (snap=0 and fizz=1 give identical-looking results); crest moves only about 2 dB, so the knobs are subtle.",
+  "Crest 25 dB and a -22 LUFS result sit at the very quiet end for a crackle; a few isolated loud spikes set the peak, so average level is low."]}

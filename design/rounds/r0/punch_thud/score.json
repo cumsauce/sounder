@@ -1,0 +1,11 @@
+{"sound": "punch_thud", "round": 0,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults: PASS finite, peak_db -4.13 dBFS, silent_edges, dc -57 dB, rebuild bit-identical; macro claims weight/length/crack all PASS. No FAIL."},
+  "time_shape": {"score": 2, "evidence": "length 0.198 s (brief 0.15-0.4); attack 0.001 s (under 5 ms), peak at 0.000 s; one onset at 0.000; -20 dB at 0.060 s, -60 dB at 0.160 s. Seeds 2 and 4 are 0.190-0.191 s, still inside."},
+  "spectrum": {"score": 2, "evidence": "Body: 125 Hz band -17.1 dB (0-20%), -23.7 overall, 63 Hz and 250 Hz bands lower; pitch 101 Hz, strongest mode 135 Hz at -12 dB; middle centroid 90 Hz, rolloff 94 Hz. Slap: 2k band -33.6 and 4k band -39.2 in the first 20% only, then below -99 dB after 40%. Start centroid 210 Hz (slap pulls it up from ~90), as expected for thump plus slap. Spectrogram shows a broadband burst at 0-20 ms that ends before 500 Hz-and-up content disappears at ~25 ms."},
+  "parts": {"score": 2, "evidence": "Thump (low orange band 60-250 Hz, rings out to ~0.16 s) and slap (separate noisy 0.5-16 kHz burst lasting ~20 ms) are distinct in the spectrogram. The crack sweep shows the slap fading when the knob is 0 (2k band -46 dB, 4k -56 dB) and strengthening at 1, while the low body stays put."},
+  "control_variation": {"score": 2, "evidence": "3 macros (weight, length, crack), all claims PASS: weight centroid 275 -> 164 Hz, length decay 0.03 -> 0.14 s, crack centroid 142 -> 1.4k Hz. Seeds 1-4 differ measurably: start centroid 210/242/231/300 Hz, 4k band -39.2/-35.3/-37.5/-33.2 dB, length 0.198/0.191/0.198/0.190 s, different slap partials; all stay inside the brief. Variation is confined to the slap, the body is identical."}},
+ "total": 10,
+ "notes": ["Slap is broad: the spectrogram shows energy up to 16 kHz (8k+ band -43 dB, 10 dB under the 2k band) rather than staying in 1-4 kHz; 1k band is the weakest of 1-4k at -47 dB.",
+           "Seed variation is small (peak within 0.2 dB, same -60 dB time 0.160 s, same body pitch 101 Hz); a game would hear nearly the same thud each time.",
+           "Knob extremes leave the brief: length=0 gives a 0.071 s sound (under 0.15 s) and weight=0 raises the pitch to 150 Hz with 250 Hz band dominant at the start. Output is quiet at -26.7 LUFS."]}
