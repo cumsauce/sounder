@@ -36,6 +36,8 @@ cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings 
 
 ## Status
 
+**Phase 5, window (Rust side): `sounder` opens a `wry` / `tao` webview on the session (`src/bin/sounder/window/`, `Session::window_state`, `sfx_analysis::view`); see "The window" in AGENTS.md. The page (`ui/`) and the real player are other lanes; until they merge the window serves a built-in raw-state page and `play` has no audio.**
+
 **Phase 3 (events, voices, feedback, expr, instancing, offline pitch/time): done.** See "Phase 3 notes" below.
 
 **Phase 3, offline pitch / time / spectral: `pitch_shift`, `time_stretch`, `spectral` (freeze, blur, gate, morph) in `nodes/spectral.rs`; see AGENTS.md.**
