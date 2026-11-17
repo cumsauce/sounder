@@ -70,7 +70,10 @@ fn existing_output_behaviour_is_bit_identical() {
         Some(0.5),
     );
     let d = ok(&d);
-    assert_eq!(hash(&a), 0x43ce_d14c_0173_460a, "laser lufs -18");
+    // R1-B: the laser starts at full level at t = 0, so the default 2 ms
+    // fade-in cuts its peak and loudness by 0.24 dB; the lufs target is now
+    // met after the fades and this hash moved (it was 0x43ce_d14c_0173_460a).
+    assert_eq!(hash(&a), LASER_LUFS_AFTER_FADES, "laser lufs -18");
     assert_eq!(
         hash(&b),
         0x729c_2d96_e9f7_2090,
@@ -78,7 +81,19 @@ fn existing_output_behaviour_is_bit_identical() {
     );
     assert_eq!(hash(&c), 0xc7a9_1213_d063_39b9, "laser bare output");
     assert_eq!(hash(&d), 0x5eac_53d2_74f9_ef25, "impulse missing lufs -14");
+    // The same laser with no hit near 0 (30 ms late), default fades: hash
+    // taken on the commit before R1-B.
+    let mut e = laser();
+    e.nodes[6] = json!({"type": "output", "name": "out", "input": "late", "lufs": -18});
+    e.nodes.insert(
+        6,
+        json!({"type": "delay", "name": "late", "input": "lp", "time": 0.03}),
+    );
+    assert_eq!(hash(&ok(&e)), DELAYED_LASER_BEFORE, "late laser lufs -18");
 }
+
+const LASER_LUFS_AFTER_FADES: u64 = 13_211_617_635_871_047_603;
+const DELAYED_LASER_BEFORE: u64 = 13_838_043_244_579_427_677;
 
 fn noise_at(db: f32, output: Value, duration: f32) -> SoundDoc {
     doc(
@@ -155,17 +170,16 @@ fn a_missed_target_states_the_numbers_and_points_at_peak_db() {
 }
 
 #[test]
-fn a_miss_with_a_wide_peak_margin_does_not_blame_the_ceiling() {
-    // 1 s of noise at -35 LUFS peaks about 20 dB under the ceiling; the
-    // 0.45 s fades at both ends are what move the loudness.
+fn heavy_fades_no_longer_cause_a_miss_the_target_is_met_after_them() {
+    // 1 s of noise at -35 LUFS peaks about 20 dB under the ceiling; the 0.45 s
+    // fades at both ends used to pull the loudness 6 LU under the target
+    // (a warning blaming the fades). The target is now met after the fades.
     let out = json!({"type": "output", "name": "out", "input": "q", "lufs": -35,
         "fade_in": 0.45, "fade_out": 0.45});
     let r = ok(&noise_at(-30.0, out, 1.0));
-    let w = has(&r, "output lufs").unwrap_or_else(|| panic!("{:?}", r.warnings));
-    println!("{w} (final {:.1} LUFS, peak {:.1})", r.lufs, r.peak_db);
-    assert!(r.peak_db < -15.0, "peak {}", r.peak_db);
-    assert!(!w.contains("ceiling"), "{w}");
-    assert!(w.contains("fades"), "{w}");
+    println!("final {:.2} LUFS, peak {:.1}", r.lufs, r.peak_db);
+    assert!((r.lufs + 35.0).abs() < 0.5, "{}", r.lufs);
+    assert!(has(&r, "output lufs").is_none(), "{:?}", r.warnings);
 }
 
 #[test]
@@ -309,7 +323,10 @@ fn a_click_at_zero_triggers_the_fade_in_warning_and_one_at_5ms_does_not() {
     let w = has(&r, "fade-in").unwrap_or_else(|| panic!("{:?}", r.warnings));
     println!("{w}");
     assert!(
-        w.contains("default 2 ms fade-in") && w.contains("fade_in 0"),
+        w.contains("default 2 ms fade-in")
+            && w.contains("fade_in 0.0005")
+            && w.contains("silent_edges")
+            && w.contains(" dB "),
         "{w}"
     );
     assert_eq!(
@@ -362,4 +379,188 @@ fn a_loop_has_no_fade_in_to_warn_about() {
     d.kind = Kind::Loop;
     let r = ok(&d);
     assert!(has(&r, "fade-in").is_none(), "{:?}", r.warnings);
+}
+
+/// A noise burst that starts at full level at t = 0.
+fn burst_at_zero(output: Value) -> SoundDoc {
+    doc(
+        vec![
+            json!({"type": "decay", "name": "e", "time": 0.05}),
+            json!({"type": "noise", "name": "n", "seed": 3}),
+            json!({"type": "math", "name": "hit", "op": "mul", "a": "n", "b": "e"}),
+            output,
+        ],
+        Some(0.3),
+    )
+}
+
+#[test]
+fn peak_db_is_met_after_the_fades_for_a_hit_at_zero() {
+    for fade_in in [Some(0.0005), None] {
+        let mut out = json!({"type": "output", "name": "out", "input": "hit", "peak_db": -1.5});
+        if let Some(f) = fade_in {
+            out["fade_in"] = json!(f);
+        }
+        let r = ok(&burst_at_zero(out));
+        println!("fade_in {fade_in:?}: final peak {:.3} dBFS", r.peak_db);
+        assert!((r.peak_db + 1.5).abs() < 0.1, "{fade_in:?}: {}", r.peak_db);
+    }
+}
+
+#[test]
+fn lufs_is_met_after_the_fades_for_a_hit_at_zero() {
+    let out = json!({"type": "output", "name": "out", "input": "hit", "lufs": -20,
+        "fade_in": 0.01});
+    let r = ok(&burst_at_zero(out));
+    println!("final {:.2} LUFS", r.lufs);
+    assert!((r.lufs + 20.0).abs() < 0.3, "{}", r.lufs);
+}
+
+#[test]
+fn a_hit_wholly_inside_the_fade_is_not_boosted_without_limit() {
+    // A single impulse at sample 0 is zeroed by any fade-in: silence stays
+    // silence, finite.
+    let r = ok(&doc(
+        vec![
+            json!({"type": "impulse", "name": "i", "at": [0.0]}),
+            json!({"type": "output", "name": "out", "input": "i", "peak_db": -3}),
+        ],
+        Some(0.1),
+    ));
+    assert!(r.audio.channels.iter().flatten().all(|x| x.is_finite()));
+}
+
+#[test]
+fn the_squash_warning_is_silent_when_peak_db_normalizes_the_input() {
+    let hot = |output: Value| {
+        doc(
+            vec![
+                json!({"type": "noise", "name": "n", "seed": 4}),
+                json!({"type": "gain", "name": "q", "input": "n", "db": 12}),
+                output,
+            ],
+            Some(0.3),
+        )
+    };
+    // Control: no target, a hot input, the limiter squashes it.
+    let r = ok(&hot(json!({"type": "output", "name": "out", "input": "q"})));
+    assert!(has(&r, "squashing").is_some(), "{:?}", r.warnings);
+    // peak_db: the stage scales the input to the target; nothing is squashed.
+    let r = ok(&hot(
+        json!({"type": "output", "name": "out", "input": "q", "peak_db": -3}),
+    ));
+    println!("peak {:.2}", r.peak_db);
+    assert!((r.peak_db + 3.0).abs() < 0.1, "{}", r.peak_db);
+    assert!(has(&r, "squashing").is_none(), "{:?}", r.warnings);
+    // peak_db plus a gain_db that pushes it over the ceiling is still squashed.
+    let r = ok(&hot(
+        json!({"type": "output", "name": "out", "input": "q", "peak_db": -3, "gain_db": 6}),
+    ));
+    assert!(has(&r, "squashing").is_some(), "{:?}", r.warnings);
+}
+
+fn brightness_macro(node: &str) -> sfx_graph::Macro {
+    sfx_graph::Macro {
+        name: "brightness".into(),
+        value: 0.5,
+        default: None,
+        doc: String::new(),
+        claim: None,
+        game: false,
+        map: vec![sfx_graph::MapEntry {
+            node: node.into(),
+            field: "freq".into(),
+            param: None,
+            from: 500.0,
+            to: 5000.0,
+            curve: sfx_graph::MapCurve::Exp,
+            col: None,
+            index: None,
+            key: None,
+        }],
+    }
+}
+
+fn lp_nodes() -> Vec<Value> {
+    vec![
+        json!({"type": "noise", "name": "n"}),
+        json!({"type": "filter", "name": "lp", "input": "n", "mode": "lp", "freq": 1000}),
+        json!({"type": "output", "name": "out", "input": "lp", "lufs": -20}),
+    ]
+}
+
+fn edit_macro(m: sfx_graph::Macro) -> sfx_graph::DocEdit {
+    sfx_graph::DocEdit {
+        macros: Some(vec![m]),
+        ..sfx_graph::DocEdit::default()
+    }
+}
+
+#[test]
+fn no_driven_by_macro_warning_when_node_and_macro_are_made_together() {
+    let mut d = SoundDoc::named("t");
+    d.duration = Some(0.2);
+    let rep = d
+        .apply(
+            lp_nodes(),
+            edit_macro(brightness_macro("lp")),
+            &RenderOpts::default(),
+        )
+        .unwrap();
+    assert!(!rep.text.contains("driven by macro"), "{}", rep.text);
+    // The same macro already there, then a later edit of the driven field:
+    // the warning is back.
+    let mut lp = lp_nodes()[1].clone();
+    lp["freq"] = json!(2000);
+    let rep = d
+        .apply(
+            vec![lp],
+            sfx_graph::DocEdit::default(),
+            &RenderOpts::default(),
+        )
+        .unwrap();
+    assert!(
+        rep.text
+            .contains("node `lp` field `freq` is driven by macro `brightness`"),
+        "{}",
+        rep.text
+    );
+}
+
+#[test]
+fn a_macro_naming_a_node_inside_a_voices_patch_points_at_param() {
+    let mut d = SoundDoc::named("t");
+    d.duration = Some(0.5);
+    let nodes = vec![
+        json!({"type": "pattern", "name": "ev", "times": [0.05, 0.2]}),
+        json!({"type": "voices", "name": "v", "events": "ev", "length": 0.2,
+               "patch": [
+                   {"type": "osc", "name": "o", "freq": 400, "amp": 0.5},
+                   {"type": "decay", "name": "e", "time": 0.08},
+                   {"type": "math", "name": "m", "op": "mul", "a": "o", "b": "e"}]}),
+        json!({"type": "output", "name": "out", "input": "v", "lufs": -20}),
+    ];
+    let err = d
+        .apply(
+            nodes.clone(),
+            edit_macro(brightness_macro("o")),
+            &RenderOpts::default(),
+        )
+        .unwrap_err();
+    println!("{err}");
+    assert!(
+        err.contains("node `o` is inside the voices patch of `v`")
+            && err.contains("sound_ops params")
+            && err.contains("\"param\""),
+        "{err}"
+    );
+    // A node that exists nowhere keeps the old error.
+    let err = d
+        .apply(
+            nodes,
+            edit_macro(brightness_macro("nope")),
+            &RenderOpts::default(),
+        )
+        .unwrap_err();
+    assert!(err.contains("no node named `nope`"), "{err}");
 }

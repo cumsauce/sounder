@@ -225,7 +225,9 @@ pub struct Output {
     #[serde(default)]
     pub peak_db: Option<f32>,
     /// Edge fades, seconds (defaults 0.002 in, 0.005 out; 0 for a loop).
-    /// A hit that starts inside the fade-in is cut by it: set `fade_in` 0.
+    /// A hit that starts inside the fade-in is cut by it: set `fade_in`
+    /// 0.0005 (0.5 ms; zero at sample 0, so `silent_edges` passes). The
+    /// `lufs` / `peak_db` target is met after the fades.
     #[serde(default)]
     pub fade_in: Option<f32>,
     #[serde(default)]
@@ -241,6 +243,10 @@ pub struct Staged {
     pub pre_limiter: Vec<Vec<f32>>,
     /// After the limiter, before the edge fades.
     pub limited: Vec<Vec<f32>>,
+    /// Set when the target was measured on the faded signal: the limiter then
+    /// ran on the faded signal (a hit the fade cut must not drive it), and
+    /// this is the finished output, fades included.
+    pub delivered: Option<Vec<Vec<f32>>>,
     /// Edge fades in seconds, as applied.
     pub fade_in: f32,
     pub fade_out: f32,
@@ -271,8 +277,34 @@ impl Output {
             }
         }
         let g = db_to_gain(self.gain_db.unwrap_or(0.0));
+        let (fi, fo) = if looped { (0.0, 0.0) } else { (0.002, 0.005) };
+        let fade_in = non_negative("fade_in", self.fade_in.unwrap_or(fi))?;
+        let fade_out = non_negative("fade_out", self.fade_out.unwrap_or(fo))?;
+        let mut use_faded = false;
         if self.lufs.is_some() || self.peak_db.is_some() {
-            let g2 = normalize_gain(&ch, self.peak_db, self.lufs, sr)?;
+            // The target is met AFTER the edge fades: a hit the fade-in
+            // cuts must not set a peak that is then never delivered. The
+            // faded measure is used only when it moves the gain by more
+            // than a threshold (0.02 dB for a peak, 0.1 dB for loudness, so
+            // sounds the fades barely touch keep their exact gain), and
+            // never by more than +12 dB (a hit lying wholly inside the fade
+            // is the fade-in warning's job, not a reason to boost its tail).
+            let g_plain = normalize_gain(&ch, self.peak_db, self.lufs, sr)?;
+            let mut faded = ch.clone();
+            fade_edges(&mut faded, fade_in, fade_out, sr);
+            let g2 = if peak_of(&faded) > 1e-9 {
+                let g_faded = normalize_gain(&faded, self.peak_db, self.lufs, sr)?;
+                let moved = 20.0 * (g_faded / g_plain.max(1e-30)).log10();
+                let threshold = if self.peak_db.is_some() { 0.02 } else { 0.1 };
+                if moved.abs() > threshold {
+                    use_faded = true;
+                    g_faded.min(g_plain * db_to_gain(12.0))
+                } else {
+                    g_plain
+                }
+            } else {
+                g_plain
+            };
             for v in ch.iter_mut().flatten() {
                 *v *= g * g2;
             }
@@ -281,13 +313,19 @@ impl Output {
                 *v *= g;
             }
         }
-        let limited = super::nonlinear::limit(ch.clone(), db_to_gain(ceiling_db), 0.05, sr);
-        let (fi, fo) = if looped { (0.0, 0.0) } else { (0.002, 0.005) };
+        let lim = |c: Vec<Vec<f32>>| super::nonlinear::limit(c, db_to_gain(ceiling_db), 0.05, sr);
+        let limited = lim(ch.clone());
+        let delivered = use_faded.then(|| {
+            let mut f = ch.clone();
+            fade_edges(&mut f, fade_in, fade_out, sr);
+            lim(f)
+        });
         Ok(Staged {
             pre_limiter: ch,
             limited,
-            fade_in: non_negative("fade_in", self.fade_in.unwrap_or(fi))?,
-            fade_out: non_negative("fade_out", self.fade_out.unwrap_or(fo))?,
+            delivered,
+            fade_in,
+            fade_out,
         })
     }
 
@@ -300,6 +338,9 @@ impl Output {
         looped: bool,
     ) -> Result<Vec<Vec<f32>>, String> {
         let s = self.stage(ch, sr, looped)?;
+        if let Some(done) = s.delivered {
+            return Ok(done);
+        }
         let mut ch = s.limited;
         fade_edges(&mut ch, s.fade_in, s.fade_out, sr);
         Ok(ch)
@@ -395,7 +436,7 @@ impl Output {
             "the default"
         };
         Some(format!(
-            "{which} {:.0} ms fade-in is cutting the first hit by {cut:.1} dB (it starts at {:.1} ms): set fade_in 0 or start the hit later",
+            "{which} {:.0} ms fade-in is cutting the first hit by {cut:.1} dB (it starts at {:.1} ms): set fade_in 0.0005 (0.5 ms: it reaches zero at sample 0, so silent_edges still passes) or start the hit later",
             s.fade_in * 1000.0,
             first as f32 / sr * 1000.0
         ))

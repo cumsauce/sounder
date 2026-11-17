@@ -350,22 +350,52 @@ pub fn apply(
                 .iter_mut()
                 .find(|n| n.get("name").and_then(Value::as_str) == Some(e.node.as_str()))
             else {
-                let names: Vec<&str> = nodes
-                    .iter()
-                    .filter_map(|n| n.get("name").and_then(Value::as_str))
-                    .collect();
-                return Err(format!(
-                    "macro `{}`: no node named `{}` (nodes: {})",
-                    m.name,
-                    e.node,
-                    names.join(", ")
-                ));
+                return Err(missing_node(&m.name, &e.node, nodes));
             };
             let v = e.at(x);
             write(node, e, v).map_err(|why| format!("macro `{}`: {} {why}", m.name, e.target()))?;
         }
     }
     Ok(out)
+}
+
+/// The inside of `nodes`' `voices` patches (recursively): who owns the node
+/// called `name`, or None.
+fn voices_owner(nodes: &[Value], name: &str) -> Option<String> {
+    for n in nodes {
+        let Some(patch) = n.get("patch").and_then(Value::as_array) else {
+            continue;
+        };
+        let owner = n.get("name").and_then(Value::as_str).unwrap_or("?");
+        if n.get("type").and_then(Value::as_str) == Some("voices")
+            && patch
+                .iter()
+                .any(|p| p.get("name").and_then(Value::as_str) == Some(name))
+        {
+            return Some(owner.to_string());
+        }
+        if let Some(o) = voices_owner(patch, name) {
+            return Some(o);
+        }
+    }
+    None
+}
+
+/// The error for a map entry naming a node the graph does not have.
+fn missing_node(macro_name: &str, node: &str, nodes: &[Value]) -> String {
+    if let Some(v) = voices_owner(nodes, node) {
+        return format!(
+            "macro `{macro_name}`: node `{node}` is inside the voices patch of `{v}`: a macro cannot reach into a patch. Declare a param with sound_ops params (e.g. \"{node}_amount\": 0.5), use it in the patch as \"=${node}_amount\" (or `$name` in the voices `map`), and map {{\"param\": \"{node}_amount\", \"from\": 0, \"to\": 1}}"
+        );
+    }
+    let names: Vec<&str> = nodes
+        .iter()
+        .filter_map(|n| n.get("name").and_then(Value::as_str))
+        .collect();
+    format!(
+        "macro `{macro_name}`: no node named `{node}` (nodes: {})",
+        names.join(", ")
+    )
 }
 
 fn num(v: f64) -> Value {
@@ -534,16 +564,7 @@ pub fn validate_shape(
                 .iter()
                 .any(|n| n.get("name").and_then(Value::as_str) == Some(e.node.as_str()))
             {
-                let names: Vec<&str> = nodes
-                    .iter()
-                    .filter_map(|n| n.get("name").and_then(Value::as_str))
-                    .collect();
-                return Err(format!(
-                    "macro `{}`: no node named `{}` (nodes: {})",
-                    m.name,
-                    e.node,
-                    names.join(", ")
-                ));
+                return Err(missing_node(&m.name, &e.node, nodes));
             }
             let key = (
                 e.node.clone(),

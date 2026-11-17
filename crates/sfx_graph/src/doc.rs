@@ -412,7 +412,16 @@ impl SoundDoc {
                     .fold(0.0f32, |m, x| m.max(x[0].abs()).max(x[1].abs())),
                 Buf::Events(_) => 0.0,
             };
-            if peak > 1.0 {
+            // With `peak_db` the stage scales the input to the target, so a
+            // hot input is not squashed: warn only when the delivered peak
+            // is short of the target (gain_db pushed it over the ceiling).
+            let met = match &ev.nodes.iter().find(|p| p.ty == "output").map(|p| &p.node) {
+                Some(crate::node::Node::Output(o)) => o.peak_db.is_some_and(|t| {
+                    gain_to_db(audio.peak()) >= t + o.gain_db.unwrap_or(0.0) - 0.2
+                }),
+                _ => false,
+            };
+            if peak > 1.0 && !met {
                 w.push(format!(
                     "the output's input `{input}` peaks at {:+.1} dBFS: the ceiling limiter is squashing it (lower the gain before the output, or set output lufs)",
                     gain_to_db(peak)
@@ -654,6 +663,13 @@ impl SoundDoc {
         // A macro overrides the fields it maps: an edit to one of them changes
         // nothing audible. Say so (the agent would otherwise think it worked).
         let mut macro_notes: Vec<String> = Vec::new();
+        // A macro defined in this very call (or a node added in it) was
+        // written together with its map: the agent knows the field is driven.
+        let new_macros: Vec<&str> = upserted
+            .iter()
+            .map(String::as_str)
+            .filter(|m| !self.macros.iter().any(|x| x.name == *m))
+            .collect();
         for name in added.iter().chain(&changed) {
             let find = |nodes: &[Value]| {
                 nodes
@@ -664,6 +680,11 @@ impl SoundDoc {
             let (new, old) = (find(&next.nodes), find(&self.nodes));
             let Some(new) = new else { continue };
             for m in &next.macros {
+                let same_call = new_macros.contains(&m.name.as_str())
+                    || (upserted.contains(&m.name) && added.contains(name));
+                if same_call {
+                    continue;
+                }
                 for e in m.map.iter().filter(|e| &e.node == name) {
                     let (n, o) = (
                         new.get(&e.field),
@@ -687,6 +708,9 @@ impl SoundDoc {
                 continue; // new, or unchanged
             }
             for m in &next.macros {
+                if new_macros.contains(&m.name.as_str()) {
+                    continue;
+                }
                 for e in m.map.iter().filter(|e| e.param.as_deref() == Some(k)) {
                     macro_notes.push(format!(
                         "param `{k}` is driven by macro `{}` ({} -> {} over 0..1): your value is ignored; edit the macro (sound_ops macros) or delete it",
