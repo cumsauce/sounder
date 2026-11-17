@@ -1,6 +1,6 @@
 //! The session lives on one thread; the MCP server (its own tokio runtime)
-//! sends it closures. The window (phase 5, a webview on the main thread) will
-//! be one more sender on the same channel.
+//! sends it closures. The window (a webview on the main thread) is one more
+//! sender on the same channel, and learns of changes through `OnChange`.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -29,19 +29,35 @@ impl Done {
     }
 }
 
-/// Runs commands until the server is done; autosaves once edits pause and on exit.
-pub(crate) fn run_headless(
+/// Called with the session's `rev` after a command changed anything anyone
+/// can see (the window uses it to push `changed`).
+pub(crate) type OnChange = Box<dyn FnMut(u64) + Send>;
+
+/// Runs commands until `done` is set or every sender is gone; autosaves once
+/// edits pause and on exit. Both modes use it: headless (the MCP server
+/// alone) and the window (one more sender on `rx`, and `on_change`).
+pub(crate) fn run_session(
     mut session: Session,
     rx: mpsc::Receiver<Cmd>,
     done: Arc<Done>,
+    mut on_change: Option<OnChange>,
 ) -> Session {
+    let mut seen_rev = session.rev();
     loop {
         let wait = session
             .time_to_autosave()
             .unwrap_or(Duration::from_millis(200))
             .clamp(Duration::from_millis(10), Duration::from_millis(200));
         match rx.recv_timeout(wait) {
-            Ok(Cmd::Exec(f)) => f(&mut session),
+            Ok(Cmd::Exec(f)) => {
+                f(&mut session);
+                if session.rev() != seen_rev {
+                    seen_rev = session.rev();
+                    if let Some(h) = on_change.as_mut() {
+                        h(seen_rev);
+                    }
+                }
+            }
             Err(mpsc::RecvTimeoutError::Timeout) => {}
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
         }

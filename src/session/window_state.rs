@@ -111,11 +111,11 @@ impl Session {
         }
         let hash = s.doc_hash();
         let checks_ok = self.check_cache.get(&name).is_some_and(|(h, _)| *h == hash);
-        let macros_ok = s
-            .doc
-            .macros
-            .iter()
-            .all(|m| s.macro_results.get(&m.name).is_some_and(|(h, ..)| *h == hash));
+        let macros_ok = s.doc.macros.iter().all(|m| {
+            s.macro_results
+                .get(&m.name)
+                .is_some_and(|(h, ..)| *h == hash)
+        });
         (!(checks_ok && macros_ok)).then_some(name)
     }
 
@@ -123,7 +123,13 @@ impl Session {
     /// layer fills those in). `doc` switches the window's open sound.
     pub fn window_state(&mut self, doc: Option<&str>) -> Result<Value, String> {
         let target = self.window_target(doc)?;
-        let now_live = |t: Option<Instant>, within: Duration| t.is_some_and(|t| t.elapsed() < within);
+        if self.current.as_deref() == Some(WINDOW_CLIENT)
+            && let Some(t) = &target
+        {
+            self.window_pin(t);
+        }
+        let now_live =
+            |t: Option<Instant>, within: Duration| t.is_some_and(|t| t.elapsed() < within);
 
         // Sounds.
         let sounds: Vec<Value> = self
@@ -360,4 +366,46 @@ fn window_nodes(sound: &Sound, seen: usize) -> Vec<Value> {
             })
         })
         .collect()
+}
+
+impl Session {
+    /// Makes `name` the sound the window client works in (not any agent's).
+    pub fn window_pin(&mut self, name: &str) {
+        if self.sounds.contains_key(name) {
+            self.clients
+                .entry(WINDOW_CLIENT.to_string())
+                .or_default()
+                .active = Some(name.to_string());
+        }
+    }
+
+    /// The part of `sound` a knob move changes: macros, the human's moves
+    /// and the headline numbers. Cheap: no descriptors.
+    pub fn window_knob_result(&mut self, doc: Option<&str>) -> Result<Value, String> {
+        let opts = self.render_opts();
+        let salt = self.generation;
+        let sound = self.sound(doc)?;
+        let hash = sound.doc_hash();
+        let rendered = sound.rendered(&opts, salt).cloned()?;
+        let macros: Vec<Value> = sound
+            .doc
+            .macros
+            .iter()
+            .map(|m| {
+                let r = sound
+                    .macro_results
+                    .get(&m.name)
+                    .filter(|(h, ..)| *h == hash)
+                    .map(|(_, pass, detail)| (*pass, detail.as_str()));
+                macro_json(m, r)
+            })
+            .collect();
+        Ok(json!({
+            "macros": macros,
+            "moves": sound.knob_moves.iter().map(|k| json!({"name": k.name, "from": k.from, "to": k.to})).collect::<Vec<_>>(),
+            "seconds": rendered.audio.seconds(),
+            "peak_db": rendered.peak_db,
+            "lufs": rendered.lufs,
+        }))
+    }
 }

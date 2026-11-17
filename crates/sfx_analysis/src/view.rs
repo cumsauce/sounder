@@ -152,7 +152,9 @@ pub fn spark(audio: &Audio) -> [f32; SPARK_LEN] {
     }
     for (k, o) in out.iter_mut().enumerate() {
         let a = k * mono.len() / SPARK_LEN;
-        let b = ((k + 1) * mono.len() / SPARK_LEN).max(a + 1).min(mono.len());
+        let b = ((k + 1) * mono.len() / SPARK_LEN)
+            .max(a + 1)
+            .min(mono.len());
         if a < b {
             *o = mono[a..b].iter().fold(0.0f32, |m, v| m.max(v.abs()));
         }
