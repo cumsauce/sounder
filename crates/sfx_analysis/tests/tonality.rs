@@ -145,3 +145,94 @@ fn glide_keeps_the_noise() {
         noisy.flat
     );
 }
+
+fn render_node(node: Value, out: &str, secs: f32) -> sfx_graph::Audio {
+    let mut d = SoundDoc::named("t");
+    d.nodes = vec![
+        node,
+        json!({"type": "output", "name": "out", "input": out, "peak_db": -3, "fade_in": 0.0005}),
+    ];
+    d.duration = Some(secs);
+    d.render(&RenderOpts {
+        cached: false,
+        ..RenderOpts::default()
+    })
+    .unwrap()
+    .audio
+}
+
+/// `click` and wood `footstep` take the same `noise`: their default rings
+/// read pitched (click voiced 0.33-0.78, heard as "a chime"; a wood step
+/// 0.84 at 158 Hz). Off or 0: bit-identical.
+#[test]
+fn click_and_wood_footstep_take_noise() {
+    let same = |a: &sfx_graph::Audio, b: &sfx_graph::Audio| {
+        a.channels[0]
+            .iter()
+            .zip(&b.channels[0])
+            .all(|(x, y)| x.to_bits() == y.to_bits())
+    };
+    for k in ["latch", "switch", "button", "lock", "clasp"] {
+        let base = json!({"type": "click", "name": "c", "kind": k});
+        let plain = render_node(base.clone(), "c", 0.4);
+        assert!(
+            same(
+                &plain,
+                &render_node(with(&base, json!({"noise": 0})), "c", 0.4)
+            ),
+            "{k}"
+        );
+        let p = tone(&plain);
+        let n = tone(&render_node(with(&base, json!({"noise": 0.6})), "c", 0.4));
+        report(&format!("click {k} plain"), &p);
+        report(&format!("click {k} noise 0.6"), &n);
+        assert!(n.voiced <= p.voiced, "{k}: {} -> {}", p.voiced, n.voiced);
+    }
+    let base = json!({"type": "footstep", "name": "f", "surface": "wood"});
+    let plain = render_node(base.clone(), "f", 0.8);
+    assert!(same(
+        &plain,
+        &render_node(with(&base, json!({"noise": 0})), "f", 0.8)
+    ));
+    let p = tone(&plain);
+    let n = tone(&render_node(with(&base, json!({"noise": 0.6})), "f", 0.8));
+    report("footstep wood plain", &p);
+    report("footstep wood noise 0.6", &n);
+    assert!(n.voiced < p.voiced - 0.3, "{} -> {}", p.voiced, n.voiced);
+}
+
+/// Wood `footstep` `scuff` (the roll between heel and toe) and `creak` (a
+/// board under the weight): each adds energy where it should; 0 is
+/// bit-identical.
+#[test]
+fn wood_footstep_scuff_and_creak() {
+    let base =
+        json!({"type": "footstep", "name": "f", "surface": "wood", "weight": 0.4, "noise": 0.35});
+    let plain = render_node(base.clone(), "f", 0.8);
+    for f in ["scuff", "creak"] {
+        let z = render_node(with(&base, json!({f: 0})), "f", 0.8);
+        assert!(
+            plain.channels[0]
+                .iter()
+                .zip(&z.channels[0])
+                .all(|(a, b)| a.to_bits() == b.to_bits()),
+            "{f}"
+        );
+    }
+    // Energy (dB) in a time window, against the plain step.
+    let gain = |a: &sfx_graph::Audio, t0: f32, t1: f32| {
+        let (i, j) = ((t0 * 48_000.0) as usize, (t1 * 48_000.0) as usize);
+        let energy = |x: &[f32]| {
+            sfx_analysis::stft::db(x.iter().map(|v| v * v).sum::<f32>() / x.len() as f32)
+        };
+        energy(&a.channels[0][i..j]) - energy(&plain.channels[0][i..j])
+    };
+    let sc = render_node(with(&base, json!({"scuff": 0.8})), "f", 0.8);
+    let cr = render_node(with(&base, json!({"creak": 0.8})), "f", 0.8);
+    let (s_gain, c_gain) = (gain(&sc, 0.02, 0.09), gain(&cr, 0.15, 0.4));
+    println!(
+        "scuff 0.8: {s_gain:+.1} dB between heel and toe; creak 0.8: {c_gain:+.1} dB at 0.15-0.4 s"
+    );
+    assert!(s_gain > 1.0, "{s_gain}");
+    assert!(c_gain > 3.0, "{c_gain}");
+}

@@ -126,6 +126,12 @@ pub struct Click {
     /// Make the second transient (default true). False gives the press alone.
     #[serde(default)]
     pub double: Option<bool>,
+    /// How noisy the body rings, 0..1 (default none): each resonance becomes
+    /// (1 - noise) x its ring + noise x a band of noise at its frequency (as
+    /// `modal` `noise`). The default click reads pitched (voiced 0.33-0.78,
+    /// heard as "a chime"); left out or 0, the samples are unchanged.
+    #[serde(default)]
+    pub noise: Option<f32>,
     /// Mixed with the document seed and the node name (default 0): another
     /// seed moves the mode frequencies, the gap and the levels by +-3 % (levels +-1.5 dB).
     #[serde(default)]
@@ -154,6 +160,7 @@ fn strike(
     hardness: f32,
     tick: f32,
     amp: f32,
+    noise: Option<f32>,
 ) {
     // Pulse width 0.4 ms (soft) to 0.06 ms (hard), unit area so a narrower
     // pulse keeps the low end and reaches higher.
@@ -177,13 +184,40 @@ fn strike(
     // Each mode is a resonator of unit-ish gain; the soft contact darkens
     // the upper modes.
     let f0 = modes.first().map_or(1.0, |m| m.0);
+    let params = |hz: f32, g: f32| {
+        let tilt = (hz / f0).powf(-1.5 * (1.0 - hardness));
+        // Higher modes die first.
+        let t = t60 * (f0 / hz).powf(0.5);
+        (t, g * tilt)
+    };
+    if let Some(depth) = noise {
+        let mut body = vec![0.0f32; len];
+        let mut white = vec![0.0f32; len];
+        for &(hz, g) in modes {
+            let (t, gain) = params(hz, g);
+            let mut r = Resonator::new(hz, t, gain, sr);
+            let ring: Vec<f32> = exc.iter().map(|e| r.tick(*e)).collect();
+            super::modal::add_noise_band(
+                &mut body,
+                &ring,
+                (hz, t),
+                depth,
+                super::modal::DEFAULT_NOISE_WIDTH,
+                rng,
+                &mut white,
+                sr,
+            );
+        }
+        for (k, e) in exc.iter().enumerate() {
+            buf[start + k] += body[k] + 0.2 * e;
+        }
+        return;
+    }
     let mut bank: Vec<Resonator> = modes
         .iter()
         .map(|&(hz, g)| {
-            let tilt = (hz / f0).powf(-1.5 * (1.0 - hardness));
-            // Higher modes die first.
-            let t = t60 * (f0 / hz).powf(0.5);
-            Resonator::new(hz, t, g * tilt, sr)
+            let (t, gain) = params(hz, g);
+            Resonator::new(hz, t, gain, sr)
         })
         .collect();
     for (k, e) in exc.iter().enumerate() {
@@ -206,6 +240,11 @@ impl Eval for Click {
         false
     }
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
+        let noise = match self.noise {
+            None => None,
+            Some(x) if x.is_finite() && (0.0..=1.0).contains(&x) => (x > 0.0).then_some(x),
+            Some(x) => return Err(format!("noise: {x}: give 0..1")),
+        };
         let size = self.size.unwrap_or(0.5);
         if !(size.is_finite() && (0.0..=1.0).contains(&size)) {
             return Err(format!("size: {size}: give a number from 0 to 1"));
@@ -280,6 +319,7 @@ impl Eval for Click {
                 hardness,
                 recipe.tick,
                 amp * level[hit] * if hit == 0 { 1.0 } else { g },
+                noise,
             );
             if hit == 0 {
                 // The press peaks at PEAK; the second transient is relative

@@ -1,0 +1,74 @@
+{
+  "name": "p8_step_wood_soft",
+  "format_version": 1,
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 0.8,
+  "seed": 1,
+  "nodes": [
+    {
+      "type": "footstep",
+      "name": "f",
+      "surface": "wood",
+      "weight": 0.25,
+      "noise": 0.35,
+      "scuff": 0.2,
+      "ring": 0.6
+    },
+    {
+      "type": "output",
+      "name": "out",
+      "input": "f",
+      "peak_db": -6
+    }
+  ],
+  "params": {},
+  "macros": [
+    {
+      "name": "weight",
+      "value": 0.25,
+      "default": 0.25,
+      "doc": "how heavy the step lands",
+      "game": false,
+      "map": [
+        {
+          "node": "f",
+          "field": "weight",
+          "from": 0.0,
+          "to": 1.0
+        }
+      ]
+    },
+    {
+      "name": "scuff",
+      "value": 0.2,
+      "default": 0.2,
+      "doc": "the sole scuffing between heel and toe",
+      "game": false,
+      "map": [
+        {
+          "node": "f",
+          "field": "scuff",
+          "from": 0.0,
+          "to": 1.0
+        }
+      ]
+    },
+    {
+      "name": "ring",
+      "value": 0.2,
+      "default": 0.2,
+      "doc": "how long the board rings (0.25 short and gentle to 2 booming)",
+      "game": false,
+      "map": [
+        {
+          "node": "f",
+          "field": "ring",
+          "from": 0.25,
+          "to": 2.0
+        }
+      ]
+    }
+  ],
+  "version": 4
+}

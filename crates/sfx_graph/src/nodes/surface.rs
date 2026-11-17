@@ -445,6 +445,31 @@ pub struct Footstep {
     /// 0.6 s after it; whatever passes the end of the sound is cut.
     #[serde(default)]
     pub at: Option<f32>,
+    /// Wood only, 0..1 (default none): the board's resonances ring as bands
+    /// of noise (as `modal` `noise`) instead of clean modes. A default wood
+    /// step reads pitched (voiced 0.84 at 158 Hz); left out or 0, the
+    /// samples are unchanged. Other surfaces ignore it.
+    #[serde(default)]
+    pub noise: Option<f32>,
+    /// Wood only, 0..1 (default none): the sole scuffing the board between
+    /// heel and toe (band-passed noise around 2.5 kHz that swells and fades
+    /// across the roll). Left out or 0, the samples are unchanged.
+    #[serde(default)]
+    pub scuff: Option<f32>,
+    /// Wood only, 0.25..2 (default 1): how long the board rings, a
+    /// multiplier on its three body modes' decays. The default board puts 84 %
+    /// of a step's energy under 200 Hz for 160 ms, heard as "slammed"; lower
+    /// is a shorter, gentler step. Left out, the samples are unchanged.
+    #[serde(default)]
+    pub ring: Option<f32>,
+    /// Wood only, 0..1 (default none): a board creaking under the weight, a
+    /// stick-slip train (70-130 slips a second, seeded, each slip jittered)
+    /// from 30-60 ms after the heel for 0.15-0.3 s through three of the
+    /// board's resonances (noise bands too when `noise` is set). The level;
+    /// give some steps a creak and others none for a walk. Left out or 0,
+    /// the samples are unchanged.
+    #[serde(default)]
+    pub creak: Option<f32>,
     /// Mixed with the document seed and the node name (default 0): another
     /// seed is another step (timing, levels, tuning, stones).
     #[serde(default)]
@@ -468,6 +493,13 @@ struct Step {
     /// Body frequency factor and swish balance (`body`, `swish`).
     body: f32,
     swish: f32,
+    /// `noise` (wood's resonances as noise bands), when set.
+    noise: Option<f32>,
+    /// `scuff` and `creak` (wood), when set.
+    scuff: Option<f32>,
+    creak: Option<f32>,
+    /// `ring` (wood): the body modes' decay multiplier, when set.
+    ring: Option<f32>,
     /// Heel landing and toe landing, seconds, with their strengths.
     heel: (f32, f32),
     toe: (f32, f32),
@@ -553,6 +585,30 @@ fn add(out: &mut [f32], x: &[f32], gain: f32) {
 }
 
 impl Step {
+    /// Wood's resonances: clean modes, or with `noise` bands of noise.
+    fn wood_ring(&mut self, buf: &[f32], modes: &[(f32, f32, f32)], sr: f32) -> Vec<f32> {
+        let Some(depth) = self.noise else {
+            return ring(buf, modes, sr);
+        };
+        let mut out = vec![0.0f32; buf.len()];
+        let mut white = vec![0.0f32; buf.len()];
+        for &(hz, d, g) in modes {
+            let mut r = Resonator::new(hz, d, g, sr);
+            let y: Vec<f32> = buf.iter().map(|x| r.tick(*x)).collect();
+            super::modal::add_noise_band(
+                &mut out,
+                &y,
+                (hz, d),
+                depth,
+                super::modal::DEFAULT_NOISE_WIDTH,
+                &mut self.rng,
+                &mut white,
+                sr,
+            );
+        }
+        out
+    }
+
     /// Brightness multiplier: heavier steps are darker.
     fn tilt(&self) -> f32 {
         lerp(1.25, 0.75, self.w)
@@ -762,6 +818,43 @@ impl Step {
         out
     }
 
+    /// A board creaking under the weight: a jittered stick-slip train
+    /// through three board resonances (see `Footstep::creak`).
+    fn board_creak(&mut self, n: usize, f0: f32, level: f32) -> Vec<f32> {
+        let sr = self.sr;
+        let start = self.heel.0 + 0.03 + 0.03 * self.rng.unit();
+        let len = 0.15 + 0.15 * self.rng.unit();
+        let rate = 70.0 + 60.0 * self.rng.unit();
+        let mut force = vec![0.0f32; n];
+        let mut t = start;
+        while t < start + len {
+            let u = (t - start) / len;
+            // Swells and fades over the creak.
+            let env = (std::f32::consts::PI * u).sin();
+            let k = (t * sr).round() as usize;
+            if k < n {
+                force[k] += env * (1.0 + 0.3 * self.rng.signed());
+            }
+            t += (1.0 + 0.25 * self.rng.signed()) / rate;
+        }
+        let modes = [
+            (f0 * 1.9, 0.05, 1.0),
+            (f0 * 4.3, 0.035, 0.7),
+            (f0 * 7.6, 0.025, 0.5),
+        ];
+        let mut y = self.wood_ring(&force, &modes, sr);
+        let peak = y.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+        let g = if peak > 0.0 {
+            0.5 * level * self.heel.1 / peak
+        } else {
+            0.0
+        };
+        for v in &mut y {
+            *v *= g;
+        }
+        y
+    }
+
     fn wood(&mut self, n: usize) -> Vec<f32> {
         let sr = self.sr;
         let tilt = self.tilt();
@@ -771,13 +864,16 @@ impl Step {
         for (t, a) in self.impacts() {
             add_pulse(&mut body_force, sr, t, width, a);
         }
+        // `ring` scales the board's decays; 1 (the default) multiplies by
+        // exactly one, so old renders hold.
+        let rk = self.ring.unwrap_or(1.0);
         let f0 = lerp(215.0, 105.0, self.w) * (1.0 + 0.04 * self.rng.signed()) * self.body;
-        let body = ring(
+        let body = self.wood_ring(
             &body_force,
             &[
-                (f0, lerp(0.15, 0.24, self.w), 1.0),
-                (f0 * 1.74, 0.1, 0.3),
-                (f0 * 2.9, 0.06, 0.12),
+                (f0, lerp(0.15, 0.24, self.w) * rk, 1.0),
+                (f0 * 1.74, 0.1 * rk, 0.3),
+                (f0 * 2.9, 0.06 * rk, 0.12),
             ],
             sr,
         );
@@ -789,7 +885,7 @@ impl Step {
             add_pulse(&mut tick_force, sr, t, w2, a);
         }
         let click = self.shoe.click();
-        let top = ring(
+        let top = self.wood_ring(
             &tick_force,
             &[
                 (780.0 * tilt, 0.012, 1.0),
@@ -811,6 +907,26 @@ impl Step {
                 0.0,
                 0.003,
             );
+        }
+        if let Some(sc) = self.scuff {
+            // The roll: swells from the heel to the middle, fades by the toe.
+            let (heel, toe) = (self.heel, self.toe);
+            let half = (0.5 * (toe.0 - heel.0)).max(0.01);
+            add_noise(
+                &mut out,
+                &mut self.rng,
+                sr,
+                heel.0 + 0.008,
+                2500.0 * tilt,
+                0.7,
+                0.35 * sc * heel.1 * click,
+                half,
+                half / 3.0,
+            );
+        }
+        if let Some(cr) = self.creak {
+            let creak = self.board_creak(n, f0, cr);
+            add(&mut out, &creak, 1.0);
         }
         out
     }
@@ -845,6 +961,29 @@ impl Eval for Footstep {
                 "swish: {swish}: give a number from 0 (ticks only) to 1 (swish only), default 0.5"
             ));
         }
+        let noise = match self.noise {
+            None => None,
+            Some(x) if x.is_finite() && (0.0..=1.0).contains(&x) => (x > 0.0).then_some(x),
+            Some(x) => return Err(format!("noise: {x}: give 0..1 (wood only)")),
+        };
+        let unit = |field: &str, v: Option<f32>| -> Result<Option<f32>, String> {
+            match v {
+                None => Ok(None),
+                Some(x) if x.is_finite() && (0.0..=1.0).contains(&x) => Ok((x > 0.0).then_some(x)),
+                Some(x) => Err(format!("{field}: {x}: give 0..1 (wood only)")),
+            }
+        };
+        let scuff = unit("scuff", self.scuff)?;
+        let creak = unit("creak", self.creak)?;
+        let ring = match self.ring {
+            None => None,
+            Some(x) if x.is_finite() && (0.25..=2.0).contains(&x) => Some(x),
+            Some(x) => {
+                return Err(format!(
+                    "ring: {x}: give 0.25..2 (1 = as before; wood only)"
+                ));
+            }
+        };
         let mut rng = cx.rng(self.seed);
         // Per-step variation, drawn first so every surface sees the same
         // numbers for the same seed: the gap, the two strengths.
@@ -860,6 +999,10 @@ impl Eval for Footstep {
             shoe,
             body,
             swish,
+            noise,
+            scuff,
+            creak,
+            ring,
             heel: (at, heel_a),
             toe: (at + gap, toe_a),
             rng,

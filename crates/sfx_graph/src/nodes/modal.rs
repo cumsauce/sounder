@@ -800,7 +800,57 @@ fn glide_one(x: &[f32], mode: (f32, f32, f32), level: &[f32], cents: f32, sr: f3
 
 /// `noise_width` when left out: each noise band a quarter of its mode's
 /// frequency wide.
-const DEFAULT_NOISE_WIDTH: f32 = 0.25;
+pub(crate) const DEFAULT_NOISE_WIDTH: f32 = 0.25;
+
+/// Adds one mode to `out` as `(1 - depth) x ring + depth x` a band of white
+/// noise at its frequency (`width` x f wide, scaled to a sine's power) that
+/// follows the ring's envelope (a peak follower falling at the mode's own
+/// decay rate). `white` is scratch at least the ring's length. Shared by
+/// `modal` `noise`, `click` `noise` and `footstep` `noise`.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn add_noise_band(
+    out: &mut [f32],
+    ring: &[f32],
+    (f, t60): (f32, f32),
+    depth: f32,
+    width: f32,
+    rng: &mut crate::dsp::Rng,
+    white: &mut [f32],
+    sr: f32,
+) {
+    let n = ring.len();
+    // Its amplitude: a peak follower that falls at the mode's own decay
+    // rate, so it holds the envelope between the sine's peaks.
+    let fall = (-(1000f32.ln()) / (t60.max(1e-4) * sr)).exp();
+    // A band of white noise at the mode's frequency, `width` x f wide,
+    // scaled to the power of a sine of amplitude 1 (rms 1 / sqrt 2).
+    for w in white.iter_mut().take(n) {
+        *w = rng.signed();
+    }
+    let bw = (width * f).clamp(20.0, 0.2 * sr);
+    let q = (f / bw).max(0.05);
+    let mut svf = Svf::default();
+    let band: Vec<f32> = white[..n]
+        .iter()
+        .map(|w| svf.tick(*w, FilterMode::Bp, f, q, 0.0, sr))
+        .collect();
+    let rms = (band
+        .iter()
+        .map(|b| f64::from(*b) * f64::from(*b))
+        .sum::<f64>()
+        / n.max(1) as f64)
+        .sqrt() as f32;
+    let scale = if rms > 0.0 {
+        std::f32::consts::FRAC_1_SQRT_2 / rms
+    } else {
+        0.0
+    };
+    let mut env = 0.0f32;
+    for i in 0..n {
+        env = (env * fall).max(ring[i].abs());
+        out[i] += (1.0 - depth) * ring[i] + depth * env * band[i] * scale;
+    }
+}
 
 /// The buzz's gain: at 2 it sat about 30 dB under a wood body (barely
 /// there), at 8 about 18 dB under.
@@ -1061,43 +1111,19 @@ impl Eval for Modal {
                 Some(depth) => {
                     let mut rng = crate::dsp::Rng::new(noise_seed);
                     let width = noise_width.unwrap_or(DEFAULT_NOISE_WIDTH);
-                    let n = x.len();
-                    let mut white = vec![0.0f32; n];
+                    let mut white = vec![0.0f32; x.len()];
                     for &(f, t60, g) in &modes {
                         let ring = ring_of((f, t60, g));
-                        // Its amplitude: a peak follower that falls at the
-                        // mode's own decay rate, so it holds the envelope
-                        // between the sine's peaks.
-                        let fall = (-(1000f32.ln()) / (t60.max(1e-4) * cx.sr)).exp();
-                        // A band of white noise at the mode's frequency,
-                        // `width` x f wide, scaled to the power of a sine of
-                        // amplitude 1 (rms 1 / sqrt 2).
-                        for w in white.iter_mut() {
-                            *w = rng.signed();
-                        }
-                        let bw = (width * f).clamp(20.0, 0.2 * cx.sr);
-                        let q = (f / bw).max(0.05);
-                        let mut svf = Svf::default();
-                        let band: Vec<f32> = white
-                            .iter()
-                            .map(|w| svf.tick(*w, FilterMode::Bp, f, q, 0.0, cx.sr))
-                            .collect();
-                        let rms = (band
-                            .iter()
-                            .map(|b| f64::from(*b) * f64::from(*b))
-                            .sum::<f64>()
-                            / n.max(1) as f64)
-                            .sqrt() as f32;
-                        let scale = if rms > 0.0 {
-                            std::f32::consts::FRAC_1_SQRT_2 / rms
-                        } else {
-                            0.0
-                        };
-                        let mut env = 0.0f32;
-                        for i in 0..n {
-                            env = (env * fall).max(ring[i].abs());
-                            out[i] += (1.0 - depth) * ring[i] + depth * env * band[i] * scale;
-                        }
+                        add_noise_band(
+                            &mut out,
+                            &ring,
+                            (f, t60),
+                            depth,
+                            width,
+                            &mut rng,
+                            &mut white,
+                            cx.sr,
+                        );
                     }
                 }
             }

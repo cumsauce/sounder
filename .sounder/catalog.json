@@ -162,6 +162,80 @@
     ]
   },
   {
+    "name": "p8_latch_new",
+    "description": "Click latch with noise 0.75, set by the listener: a plausible small plastic or metal part. Peak -6 dBFS.",
+    "tags": [
+      "tonality",
+      "listening"
+    ],
+    "kind": "oneshot",
+    "length": 0.4,
+    "lufs": -30.801497,
+    "macros": [
+      "grain"
+    ]
+  },
+  {
+    "name": "p8_latch_old",
+    "description": "Tonality test: a click latch (size 0.6, hardness 0.8) as it was (voiced 0.60). Peak -6 dBFS.",
+    "tags": [
+      "tonality",
+      "listening"
+    ],
+    "kind": "oneshot",
+    "length": 0.4,
+    "lufs": -29.243988,
+    "macros": [
+      "size"
+    ]
+  },
+  {
+    "name": "p8_step_wood_new",
+    "description": "Tonality test, round 2: wood step, weight 0.4, noise 0.35 (0.6 felt slammed), scuff 0.6 (the roll), creak 0.5 (the board). Peak -6 dBFS.",
+    "tags": [
+      "tonality",
+      "listening"
+    ],
+    "kind": "oneshot",
+    "length": 0.8,
+    "lufs": -28.254215,
+    "macros": [
+      "grain",
+      "scuff",
+      "creak"
+    ]
+  },
+  {
+    "name": "p8_step_wood_old",
+    "description": "Tonality test: a default footstep on wood (voiced 0.84 at 158 Hz). Peak -6 dBFS.",
+    "tags": [
+      "tonality",
+      "listening"
+    ],
+    "kind": "oneshot",
+    "length": 0.8,
+    "lufs": -29.335741,
+    "macros": [
+      "weight"
+    ]
+  },
+  {
+    "name": "p8_step_wood_soft",
+    "description": "Wood step, round 3, softer: weight 0.25, ring 0.6 (the board's decays x0.6), noise 0.35, scuff 0.2, no creak. Peak -6 dBFS.",
+    "tags": [
+      "tonality",
+      "listening"
+    ],
+    "kind": "oneshot",
+    "length": 0.8,
+    "lufs": -31.97896,
+    "macros": [
+      "weight",
+      "scuff",
+      "ring"
+    ]
+  },
+  {
     "name": "slam_a",
     "description": "Phase 0 A: the round-0 agent door slam, rebuilt as it was; output set to -28 LUFS for the listening test.",
     "tags": [

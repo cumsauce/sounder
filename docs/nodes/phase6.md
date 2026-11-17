@@ -189,6 +189,61 @@ points: wood `noise` 0.6, `tilt` 4, `loss` 1.8; thin metal `noise` 0.85,
 `noise_width` 0.5, `tilt` 6 (the lid measured voiced 0.00, occupied
 flatness 0.79, 68 % of its energy at 2-8 kHz).
 
+## `click` `noise` and `footstep` `noise`
+
+An audit of the ready-made struck nodes at their defaults (voiced share of
+the pitch tracker): `click` 0.33-0.78 for every kind (the latch was heard as
+"a chime"), `footstep` wood 0.84 at 158 Hz; concrete, gravel, grass,
+`explosion` and `gunshot` 0.00; `splash` 0.50 and `modal` glass 1.00 are
+pitched by nature and were left. `click` and `footstep` (wood only) now take
+the same `noise` (0..1, off by default, bit-identical at 0), through the
+helper `modal` uses (`add_noise_band`, width 0.25).
+
+| Sound | voiced plain / `noise` 0.6 | occupied flatness |
+|---|---|---|
+| `click` latch, switch, button, lock, clasp | 0.60, 0.33, 0.60, 0.78, 0.60 / 0.00 each | 0.21-0.41 / 0.51-0.65 |
+| `footstep` wood | 0.84 / 0.00 | 0.15 / 0.36 (strongest partial 19.4 to 8.6 dB over the median) |
+
+(`click_and_wood_footstep_take_noise` in `tests/tonality.rs`.) Listening
+pairs `p8_latch_old` / `p8_latch_new`, `p8_step_wood_old` /
+`p8_step_wood_new` (peak -6 dBFS; the noisy ones are about 1.5 LU quieter
+at the same peak).
+
+Listened (the human): the latch at `noise` 0.6 "sounds much better but not
+really like a latch... like the clack from a small plastic object": short
+noise bands at 1.5-8 kHz are a small plastic part, and a latch is metal, so
+round 2 is `noise` 0.3 (some of the metal ring kept). The wood step at 0.6
+"a bit better but feels a bit forceful, like something was slammed or
+dropped. A footstep has parts to it; boards could creak". `footstep` gained
+two wood-only fields, off by default (bit-identical at 0):
+
+| Field | What it does | Measured (`wood_footstep_scuff_and_creak`) |
+|---|---|---|
+| `scuff` 0..1 | the sole scuffing between heel and toe: noise around 2.5 kHz swelling and fading across the roll | 0.8: +7.9 dB between heel and toe |
+| `creak` 0..1 | a board under the weight: a jittered stick-slip train (70-130 a second) from 30-60 ms after the heel for 0.15-0.3 s through three board resonances | 0.8: +6.7 dB at 0.15-0.4 s |
+
+Round 2 `p8_step_wood_new`: `weight` 0.4, `noise` 0.35, `scuff` 0.6,
+`creak` 0.5 (knobs `grain`, `scuff`, `creak`).
+
+Round 2 listened: the step note was misread: "forceful, like slammed" was a
+complaint about the **original**, and round 2 was "even more energetic".
+The latch: the listener set `noise` to **0.75** ("a plausible real life
+object of small plastic or small metal"). Measured on the steps (peak -6
+dBFS):
+
+| Step | crest | low (<200 Hz) share | -60 dB | voiced |
+|---|---|---|---|---|
+| original wood step | 24.0 dB | 84 % | 290 ms | 0.84 |
+| round 2 (scuff, creak) | 24.2 dB | 42 % | 170 ms | 0.00 |
+| round 3 `p8_step_wood_soft` | 28.2 dB | 43 % | 200 ms | 0.29 |
+
+The original's "slam" is the board: 84 % of the energy under 200 Hz for
+290 ms. `footstep` gained `ring` (wood, 0.25..2, default 1, bit-identical
+when left out): a multiplier on the board's body decays. Round 3: `weight`
+0.25, `ring` 0.6, `noise` 0.35, `scuff` 0.2, no creak (knobs `ring`,
+`weight`, `scuff`). `ring` 0.4 rang 80 ms but let the board's small tick
+dominate (attack centroid 1.7 kHz); the soft shoe is already the default.
+
 ## Honest limits
 
 None of this has been heard. `subdrop` and `riser` are synthetic layers with
