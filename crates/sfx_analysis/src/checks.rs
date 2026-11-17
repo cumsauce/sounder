@@ -88,6 +88,17 @@ pub struct Variations {
     pub min_distance: Option<f32>,
 }
 
+/// The `reference` check: the sound stays within `max_distance` dB of a WAV.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReferenceCheck {
+    /// A WAV: relative paths resolve against the project, or absolute.
+    pub file: String,
+    /// Largest multi-resolution STFT distance, dB, after aligning by onset
+    /// and matching loudness (0 = identical; `listen reference` shows it).
+    pub max_distance: f32,
+}
+
 /// The checks. With none given, `verify` runs [`Expect::defaults`].
 #[derive(Clone, Debug, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -134,6 +145,9 @@ pub struct Expect {
     /// An uncached re-render is bit-identical.
     #[serde(default)]
     pub rebuild: Option<bool>,
+    /// Close to a reference recording (see `listen` `reference`).
+    #[serde(default)]
+    pub reference: Option<ReferenceCheck>,
     /// Every macro keeps its claim: swept over 0, .25, .5, .75, 1 (the others
     /// where they are), its measure moves the claimed way at every step and
     /// no position peaks over -0.3 dBFS.
@@ -717,6 +731,22 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
             why += ": the seeds sound alike; let the seed drive more (noise seeds, wander, random pitch)";
         }
         push("variations", ok_spread && ok_dist, why);
+    }
+    if let Some(rc) = &e.reference {
+        let rf = crate::reference::load(&rc.file, cx.opts.base_dir.as_deref())?;
+        let c = crate::reference::compare(a, &rf);
+        let ok = c.distance_db <= rc.max_distance;
+        let mut why = format!(
+            "{:.2} dB from {} (max {}; reference scaled {:+.1} dB, shifted {:.3} s)",
+            c.distance_db, rc.file, rc.max_distance, c.gain_db, c.shift_s
+        );
+        if !ok {
+            why += &format!(": {}", c.advice());
+            for d in c.deviations.iter().skip(1).take(2) {
+                why += &format!("; also {}", d.words);
+            }
+        }
+        push("reference", ok, why);
     }
     if e.macros == Some(true) {
         for m in &cx.doc.macros {

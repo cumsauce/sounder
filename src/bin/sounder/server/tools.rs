@@ -10,7 +10,7 @@ use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{CallToolResult, Content, ErrorData};
 use rmcp::{tool, tool_handler, tool_router};
 use serde_json::{Value, json};
-use sfx_analysis::{Column, View, describe, listen_png, report};
+use sfx_analysis::{Column, DiffColumn, View, describe, listen_png_diff, report};
 use sfx_graph::{Audio, DocEdit, Kind, RenderOpts, wav};
 use sounder::session::{Annotation, Session, Travel};
 use sounder::{catalog, export, feedback};
@@ -127,29 +127,9 @@ fn listen_audio(r: &sfx_graph::Rendered, node: &Option<String>) -> Result<Audio,
     Ok(a)
 }
 
-fn residual(cur: &Audio, prev: &Audio) -> Audio {
-    let n = cur.len().max(prev.len());
-    let k = cur.channels.len().max(prev.channels.len());
-    let at = |a: &Audio, c: usize, i: usize| {
-        a.channels
-            .get(c.min(a.channels.len().saturating_sub(1)))
-            .and_then(|ch| ch.get(i))
-            .copied()
-            .unwrap_or(0.0)
-    };
-    Audio {
-        sample_rate: cur.sample_rate,
-        channels: (0..k)
-            .map(|c| (0..n).map(|i| at(cur, c, i) - at(prev, c, i)).collect())
-            .collect(),
-    }
-}
-
 fn do_listen(s: &mut Session, a: ListenArgs) -> R {
-    if a.reference.is_some() {
-        return fail(
-            "reference: comparing against a recording arrives with phase 4; until then compare descriptors by eye, or listen with diff: true against your own earlier render",
-        );
+    if a.reference.is_some() && (a.seeds.is_some() || a.sweep.is_some() || a.diff == Some(true)) {
+        return fail("reference compares one render with one recording: drop seeds / sweep / diff");
     }
     let opts = s.render_opts();
     let salt = s.generation();
@@ -235,6 +215,8 @@ fn do_listen(s: &mut Session, a: ListenArgs) -> R {
     );
     let mut note = String::new();
     let mut shown: Vec<(String, Audio)> = cols.clone();
+    let mut diff_col: Option<(String, Audio, Audio)> = None;
+    let mut ref_json: Option<serde_json::Value> = None;
     let sound = plain(s.sound(Some(&name)))?;
     if a.diff == Some(true) {
         if cols.len() != 1 {
@@ -242,22 +224,46 @@ fn do_listen(s: &mut Session, a: ListenArgs) -> R {
         }
         match sound.last_listen.get(&key) {
             Some(prev) => {
-                let res = residual(&cols[0].1, prev);
                 shown = vec![
                     ("before".to_string(), prev.clone()),
                     ("now".to_string(), cols[0].1.clone()),
-                    ("difference".to_string(), res),
                 ];
+                diff_col = Some((
+                    "now minus before (dB)".to_string(),
+                    cols[0].1.clone(),
+                    prev.clone(),
+                ));
             }
             None => note = "diff: no earlier render of this request to compare; this one is stored for next time\n".into(),
         }
     }
     sound.last_listen.insert(key, cols[0].1.clone());
+    let mut text = note;
+    if let Some(file) = &a.reference {
+        let rf = plain(sfx_analysis::reference::load(file, s.project.as_deref()))?;
+        let c = sfx_analysis::compare(&cols[0].1, &rf);
+        text += &format!("== comparison with {file} ==\n{}", c.text());
+        shown = vec![
+            (cols[0].0.clone(), cols[0].1.clone()),
+            ("reference (aligned)".to_string(), c.aligned.clone()),
+        ];
+        diff_col = Some((
+            "sound minus reference (dB)".to_string(),
+            c.padded.clone(),
+            c.aligned.clone(),
+        ));
+        ref_json = Some(serde_json::to_value(&c).unwrap_or_default());
+    }
     let view = View {
         t: a.zoom.as_ref().and_then(|z| z.t),
         hz: a.zoom.as_ref().and_then(|z| z.hz),
     };
-    let png = plain(listen_png(
+    let dcol = diff_col.as_ref().map(|(l, x, y)| DiffColumn {
+        label: l.clone(),
+        a: x,
+        b: y,
+    });
+    let png = plain(listen_png_diff(
         &shown
             .iter()
             .map(|(l, au)| Column {
@@ -265,9 +271,9 @@ fn do_listen(s: &mut Session, a: ListenArgs) -> R {
                 audio: au,
             })
             .collect::<Vec<_>>(),
+        dcol.as_ref(),
         view,
     ))?;
-    let mut text = note;
     let mut descs = Vec::new();
     if a.descriptors != Some(false) {
         for (label, au) in &cols {
@@ -279,7 +285,7 @@ fn do_listen(s: &mut Session, a: ListenArgs) -> R {
             descs.push(json!({"label": label, "descriptors": d}));
         }
     }
-    let mut out = Out::text(text).with_json(json!({"columns": descs}));
+    let mut out = Out::text(text).with_json(json!({"columns": descs, "reference": ref_json}));
     out.images.push(png);
     Ok(out)
 }
@@ -517,7 +523,9 @@ impl Tools {
     /// table, modes, stereo). `node` listens to one node, `seeds` tiles
     /// variations, `sweep` tiles a param or macro at several values, `zoom`
     /// magnifies a region, `diff` compares with your previous render of the
-    /// same request.
+    /// same request (before, now, and now minus before in dB), `reference`
+    /// compares with a WAV (sound, reference, and their dB difference, plus
+    /// the distance and the biggest differences in words).
     #[tool]
     async fn listen(
         &self,
@@ -529,6 +537,7 @@ impl Tools {
     /// Run checks, each PASS / FAIL with the measured value (a FAIL says what
     /// to change): peak_db, true_peak_db, lufs, duration, silent_edges, clicks,
     /// dc, finite, loop_seam, bands, pitch, onsets, variations, rebuild,
+    /// reference {file, max_distance} (STFT distance to a WAV),
     /// macros (every knob keeps its claim). With none given: finite, peak_db
     /// max -0.3, silent_edges, dc, rebuild, and macros when the sound has
     /// knobs. Any FAIL makes the result an error.
