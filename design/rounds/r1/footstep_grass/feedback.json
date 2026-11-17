@@ -1,0 +1,13 @@
+{"sound": "footstep_grass", "round": 1, "finished": true,
+ "calls": 17, "failed_calls": 0,
+ "difficulty": 1,
+ "self_score": 7,
+ "nodes_used": ["noise", "filter", "adsr", "math", "gain", "mix", "output"],
+ "blockers": [
+   {"kind": "sense_gap", "where": "listen descriptors",
+    "wanted": "a texture-shape readout that tells noisy grass swish from a smooth band",
+    "tried": "full-band flatness (0.00 once the noise was band-limited) and the in-band figure in the whole-sound line",
+    "workaround": "judged by the spectrogram picture and the 8-band table",
+    "severity": 1}],
+ "wishlist": ["a rustle / foliage texture node (dense irregular micro-grains) instead of plain filtered noise", "a per-onset report line of centroid and attack for multi-hit sounds in verify expect", "macro claim for attack time (softness)"],
+ "what_worked": ["adsr with attack/decay and `at` gave the soft attack and a delayed second heel/toe burst at once", "listen descriptors (attack 21 ms, centroid 2.1-2.7 kHz, pitch none) answered the brief's targets directly", "macros with claims verified in one pass"]}

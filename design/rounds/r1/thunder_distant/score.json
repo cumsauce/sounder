@@ -1,0 +1,10 @@
+{"sound": "thunder_distant", "round": 1,
+ "lines": {
+  "checks": {"score": 2, "evidence": "verify defaults: finite, peak_db -1.00, silent_edges -200/-200, dc -98 dB, macro brightness PASS, macro length PASS, rebuild bit-identical; no FAIL."},
+  "time_shape": {"score": 2, "evidence": "13.0 s (brief 6-14); leading silence 5.10 s (silence first); first crack attack 0.155 s, peak at 5.28 s; rumble with a second clap near 10 s decays through to 12.94 s (LUFS 400ms curve falls from -22 to under -48 over about 7.8 s after onset); 0 onsets, 31 events/s of rumble texture."},
+  "spectrum": {"score": 2, "evidence": "centroid 0 (silence) / 38 / 40 Hz start/middle/end, whole-sound 39 Hz (brief: under 150); rolloff 47 Hz; 100% of energy below 200 Hz; dominant band 63 Hz (-26 dB at mid), 125 Hz about 11 dB lower, nothing above 1 kHz (-93 dB). Spectrogram: orange below 63 Hz, nothing above about 700 Hz."},
+  "parts": {"score": 2, "evidence": "Brief names silence, low rumble, long decay: leading silence is a flat black region 0-5.1 s in the spectrogram and wave; the crack/clap at 5.28 s and the rumble tail plus second clap at ~10 s are visible as separate bursts in the wave and LUFS curve."},
+  "control_variation": {"score": 1, "evidence": "3 macros (brightness, length, distance); both claims PASS but brightness is a small centroid move (35 -> 39 Hz) and distance is unclaimed. Seeds differ clearly (leading silence 5.10 / 4.87 / 5.25 / 3.57 s, peak 5.28 / 5.24 / 7.99 / 4.96 s). Seed 3 has attack 2.74 s, peak at 8.0 s, -60 dB never reached and no trailing silence (cut at 13 s), so it does not decay inside the length; seed 4 has a small precursor blip near 3.6 s. Length=1 and distance=1 sweeps also never reach -60 dB / no trailing silence."}
+ },
+ "total": 9,
+ "notes": ["Seed 3 (and length=1, distance=1) ends still sounding at the 13 s cut: no tail decay; summary warns nothing.", "Brightness macro range barely moves the spectrum (centroid 35-39 Hz); effect is mostly the 500 Hz-1 kHz top edge in the picture.", "Seed 4 has a separate precursor blip about 1.3 s before the main strike."]}

@@ -1,0 +1,8 @@
+{"sound":"footstep_concrete","round":1,"finished":true,"calls":26,"failed_calls":0,"difficulty":1,"self_score":7,
+ "nodes_used":["noise","decay","math","filter","osc","contact","modal","mix","output"],
+ "blockers":[
+  {"kind":"sense_gap","where":"listen descriptors (attack)","wanted":"attack time of a two-hit sound","tried":"read the headline 'attack' line","workaround":"used the onset table (1.5 ms / 0.25 ms attacks); the headline said attack 0.090 s with peak at 0.000 s in v1 (inconsistent)","severity":1},
+  {"kind":"wrong_result","where":"output peak_db + fade_in","wanted":"peak -1 dBFS for a hit starting at t=0","tried":"peak_db -1, fade_in 0.0005","workaround":"accepted -2.4 dBFS (normalised before the fade, so the fade cuts the peak); warning also prints fade as '0 ms'","severity":1},
+  {"kind":"doc_gap","where":"macro map on mix input gain","wanted":"map a mix input's gain","tried":"field inputs, index 3, key gain (a guess, worked)","workaround":"none needed","severity":1}],
+ "wishlist":["output peak/lufs normalization after the edge fades","a footstep/foley impact helper (heel-toe pattern)","a numeric 'attack per onset' line in the headline"],
+ "what_worked":["decay's `at` field made the heel/toe timing trivial","contact -> modal stone gave a slab ring in one step","macro claims verify sweep passed first try and the onset table gave per-hit attack/centroid"]}

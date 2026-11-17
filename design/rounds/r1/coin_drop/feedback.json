@@ -1,0 +1,18 @@
+{"sound": "coin_drop", "round": 1, "finished": true,
+ "calls": 20, "failed_calls": 2,
+ "difficulty": 2,
+ "self_score": 7,
+ "nodes_used": ["bounce", "voices", "contact", "modal", "filter", "output"],
+ "blockers": [
+  {"kind": "missing_field", "where": "macro map / voices",
+   "wanted": "a size (pitch) knob on the coin: modal.size lives inside the voices patch",
+   "tried": "macro map node m field size (error: no node named m), then node coins field map with key sz (error: key but no index)",
+   "workaround": "dropped the size macro; used restitution, filter freq and bounce first-gap macros instead",
+   "severity": 2},
+  {"kind": "doc_gap", "where": "modal / material",
+   "wanted": "which modal size/material gives a 3-9 kHz coin; a custom material object works but the lowest-mode formula in the manual (m^2+n^2 with m=n=1 giving 2x) did not match my arithmetic",
+   "tried": "estimated size, rendered, read modes from listen, iterated once (size 0.05 -> 0.041 for lowest mode 2.3k -> 3.5k)",
+   "workaround": "iterate by listen modes line",
+   "severity": 1}],
+ "wishlist": ["macros / params that reach into a voices patch (or a sound-level param usable in a macro map)", "a per-bounce stereo or position spread on bounce -> voices", "a 'settle' event generator: accelerating rattle at the end of a bounce series"],
+ "what_worked": ["bounce -> voices with contact -> modal gave a bouncing coin with shrinking gaps in one batch", "listen's modes line and onsets list measured the 3-9 kHz partials and the bounce times directly", "macro claims verified with a 5-point sweep"]}
