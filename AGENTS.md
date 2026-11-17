@@ -49,7 +49,7 @@ modeler's `MODELER_*`.
    a hit or a mechanism, read "Layering a designed sound": the node is the
    body layer, and a designed sound adds the pre, crack, weight and after
    layers on a dry bus.
-   `describe_op` lists the 109 node types; `describe_op {kind: "filter"}` gives
+   `describe_op` lists the 110 node types; `describe_op {kind: "filter"}` gives
    one's example and schema (`type` and `node` are aliases of `kind`). To
    remove a node put `{"type": "delete", "name": "x"}` in `ops` (one item per
    node; a top-level `delete` is not a field and errors).
@@ -181,7 +181,7 @@ expression exactly as if it began with `=`, so a `voices` patch needs no leading
 a node. The error for an unknown node name shows the hint (`write expressions
 with a leading `=`, e.g. "=1.5 * $value"`).
 
-Families (109 types; groups marked * have a section under "More nodes, by
+Families (110 types; groups marked * have a section under "More nodes, by
 group" below):
 
 - sources: `osc noise impulse sample` and `fm wavetable`*; control `lfo wander
@@ -190,7 +190,7 @@ group" below):
   event_gate seq notes`*; maths `math remap gain`, `expr`.
 - filters `filter onepole comb allpass resonators` and `ladder eq filterbank
   vocoder multiband`*; time `delay convolve`, `reverb` (models)* and `ir`*;
-  nonlinear `shape compress limit` and `ringmod transient gate sub exciter`*;
+  nonlinear `shape compress limit` and `ringmod transient gate sub exciter`*; the bus `finish`*;
   modulation effects `chorus flanger phaser freq_shift`*; lo-fi and loops
   `crossfade_loop resample tape stutter`*.
 - mix `mix pan width` and `haas decorrelate doppler`*; offline `reverse
@@ -264,9 +264,17 @@ Rules (each one a fault the listener heard):
   sticking on its frame, a hand on a handle, a blade sliding): it is what makes
   a hit read as a real event.
 
-The bus: `mix` the layers mono, then `transient` (`attack_db` 3-5), `shape`
-`tube` (`oversample` 4, `mix` 0.2-0.25), an `onepole` hp at 30-40 Hz (the tube
-leaves DC), an optional `eq` peak for the body, then `output`. Balance with a
+The bus: `mix` the layers mono, then **`finish`** (one node: `punch` 0..1,
+`tail_db`, `glue` 0..1, `warmth` 0..1, `weight_db` / `air_db` shelves at 120 Hz
+/ 6 kHz, `width` above 150 Hz for a stereo mix; no reverb), then `output`.
+`{"type": "finish", "input": "dry", "punch": 0.4, "tail_db": -6, "glue": 0.3,
+"warmth": 0.6, "weight_db": 4}` on the door slam's layers measured a mean
+distance of 9.32 dB to the real slams, against 9.23 for the hand-built bus in
+the recipe below (`transient` `attack_db` 3-5, `shape` `tube` `oversample` 4
+`mix` 0.2-0.25, an `onepole` hp at 30-40 Hz for the tube's DC, an `eq` peak).
+Macros on `finish`: `glue` (claim `crest`, -1), `punch` (claim `crest`, 1, but
+leave the claim off on noisy layers: it held on 3 of 4 seeds of the slam),
+`tail_db`, `weight_db`. Details: `docs/nodes/finish.md`. Balance with a
 `gain` (`db`) per layer before the `mix`; give the human one macro per layer
 level (pre, crack, weight, after) and one on the body (`size` or `loss`).
 Measured targets for a heavy wooden impact (the real slam): crest about 16 dB
@@ -1206,6 +1214,35 @@ over) and -0.09 dB between; `gate` took a -50 dB bed to -95 dBFS and moved the
 bursts 0.000 dB; `transient` +6 dB attack raised a noise burst's crest 9.89 to
 14.45 dB. Limits: `transient` ripples on steady tones under ~100 Hz; `gate` has
 no lookahead; `sub` needs the note under ~`lowpass`.
+
+### The finishing bus (`docs/nodes/finish.md`)
+
+- `finish` {input, [punch 0..1], [tail_db -12..12], [glue 0..1], [warmth 0..1],
+  [weight_db -12..12], [air_db -12..12], [width 0..2, stereo input only]}: the
+  bus of "Layering a designed sound" in one node. Each stage runs only when
+  its field is set (all off: the input bit for bit): `transient` attack
+  (8 dB x punch, 5 ms detector), `transient` sustain (`tail_db`), `compress`
+  (threshold 4 + 16 x glue dB under the peak, ratio 1.5 + 2.5 x glue, instant
+  attack), `shape` tube oversampled 4x plus a 20 Hz hp, shelves at 120 Hz and
+  6 kHz, and on a stereo input the band under 150 Hz summed to mono with
+  `width` above. No reverb. `width` on a mono input is an error.
+
+<!-- recipe 0.6 -->
+```json
+[
+  {"type": "noise", "name": "n", "color": "pink", "seed": 4},
+  {"type": "pattern", "name": "taps", "times": [0.01, 0.3]},
+  {"type": "trigger_env", "name": "env", "events": "taps", "attack": 0.001, "decay": 0.25},
+  {"type": "math", "name": "hits", "op": "mul", "a": "n", "b": "env"},
+  {"type": "finish", "name": "fin", "input": "hits", "punch": 0.5, "tail_db": -6, "glue": 0.3, "warmth": 0.5, "weight_db": 3}
+]
+```
+
+Measured (`tests/finish.rs`): crest 22.08 / 23.71 / 24.71 dB at punch 0 / .5 /
+1 and 22.08 / 19.84 / 19.33 dB at glue 0 / .5 / 1; `tail_db` -6 took the tail
+down 3.9 dB (two thirds: noise jitter reads as rising level) and left the
+attack; shelves +5.9 dB where set, 0.01 dB at 1 kHz; width 2 doubled the side
+above 150 Hz (+6.0 dB) with the side under 60 Hz 34 dB under the mid.
 
 ### Shape, oversampling, ring modulation (`docs/nodes/S3.md`, `ringmod.md`)
 

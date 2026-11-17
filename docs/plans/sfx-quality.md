@@ -92,6 +92,12 @@ human can dial it.
   `weight_db` (low shelf), `width` 0..2 applied **above 150 Hz only** (low band
   stays mono). No reverb inside `finish`: Phase 0 showed SFX should be dry by
   default.
+- **Done (2026-11-17).** As built it differs from the above: an added
+  `tail_db` (a second `transient` stage at the default speed; `punch` runs at
+  `speed` 0.005 so it catches the first milliseconds), and `glue` uses an
+  instant attack (a 10 ms attack raised the crest instead of lowering it).
+  `width` on a mono input is an error. Measured in `docs/nodes/finish.md`; on
+  the door slam's layers it matched the hand-built bus (9.32 vs 9.23 dB).
 - Registration steps: struct with `Describe` + `Eval` (pattern: `Haas`,
   `crates/sfx_graph/src/nodes/motion.rs:292`), `mod`/`pub use` in
   `nodes/mod.rs`, a line in `node_types!` (`crates/sfx_graph/src/node.rs:231`).

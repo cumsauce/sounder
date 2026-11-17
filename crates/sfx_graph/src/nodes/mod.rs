@@ -84,6 +84,8 @@ mod mechanism;
 
 // slot R2D
 mod crackle;
+// Phase 2: the finishing bus.
+mod finish;
 
 pub use control::*;
 pub use envelopes::*;
@@ -168,6 +170,7 @@ pub use mechanism::*;
 
 // slot R2D
 pub use crackle::*;
+pub use finish::*;
 
 use serde::Deserialize;
 
