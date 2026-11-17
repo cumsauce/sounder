@@ -199,3 +199,62 @@ fn the_driver_script_builds_checks_undoes_saves_and_exports() {
     assert!(ok(25));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn the_phase_3_nodes_work_through_the_driver() {
+    let dir = temp_dir("phase3");
+    let calls: Value = serde_json::from_slice(
+        &std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/calls/phase3.json"))
+            .unwrap(),
+    )
+    .unwrap();
+    let Some(r) = drive(&calls, &dir) else {
+        return;
+    };
+    let ok = |i: usize| r[i]["ok"].as_bool().unwrap_or(false);
+    let t = |i: usize| text_of(&r[i]);
+    assert!(ok(0) && ok(1), "{} {}", t(0), t(1));
+    // A loop of voices (poisson -> voices) passes its seam check, and a loop's
+    // defaults are loop_seam rather than silent_edges.
+    assert!(ok(2), "{}", t(2));
+    assert!(ok(3), "{}", t(3));
+    assert!(
+        t(3).contains("PASS loop_seam") && !t(3).contains("silent_edges"),
+        "{}",
+        t(3)
+    );
+    // A Karplus-Strong string (a feedback loop through a delay) reads its pitch.
+    assert!(ok(4), "{}", t(4));
+    assert!(ok(5), "{}", t(5));
+    assert!(t(5).contains("PASS pitch"), "{}", t(5));
+    // `sound` instances another open sound; the name is not a node reference.
+    assert!(ok(6), "{}", t(6));
+    assert!(
+        ok(7) && t(7).contains("a (sound)") && !t(7).contains("<- thud"),
+        "{}",
+        t(7)
+    );
+    // expr, grains and spectral nodes render.
+    assert!(ok(8), "{}", t(8));
+    assert!(ok(9), "{}", t(9));
+    assert!(ok(10), "{}", t(10));
+    assert!(ok(11), "pitch_shift +12 of 300 Hz: {}", t(11));
+    // Errors say what to do.
+    assert!(
+        !ok(12) && t(12).contains("cycle without a delay") && t(12).contains("delay"),
+        "{}",
+        t(12)
+    );
+    assert!(
+        !ok(13) && t(13).contains("10 events but max is 4") && t(13).contains("raise max"),
+        "{}",
+        t(13)
+    );
+    assert!(
+        !ok(14) && t(14).contains("would instance itself"),
+        "{}",
+        t(14)
+    );
+    assert!(ok(15) && r[15]["n_images"] == 1, "{}", t(15));
+    let _ = std::fs::remove_dir_all(&dir);
+}

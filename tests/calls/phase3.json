@@ -1,0 +1,466 @@
+[
+ {
+  "name": "new_sound",
+  "args": {
+   "name": "thud"
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "ops": [
+    {
+     "type": "osc",
+     "name": "o",
+     "freq": 90,
+     "amp": 0.8
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.15
+    },
+    {
+     "type": "math",
+     "name": "m",
+     "op": "mul",
+     "a": "o",
+     "b": "e"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "m",
+     "lufs": -18
+    }
+   ]
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "sound": "rain",
+   "kind": "loop",
+   "duration": 2,
+   "ops": [
+    {
+     "type": "noise",
+     "name": "hiss",
+     "color": "pink",
+     "seed": 1
+    },
+    {
+     "type": "filter",
+     "name": "bed",
+     "input": "hiss",
+     "mode": "bp",
+     "freq": 3500,
+     "q": 0.4
+    },
+    {
+     "type": "poisson",
+     "name": "drops",
+     "rate": 60,
+     "seed": 3,
+     "values": {
+      "min": 0.3,
+      "max": 1.0
+     }
+    },
+    {
+     "type": "voices",
+     "name": "rain",
+     "events": "drops",
+     "length": 0.05,
+     "max": 300,
+     "seed": 4,
+     "map": {
+      "hz": "1500 + $rand * 5500"
+     },
+     "patch": [
+      {
+       "type": "noise",
+       "name": "n",
+       "color": "white"
+      },
+      {
+       "type": "filter",
+       "name": "tick",
+       "input": "n",
+       "mode": "bp",
+       "freq": "$hz",
+       "q": 4
+      },
+      {
+       "type": "decay",
+       "name": "shape",
+       "time": 0.012
+      },
+      {
+       "type": "math",
+       "name": "drop",
+       "op": "mul",
+       "a": "tick",
+       "b": "shape"
+      },
+      {
+       "type": "gain",
+       "name": "level",
+       "input": "drop",
+       "gain": "$value"
+      }
+     ]
+    },
+    {
+     "type": "mix",
+     "name": "mixed",
+     "inputs": [
+      {
+       "input": "bed",
+       "gain": 0.35
+      },
+      "rain"
+     ]
+    },
+    {
+     "type": "onepole",
+     "name": "no_dc",
+     "input": "mixed",
+     "mode": "hp",
+     "freq": 30
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "no_dc",
+     "lufs": -24
+    }
+   ],
+   "expect": {
+    "loop_seam": true
+   }
+  }
+ },
+ {
+  "name": "verify",
+  "args": {}
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "sound": "string",
+   "duration": 0.6,
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "seed": 5
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.004
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "mix",
+     "name": "m",
+     "inputs": [
+      "burst",
+      "g"
+     ]
+    },
+    {
+     "type": "delay",
+     "name": "d",
+     "input": "m",
+     "time": 0.0022727
+    },
+    {
+     "type": "onepole",
+     "name": "lp",
+     "input": "d",
+     "mode": "lp",
+     "freq": 9000
+    },
+    {
+     "type": "gain",
+     "name": "g",
+     "input": "lp",
+     "gain": 0.997
+    },
+    {
+     "type": "onepole",
+     "name": "hp",
+     "input": "g",
+     "mode": "hp",
+     "freq": 30
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hp",
+     "lufs": -20
+    }
+   ]
+  }
+ },
+ {
+  "name": "verify",
+  "args": {
+   "pitch": {
+    "hz": 440,
+    "tol_cents": 25
+   },
+   "finite": true
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "sound": "layers",
+   "duration": 0.7,
+   "ops": [
+    {
+     "type": "sound",
+     "name": "a",
+     "sound": "thud"
+    },
+    {
+     "type": "sound",
+     "name": "b",
+     "sound": "thud",
+     "at": 0.3,
+     "gain_db": -6
+    },
+    {
+     "type": "mix",
+     "name": "m",
+     "inputs": [
+      "a",
+      "b"
+     ]
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "m"
+    }
+   ]
+  }
+ },
+ {
+  "name": "summary",
+  "args": {}
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "sound": "wobble",
+   "ops": [
+    {
+     "type": "expr",
+     "name": "w",
+     "inputs": {},
+     "out": "sin(2 * pi * 220 * t) * (0.5 + 0.5 * sin(2 * pi * 3 * t)) * 0.5"
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.4
+    },
+    {
+     "type": "math",
+     "name": "m",
+     "op": "mul",
+     "a": "w",
+     "b": "e"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "m",
+     "lufs": -20
+    }
+   ]
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "sound": "cloud",
+   "duration": 1.0,
+   "ops": [
+    {
+     "type": "noise",
+     "name": "src",
+     "color": "pink",
+     "seed": 2
+    },
+    {
+     "type": "poisson",
+     "name": "ev",
+     "rate": 40,
+     "seed": 1
+    },
+    {
+     "type": "grains",
+     "name": "g",
+     "source": "src",
+     "events": "ev",
+     "size": 0.03,
+     "pan_spread": 0.6
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "g",
+     "lufs": -24
+    }
+   ]
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "sound": "shift",
+   "ops": [
+    {
+     "type": "osc",
+     "name": "o",
+     "freq": 300,
+     "amp": 0.5
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.3
+    },
+    {
+     "type": "math",
+     "name": "m",
+     "op": "mul",
+     "a": "o",
+     "b": "e"
+    },
+    {
+     "type": "pitch_shift",
+     "name": "up",
+     "input": "m",
+     "semitones": 12
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "up",
+     "lufs": -20
+    }
+   ]
+  }
+ },
+ {
+  "name": "verify",
+  "args": {
+   "pitch": {
+    "hz": 600,
+    "tol_cents": 40
+   }
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "sound": "badloop",
+   "duration": 0.2,
+   "ops": [
+    {
+     "type": "impulse",
+     "name": "i"
+    },
+    {
+     "type": "mix",
+     "name": "a",
+     "inputs": [
+      "i",
+      "c"
+     ]
+    },
+    {
+     "type": "gain",
+     "name": "c",
+     "input": "a",
+     "gain": 0.5
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "c"
+    }
+   ]
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "sound": "toomany",
+   "duration": 1.5,
+   "ops": [
+    {
+     "type": "pattern",
+     "name": "ev",
+     "every": 0.1,
+     "count": 10
+    },
+    {
+     "type": "voices",
+     "name": "v",
+     "events": "ev",
+     "max": 4,
+     "patch": [
+      {
+       "type": "impulse",
+       "name": "i"
+      }
+     ]
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "v"
+    }
+   ]
+  }
+ },
+ {
+  "name": "sound_ops",
+  "args": {
+   "sound": "selfref",
+   "duration": 0.2,
+   "ops": [
+    {
+     "type": "sound",
+     "name": "s",
+     "sound": "selfref"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "s"
+    }
+   ]
+  }
+ },
+ {
+  "name": "listen",
+  "args": {
+   "doc": "cloud",
+   "descriptors": false
+  }
+ }
+]

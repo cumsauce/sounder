@@ -423,7 +423,7 @@ pub fn evaluate(
                 let first = job[0].0;
                 if loops.of[first].is_some() {
                     let members: Vec<usize> = job.iter().map(|&(i, _)| i).collect();
-                    let outs = crate::feedback::eval_loop(&members, &parsed, &ports, sr, ctx.n)?;
+                    let outs = crate::feedback::eval_loop(&members, &parsed, &ports, sr, ctx.n, ctx.seed)?;
                     return Ok(job
                         .iter()
                         .zip(outs)

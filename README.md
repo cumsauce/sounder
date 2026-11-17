@@ -166,9 +166,9 @@ instancing came after the merge because they reach into the evaluator.
   through a `delay` (else "nodes form a cycle without a delay: a -> c -> b -> a");
   a loop is evaluated per sample (delays read before written) and cached as one
   unit. Only these have a per-sample form and may sit in a loop: `delay filter
-  onepole comb allpass gain math mix shape remap slew follower` (others error
-  naming the node and listing them). `expr` and the other lanes' nodes are not in
-  the loop set yet. Mono only.
+  onepole comb allpass gain math mix shape remap slew follower expr` (others error
+  naming the node and listing them). `expr` is in the loop set (its per-sample state
+  runs inside the loop); the spectral, event and `voices` nodes are not. Mono only.
 - **Evaluator context.** `Ctx` gained `params`, `sounds` (a `SoundSource`) and
   `stack`; `Ctx::default()` exists for tests. `RenderOpts` gained `sounds` and
   `stack`. The session passes `Session::render_opts()` everywhere and keys its

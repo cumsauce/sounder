@@ -21,15 +21,15 @@ use crate::dsp::{DelayLine, Follower, OnePole, Svf};
 use crate::eval::{Parsed, Ports};
 use crate::node::{In, Node};
 use crate::nodes::{
-    Allpass, Comb, Filter, Follower as FollowerNode, Gain, MathOp, Mix, MixIn, Onepole, PoleMode,
-    Remap, Shape, ShapeMode, Slew, To,
+    Allpass, Comb, ExprProg, ExprState, Filter, Follower as FollowerNode, Gain, MathOp, Mix, MixIn,
+    Onepole, PoleMode, Remap, Shape, ShapeMode, Slew, To,
 };
 use crate::{db_to_gain, nodes};
 
 /// Node types that may sit inside a feedback loop.
 pub const LOOP_TYPES: &[&str] = &[
     "delay", "filter", "onepole", "comb", "allpass", "gain", "math", "mix", "shape", "remap",
-    "slew", "follower",
+    "slew", "follower", "expr",
 ];
 
 /// The loops of a graph.
@@ -520,6 +520,23 @@ impl Ticker for FollowerT {
     }
 }
 
+struct ExprT {
+    prog: ExprProg,
+    st: ExprState,
+    inputs: Vec<In>,
+    vals: Vec<f64>,
+    sr: f64,
+}
+
+impl Ticker for ExprT {
+    fn out(&mut self, i: usize, env: &Env) -> f32 {
+        for (v, x) in self.vals.iter_mut().zip(&self.inputs) {
+            *v = f64::from(env.get(i, x));
+        }
+        self.st.tick(&self.prog, i as f64 / self.sr, &self.vals) as f32
+    }
+}
+
 struct CombT {
     n: Comb,
     line: DelayLine,
@@ -561,7 +578,7 @@ impl Ticker for AllpassT {
     }
 }
 
-fn ticker(node: &Node, b: &Build) -> Result<Box<dyn Ticker>, String> {
+fn ticker(node: &Node, b: &Build, node_seed: u64) -> Result<Box<dyn Ticker>, String> {
     let sr = b.sr;
     Ok(match node {
         Node::Delay(n) => {
@@ -636,6 +653,18 @@ fn ticker(node: &Node, b: &Build) -> Result<Box<dyn Ticker>, String> {
             f: Follower::new(),
             sr,
         }),
+        Node::Expr(n) => {
+            let names: Vec<&str> = n.inputs.keys().map(String::as_str).collect();
+            let prog = ExprProg::compile(&names, &n.state, &n.out, &n.update, f64::from(sr))?;
+            let st = prog.start(crate::mix_seed(node_seed, n.seed));
+            Box::new(ExprT {
+                prog,
+                st,
+                inputs: n.inputs.values().cloned().collect(),
+                vals: vec![0.0; n.inputs.len()],
+                sr: f64::from(sr),
+            })
+        }
         Node::Comb(n) => {
             let secs = match (&n.freq, &n.time) {
                 (Some(f), None) => b.longest("freq", f, true)?,
@@ -694,6 +723,7 @@ pub fn eval_loop(
     ports: &HashMap<String, Ports>,
     sr: f32,
     n: usize,
+    seed: u64,
 ) -> Result<Vec<Ports>, String> {
     let names: HashMap<&str, usize> = members
         .iter()
@@ -729,7 +759,8 @@ pub fn eval_loop(
     for &m in members {
         let p = &parsed[m];
         tickers.push(
-            ticker(&p.node, &build).map_err(|e| format!("node `{}` ({}): {e}", p.name, p.ty))?,
+            ticker(&p.node, &build, crate::eval::node_seed(seed, &p.name))
+                .map_err(|e| format!("node `{}` ({}): {e}", p.name, p.ty))?,
         );
     }
     let delays: Vec<usize> = members

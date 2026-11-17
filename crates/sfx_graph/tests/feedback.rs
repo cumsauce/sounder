@@ -190,3 +190,36 @@ fn the_loop_reads_outside_signals_per_sample() {
     let e3 = e2 * k(960);
     assert!((d[1440] - e3).abs() < 1e-4, "{} vs {e3}", d[1440]);
 }
+
+#[test]
+fn expr_can_sit_in_a_loop_and_matches_the_equivalent_nodes() {
+    // A saturating echo: delay -> (gain 0.9 -> tanh) -> mix, written once with
+    // gain + shape nodes and once as a single expr in the loop.
+    let nodes = vec![
+        json!({"type": "impulse", "name": "i", "at": [0.0, 0.03]}),
+        json!({"type": "mix", "name": "m1", "inputs": ["i", "s"]}),
+        json!({"type": "delay", "name": "d1", "input": "m1", "time": 0.005}),
+        json!({"type": "gain", "name": "g", "input": "d1", "gain": 0.9}),
+        json!({"type": "shape", "name": "s", "input": "g", "mode": "tanh"}),
+        json!({"type": "mix", "name": "m2", "inputs": ["i", "e"]}),
+        json!({"type": "delay", "name": "d2", "input": "m2", "time": 0.005}),
+        json!({"type": "expr", "name": "e", "inputs": {"a": "d2"}, "out": "tanh(a * 0.9)"}),
+    ];
+    let ev = eval(&nodes, 0.2, false).unwrap();
+    let (a, b) = (audio(&ev, "d1"), audio(&ev, "d2"));
+    assert!(a.iter().any(|v| v.abs() > 0.1));
+    for (i, (x, y)) in a.iter().zip(&b).enumerate() {
+        assert!((x - y).abs() < 1e-5, "sample {i}: {x} vs {y}");
+    }
+    // State lives per sample inside the loop too: a one-pole smoother in expr.
+    let nodes = vec![
+        json!({"type": "impulse", "name": "i"}),
+        json!({"type": "mix", "name": "m", "inputs": ["i", "g"]}),
+        json!({"type": "delay", "name": "d", "input": "m", "time": 0.002}),
+        json!({"type": "expr", "name": "g", "inputs": {"a": "d"}, "state": {"y1": 0.0},
+               "out": "y1 + 0.3 * (a * 0.95 - y1)", "update": {"y1": "y1 + 0.3 * (a * 0.95 - y1)"}}),
+    ];
+    let ev = eval(&nodes, 0.1, false).unwrap();
+    let d = audio(&ev, "d");
+    assert!(d.iter().all(|v| v.is_finite()) && d.iter().any(|v| v.abs() > 0.05));
+}

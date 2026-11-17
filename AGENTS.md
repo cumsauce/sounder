@@ -136,7 +136,8 @@ The loop reads `burst` (outside it) per sample, so an outside `ramp` or `lfo`
 can modulate anything in the loop.
 
 - **Loop-capable nodes** (the rest error naming the node and listing these):
-  `delay filter onepole comb allpass gain math mix shape remap slew follower`.
+  `delay filter onepole comb allpass gain math mix shape remap slew follower
+  expr`.
   Loops are mono; `mix` inside one takes no `pan` / `at` (do those after it).
 - A loop's gain must stay under 1 or it blows up; the output limiter then
   holds it and `summary` warns the sound never decays. A burst's DC rings in a
