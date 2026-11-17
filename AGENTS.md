@@ -45,7 +45,10 @@ modeler's `MODELER_*`.
 1. `summary` — what is open, what the human asked for (open comments).
 2. `new_sound` (or `sound_ops` with `sound: "name"`), then `sound_ops` to build.
    Look at "Which ready-made node for which sound" first: a brief that fits a
-   ready-made node is one node and a few knobs, not a rebuilt graph.
+   ready-made node starts from that node, not a rebuilt graph. For an impact,
+   a hit or a mechanism, read "Layering a designed sound": the node is the
+   body layer, and a designed sound adds the pre, crack, weight and after
+   layers on a dry bus.
    `describe_op` lists the 109 node types; `describe_op {kind: "filter"}` gives
    one's example and schema (`type` and `node` are aliases of `kind`). To
    remove a node put `{"type": "delete", "name": "x"}` in `ops` (one item per
@@ -224,11 +227,179 @@ Recipes (the JSON in the sections below renders as written):
 - **Edges:** the output fades 2 ms in and 5 ms out by default (0 for loops);
   set `fade_in: 0.0005` for a hit at t = 0.
 
+## Layering a designed sound
+
+A finished game or film SFX is several layers, each owning a band and a time
+slot, through one dry bus. One node (or one chain) gets you a correct sound;
+layers get you a designed one. In the Phase 0 test (`docs/plans/phase0-results.md`)
+the single-chain door slam an agent built in round 0 sat 14.6 dB (STFT
+distance) from real door slams. The layered rebuild sat 9.2 dB, closer than
+one real slam is to the others (10.4), and the listener called it "basically
+perfect". The listener's ears, not the distance, found the four faults the
+first layered version still had: they are the rules below.
+
+| Role | Band | When | Made from |
+|---|---|---|---|
+| **pre** (anticipation) | 1.5-5 kHz | 5-50 ms before the hit | `friction` + noise under an `env`: a door brushing its frame, a blade sliding |
+| **crack** (transient) | 2-6 kHz | the first 5-25 ms | white noise x a fast `decay` (`time` 0.008-0.03) through a `filter` bp or hp |
+| **body** (the object) | 150 Hz-2 kHz | 50-500 ms | `modal` with the right `material`, struck by a **noise burst**; or a ready-made node |
+| **weight** | 60-350 Hz | 100-500 ms | band-limited noise: brown noise x `decay` through a `filter` lp (`slope` 24), pink noise through a wide bp |
+| **after** (settle, debris, ring) | any | after the body | a second small hit (`contact` -> small `modal`), `voices`, or the body's own ring |
+
+Rules (each one a fault the listener heard):
+
+- **Dry and mono by default.** No `reverb` unless the brief names a space: the
+  game puts the sound in its room. A tail is the object's own ring or an
+  after-layer, not a reverb.
+- **Impacts are atonal.** A sine sub drop plus a few clean `modal` modes read
+  as "a tuned drum". Build weight from band-limited noise, excite `modal` with
+  a noise burst (not a lone `impulse` or `contact`), keep its `loss` at 1.2 or
+  more for wood. Check `listen`: a wooden impact should read `voiced` near 0
+  (the real slam 0.15; the tuned-drum version 0.9).
+- **Keep materials apart.** `click` (its resonators are 1.5-8 kHz) and a hard
+  `crumple` (hardness 0.9) read as "a chime, rusted metal pieces clinking":
+  keep them out of wood, cloth and flesh sounds. A wooden second hit is a small
+  `contact` -> `modal` wood, low-passed.
+- **Add the detail before the hit** where the object would make it (a door
+  sticking on its frame, a hand on a handle, a blade sliding): it is what makes
+  a hit read as a real event.
+
+The bus: `mix` the layers mono, then `transient` (`attack_db` 3-5), `shape`
+`tube` (`oversample` 4, `mix` 0.2-0.25), an `onepole` hp at 30-40 Hz (the tube
+leaves DC), an optional `eq` peak for the body, then `output`. Balance with a
+`gain` (`db`) per layer before the `mix`; give the human one macro per layer
+level (pre, crack, weight, after) and one on the body (`size` or `loss`).
+Measured targets for a heavy wooden impact (the real slam): crest about 16 dB
+(21.6 for the rebuild), energy under 200 Hz / 200 Hz-2 kHz / 2-8 kHz near
+38 / 56 / 5.5 %, -20 dB about 200 ms after the hit.
+
+**When one node is still right:** ambience and loops (`fire`, `wind`, `water`),
+UI blips, a single texture, or a brief that names one ready-made sound
+(`footstep`, `explosion`): use it as the body layer and add layers only if the
+brief asks for more weight or detail. When a project has reference recordings
+(`refs/`), tune the layer levels against them (`verify` `expect reference`):
+the distance is a coarse gate (about 10 dB is the spread between real
+recordings of one event), not a judge.
+
+A heavy wooden door slam (`slam_b2` in Phase 0; macros: `stick` -> `scr_g`
+db, `weight` -> `thd_g` db, `snap` -> `crk_g` db, `knock` -> `knock_g` db):
+
+<!-- recipe 0.8 -->
+```json
+[
+  {"type": "env", "name": "scr_env", "points": [[0, 0], [0.008, 0], [0.02, 1], [0.042, 0.7], [0.05, 0]], "curve": "smooth"},
+  {"type": "math", "name": "scr_speed", "op": "mul", "a": "scr_env", "b": 1.4},
+  {"type": "friction", "name": "scr_f", "speed": "scr_speed", "pressure": "scr_env", "roughness": 0.85, "grain": 800},
+  {"type": "noise", "name": "scr_n", "color": "pink"},
+  {"type": "math", "name": "scr_nb", "op": "mul", "a": "scr_n", "b": "scr_env"},
+  {"type": "mix", "name": "scr_m", "inputs": [{"input": "scr_f", "gain": 0.6}, {"input": "scr_nb", "gain": 0.5}]},
+  {"type": "filter", "name": "scr", "input": "scr_m", "mode": "bp", "freq": 1956, "q": 0.6},
+  {"type": "gain", "name": "scr_g", "input": "scr", "db": -10},
+  {"type": "noise", "name": "crk_n", "color": "white"},
+  {"type": "decay", "name": "crk_e", "time": 0.008, "at": 0.05},
+  {"type": "math", "name": "crk_raw", "op": "mul", "a": "crk_n", "b": "crk_e"},
+  {"type": "filter", "name": "crk", "input": "crk_raw", "mode": "bp", "freq": 1928, "q": 0.5},
+  {"type": "gain", "name": "crk_g", "input": "crk", "db": -3},
+  {"type": "noise", "name": "hit_n", "color": "pink"},
+  {"type": "decay", "name": "hit_e", "time": 0.012, "at": 0.05},
+  {"type": "math", "name": "hit_burst", "op": "mul", "a": "hit_n", "b": "hit_e"},
+  {"type": "modal", "name": "panel", "excite": "hit_burst", "material": "wood", "size": 0.5, "loss": 1.69, "modes": 96, "strike_position": 0.31, "gain_db": -10.7},
+  {"type": "decay", "name": "body_e", "time": 0.59, "at": 0.05},
+  {"type": "math", "name": "body_raw", "op": "mul", "a": "hit_n", "b": "body_e"},
+  {"type": "filter", "name": "body_bp", "input": "body_raw", "mode": "bp", "freq": 344, "q": 0.5},
+  {"type": "gain", "name": "body_g", "input": "body_bp", "db": 6.35},
+  {"type": "noise", "name": "thd_n", "color": "brown"},
+  {"type": "decay", "name": "thd_e", "time": 0.44, "at": 0.05},
+  {"type": "math", "name": "thd_raw", "op": "mul", "a": "thd_n", "b": "thd_e"},
+  {"type": "filter", "name": "thd", "input": "thd_raw", "mode": "lp", "freq": 192, "slope": 24},
+  {"type": "gain", "name": "thd_g", "input": "thd", "db": -6.6},
+  {"type": "contact", "name": "knock_c", "speed": 1, "mass": 0.3, "material": "wood", "hardness": 0.6, "at": 0.078},
+  {"type": "modal", "name": "knock_m", "excite": "knock_c", "material": "wood", "size": 0.54, "loss": 3},
+  {"type": "filter", "name": "knock", "input": "knock_m", "mode": "lp", "freq": 3500},
+  {"type": "gain", "name": "knock_g", "input": "knock", "db": -7.4},
+  {"type": "mix", "name": "dry", "inputs": ["scr_g", "crk_g", "panel", "body_g", "thd_g", "knock_g"], "to": "mono"},
+  {"type": "transient", "name": "punch", "input": "dry", "attack_db": 3.1, "sustain_db": -6},
+  {"type": "shape", "name": "warm", "input": "punch", "mode": "tube", "drive": 1.5, "oversample": 4, "mix": 0.25},
+  {"type": "onepole", "name": "dc", "input": "warm", "mode": "hp", "freq": 30},
+  {"type": "eq", "name": "tone", "input": "dc", "bands": [{"mode": "peak", "freq": 200, "gain_db": 5.6, "q": 0.8}, {"mode": "lp", "freq": 10000}]},
+  {"type": "output", "name": "out", "input": "tone", "lufs": -28}
+]
+```
+
+A sword clash (metal, so here the body **should** ring and be inharmonic:
+two `modal` bars a non-integer ratio apart; macro: `ring` -> both bars'
+`loss`, exp, 1.5 to 0.25, unclaimed: the thump and crack hold the whole-sound
+`decay` at the low end):
+
+<!-- recipe 0.6 -->
+```json
+[
+  {"type": "env", "name": "scr_env", "points": [[0, 0], [0.02, 0], [0.04, 1], [0.25, 0.3], [0.32, 0]], "curve": "smooth"},
+  {"type": "friction", "name": "scr_f", "speed": "scr_env", "pressure": "scr_env", "roughness": 0.6, "grain": 1800},
+  {"type": "filter", "name": "scr", "input": "scr_f", "mode": "bp", "freq": 4000, "q": 0.8},
+  {"type": "gain", "name": "scr_g", "input": "scr", "db": -8},
+  {"type": "noise", "name": "n", "color": "white"},
+  {"type": "decay", "name": "crk_e", "time": 0.012, "at": 0.005},
+  {"type": "math", "name": "crk_raw", "op": "mul", "a": "n", "b": "crk_e"},
+  {"type": "filter", "name": "crk", "input": "crk_raw", "mode": "hp", "freq": 2500},
+  {"type": "gain", "name": "crk_g", "input": "crk", "db": -6},
+  {"type": "decay", "name": "hit_e", "time": 0.004, "at": 0.005},
+  {"type": "math", "name": "hit_burst", "op": "mul", "a": "n", "b": "hit_e"},
+  {"type": "modal", "name": "blade_a", "excite": "hit_burst", "material": "metal", "shape": "bar", "f0": 1750, "loss": 0.6, "tilt": 3, "gain_db": -4},
+  {"type": "modal", "name": "blade_b", "excite": "hit_burst", "material": "metal", "shape": "bar", "f0": 2630, "loss": 0.8, "tilt": 3, "gain_db": -8},
+  {"type": "noise", "name": "thd_n", "color": "brown"},
+  {"type": "decay", "name": "thd_e", "time": 0.15, "at": 0.005},
+  {"type": "math", "name": "thd_raw", "op": "mul", "a": "thd_n", "b": "thd_e"},
+  {"type": "filter", "name": "thd", "input": "thd_raw", "mode": "lp", "freq": 250, "slope": 24},
+  {"type": "gain", "name": "thd_g", "input": "thd", "db": 4},
+  {"type": "mix", "name": "dry", "inputs": ["scr_g", "crk_g", "blade_a", "blade_b", "thd_g"], "to": "mono"},
+  {"type": "gain", "name": "trim", "input": "dry", "db": -8},
+  {"type": "transient", "name": "punch", "input": "trim", "attack_db": 4},
+  {"type": "shape", "name": "warm", "input": "punch", "mode": "tube", "drive": 1.5, "oversample": 4, "mix": 0.2},
+  {"type": "onepole", "name": "dc", "input": "warm", "mode": "hp", "freq": 40},
+  {"type": "output", "name": "out", "input": "dc", "peak_db": -1.5}
+]
+```
+
+A UI confirm (tonal on purpose: a tick, two rising notes a fifth apart, a short
+low body, and an echo as the after-layer instead of a reverb; give each note a
+3 ms `env` attack, since a `decay` starting at `at` clicks and the echo repeats
+the click; macro: `brightness` -> both notes' `freq`, exp, claim `centroid` 1):
+
+<!-- recipe 0.8 -->
+```json
+[
+  {"type": "noise", "name": "n", "color": "white"},
+  {"type": "decay", "name": "tick_e", "time": 0.004, "at": 0.005},
+  {"type": "math", "name": "tick_raw", "op": "mul", "a": "n", "b": "tick_e"},
+  {"type": "filter", "name": "tick", "input": "tick_raw", "mode": "hp", "freq": 4000},
+  {"type": "gain", "name": "tick_g", "input": "tick", "db": -14},
+  {"type": "osc", "name": "note1_o", "shape": "tri", "freq": 880},
+  {"type": "env", "name": "note1_env", "points": [[0, 0], [0.005, 0], [0.008, 1], [0.3, 0]]},
+  {"type": "math", "name": "note1", "op": "mul", "a": "note1_o", "b": "note1_env"},
+  {"type": "osc", "name": "note2_o", "shape": "tri", "freq": 1320},
+  {"type": "env", "name": "note2_env", "points": [[0, 0], [0.075, 0], [0.078, 1], [0.45, 0]]},
+  {"type": "math", "name": "note2", "op": "mul", "a": "note2_o", "b": "note2_env"},
+  {"type": "osc", "name": "body_o", "freq": 220},
+  {"type": "decay", "name": "body_e", "time": 0.09, "at": 0.005},
+  {"type": "math", "name": "body", "op": "mul", "a": "body_o", "b": "body_e"},
+  {"type": "gain", "name": "body_g", "input": "body", "db": -12},
+  {"type": "mix", "name": "notes", "inputs": [{"input": "note1", "gain": 0.5}, {"input": "note2", "gain": 0.5}]},
+  {"type": "delay", "name": "echo", "input": "notes", "time": 0.11, "feedback": 0.25},
+  {"type": "filter", "name": "echo_lp", "input": "echo", "mode": "lp", "freq": 3000},
+  {"type": "gain", "name": "echo_g", "input": "echo_lp", "db": -12},
+  {"type": "mix", "name": "dry", "inputs": ["tick_g", "notes", "body_g", "echo_g"], "to": "mono"},
+  {"type": "output", "name": "out", "input": "dry", "peak_db": -3}
+]
+```
+
+`examples/door_slam.rs` renders the door slam and checks it.
+
 ## Which ready-made node for which sound
 
 Round-1 testers built every footstep from primitives and never tried `fire` or
 `footstep`: the nodes below exist so that a brief that names one of these
-sounds is one node plus a few knobs. **Building from primitives is still
+sounds starts from one node (the body layer) plus a few knobs. **Building from primitives is still
 fine** (and right for anything not listed: a laser, a UI blip, a whoosh, a
 drone); `describe_op {kind}` gives each node's fields and an example, and the
 sections below give the measured limits. None of these has been heard: pick by
@@ -257,8 +428,10 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 | a swarm, a swell, a granular wash | `cloud`, `grains` | `source`, `density` (signal), `size`, `pitch_spread` | grains from any node or WAV |
 | a vowel, a creature call | `glottis` into `tract` | `f0` (signal), `tension`, `vowel`, `scale` | "Foley models" |
 
-Scene sounds layer these: a door slam is a `click` (the latch) under a `modal`
-thud, a campfire is `fire` plus a few `spark`s, rain is `poisson` into `voices`.
+Scene sounds layer these: a door slam is the layered recipe in "Layering a
+designed sound" (not a `click` latch under a `modal` thud: that read as metal
+and as a tuned drum), a campfire is `fire` plus a few `spark`s, rain is
+`poisson` into `voices`.
 One `sound` per layer and a `mix` with `gain` / `at` keeps each one editable.
 
 Layer levels: the ready-made nodes are not normalized and sit at different
