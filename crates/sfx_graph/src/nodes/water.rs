@@ -264,7 +264,16 @@ pub struct Water {
     /// Make the result periodic over the document length: bubble tails wrap
     /// to the start and the hiss filter sees the end as its past. Default:
     /// follows the document (`kind: loop` loops). Give a constant `flow`, or
-    /// one that returns to its start value, for a clean seam.
+    /// one that returns to its start value, for a clean seam. The node's own
+    /// output is periodic, but a node AFTER it is not: a filter (or any
+    /// recursive node) starts from zero state, so its output has a startup
+    /// at the wrap and `loop_seam` fails (measured: hp 250 Hz + lp 6 kHz
+    /// after it failed 35 % of 480 seeds / flows / densities; with
+    /// `crossfade_loop` after the filters, 1 of 480). End the chain with
+    /// `crossfade_loop`. `splash` is a sparse random event: in a short loop
+    /// a splash in one end window and none in the other can fail the
+    /// spectral half of `loop_seam` (about 17 % of cases at splash 0.5):
+    /// raise `splash` and `flow`, or crossfade.
     #[serde(default, rename = "loop")]
     pub looped: Option<bool>,
     /// Mixed with the document seed and the node name (default 0).
@@ -273,7 +282,7 @@ pub struct Water {
 }
 
 impl Describe for Water {
-    const BLURB: &'static str = "running water: a bubble population (Minnaert resonances) plus hiss; flow sets rate and size, depth the size and tone; optional splashes and loop";
+    const BLURB: &'static str = "running water: a bubble population (Minnaert resonances) plus hiss; flow sets rate and size, depth the size and tone; optional splashes and loop (periodic by itself; filters after it need crossfade_loop to keep the seam)";
     fn example() -> serde_json::Value {
         serde_json::json!({"flow": 0.5, "depth": 0.5, "splash": 0.2, "seed": 1})
     }

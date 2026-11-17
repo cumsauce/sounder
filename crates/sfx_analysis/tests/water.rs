@@ -696,3 +696,163 @@ fn recipe_renders() {
     println!("{text}");
     assert!(checks.iter().all(|c| c.pass), "{text}");
 }
+
+/// The `loop_seam` check on a looped `water` document: `filters` puts a 250 Hz
+/// high-pass and a 6 kHz low-pass after it, `xfade` a `crossfade_loop` after those.
+fn seam_case(
+    water_fields: Value,
+    seed: u64,
+    duration: f32,
+    filters: bool,
+    xfade: bool,
+) -> (bool, String) {
+    let mut d = SoundDoc::named("loop");
+    d.seed = seed;
+    d.nodes = water(water_fields);
+    let mut last = "w";
+    if filters {
+        d.nodes.push(
+            json!({"type": "filter", "name": "hp", "input": last, "mode": "hp", "freq": 250}),
+        );
+        d.nodes.push(
+            json!({"type": "filter", "name": "lp", "input": "hp", "mode": "lp", "freq": 6000}),
+        );
+        last = "lp";
+    }
+    if xfade {
+        d.nodes
+            .push(json!({"type": "crossfade_loop", "name": "xf", "input": last, "fade": 0.25}));
+        last = "xf";
+    }
+    d.nodes
+        .push(json!({"type": "output", "name": "out", "input": last, "lufs": -20}));
+    d.kind = Kind::Loop;
+    d.duration = Some(duration);
+    let opts = RenderOpts {
+        cached: false,
+        ..RenderOpts::default()
+    };
+    let rendered = d.render(&opts).unwrap();
+    let checks = run(
+        &Expect {
+            loop_seam: Some(true),
+            ..Expect::default()
+        },
+        &CheckCx {
+            doc: &d,
+            rendered: &rendered,
+            opts: &opts,
+        },
+    )
+    .unwrap();
+    (checks.iter().all(|c| c.pass), report(&checks))
+}
+
+/// Seeds 1..=40 at flows 0.2 / 0.575 / 0.9 and densities 60 / 400.
+fn seam_grid(
+    splash: f32,
+    filters: bool,
+    xfade: bool,
+    flows: &[f32],
+) -> (usize, usize, Vec<String>) {
+    let (mut fails, mut total, mut first) = (0, 0, vec![]);
+    for seed in 1..=40u64 {
+        for &flow in flows {
+            for density in [60.0f32, 400.0] {
+                let f = json!({"flow": flow, "density": density, "splash": splash});
+                let (ok, text) = seam_case(f, seed, 3.0, filters, xfade);
+                total += 1;
+                if !ok {
+                    fails += 1;
+                    if first.len() < 3 {
+                        first.push(format!(
+                            "seed {seed} flow {flow} density {density}: {}",
+                            text.lines().next().unwrap_or("")
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    (fails, total, first)
+}
+
+#[test]
+fn a_looped_water_passes_loop_seam_for_40_seeds() {
+    // Plain node in a `kind: loop` document, default checks: measured 0 of
+    // 480 failing over seeds 1..=40 x flow 0.2 / 0.5 / 0.575 / 0.9 x density
+    // 60 / 150 / 400 at 3 s (and 0 of 480 at 1 s); this is the 240-case
+    // subset below.
+    let (fails, total, first) = seam_grid(0.0, false, false, &[0.2, 0.575, 0.9]);
+    println!("plain water loop: {fails}/{total} fail {first:?}");
+    assert_eq!(fails, 0, "{first:?}");
+}
+
+#[test]
+fn a_looped_water_is_continuous_across_the_wrap_with_splashes_too() {
+    // The raw node (no output stage, no filters): the step across the wrap
+    // against the largest step in the 32 samples either side of it. A
+    // bubble tail that did not wrap, or a primed filter that did not match,
+    // would show as a step far above its neighbours; a continuous signal
+    // reads about 1. (`loop_seam` compares the wrap step with the whole
+    // loop's 99th percentile, which a sparse loud bubble ringing over the
+    // wrap can exceed without any break: doc seed 18, flow 0.2, density 60,
+    // 8 s reads 2.2x there, with the steps climbing smoothly 0.057, 0.074,
+    // 0.099, 0.117, 0.123, 0.166 (the wrap), 0.039 around it.)
+    let mut worst = (0.0f32, String::new());
+    for seed in 1..=40u64 {
+        for flow in [0.2f32, 0.575, 0.9] {
+            for splash in [0.0f32, 0.5] {
+                let nodes = water(json!({
+                    "flow": flow, "density": 200, "splash": splash,
+                    "loop": true, "seed": seed
+                }));
+                let x = node_audio(&nodes, "w", 3.0);
+                let n = x.len();
+                let step = |a: f32, b: f32| (b - a).abs();
+                let seam = step(x[n - 1], x[0]);
+                let mut local = 1e-9f32;
+                for k in 1..=32 {
+                    local = local
+                        .max(step(x[n - k - 1], x[n - k]))
+                        .max(step(x[k - 1], x[k]));
+                }
+                let ratio = seam / local;
+                if ratio > worst.0 {
+                    worst = (ratio, format!("seed {seed} flow {flow} splash {splash}"));
+                }
+            }
+        }
+    }
+    println!(
+        "worst wrap step / local max step: {:.2} at {}",
+        worst.0, worst.1
+    );
+    assert!(worst.0 < 1.5, "{worst:?}");
+}
+
+#[test]
+fn filters_after_a_looped_water_break_the_seam_and_a_crossfade_mends_it() {
+    // A filter has its own startup: hp 250 Hz + lp 6 kHz after the (periodic)
+    // water start from zero state, so their output is not periodic at the
+    // wrap. Measured over the 480-case grid at 3 s: 169 fail without a
+    // crossfade_loop, 1 with.
+    let (fails, total, first) = seam_grid(0.0, true, false, &[0.2, 0.575, 0.9]);
+    println!("water + hp + lp, no crossfade: {fails}/{total} fail {first:?}");
+    assert!(
+        fails * 5 >= total,
+        "the requirement the docs state (crossfade_loop after filters) is real: only {fails}/{total} failed"
+    );
+    let (fails, total, first) = seam_grid(0.0, true, true, &[0.575, 0.9]);
+    println!("water + hp + lp + crossfade_loop: {fails}/{total} fail {first:?}");
+    assert_eq!(fails, 0, "{first:?}");
+}
+
+#[test]
+fn the_loop_field_docs_state_the_filter_requirement() {
+    let text = sfx_graph::describe(Some("water")).unwrap();
+    assert!(
+        text.contains("crossfade_loop"),
+        "water's description says filters after it need crossfade_loop: {text}"
+    );
+}
