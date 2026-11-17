@@ -54,6 +54,9 @@ pub struct Osc {
     pub wave: Wave,
     phase: f64,
     tri: f32,
+    /// The phase modulation of the previous sample (cycles), for its slope.
+    pm: f32,
+    started: bool,
 }
 
 impl Osc {
@@ -62,6 +65,8 @@ impl Osc {
             wave,
             phase: f64::from(phase.rem_euclid(1.0)),
             tri: 0.0,
+            pm: 0.0,
+            started: false,
         }
     }
 
@@ -69,9 +74,16 @@ impl Osc {
     #[inline]
     pub fn tick(&mut self, hz: f32, width: f32, sr: f32) -> f32 {
         let dt = (hz / sr).clamp(-0.5, 0.5);
-        let t = self.phase as f32;
-        let adt = dt.abs();
-        let out = match self.wave {
+        let out = self.shape(self.phase as f32, dt.abs(), width);
+        self.phase = (self.phase + f64::from(dt)).rem_euclid(1.0);
+        out
+    }
+
+    /// The waveform at phase `t` (0..1) for a phase step of `adt` cycles per
+    /// sample (the polyBLEP width), pulse `width`.
+    #[inline]
+    fn shape(&mut self, t: f32, adt: f32, width: f32) -> f32 {
+        match self.wave {
             Wave::Sine => (2.0 * PI * t).sin(),
             Wave::Saw => 2.0 * t - 1.0 - poly_blep(t, adt),
             Wave::Square | Wave::Pulse | Wave::Tri => {
@@ -91,9 +103,94 @@ impl Osc {
                     v
                 }
             }
+        }
+    }
+
+    /// The waveform with no band-limiting at phase `t` (the value either
+    /// side of a sync reset; the triangle counts as its square).
+    fn naive(&self, t: f32, width: f32) -> f32 {
+        match self.wave {
+            Wave::Sine => (2.0 * PI * t).sin(),
+            Wave::Saw => 2.0 * t - 1.0,
+            Wave::Pulse => {
+                if t < width.clamp(0.01, 0.99) {
+                    1.0
+                } else {
+                    -1.0
+                }
+            }
+            Wave::Square | Wave::Tri => {
+                if t < 0.5 {
+                    1.0
+                } else {
+                    -1.0
+                }
+            }
+        }
+    }
+
+    /// Like [`Osc::tick`] with phase modulation `pm` (cycles, added to the
+    /// phase) and hard sync: `sync` is the fraction (0..1) of this sample
+    /// step at which the master crossed zero upwards, when it did. Returns
+    /// `(sample, fix)`: `fix` is the polyBLEP correction the PREVIOUS sample
+    /// needs (add it there; always 0 unless `sync` is set, and 0 for the
+    /// triangle, which folds it into this sample's integrator input).
+    #[inline]
+    pub fn tick_ex(
+        &mut self,
+        hz: f32,
+        width: f32,
+        sr: f32,
+        pm: f32,
+        sync: Option<f32>,
+    ) -> (f32, f32) {
+        let dt = (hz / sr).clamp(-0.5, 0.5);
+        // A first sample has no previous modulation to differ from.
+        let dpm = if self.started { pm - self.pm } else { 0.0 };
+        self.started = true;
+        self.pm = pm;
+        // Cycles per sample the waveform's own phase moves, modulation included.
+        let adt = (dt + dpm).clamp(-0.5, 0.5).abs();
+        let Some(f) = sync else {
+            let t = (self.phase as f32 + pm).rem_euclid(1.0);
+            let out = self.shape(t, adt, width);
+            self.phase = (self.phase + f64::from(dt)).rem_euclid(1.0);
+            return (out, 0.0);
         };
+        let f = f.clamp(0.0, 1.0);
+        // The step the reset makes, and the band-limited correction for the
+        // sample before it (distance f ahead of the step) and the one after
+        // (1 - f behind): the polyBLEP residuals of a unit-width kernel.
+        let before = (self.phase as f32 + f * dt + pm).rem_euclid(1.0);
+        let step = self.naive(pm.rem_euclid(1.0), width) - self.naive(before, width);
+        let fix_prev = 0.5 * step * (1.0 - f) * (1.0 - f);
+        let fix_now = -0.5 * step * f * f;
+        self.phase = (f64::from((1.0 - f) * dt)).rem_euclid(1.0);
+        let t = (self.phase as f32 + pm).rem_euclid(1.0);
+        if self.wave == Wave::Tri {
+            // The square's edge at 0.5 gets its usual correction; the reset
+            // step is folded into this sample's integrator input.
+            let mut v = if t < 0.5 { 1.0 } else { -1.0 };
+            v -= poly_blep((t - 0.5).rem_euclid(1.0), adt);
+            v += fix_prev + fix_now;
+            self.tri = flush(4.0 * adt * v + (1.0 - 0.5 * adt) * self.tri);
+            self.phase = (self.phase + f64::from(dt)).rem_euclid(1.0);
+            return (self.tri, 0.0);
+        }
+        let mut out = self.naive(t, width) + fix_now;
+        match self.wave {
+            Wave::Square | Wave::Pulse => {
+                let w = if self.wave == Wave::Pulse {
+                    width.clamp(0.01, 0.99)
+                } else {
+                    0.5
+                };
+                out -= poly_blep((t - w).rem_euclid(1.0), adt);
+            }
+            Wave::Saw | Wave::Sine | Wave::Tri => {}
+        }
         self.phase = (self.phase + f64::from(dt)).rem_euclid(1.0);
-        out
+        (out, fix_prev)
     }
 }
 
