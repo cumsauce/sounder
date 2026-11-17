@@ -1,8 +1,6 @@
-//! TEMPORARY STAND-IN for `src/player.rs` (lane p5-player). The window talks
-//! only to this trait; at merge, `src/player.rs`' own `PlayerControl` /
-//! `PlayerEvent` replace this file's (same shapes, `use sounder::player::...`),
-//! and `NullPlayer` / `FakePlayer` stay here for tests and for runs without
-//! an audio device.
+//! What the window needs from the player: `sounder::player`'s trait and event
+//! type (the window talks only to the trait), plus a `NullPlayer` for runs
+//! without an audio device and a `FakePlayer` for tests.
 
 use std::sync::Arc;
 #[cfg(test)]
@@ -10,39 +8,7 @@ use std::sync::Mutex;
 
 use sfx_graph::Audio;
 
-/// What the player tells the window.
-#[allow(dead_code)] // built by the real player once p5-player merges
-#[derive(Clone, Debug, PartialEq)]
-pub enum PlayerEvent {
-    Started {
-        pos: f32,
-        looped: bool,
-        span: Option<[f32; 2]>,
-    },
-    Stopped {
-        pos: f32,
-    },
-    Looped,
-    Seeked {
-        pos: f32,
-    },
-}
-
-/// Playback control as the window needs it.
-pub trait PlayerControl: Send + Sync {
-    fn play(
-        &self,
-        audio: Arc<Audio>,
-        from: f32,
-        span: Option<[f32; 2]>,
-        looped: bool,
-    ) -> Result<(), String>;
-    fn stop(&self);
-    fn seek(&self, t: f32);
-    fn position(&self) -> f32;
-    fn playing(&self) -> bool;
-    fn set_event_handler(&self, handler: Box<dyn Fn(PlayerEvent) + Send + Sync>);
-}
+pub use sounder::player::{PlayerControl, PlayerEvent};
 
 /// No audio device: every `play` says so.
 pub struct NullPlayer;

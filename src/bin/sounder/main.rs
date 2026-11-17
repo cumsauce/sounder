@@ -127,7 +127,13 @@ fn main() {
         }
     }
 
-    let player = start_audio(audio);
+    // The window plays through the same player the MCP `play` tool uses; a
+    // missing device is not fatal there (the window just cannot play), but it
+    // is for `--audio`, which asked for it.
+    let window_mode = cfg!(feature = "window") && !headless;
+    let player = start_audio(audio || window_mode, audio);
+    #[cfg(feature = "window")]
+    let window_player = player.clone();
     let (tx, rx) = mpsc::channel::<server::Cmd>();
     #[cfg(feature = "window")]
     let window_tx = tx.clone();
@@ -179,9 +185,9 @@ fn main() {
         let session_done = done.clone();
         let session_thread =
             std::thread::spawn(move || server::run_session(session, rx, session_done, Some(hook)));
-        // TODO(p5-player merge): the real player (src/player.rs, `--audio`)
-        // replaces this stand-in; without a device `play` says so.
-        let player = std::sync::Arc::new(window::player_iface::NullPlayer);
+        // Without a device `play` says so (the window's Play button errors).
+        let player: std::sync::Arc<dyn sounder::player::PlayerControl> =
+            window_player.unwrap_or_else(|| std::sync::Arc::new(window::player_iface::NullPlayer));
         let shown = win.run(window_tx, player);
         done.set();
         let _ = session_thread.join();
@@ -200,7 +206,10 @@ fn main() {
 
 /// The speakers for `play`, when `--audio` asked for them.
 #[cfg(feature = "audio")]
-fn start_audio(want: bool) -> Option<std::sync::Arc<dyn sounder::player::PlayerControl>> {
+fn start_audio(
+    want: bool,
+    fatal: bool,
+) -> Option<std::sync::Arc<dyn sounder::player::PlayerControl>> {
     if !want {
         return None;
     }
@@ -208,14 +217,20 @@ fn start_audio(want: bool) -> Option<std::sync::Arc<dyn sounder::player::PlayerC
         Ok(p) => Some(std::sync::Arc::new(p)),
         Err(e) => {
             eprintln!("sounder: {e}");
-            std::process::exit(1);
+            if fatal {
+                std::process::exit(1);
+            }
+            None
         }
     }
 }
 
 #[cfg(not(feature = "audio"))]
-fn start_audio(want: bool) -> Option<std::sync::Arc<dyn sounder::player::PlayerControl>> {
-    if want {
+fn start_audio(
+    _want: bool,
+    fatal: bool,
+) -> Option<std::sync::Arc<dyn sounder::player::PlayerControl>> {
+    if fatal {
         eprintln!("sounder: --audio needs a build with the `audio` feature (this one has none)");
         std::process::exit(2);
     }
