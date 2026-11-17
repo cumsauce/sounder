@@ -109,7 +109,7 @@ impl Session {
         if s.doc.nodes.is_empty() {
             return None;
         }
-        let hash = s.doc_hash();
+        let hash = s.doc_hash(self.generation);
         let checks_ok = self.check_cache.get(&name).is_some_and(|(h, _)| *h == hash);
         let macros_ok = s.doc.macros.iter().all(|m| {
             s.macro_results
@@ -242,7 +242,7 @@ impl Session {
         let Some(sound) = self.sounds.get_mut(name) else {
             return Value::Null;
         };
-        let hash = sound.doc_hash();
+        let hash = sound.doc_hash(self.generation);
         let rendered = sound.rendered(&opts, salt).cloned();
         let d = &sound.doc;
 
@@ -412,7 +412,7 @@ impl Session {
         let opts = self.render_opts();
         let salt = self.generation;
         let sound = self.sound(doc)?;
-        let hash = sound.doc_hash();
+        let hash = sound.doc_hash(salt);
         let rendered = sound.rendered(&opts, salt).cloned()?;
         let macros: Vec<Value> = sound
             .doc

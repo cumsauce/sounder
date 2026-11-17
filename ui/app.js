@@ -34,7 +34,7 @@ async function bulk(path, q) {
   if (!r.ok) throw new Error(`${path}: ${r.status}`);
   return r.arrayBuffer();
 }
-const errText = e => (e && e.message) || String(e);
+const errText = e => ((e && e.message) || String(e)).replace(/`/g, "");
 
 // ---------- presentation tables (no signal processing) ----------
 const ENUMS = { shape: ['sine', 'saw', 'square', 'tri', 'pulse'], mode: ['lp', 'hp', 'bp', 'notch', 'peak'], curve: ['linear', 'exp', 'smooth'], color: ['white', 'pink', 'brown'], op: ['add', 'sub', 'mul', 'mix', 'min', 'max'], window: ['hann', 'tri', 'rect'] };
@@ -303,16 +303,16 @@ function setMacro(name, v) {
 async function sendKnob(name) {
   const k = KS[name] || (KS[name] = {}); if (k.run) { k.dirty = true; return k.run; }
   k.run = (async () => {
-    try { do { k.dirty = false; const m = macroOf(name); if (!m) break; mergeSound(await sounder.call('move_knob', { name, value: m.value })); PLOTBUST++; renderHud(); if (S.tab === 'sound') renderRight(); refreshPlot(); } while (k.dirty); }
+    try { do { k.dirty = false; const m = macroOf(name); if (!m) break; mergeSound(await sounder.call('move_knob', { name, value: m.value }), name); PLOTBUST++; renderHud(); if (S.tab === 'sound') renderRight(); refreshPlot(); } while (k.dirty); }
     catch (e) { toast(errText(e)); } finally { k.run = null; }
   })();
   return k.run;
 }
 // merge a move_knob reply (macros, moves, seconds, peak_db, lufs) into state.sound
-function mergeSound(r) {
+function mergeSound(r, keep) {
   const d = doc(); if (!r) return;
   for (const k of ['seconds', 'peak_db', 'lufs', 'moves']) if (r[k] !== undefined) d[k] = r[k];
-  if (r.macros) d.macros = r.macros.map(m => { const old = d.macros.find(x => x.name === m.name); return KD && KD.name === m.name && old ? { ...m, value: old.value } : m; });
+  if (r.macros) d.macros = r.macros.map(m => { const old = d.macros.find(x => x.name === m.name); return (keep === m.name || (KD && KD.name === m.name)) && old ? { ...m, value: old.value } : m; });
 }
 async function finishMacro(name, from) {
   clearTimeout(KT); KT = null; await sendKnob(name); const m = macroOf(name);

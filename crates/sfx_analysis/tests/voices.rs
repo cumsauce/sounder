@@ -349,3 +349,49 @@ fn instance_cycles_and_edits_are_handled() {
         .unwrap();
     assert_ne!(r1.audio, r2.audio);
 }
+
+#[test]
+fn a_param_inside_a_voices_patch_busts_the_cache() {
+    let mk = |f: f64| {
+        let mut d = doc(
+            vec![
+                json!({"type": "once", "name": "e"}),
+                json!({"type": "voices", "name": "v", "events": "e", "length": 0.2, "patch": [
+                    {"type": "osc", "name": "o", "freq": "$f"}
+                ]}),
+                json!({"type": "output", "name": "out", "input": "v"}),
+            ],
+            0.3,
+        );
+        d.params.insert("f".into(), f);
+        d
+    };
+    let o = RenderOpts::default();
+    let a = mk(220.0).render(&o).unwrap();
+    let b = mk(880.0).render(&o).unwrap();
+    assert_ne!(a.audio.mix_mono(), b.audio.mix_mono());
+}
+
+#[test]
+fn absurd_lengths_and_nesting_are_errors_or_capped() {
+    let d = doc(
+        vec![
+            json!({"type": "once", "name": "e"}),
+            json!({"type": "voices", "name": "v", "events": "e", "length": 1e5, "patch": [
+                {"type": "osc", "name": "o", "freq": 440}
+            ]}),
+            json!({"type": "output", "name": "out", "input": "v"}),
+        ],
+        0.2,
+    );
+    d.render(&RenderOpts::default()).unwrap();
+    let deep = format!("{}1{}", "(".repeat(2000), ")".repeat(2000));
+    let d = doc(
+        vec![
+            json!({"type": "expr", "name": "x", "out": deep}),
+            json!({"type": "output", "name": "out", "input": "x"}),
+        ],
+        0.1,
+    );
+    assert!(d.render(&RenderOpts::default()).is_err());
+}

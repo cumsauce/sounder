@@ -66,7 +66,7 @@ impl Eval for Voices {
         }
         let length = positive("length", self.length.unwrap_or(1.0))?;
         let gain = self.gain.unwrap_or(1.0);
-        let vn = ((length * cx.sr).round() as usize).max(1);
+        let vn = ((length * cx.sr).round() as usize).clamp(1, cx.n.max(1));
         let out_name = self
             .patch
             .iter()

@@ -201,8 +201,16 @@ impl Sound {
     }
 
     /// The doc hash a cached render or check result is keyed by.
-    pub fn doc_hash(&self) -> u64 {
-        hash_of(&self.doc)
+    ///
+    /// A sound that instances others also keys on the session's generation:
+    /// editing an instanced sound changes nothing in this document.
+    pub fn doc_hash(&self, generation: u64) -> u64 {
+        let instances = self
+            .doc
+            .nodes
+            .iter()
+            .any(|n| n.get("type").and_then(|t| t.as_str()) == Some("sound"));
+        hash_of(&(&self.doc, if instances { generation } else { 0 }))
     }
 
     /// The (cached) render of the document as it stands.
@@ -237,6 +245,9 @@ impl Sound {
         self.doc = doc;
         self.unsaved = true;
         self.render = None;
+        // Knob moves and claim results were about the graph we left.
+        self.knob_moves.clear();
+        self.macro_results.clear();
     }
 }
 
@@ -663,7 +674,7 @@ impl Session {
                 &defaults
             }
         };
-        let hash = sound.doc_hash();
+        let hash = sound.doc_hash(salt);
         let doc_copy = sound.doc.clone();
         let rendered = sound.rendered(&opts, salt)?.clone();
         let results = sfx_analysis::run(
@@ -1006,7 +1017,7 @@ impl Session {
         let moves = std::mem::take(&mut sound.knob_moves);
         let name = sound.doc.name.clone();
         let rendered = sound.rendered(&opts, salt).cloned();
-        let hash = sound.doc_hash();
+        let hash = sound.doc_hash(salt);
         let d = &sound.doc;
         let mut out = String::new();
         let node_names: std::collections::BTreeSet<&str> = d

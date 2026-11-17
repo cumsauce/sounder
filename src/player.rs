@@ -111,6 +111,7 @@ impl Engine {
         self.looped = looped;
         self.playing = len > 0.0 && window.1 > window.0;
         self.finished = false;
+        self.loops = 0;
         self.audio = Some(audio);
     }
 

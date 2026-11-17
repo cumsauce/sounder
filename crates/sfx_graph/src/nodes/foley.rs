@@ -510,7 +510,7 @@ impl Eval for Syrinx {
                 let call = if (play - 1.0).abs() < 1e-6 {
                     call
                 } else {
-                    let len = (call.len() as f32 / play) as usize;
+                    let len = ((call.len() as f32 / play) as usize).min(cx.n);
                     (0..len)
                         .map(|i| {
                             let p = i as f32 * play;

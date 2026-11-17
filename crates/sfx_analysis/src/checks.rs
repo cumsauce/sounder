@@ -599,7 +599,7 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
                 worst_ratio = worst_ratio.max(step).max(kink);
             }
             let m = a.mix_mono();
-            let w = (16_384.min(m.len() / 2)).max(16);
+            let w = (16_384.min(m.len() / 2)).max(16).min(m.len());
             let tail = &m[m.len() - w..];
             let head = &m[..w];
             let spec_d = seam_spectral(tail, head, sr);
@@ -750,8 +750,14 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
     }
     if e.macros == Some(true) {
         for m in &cx.doc.macros {
-            let r = macro_check(cx, m)?;
-            push(&format!("macro {}", m.name), r.0, r.1);
+            match macro_check(cx, m) {
+                Ok(r) => push(&format!("macro {}", m.name), r.0, r.1),
+                Err(e) => push(
+                    &format!("macro {}", m.name),
+                    false,
+                    format!("the sweep failed to render: {e}"),
+                ),
+            }
         }
     }
     if e.rebuild == Some(true) {

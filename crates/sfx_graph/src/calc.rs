@@ -238,6 +238,7 @@ pub fn compile(src: &str, scope: &Scope) -> Result<Program, CalcError> {
         scope,
         code: Vec::new(),
         depth: 0,
+        nest: 0,
         max: 0,
     };
     p.ternary()?;
@@ -259,6 +260,7 @@ struct Compiler<'a> {
     code: Vec<Op>,
     depth: usize,
     max: usize,
+    nest: usize,
 }
 
 fn ident_char(c: u8) -> bool {
@@ -341,6 +343,16 @@ impl Compiler<'_> {
     }
 
     fn ternary(&mut self) -> Result<(), CalcError> {
+        if self.nest >= 64 {
+            return Err(self.err_here("expression nested more than 64 deep: simplify it".into()));
+        }
+        self.nest += 1;
+        let r = self.ternary_inner();
+        self.nest -= 1;
+        r
+    }
+
+    fn ternary_inner(&mut self) -> Result<(), CalcError> {
         self.or()?;
         if self.eat("?") {
             self.ternary()?;

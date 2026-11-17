@@ -341,6 +341,13 @@ pub fn evaluate(
             if p.node.random() {
                 (ctx.seed, p.name.as_str()).hash(&mut h);
             }
+            // A voices patch keeps its `$param`s unresolved in the body, so
+            // the sound's params key it too.
+            if p.ty == "voices" {
+                for (k, v) in &ctx.params {
+                    (k.as_str(), v.to_bits()).hash(&mut h);
+                }
+            }
             // An instance also keys on the instanced document itself.
             if p.ty == "sound"
                 && let (Some(src), Some(name)) =
