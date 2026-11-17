@@ -39,3 +39,5 @@
 - merged X1 spectral
 - merged M7 modal fixes/shapes/shatter (modal default level changed by design)
 - merged X2 bands. ALL wave 0-3 tasks merged; workspace tests green (52 suites ok). launching DOCS (fold docs/nodes into AGENTS.md + INSTRUCTIONS)
+- merged DOCS; round 1 setup next
+- ROUND 1 started: binary from commit b56563f; testers 1-12 launched (13-24 queued, then judges)
