@@ -479,24 +479,20 @@ fn hps_channel(
     Ok((harm, perc))
 }
 
-/// Cepstral spectral envelope (log magnitude, low quefrencies only) of a
-/// magnitude spectrum of `n` points, `q` quefrency samples kept.
-fn envelope(
+/// One cepstral smoothing of a log-magnitude half spectrum (`n / 2 + 1`
+/// points): the low `q` quefrencies kept, with a short half-cosine taper.
+fn lifter(
     fwd: &Arc<dyn RealToComplex<f32>>,
-    mag: &[f32],
+    logmag: &[f32],
     n: usize,
     q: usize,
 ) -> Result<Vec<f32>, String> {
     let bins = n / 2 + 1;
-    let mut l = vec![0.0f32; n];
-    for j in 0..n {
-        l[j] = mag[j.min(n - j)].max(1e-7).ln();
-    }
+    let mut l: Vec<f32> = (0..n).map(|j| logmag[j.min(n - j)]).collect();
     let mut c = fwd.make_output_vec();
     fwd.process(&mut l, &mut c)
         .map_err(|e| format!("fft: {e}"))?;
-    // c is real (l is even): the cepstrum times n. Lifter with a short
-    // half-cosine taper over the last quarter.
+    // c is real (l is even): the cepstrum times n.
     let taper = (q / 4).max(1);
     let w = |i: usize| {
         if i < q - taper {
@@ -516,6 +512,28 @@ fn envelope(
     fwd.process(&mut lc, &mut e)
         .map_err(|e| format!("fft: {e}"))?;
     Ok((0..bins).map(|k| e[k].re / n as f32).collect())
+}
+
+/// Iterations of the true-envelope refinement in `envelope`.
+const ENVELOPE_ITERS: usize = 10;
+
+/// "True envelope" of a magnitude spectrum: cepstral smoothing of the log
+/// magnitude, then repeated with the spectrum raised to the envelope wherever
+/// it fell below, so the curve rides the harmonic peaks instead of sagging
+/// into the valleys between them.
+fn envelope(
+    fwd: &Arc<dyn RealToComplex<f32>>,
+    mag: &[f32],
+    n: usize,
+    q: usize,
+) -> Result<Vec<f32>, String> {
+    let l0: Vec<f32> = mag.iter().map(|m| m.max(1e-7).ln()).collect();
+    let mut e = lifter(fwd, &l0, n, q)?;
+    for _ in 0..ENVELOPE_ITERS {
+        let a: Vec<f32> = l0.iter().zip(&e).map(|(x, y)| x.max(*y)).collect();
+        e = lifter(fwd, &a, n, q)?;
+    }
+    Ok(e)
 }
 
 /// Multiplies `shifted` by the ratio of the spectral envelope of `orig` to
@@ -553,8 +571,8 @@ pub struct PitchShift {
     /// FFT window in samples, a power of two (default 2048).
     #[serde(default)]
     pub window: Option<usize>,
-    /// true: put the input's spectral envelope (a cepstral estimate, about
-    /// 500 Hz resolution) back on the shifted sound, so formants stay where
+    /// true: put the input's spectral envelope (a cepstral true-envelope
+    /// estimate, about 500 Hz resolution) back on the shifted sound, so formants stay where
     /// they were while the pitch moves (default false; at most +-30 dB of
     /// correction per bin).
     #[serde(default)]
@@ -980,7 +998,7 @@ impl Eval for Spectral {
             }
             Hps => {
                 let kernel = self.kernel.unwrap_or(DEFAULT_KERNEL);
-                if !(3..=MAX_KERNEL).contains(&kernel) || kernel % 2 == 0 {
+                if !(3..=MAX_KERNEL).contains(&kernel) || kernel.is_multiple_of(2) {
                     return Err(format!(
                         "kernel: {kernel}: give an odd number from 3 to {MAX_KERNEL} (default {DEFAULT_KERNEL})"
                     ));
