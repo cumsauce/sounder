@@ -36,6 +36,8 @@ cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings 
 
 ## Status
 
+**Phase 3, lane C (events): `once pattern poisson bounce burst on_threshold` event nodes and `grains`; see "Events and grains" in AGENTS.md.**
+
 **Phase 2 (MCP server, session, macros): done.** See "Phase 2 notes" below.
 
 **Phase 1 (core + analysis, no server): done.**
