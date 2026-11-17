@@ -14,8 +14,8 @@ use foley_synth::{Birds, Bubble, LowPass, Pulse, absorption_cutoff, birdsong2, l
 use serde::Deserialize;
 
 use super::{mono, non_negative, one, per_channel, positive};
-use crate::buf::Buf;
-use crate::dsp::{FilterMode, Svf};
+use crate::buf::{Buf, Sig};
+use crate::dsp::{Biquad, FilterMode, Rng, Svf};
 use crate::node::{Cx, Describe, Eval, In, Outs};
 
 /// foley takes whole-number sample rates.
@@ -256,6 +256,23 @@ pub struct Glottis {
     /// Linear amplitude (default 1; a signal gates and shapes the voice).
     #[serde(default)]
     pub amp: Option<In>,
+    /// Cycle-to-cycle irregularity 0..1 (default 0 = off), a signal read at
+    /// the start of each cycle. Each cycle's period moves by a seeded
+    /// random amount up to +-4 % x roughness (jitter) and its level by up
+    /// to +-50 % x roughness (shimmer).
+    #[serde(default)]
+    pub roughness: Option<In>,
+    /// Alternate-cycle level 0..1 (default 0 = off), a signal read at the
+    /// start of each cycle: every second cycle is scaled by `1 - subharmonic`,
+    /// which puts a spectral line at f0 / 2 (1 leaves one pulse in two).
+    #[serde(default)]
+    pub subharmonic: Option<In>,
+    /// Vocal fry 0..1 (default 0 = off), a signal. Irregular, pressed
+    /// pulses: period jitter up to +-35 %, level jitter up to +-50 %,
+    /// alternating long / short periods (+-25 %) with the long ones weaker
+    /// (-50 %), and `tension` pushed halfway to pressed.
+    #[serde(default)]
+    pub fry: Option<In>,
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
@@ -264,7 +281,57 @@ pub struct Glottis {
 impl Describe for Glottis {
     const BLURB: &'static str = "voice source: Liljencrants-Fant glottal pulse at f0 (signal), tension, breath, vibrato (foley)";
     fn example() -> serde_json::Value {
-        serde_json::json!({"f0": 140, "tension": 0.65, "breath": 0.05, "vibrato_cents": 20, "seed": 1})
+        serde_json::json!({"f0": 140, "tension": 0.65, "breath": 0.05, "vibrato_cents": 20, "roughness": 0.2, "subharmonic": 0.0, "fry": 0.0, "seed": 1})
+    }
+}
+
+/// A number given for a 0..1 field must be in range (a signal is clamped
+/// per sample when read).
+fn unit_range(field: &str, s: &Sig) -> Result<(), String> {
+    if let Some(x) = s.constant()
+        && !(0.0..=1.0).contains(&x)
+    {
+        return Err(format!("{field}: {x}: give a number from 0 to 1"));
+    }
+    Ok(())
+}
+
+/// A 0..1 field read at sample `i`; a non-finite sample counts as 0.
+fn unit_at(s: &Sig, i: usize) -> f32 {
+    let x = s.at(i);
+    if x.is_finite() {
+        x.clamp(0.0, 1.0)
+    } else {
+        0.0
+    }
+}
+
+/// What one glottal cycle looks like, drawn when the cycle starts.
+#[derive(Clone, Copy)]
+struct Cycle {
+    /// Multiplies the pitch for the whole cycle (1 / period change).
+    rate: f32,
+    /// Multiplies the cycle's pulse.
+    gain: f32,
+}
+
+/// The next cycle: its fields (`roughness`, `subharmonic`, `fry`) read at
+/// sample `i`, two seeded draws (jitter, shimmer). `odd` marks every second
+/// cycle, the long and weak ones under fry and the ones `subharmonic` scales.
+fn draw_cycle(rng: &mut Rng, odd: bool, fields: [&Sig; 3], i: usize) -> Cycle {
+    let [r, b, f] = fields.map(|s| unit_at(s, i));
+    let jitter = rng.signed() * (0.04 * r + 0.35 * f);
+    let shimmer = rng.signed() * (0.5 * r + 0.5 * f);
+    // A longer period is a lower pitch rate.
+    let alt = if odd { 1.0 - 0.25 * f } else { 1.0 + 0.25 * f };
+    let weak = if odd {
+        (1.0 - 0.5 * f) * (1.0 - b)
+    } else {
+        1.0
+    };
+    Cycle {
+        rate: ((1.0 + jitter) * alt).clamp(0.3, 1.7),
+        gain: ((1.0 + shimmer) * weak).max(0.0),
     }
 }
 
@@ -282,11 +349,35 @@ impl Eval for Glottis {
         if !cents.is_finite() {
             return Err(format!("vibrato_cents: {cents}: give a number"));
         }
+        let rough = cx.mono_or("roughness", &self.roughness, 0.0)?;
+        let sub = cx.mono_or("subharmonic", &self.subharmonic, 0.0)?;
+        let fry = cx.mono_or("fry", &self.fry, 0.0)?;
+        for (name, s) in [("roughness", &rough), ("subharmonic", &sub), ("fry", &fry)] {
+            unit_range(name, s)?;
+        }
+        // The cycle machinery runs only when one of its fields is given, so
+        // the three-field-free node is the one it always was. Its draws come
+        // from their own generator: the breath noise is the same either way.
+        let cycles = self.roughness.is_some() || self.subharmonic.is_some() || self.fry.is_some();
         let mut rng = cx.rng(self.seed);
+        let mut crng = cx.rng(self.seed.wrapping_add(0x6C07_715F_A11E_D001));
         let mut phase = 0.0f32;
         let mut vib = 0.0f32;
+        let mut cycle = Cycle {
+            rate: 1.0,
+            gain: 1.0,
+        };
+        let mut odd = false;
         Ok(one(mono(cx.n, |i| {
+            if cycles && i == 0 {
+                cycle = draw_cycle(&mut crng, odd, [&rough, &sub, &fry], i);
+            }
             let t = tension.at(i).clamp(0.0, 1.0);
+            let t = if cycles {
+                t + (1.0 - t) * 0.5 * unit_at(&fry, i)
+            } else {
+                t
+            };
             let rd = RD_MAX - (RD_MAX - RD_MIN) * t;
             let bend = if cents == 0.0 {
                 1.0
@@ -294,11 +385,19 @@ impl Eval for Glottis {
                 vib = (vib + vib_hz / cx.sr).fract();
                 (cents / 1200.0 * (TAU * vib).sin()).exp2()
             };
-            let hz = (f0.at(i) * bend).clamp(1.0, 0.25 * cx.sr);
+            let mut hz = (f0.at(i) * bend).clamp(1.0, 0.25 * cx.sr);
+            if cycles {
+                hz = (hz * cycle.rate).min(0.45 * cx.sr);
+            }
+            let before = phase;
             phase = (phase + hz / cx.sr).fract();
+            if cycles && phase < before {
+                odd = !odd;
+                cycle = draw_cycle(&mut crng, odd, [&rough, &sub, &fry], i);
+            }
             let (d, flow) = lf_at(rd, phase);
             let noise = rng.signed() * breath.at(i).clamp(0.0, 1.0) * (0.3 + 0.7 * flow);
-            (0.5 * d + 0.5 * noise) * amp.at(i)
+            (0.5 * d * cycle.gain + 0.5 * noise) * amp.at(i)
         })))
     }
 }
@@ -381,18 +480,91 @@ pub struct Tract {
     /// Formant frequency multiplier (default 1; a signal). 1.2 = a 20 % shorter tract.
     #[serde(default)]
     pub scale: Option<In>,
+    /// Nasal coupling 0..1 (default 0 = off), a signal: a pole at 250 Hz (a
+    /// +9 dB, Q 2.5 resonance, the murmur) and a zero at 1 kHz (a Q 2
+    /// notch, the antiformant) are blended in ahead of the formants,
+    /// `input + nasal * (pair(input) - input)`. Below the zero and above
+    /// the pole the pair is flat, so DC and the highs pass unchanged.
+    #[serde(default)]
+    pub nasal: Option<In>,
+    /// Turbulence noise added after the formants (a fricative or a breath
+    /// of air through the mouth): white noise through a band-pass at
+    /// `freq` (Q 2, so the band is `freq / 2` wide, unity gain at `freq`)
+    /// times `level`. Not shaped by the formants or by `input`: gate it
+    /// with a `level` signal. Seeded.
+    #[serde(default)]
+    pub frication: Option<Frication>,
+    /// Growl 0..1 (default 0 = off), a signal: the input is amplitude
+    /// modulated before the formants by a raised cosine at about 45 Hz
+    /// (its rate wanders by +-30 %, seeded), `1 - growl` at the troughs.
+    #[serde(default)]
+    pub growl: Option<In>,
+    /// Mixed with the document seed and the node name (default 0); used by
+    /// `frication` and `growl`.
+    #[serde(default)]
+    pub seed: u64,
+}
+
+/// The noise `tract` adds after its formants.
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Frication {
+    /// Band centre, Hz (a signal; a number must be 20 to 0.45 x the sample
+    /// rate, 21600 at 48 kHz). The band is `freq / 2` wide.
+    pub freq: In,
+    /// Linear level of the noise (a signal, >= 0; a number below 0 is an
+    /// error). 1 is unit-gain band-passed uniform noise: -13.5 dB rms at
+    /// 5 kHz (20 dB less per factor 10).
+    pub level: In,
 }
 
 impl Describe for Tract {
     const BLURB: &'static str = "vocal tract: formant cascade, a vowel preset (or glide between two) or a formant list; feed it a glottis";
     fn example() -> serde_json::Value {
-        serde_json::json!({"input": "src", "vowel": "a", "vowel_to": "i", "morph": 0.5})
+        serde_json::json!({"input": "src", "vowel": "a", "vowel_to": "i", "morph": 0.5, "nasal": 0.3, "frication": {"freq": 5000, "level": 0.05}, "growl": 0.2, "seed": 1})
     }
 }
 
+/// The nasal pair: a peak at 250 Hz and a notch at 1 kHz.
+const NASAL_POLE: (f32, f32, f32) = (250.0, 2.5, 9.0);
+const NASAL_ZERO: (f32, f32) = (1000.0, 2.0);
+/// Growl modulation rate, Hz, and how far it wanders (fraction).
+const GROWL_HZ: f32 = 45.0;
+const GROWL_WANDER: f32 = 0.3;
+/// Frication band-pass Q.
+const FRIC_Q: f32 = 2.0;
+
 impl Eval for Tract {
+    fn random(&self) -> bool {
+        self.frication.is_some() || self.growl.is_some()
+    }
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let input = cx.mono("input", &self.input)?;
+        let nasal = cx.mono_or("nasal", &self.nasal, 0.0)?;
+        unit_range("nasal", &nasal)?;
+        let growl = cx.mono_or("growl", &self.growl, 0.0)?;
+        unit_range("growl", &growl)?;
+        let fric = match &self.frication {
+            Some(f) => {
+                let freq = cx.mono("frication.freq", &f.freq)?;
+                let level = cx.mono("frication.level", &f.level)?;
+                let top = 0.45 * cx.sr;
+                if let Some(x) = freq.constant()
+                    && !(x.is_finite() && (20.0..=top).contains(&x))
+                {
+                    return Err(format!(
+                        "frication.freq: {x}: give a number from 20 to {top} Hz (0.45 x the sample rate)"
+                    ));
+                }
+                if let Some(x) = level.constant()
+                    && !(x.is_finite() && x >= 0.0)
+                {
+                    return Err(format!("frication.level: {x}: give a number >= 0"));
+                }
+                Some((freq, level))
+            }
+            None => None,
+        };
         let morph = cx.mono_or("morph", &self.morph, 0.0)?;
         let scale = cx.mono_or("scale", &self.scale, 1.0)?;
         let from: Vec<[f32; 2]> = match &self.formants {
@@ -419,6 +591,22 @@ impl Eval for Tract {
         let mut state = vec![[0.0f32; 2]; k];
         let mut coef = vec![(0.0f32, 0.0f32, 0.0f32); k];
         const BLOCK: usize = 16;
+        // The new stages, each built only when its field is given.
+        let (mut pole, mut zero) = (Biquad::new(), Biquad::new());
+        if self.nasal.is_some() {
+            pole.set(
+                FilterMode::Peak,
+                NASAL_POLE.0,
+                NASAL_POLE.1,
+                NASAL_POLE.2,
+                cx.sr,
+            );
+            zero.set(FilterMode::Notch, NASAL_ZERO.0, NASAL_ZERO.1, 0.0, cx.sr);
+        }
+        let mut grng = cx.rng(self.seed.wrapping_add(0x604C_110F_0000_0001));
+        let mut frng = cx.rng(self.seed.wrapping_add(0xF11C_A710_0000_0002));
+        let (mut gphase, mut gwander) = (0.0f32, 0.0f32);
+        let mut band = Svf::default();
         Ok(one(mono(cx.n, |i| {
             if i % BLOCK == 0 || i == 0 {
                 let m = morph.at(i).clamp(0.0, 1.0);
@@ -435,13 +623,41 @@ impl Eval for Tract {
                 }
             }
             let mut x = input.at(i);
+            if self.growl.is_some() {
+                // Smoothed noise wanders the rate (one pole, ~8 Hz).
+                gwander += (grng.signed() - gwander) * 0.001;
+                let w = (gwander * 25.0).clamp(-1.0, 1.0);
+                gphase = (gphase + GROWL_HZ * (1.0 + GROWL_WANDER * w) / cx.sr).fract();
+                let depth = unit_at(&growl, i);
+                x *= 1.0 - 0.5 * depth * (1.0 - (TAU * gphase).cos());
+            }
+            if self.nasal.is_some() {
+                let n = unit_at(&nasal, i);
+                let wet = zero.tick(pole.tick(x));
+                let wet = if wet.is_finite() { wet } else { 0.0 };
+                x += n * (wet - x);
+            }
             for (st, (a, b, c)) in state.iter_mut().zip(&coef) {
                 let y = a * x + b * st[0] + c * st[1];
                 st[1] = st[0];
                 st[0] = if y.is_finite() { y } else { 0.0 };
                 x = st[0];
             }
-            x * TRACT_MAKEUP
+            let mut out = x * TRACT_MAKEUP;
+            if let Some((freq, level)) = &fric {
+                let lv = level.at(i);
+                let lv = if lv.is_finite() { lv.max(0.0) } else { 0.0 };
+                let f = freq.at(i);
+                let f = if f.is_finite() {
+                    f.clamp(20.0, 0.45 * cx.sr)
+                } else {
+                    1000.0
+                };
+                // Unity gain at the band centre: the SVF band-pass peaks at Q.
+                let nz = band.tick(frng.signed(), FilterMode::Bp, f, FRIC_Q, 0.0, cx.sr);
+                out += lv * nz / FRIC_Q;
+            }
+            out
         })))
     }
 }
