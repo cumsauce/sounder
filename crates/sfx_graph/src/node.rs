@@ -353,8 +353,7 @@ pub fn refs(body: &Value) -> Vec<(String, String)> {
     const WORDS: &[&str] = &[
         "type", "name", "op", "mode", "shape", "curve", "color", "file", "window", "sound",
         // phase 4: modal (a material name is a word, not a node)
-        "material",
-        "vowel", "vowel_to", "species",
+        "material", "vowel", "vowel_to", "species",
     ];
     let mut out = Vec::new();
     // phase 3: voices. The `patch` is its own graph and `map` is expression
@@ -479,6 +478,7 @@ fn blurb(ty: &str) -> &'static str {
         }
         "friction" => {
             "stick-slip sawtooth whose rate follows speed and level follows pressure (creaks, squeaks, scrapes); excites modal"
+        }
         // phase 4: foley
         "bubble" => {
             "a water bubble: Minnaert resonance from radius_mm (smaller = higher), decaying, rising (foley)"
