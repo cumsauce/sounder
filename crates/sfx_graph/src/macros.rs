@@ -355,17 +355,77 @@ pub fn apply(
             .unwrap_or(m.value)
             .clamp(0.0, 1.0);
         for e in m.map.iter().filter(|e| e.param.is_none()) {
-            let Some(node) = out
-                .iter_mut()
-                .find(|n| n.get("name").and_then(Value::as_str) == Some(e.node.as_str()))
-            else {
-                return Err(missing_node(&m.name, &e.node, nodes));
-            };
+            let node = find_node_mut(&mut out, &e.node)
+                .map_err(|why| path_error(&m.name, &e.node, nodes, why))?;
             let v = e.at(x);
             write(node, e, v).map_err(|why| format!("macro `{}`: {} {why}", m.name, e.target()))?;
         }
     }
     Ok(out)
+}
+
+/// Why a node path did not resolve.
+enum PathError {
+    /// No top-level node has that name.
+    Missing,
+    /// The first part is a node but not a `voices` one (so it has no patch).
+    NoPatch(String),
+    /// The path goes into a `voices` patch that has no node of that name; the
+    /// patch's node names.
+    NotInPatch { owner: String, nodes: Vec<String> },
+}
+
+fn name_of(n: &Value) -> Option<&str> {
+    n.get("name").and_then(Value::as_str)
+}
+
+/// The node a map entry's `node` names: a top-level node, or `voices/patch_node`
+/// (deeper for a `voices` inside a patch). Mapping a patch node writes the
+/// patch template, so every voice sees it.
+fn find_node_mut<'a>(nodes: &'a mut [Value], path: &str) -> Result<&'a mut Value, PathError> {
+    let (head, rest) = match path.split_once('/') {
+        Some((h, r)) => (h, Some(r)),
+        None => (path, None),
+    };
+    let Some(node) = nodes.iter_mut().find(|n| name_of(n) == Some(head)) else {
+        return Err(PathError::Missing);
+    };
+    let Some(rest) = rest else {
+        return Ok(node);
+    };
+    let is_voices = node.get("type").and_then(Value::as_str) == Some("voices");
+    let owner = head.to_string();
+    let Some(patch) = node
+        .get_mut("patch")
+        .and_then(Value::as_array_mut)
+        .filter(|_| is_voices)
+    else {
+        return Err(PathError::NoPatch(owner));
+    };
+    let listed: Vec<String> = patch
+        .iter()
+        .filter_map(|p| name_of(p).map(String::from))
+        .collect();
+    match find_node_mut(patch, rest) {
+        Err(PathError::Missing) => Err(PathError::NotInPatch {
+            owner,
+            nodes: listed,
+        }),
+        other => other,
+    }
+}
+
+fn path_error(macro_name: &str, path: &str, nodes: &[Value], why: PathError) -> String {
+    match why {
+        PathError::Missing => missing_node(macro_name, path, nodes),
+        PathError::NoPatch(owner) => format!(
+            "macro `{macro_name}`: `{path}`: node `{owner}` is not a voices node, so it has no patch to reach into (a path `voices/patch_node` needs a voices node first)"
+        ),
+        PathError::NotInPatch { owner, nodes } => format!(
+            "macro `{macro_name}`: `{path}`: the voices patch of `{owner}` has no such node (patch nodes: {})",
+            nodes.join(", ")
+        ),
+    }
 }
 
 /// The inside of `nodes`' `voices` patches (recursively): who owns the node
@@ -394,7 +454,7 @@ fn voices_owner(nodes: &[Value], name: &str) -> Option<String> {
 fn missing_node(macro_name: &str, node: &str, nodes: &[Value]) -> String {
     if let Some(v) = voices_owner(nodes, node) {
         return format!(
-            "macro `{macro_name}`: node `{node}` is inside the voices patch of `{v}`: a macro cannot reach into a patch. Declare a param with sound_ops params (e.g. \"{node}_amount\": 0.5), use it in the patch as \"=${node}_amount\" (or `$name` in the voices `map`), and map {{\"param\": \"{node}_amount\", \"from\": 0, \"to\": 1}}"
+            "macro `{macro_name}`: node `{node}` is inside the voices patch of `{v}`: address it as \"{v}/{node}\" ({{\"node\": \"{v}/{node}\", \"field\": ...}}: every voice sees the change), or declare a param with sound_ops params (e.g. \"{node}_amount\": 0.5), use it in the patch as \"=${node}_amount\" (or `$name` in the voices `map`), and map {{\"param\": \"{node}_amount\", \"from\": 0, \"to\": 1}}"
         );
     }
     let names: Vec<&str> = nodes
@@ -412,6 +472,15 @@ fn num(v: f64) -> Value {
         Value::from(v as i64)
     } else {
         serde_json::Number::from_f64(v).map_or(Value::Null, Value::Number)
+    }
+}
+
+/// Which number of a breakpoint pair [x, y] a key names.
+fn point_slot(key: &str) -> Option<usize> {
+    match key {
+        "x" | "time" | "t" => Some(0),
+        "y" | "value" | "v" => Some(1),
+        _ => None,
     }
 }
 
@@ -447,6 +516,18 @@ fn write(node: &mut Value, e: &MapEntry, v: f64) -> Result<(), String> {
                 return Err(format!("has no element {i} (length {})", list.len()));
             };
             match &e.key {
+                // A breakpoint pair [x, y]: `x` / `time` and `y` / `value`.
+                Some(k) if el.is_array() => {
+                    let Some(slot) = point_slot(k) else {
+                        return Err(format!(
+                            "element {i} is a point [x, y]: key must be one of x, time (the first number) or y, value (the second), not `{k}`"
+                        ));
+                    };
+                    let Some(cell) = el.get_mut(slot) else {
+                        return Err(format!("element {i} has no number at {slot}"));
+                    };
+                    *cell = num(v);
+                }
                 Some(k) => {
                     // A bare node name becomes {"input": name, key: v}.
                     if let Value::String(s) = el {
@@ -462,8 +543,22 @@ fn write(node: &mut Value, e: &MapEntry, v: f64) -> Result<(), String> {
             Ok(())
         }
         (None, None) => {
-            if e.key.is_some() {
-                return Err("has key but no index".into());
+            if let Some(k) = &e.key {
+                // An object field (`expr` `state`): write the named entry,
+                // which must exist (a typo would otherwise add a new state).
+                let Some(Value::Object(map)) = obj.get_mut(&e.field) else {
+                    return Err("has key but no index".into());
+                };
+                if !map.contains_key(k) {
+                    let known: Vec<&str> = map.keys().map(String::as_str).collect();
+                    return Err(format!(
+                        "has no entry `{k}` in `{}` (entries: {})",
+                        e.field,
+                        known.join(", ")
+                    ));
+                }
+                map.insert(k.clone(), num(v));
+                return Ok(());
             }
             // An absent optional field is set (it overrides the default); the
             // node's own parse rejects a field it does not have.
@@ -569,11 +664,10 @@ pub fn validate_shape(
                 written_params.push((p.clone(), m.name.clone()));
                 continue;
             }
-            if !nodes
-                .iter()
-                .any(|n| n.get("name").and_then(Value::as_str) == Some(e.node.as_str()))
             {
-                return Err(missing_node(&m.name, &e.node, nodes));
+                let mut probe: Vec<Value> = nodes.to_vec();
+                find_node_mut(&mut probe, &e.node)
+                    .map_err(|why| path_error(&m.name, &e.node, nodes, why))?;
             }
             let key = (
                 e.node.clone(),

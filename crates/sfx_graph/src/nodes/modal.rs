@@ -720,10 +720,27 @@ pub struct Modal {
     /// after, so only the balance moves.
     #[serde(default)]
     pub tilt: Option<f32>,
+    /// Level of the output in dB after the normalization (default 0, -60..60):
+    /// balances a body against a click without a `gain` node, and a macro can
+    /// map it. Absent or 0 leaves the samples unchanged.
+    #[serde(default)]
+    pub gain_db: Option<f32>,
     /// Mixed with the document seed and the node name (default 0): the
     /// mistuning.
     #[serde(default)]
     pub seed: u64,
+}
+
+/// The linear gain of an optional `gain_db` (-60..60): None for absent or 0,
+/// so the default path multiplies by nothing and stays bit-identical.
+fn level_gain(gain_db: Option<f32>) -> Result<Option<f32>, String> {
+    match gain_db {
+        None => Ok(None),
+        Some(g) if g.is_finite() && g.abs() <= 60.0 => Ok((g != 0.0).then(|| 10f32.powf(g / 20.0))),
+        Some(g) => Err(format!(
+            "gain_db: {g}: give dB between -60 and 60 (0 = unchanged)"
+        )),
+    }
 }
 
 /// `loss` multiplier limits and the `tilt` limit (dB per octave).
@@ -768,6 +785,7 @@ impl Eval for Modal {
             }
             props.thickness = t;
         }
+        let gain = level_gain(self.gain_db)?;
         let tilt_db = self.tilt.unwrap_or(0.0);
         if !(tilt_db.is_finite() && (-MAX_TILT..=MAX_TILT).contains(&tilt_db)) {
             return Err(format!(
@@ -866,6 +884,11 @@ impl Eval for Modal {
                 m.2 *= scale;
             }
         }
+        if let Some(g) = gain {
+            for m in &mut modes {
+                m.2 *= g;
+            }
+        }
         Ok(one(per_channel(&input, cx.n, |x| {
             let mut out = vec![0.0f32; x.len()];
             for &(f, t60, g) in &modes {
@@ -895,6 +918,11 @@ pub struct Contact {
     /// When the pulse starts, seconds (default 0).
     #[serde(default)]
     pub at: Option<f32>,
+    /// Level of the pulse in dB (default 0, -60..60): balances a body against
+    /// a click without a `gain` node, and a macro can map it. Absent or 0
+    /// leaves the samples unchanged.
+    #[serde(default)]
+    pub gain_db: Option<f32>,
 }
 
 impl Describe for Contact {
@@ -907,6 +935,7 @@ impl Describe for Contact {
 impl Eval for Contact {
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let props = self.material.props()?;
+        let level = level_gain(self.gain_db)?;
         let at = non_negative("at", self.at.unwrap_or(0.0))?;
         let start = cx.at(at);
         let speed = positive("speed", cx.mono("speed", &self.speed)?.at(start))?;
@@ -926,7 +955,10 @@ impl Eval for Contact {
         // Unit area is a 0.1 kg strike at 1 m/s; the impulse is mass x speed.
         let area = mass * speed / 0.1;
         let len = (tau * cx.sr).round().max(2.0);
-        let norm = PI / 2.0 * area / len;
+        let mut norm = PI / 2.0 * area / len;
+        if let Some(g) = level {
+            norm *= g;
+        }
         Ok(one(mono(cx.n, |i| {
             if i < start {
                 return 0.0;
