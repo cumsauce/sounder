@@ -1,68 +1,5 @@
 [
   {
-    "name": "hunter_catch",
-    "description": "",
-    "tags": [],
-    "kind": "oneshot",
-    "length": 1.8,
-    "lufs": -13.0037365,
-    "macros": []
-  },
-  {
-    "name": "hunter_charge",
-    "description": "",
-    "tags": [],
-    "kind": "oneshot",
-    "length": 1.1,
-    "lufs": -14.0018215,
-    "macros": []
-  },
-  {
-    "name": "hunter_lost",
-    "description": "",
-    "tags": [],
-    "kind": "oneshot",
-    "length": 3.2,
-    "lufs": -18.0,
-    "macros": []
-  },
-  {
-    "name": "hunter_roll",
-    "description": "",
-    "tags": [],
-    "kind": "loop",
-    "length": 1.0,
-    "lufs": -23.235847,
-    "macros": []
-  },
-  {
-    "name": "hunter_run",
-    "description": "",
-    "tags": [],
-    "kind": "oneshot",
-    "length": 0.6,
-    "lufs": -25.617714,
-    "macros": []
-  },
-  {
-    "name": "hunter_spot",
-    "description": "",
-    "tags": [],
-    "kind": "oneshot",
-    "length": 1.3,
-    "lufs": -14.424973,
-    "macros": []
-  },
-  {
-    "name": "hunter_step",
-    "description": "",
-    "tags": [],
-    "kind": "oneshot",
-    "length": 0.9,
-    "lufs": -27.030996,
-    "macros": []
-  },
-  {
     "name": "monster_scream",
     "description": "",
     "tags": [],
@@ -296,28 +233,6 @@
       "weight",
       "scuff",
       "ring"
-    ]
-  },
-  {
-    "name": "recipe_sword",
-    "description": "",
-    "tags": [],
-    "kind": "oneshot",
-    "length": 0.533625,
-    "lufs": -25.171473,
-    "macros": [
-      "ring"
-    ]
-  },
-  {
-    "name": "recipe_ui_confirm",
-    "description": "",
-    "tags": [],
-    "kind": "oneshot",
-    "length": 0.93060416,
-    "lufs": -15.698019,
-    "macros": [
-      "brightness"
     ]
   },
   {
