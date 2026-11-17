@@ -292,8 +292,13 @@ function knobHTML(m) {
 function renderDock() {
   const d = doc(), dk = $('#dock'); dk.hidden = S.view === 'grid'; if (KD) return;
   const moved = d.macros.filter(m => Math.abs(m.value - m.default) > 0.005).length;
-  dk.innerHTML = `<div class="dockh"><span class="t">Macros</span><span class="grow"></span>${moved ? `<button class="tbtn" data-kreset title="Back to the agent's settings">Reset</button>` : ''}</div>
+  const html = `<div class="dockgrip" data-dockgrip title="Drag to resize the macro pane"></div><div class="dockh"><span class="t">Macros</span><span class="grow"></span>${moved ? `<button class="tbtn" data-kreset title="Back to the agent's settings">Reset</button>` : ''}</div>
     <div class="knobs">${d.macros.map(knobHTML).join('')}</div>`;
+  // Rebuilt on every state change: skip when nothing changed, and keep the grid's scroll position otherwise.
+  if (dk.dataset.html === html) return;
+  const keep = dk.querySelector('.knobs'), top = keep ? keep.scrollTop : 0;
+  dk.dataset.html = html; dk.innerHTML = html;
+  const row = dk.querySelector('.knobs'); if (row && top) row.scrollTop = top;
 }
 let KD = null, KT = null; const KS = {};
 const macroOf = name => doc().macros.find(x => x.name === name);
@@ -461,9 +466,9 @@ $('#dock').addEventListener('pointermove', e => { if (!KD) return; setMacro(KD.n
 $('#dock').addEventListener('pointerup', () => { if (!KD) return; const k = KD; KD = null; finishMacro(k.name, k.from); });
 $('#dock').addEventListener('dblclick', e => { const k = e.target.closest('[data-dial]'); if (!k) return; const m = macroOf(k.dataset.dial); const from = m.value; setMacro(m.name, m.default); finishMacro(m.name, from); });
 $('#dock').addEventListener('wheel', e => {
-  const row = e.target.closest('.knobs'), k = e.target.closest('[data-dial]');
-  // Sideways swipes and shift+wheel scroll the row; a plain wheel off a dial scrolls it too.
-  if (row && (!k || e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY))) { if (!e.deltaX || e.shiftKey || !k) { e.preventDefault(); row.scrollLeft += e.deltaX || e.deltaY; } return; }
+  const k = e.target.closest('[data-dial]');
+  // The wheel scrolls the macro grid; it turns a dial only once that dial has been clicked (focused).
+  if (k && document.activeElement !== k) return;
   if (!k) return; e.preventDefault(); const m = macroOf(k.dataset.dial); if (!KD) KD = { name: m.name, from: m.value, wheel: true }; setMacro(m.name, m.value - e.deltaY * 0.0015); clearTimeout(KD.t); KD.t = setTimeout(() => { const kk = KD; KD = null; finishMacro(kk.name, kk.from); }, 350); }, { passive: false });
 $('#dock').addEventListener('keydown', e => { const k = e.target.closest('[data-dial]'); if (!k || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return; e.preventDefault(); e.stopPropagation(); const m = macroOf(k.dataset.dial); const from = m.value; setMacro(m.name, m.value + (/Up|Right/.test(e.key) ? 1 : -1) * (e.shiftKey ? 0.01 : 0.05)); finishMacro(m.name, from).then(() => requestAnimationFrame(() => document.querySelector(`[data-dial="${m.name}"]`)?.focus())); });
 $('#dock').addEventListener('mouseover', e => { const k = e.target.closest('[data-knob]'); if (!k || KD) return; if (S.hot !== k.dataset.knob) { S.hot = k.dataset.knob; document.querySelectorAll('.knob').forEach(x => x.classList.toggle('hot', x.dataset.knob === S.hot)); renderGraph(); } showKpop(k.dataset.knob, k); });
@@ -557,3 +562,13 @@ async function boot() {
   } catch (e) { document.body.insertAdjacentHTML('beforeend', `<div class="toast"><span class="chip warn">${esc(errText(e))}</span></div>`); }
 }
 boot();
+
+// Macro pane height: drag the grip on its top edge; remembered per browser (optional).
+(function () {
+  const dk = $('#dock'); let y0 = 0, h0 = 0, on = false;
+  try { const h = localStorage.getItem('sounder.dockh'); if (h) dk.style.setProperty('--dockh', h + 'px'); } catch (e) { /* storage is optional */ }
+  dk.addEventListener('pointerdown', e => { if (!e.target.closest('[data-dockgrip]')) return; on = true; y0 = e.clientY; h0 = dk.getBoundingClientRect().height; dk.setPointerCapture(e.pointerId); e.preventDefault(); });
+  dk.addEventListener('pointermove', e => { if (!on) return; const h = Math.max(90, Math.min(innerHeight * 0.8, h0 + (y0 - e.clientY))); dk.style.setProperty('--dockh', h + 'px'); });
+  const end = () => { if (!on) return; on = false; try { localStorage.setItem('sounder.dockh', String(Math.round(dk.getBoundingClientRect().height))); } catch (e) { /* ignore */ } };
+  dk.addEventListener('pointerup', end); dk.addEventListener('pointercancel', end);
+})();
