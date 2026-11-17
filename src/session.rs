@@ -1104,7 +1104,7 @@ fn bare_check(name: &str) -> Result<Value, String> {
         }
         other => {
             return Err(format!(
-                "verify: unknown check `{other}`; the checks are peak_db, true_peak_db, lufs, duration, silent_edges, clicks, dc, finite, loop_seam, bands, pitch, onsets, variations, rebuild, reference, macros"
+                "verify: unknown check `{other}`; the checks are peak_db, true_peak_db, lufs, duration, silent_edges, clicks, dc, finite, loop_seam, bands, pitch, onsets, variations, rebuild, reference, macros, aliasing, inharmonicity, modulation, roughness (the last four need settings: use expect)"
             ));
         }
     })
