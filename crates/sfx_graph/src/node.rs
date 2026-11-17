@@ -333,6 +333,12 @@ node_types! {
     // slot S8
 
     // slot S9
+    "chaos" => Chaos,
+    "fbm" => Fbm,
+    "curve" => CurveLookup,
+    "switch" => Switch,
+    "pitch_follow" => PitchFollow,
+    "centroid_follow" => CentroidFollow,
 
     // slot S10
     "trigger_env" => TriggerEnv,

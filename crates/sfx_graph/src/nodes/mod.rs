@@ -38,6 +38,7 @@ mod modfx;
 // slot S8
 
 // slot S9
+mod modulators;
 
 // slot S10
 mod sequence;
@@ -105,6 +106,7 @@ pub use modfx::*;
 // slot S8
 
 // slot S9
+pub use modulators::*;
 
 // slot S10
 pub use sequence::*;
