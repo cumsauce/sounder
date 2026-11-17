@@ -19,6 +19,7 @@ pub mod buf;
 pub mod doc;
 pub mod dsp;
 pub mod eval;
+pub mod feedback;
 pub mod loudness;
 pub mod macros;
 pub mod node;

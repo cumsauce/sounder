@@ -115,8 +115,9 @@ cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings 
   that `summary` reports once and clears. Moves are not history steps.
 - **The bridge** (`src/bin/sounder/server/bridge.rs`): the MCP server runs on
   its own thread and tokio runtime; the `Session` lives on another and runs
-  closures sent over a channel (`Cmd::Exec`). Phase 5 drains the same channel
-  from the window's frame loop instead of `run_headless`.
+  closures sent over a channel (`Cmd::Exec`). The phase 5 window (a webview on
+  the main thread) is one more sender on the same channel; the session loop
+  stays as it is.
 - **`sounder` without `--headless`** exits with a message until phase 5. The
   driver serves every mode headless. `--print-catalog-dir` and
   `--feedback-report` are there for the driver and a shell.

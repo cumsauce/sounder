@@ -106,12 +106,6 @@ pub fn parse(nodes: &[Value], params: &Params) -> Result<Vec<Parsed>, String> {
     }
     for p in &out {
         for r in &p.reads {
-            if r == &p.name {
-                return Err(format!(
-                    "node `{}` ({}) reads itself: feedback loops are not supported yet; use the feedback field of delay or comb",
-                    p.name, p.ty
-                ));
-            }
             if !out.iter().any(|q| &q.name == r) {
                 let names: Vec<&str> = out.iter().map(|q| q.name.as_str()).collect();
                 let near = names
@@ -143,54 +137,14 @@ fn valid_name(s: &str) -> bool {
 }
 
 /// Dependency levels: level 0 reads nothing; each node sits one level after
-/// the deepest node it reads.
+/// the deepest node it reads. A feedback loop (legal only through a `delay`,
+/// see [`crate::feedback`]) is one unit: its members share a level.
 pub fn levels(nodes: &[Parsed]) -> Result<Vec<Vec<usize>>, String> {
-    let idx: HashMap<&str, usize> = nodes
-        .iter()
-        .enumerate()
-        .map(|(i, p)| (p.name.as_str(), i))
-        .collect();
-    let mut depth: Vec<Option<usize>> = vec![None; nodes.len()];
-    fn visit(
-        i: usize,
-        nodes: &[Parsed],
-        idx: &HashMap<&str, usize>,
-        depth: &mut Vec<Option<usize>>,
-        stack: &mut Vec<usize>,
-    ) -> Result<usize, String> {
-        if let Some(d) = depth[i] {
-            return Ok(d);
-        }
-        if let Some(at) = stack.iter().position(|&j| j == i) {
-            let names: Vec<&str> = stack[at..]
-                .iter()
-                .map(|&j| nodes[j].name.as_str())
-                .collect();
-            return Err(format!(
-                "nodes form a cycle: {} -> {}: feedback loops are not supported yet; use the feedback field of delay or comb",
-                names.join(" -> "),
-                nodes[i].name
-            ));
-        }
-        stack.push(i);
-        let mut d = 0;
-        for r in &nodes[i].reads {
-            if let Some(&j) = idx.get(r.as_str()) {
-                d = d.max(visit(j, nodes, idx, depth, stack)? + 1);
-            }
-        }
-        stack.pop();
-        depth[i] = Some(d);
-        Ok(d)
-    }
-    let mut stack = Vec::new();
-    for i in 0..nodes.len() {
-        visit(i, nodes, &idx, &mut depth, &mut stack)?;
-    }
-    let max = depth.iter().flatten().max().copied().unwrap_or(0);
+    let loops = crate::feedback::find_loops(nodes)?;
+    let max = loops.depth.iter().max().copied().unwrap_or(0);
     let mut lv = vec![Vec::new(); if nodes.is_empty() { 0 } else { max + 1 }];
-    for (i, d) in depth.iter().enumerate() {
-        lv[d.unwrap_or(0)].push(i);
+    for (i, d) in loops.depth.iter().enumerate() {
+        lv[*d].push(i);
     }
     Ok(lv)
 }
@@ -225,7 +179,7 @@ impl Evaluated {
     }
 }
 
-fn resolve(ports: &HashMap<String, Ports>, i: &In) -> Result<Sig, String> {
+pub(crate) fn resolve(ports: &HashMap<String, Ports>, i: &In) -> Result<Sig, String> {
     match i {
         In::Num(x) => Ok(Sig::Const(*x)),
         In::Vec(v) => match v.as_slice() {
@@ -341,57 +295,118 @@ pub fn evaluate(
 ) -> Result<Evaluated, String> {
     let parsed = parse(nodes, params)?;
     let lv = levels(&parsed)?;
+    let loops = crate::feedback::find_loops(&parsed)?;
     let mut keys: HashMap<String, u64> = HashMap::new();
     let mut ports: HashMap<String, Ports> = HashMap::new();
     let mut runs = 0usize;
     let sr = ctx.sample_rate as f32;
     for level in lv {
-        let jobs: Vec<(usize, u64)> = level
+        // One job per node, or per loop (its first member stands for it).
+        let level: Vec<usize> = level
+            .into_iter()
+            .filter(|&i| loops.of[i].is_none_or(|g| loops.groups[g][0] == i))
+            .collect();
+        let node_hash = |i: usize| {
+            let p = &parsed[i];
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            (
+                p.ty.as_str(),
+                p.body.to_string(),
+                ctx.sample_rate,
+                ctx.n,
+                ctx.looped,
+            )
+                .hash(&mut h);
+            if p.node.random() {
+                (ctx.seed, p.name.as_str()).hash(&mut h);
+            }
+            // A file-reading node also keys on its file's path and mtime, so
+            // editing the WAV re-renders.
+            for f in ["file", "ir"] {
+                if let Some(path) = p.body.get(f).and_then(Value::as_str)
+                    && node::is_file(path)
+                {
+                    let full = match &ctx.base_dir {
+                        Some(b) => b.join(path),
+                        None => PathBuf::from(path),
+                    };
+                    full.hash(&mut h);
+                    std::fs::metadata(&full)
+                        .and_then(|m| m.modified())
+                        .ok()
+                        .hash(&mut h);
+                }
+            }
+            h
+        };
+        // A job: the node indices it computes with their keys.
+        let jobs: Vec<Vec<(usize, u64)>> = level
             .iter()
-            .map(|&i| {
-                let p = &parsed[i];
-                let mut h = std::collections::hash_map::DefaultHasher::new();
-                (
-                    p.ty.as_str(),
-                    p.body.to_string(),
-                    ctx.sample_rate,
-                    ctx.n,
-                    ctx.looped,
-                )
-                    .hash(&mut h);
-                if p.node.random() {
-                    (ctx.seed, p.name.as_str()).hash(&mut h);
-                }
-                // A file-reading node also keys on its file's path and mtime,
-                // so editing the WAV re-renders.
-                for f in ["file", "ir"] {
-                    if let Some(path) = p.body.get(f).and_then(Value::as_str)
-                        && node::is_file(path)
-                    {
-                        let full = match &ctx.base_dir {
-                            Some(b) => b.join(path),
-                            None => PathBuf::from(path),
-                        };
-                        full.hash(&mut h);
-                        std::fs::metadata(&full)
-                            .and_then(|m| m.modified())
-                            .ok()
-                            .hash(&mut h);
+            .map(|&i| match loops.of[i] {
+                None => {
+                    let mut h = node_hash(i);
+                    for r in &parsed[i].reads {
+                        keys.get(r).copied().unwrap_or(0).hash(&mut h);
                     }
+                    vec![(i, h.finish())]
                 }
-                for r in &p.reads {
-                    keys.get(r).copied().unwrap_or(0).hash(&mut h);
+                Some(g) => {
+                    // A loop's members key together: their own bodies plus
+                    // every outside signal they read.
+                    let members = &loops.groups[g];
+                    let mut h = std::collections::hash_map::DefaultHasher::new();
+                    for &m in members {
+                        node_hash(m).finish().hash(&mut h);
+                        parsed[m].name.hash(&mut h);
+                        for r in &parsed[m].reads {
+                            if !members.iter().any(|&o| parsed[o].name == *r) {
+                                keys.get(r).copied().unwrap_or(0).hash(&mut h);
+                            }
+                        }
+                    }
+                    let base = h.finish();
+                    members
+                        .iter()
+                        .map(|&m| {
+                            let mut hm = std::collections::hash_map::DefaultHasher::new();
+                            (base, parsed[m].name.as_str()).hash(&mut hm);
+                            (m, hm.finish())
+                        })
+                        .collect()
                 }
-                (i, h.finish())
             })
             .collect();
-        let done: Vec<Result<(usize, u64, Ports, bool), String>> = jobs
+        type Done = Vec<(usize, u64, Ports, bool)>;
+        let done: Vec<Result<Done, String>> = jobs
             .par_iter()
-            .map(|&(i, k)| {
-                let p = &parsed[i];
-                if cached && let Some(hit) = cache_get(k) {
-                    return Ok((i, k, hit, false));
+            .map(|job| -> Result<Done, String> {
+                if cached {
+                    let hits: Vec<Option<Ports>> = job.iter().map(|&(_, k)| cache_get(k)).collect();
+                    if hits.iter().all(Option::is_some) {
+                        return Ok(job
+                            .iter()
+                            .zip(hits)
+                            .filter_map(|(&(i, k), h)| h.map(|h| (i, k, h, false)))
+                            .collect());
+                    }
                 }
+                let first = job[0].0;
+                if loops.of[first].is_some() {
+                    let members: Vec<usize> = job.iter().map(|&(i, _)| i).collect();
+                    let outs = crate::feedback::eval_loop(&members, &parsed, &ports, sr, ctx.n)?;
+                    return Ok(job
+                        .iter()
+                        .zip(outs)
+                        .map(|(&(i, k), o)| {
+                            if cached {
+                                cache_put(k, o.clone());
+                            }
+                            (i, k, o, true)
+                        })
+                        .collect());
+                }
+                let (i, k) = job[0];
+                let p = &parsed[i];
                 let get = |x: &In| resolve(&ports, x);
                 let cx = Cx {
                     sr,
@@ -416,18 +431,20 @@ pub fn evaluate(
                         ));
                     }
                 }
-                let outs: Ports = Arc::new(outs.into_iter().map(|(n, b)| (n, Arc::new(b))).collect());
+                let outs: Ports =
+                    Arc::new(outs.into_iter().map(|(n, b)| (n, Arc::new(b))).collect());
                 if cached {
                     cache_put(k, outs.clone());
                 }
-                Ok((i, k, outs, true))
+                Ok(vec![(i, k, outs, true)])
             })
             .collect();
         for d in done {
-            let (i, k, outs, ran) = d?;
-            runs += usize::from(ran);
-            keys.insert(parsed[i].name.clone(), k);
-            ports.insert(parsed[i].name.clone(), outs);
+            for (i, k, outs, ran) in d? {
+                runs += usize::from(ran);
+                keys.insert(parsed[i].name.clone(), k);
+                ports.insert(parsed[i].name.clone(), outs);
+            }
         }
     }
     Ok(Evaluated {

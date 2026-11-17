@@ -113,6 +113,39 @@ Recipes:
   target; the render warns when it misses by more than 1 LU.
 - **Edges:** the output fades 2 ms in and 5 ms out by default (0 for loops).
 
+## Feedback loops
+
+A cycle in the graph is legal only if it passes through a `delay` node. The
+loop is then evaluated sample by sample (a delay's output at sample i depends
+only on its input at earlier samples). A cycle with no delay is an error naming
+the nodes ("nodes form a cycle without a delay: a -> c -> b -> a").
+
+```json
+[{"type": "noise", "name": "n"}, {"type": "decay", "name": "e", "time": 0.004},
+ {"type": "math", "name": "burst", "op": "mul", "a": "n", "b": "e"},
+ {"type": "mix", "name": "m", "inputs": ["burst", "g"]},
+ {"type": "delay", "name": "d", "input": "m", "time": 0.00227},
+ {"type": "onepole", "name": "lp", "input": "d", "mode": "lp", "freq": 9000},
+ {"type": "gain", "name": "g", "input": "lp", "gain": 0.997},
+ {"type": "onepole", "name": "hp", "input": "g", "mode": "hp", "freq": 30}]
+```
+
+That is a Karplus-Strong string: the pitch is 1 / delay time (a little flat: the
+filter adds a fraction of a sample to the loop; the delay `time` is the period).
+The loop reads `burst` (outside it) per sample, so an outside `ramp` or `lfo`
+can modulate anything in the loop.
+
+- **Loop-capable nodes** (the rest error naming the node and listing these):
+  `delay filter onepole comb allpass gain math mix shape remap slew follower`.
+  Loops are mono; `mix` inside one takes no `pan` / `at` (do those after it).
+- A loop's gain must stay under 1 or it blows up; the output limiter then
+  holds it and `summary` warns the sound never decays. A burst's DC rings in a
+  loop: block it with an `onepole` hp before the output (verify's `dc` says so).
+- `delay` and `comb` still have their own `feedback` field for the simple case;
+  the loop form is for filters, shapers or several delays in the path.
+- Loops are cached and deterministic like everything else; changing a node in
+  a loop re-runs the whole loop, not the nodes that only feed it.
+
 ## Macros: knobs for the human
 
 You cannot hear, so give the human a front panel: a few knobs that move
@@ -211,6 +244,6 @@ folds it into what to fix first.
 - Compressed export (ogg).
 - A project **sound style** (loudness targets per category); project-level
   macros across several sounds ("grit" on all the footsteps) belong with it.
-- Feedback loops through `delay`, events and `voices`, `expr`, `sound`
-  instancing, offline pitch / time (phase 3); physical models, `reference`
-  compare (phase 4); the window and `play` (phase 5).
+- Events and `voices`, `expr`, `sound` instancing, offline pitch / time
+  (rest of phase 3); physical models, `reference` compare (phase 4); the
+  window and `play` (phase 5).

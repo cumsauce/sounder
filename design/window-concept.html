@@ -5,8 +5,8 @@
 <style>
 /* Layout (plan phase 5): top bar = which sound + transport (play, loop, seed, A/B); left = open sounds and the
    selected sound's nodes in signal order; centre = spectrogram / waveform / loudness with a playhead (or the node
-   graph); bottom dock = history; right = node | sound | comments tabs. Tokens are modeler's ds.rs, so the Bevy
-   window can reuse its design system as is. The audio is real: the mock renders the same node JSON in the browser. */
+   graph); bottom dock = history; right = node | sound | comments tabs. Tokens match modeler's ds.rs. Phase 5 ships
+   this page in a webview with the Rust session behind it. The audio is real: the mock renders the same node JSON in the browser. */
 :root {
   color-scheme: dark;
   --bg: #15171c; --panel: #1c1f26; --raise: #252932; --line: #2e333e;

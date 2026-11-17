@@ -1,6 +1,6 @@
 //! The session lives on one thread; the MCP server (its own tokio runtime)
-//! sends it closures. The window (phase 5) will drain the same channel from
-//! its frame loop instead of the headless thread.
+//! sends it closures. The window (phase 5, a webview on the main thread) will
+//! be one more sender on the same channel.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};

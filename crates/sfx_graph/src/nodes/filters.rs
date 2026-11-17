@@ -20,7 +20,7 @@ pub enum FilterModeSpec {
 }
 
 impl FilterModeSpec {
-    fn mode(self) -> FilterMode {
+    pub(crate) fn mode(self) -> FilterMode {
         match self {
             FilterModeSpec::Lp => FilterMode::Lp,
             FilterModeSpec::Hp => FilterMode::Hp,

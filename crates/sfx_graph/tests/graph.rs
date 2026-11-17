@@ -214,7 +214,11 @@ fn cycles_are_errors_that_name_the_nodes() {
         json!({"type": "output", "name": "out", "input": "a"}),
     ]);
     let e = d.render(&RenderOpts::default()).unwrap_err();
-    assert!(e.contains("cycle") && e.contains("a -> b -> a"), "{e}");
+    assert!(
+        e.contains("cycle without a delay")
+            && (e.contains("a -> b -> a") || e.contains("b -> a -> b")),
+        "{e}"
+    );
 }
 
 #[test]
