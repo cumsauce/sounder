@@ -436,6 +436,8 @@ fn every_node_type_renders_its_example() {
         json!({"type": "mix", "name": "click", "inputs": ["hit"]}),
         json!({"type": "mix", "name": "mix1", "inputs": ["src"]}),
         json!({"type": "pattern", "name": "ev", "every": 0.1, "count": 3}),
+        // phase 4: modal
+        json!({"type": "contact", "name": "contact1", "speed": 1.0, "mass": 0.1, "material": "wood"}),
     ];
     // Event streams are not audio: they are evaluated and read, not mixed.
     let event_types = [

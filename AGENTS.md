@@ -265,6 +265,54 @@ impact strength), or later `voices`; **a crackle** = `poisson` with a
   loops pass easily; a smooth loop (a drone, an lfo) must be periodic in the
   duration (every lfo / oscillator frequency a multiple of 1 / duration).
 
+## Physical models: modal, contact, friction
+
+```json
+{"type": "contact", "name": "blow", "speed": 2, "mass": 0.1, "material": "wood", "hardness": 0.7}
+{"type": "modal", "name": "panel", "excite": "blow", "material": "wood", "size": 0.5, "strike_position": 0.3}
+{"type": "friction", "name": "hinge", "speed": "swing", "pressure": 0.8, "roughness": 0.3}
+```
+
+- `modal` {excite, material, size, [strike_position 0.3], [modes 48], [seed]}:
+  a simply supported square plate `size` metres a side. `material` is a foley
+  name (`stone wood metal glass ice earth granular plant soft snow`) or
+  `{young, density, poisson, loss, thickness}`. Mode Hz = pi/2 * thickness *
+  c_L / sqrt(12) * (m^2 + n^2) / size^2, so pitch goes as 1 / size^2 and a
+  plate's thickness sets its register (wood 2.5 cm, size 0.5: lowest mode
+  ~425 Hz; glass 1 cm, size 0.5: ~200 Hz). T60 per mode = ln(1000) / (pi f
+  loss): high modes die first, metal (loss 0.004) rings several times longer
+  than wood (0.025). `strike_position` weights each mode by
+  |sin(m pi x0) sin(n pi y0)| (0.5 is the centre: modes with a node there
+  vanish); a seeded 1.5 % mistuning breaks the symmetry. `size`,
+  `strike_position` are read once (at the start), so `"$size"` / `"=expr"`
+  work (a `voices` patch can randomize them) but a ramp will not glide them.
+  The `excite` signal is the strike: modal is linear, so a `contact`
+  pulse, an `impulse`, a noise burst or a `friction` stream all work.
+  Stereo excite rings each channel alone.
+- `contact` {speed, mass, material, [hardness 0.7], [at]}: a half-sine force
+  pulse as long as the Hertz contact time (foley's `hertz_time`) of a
+  2000 kg/m3 ball of that mass whose stiffness runs from rubber (hardness 0)
+  to steel (1) against the struck material. Heavier, slower, softer = longer
+  and duller. Area is mass * speed / 0.1 (0.1 kg at 1 m/s = a unit impulse).
+  `speed` and `mass` are read at `at`.
+- `friction` {speed, pressure, [roughness 0], [grain 200], [seed]}: a
+  stick-slip sawtooth (90 % climb, a smooth 10 % slip) at `speed * grain` Hz,
+  times `pressure`; speed 0 is silence, negative speeds count as their
+  magnitude. `roughness` 0..1 jitters each cycle's length and size and adds
+  noise. Both fields are signals: a `ramp` on speed is a creak that rises, a
+  `wander` on pressure makes it breathe.
+- Recipes: door hinge = `ramp` -> `friction` -> `modal` wood size ~0.45
+  (`examples/door_creak.rs`); glass = `contact` -> `modal` glass cut by a fast
+  `decay`, then `poisson` (a ramped rate) -> `voices` of a thin-glass `modal`
+  with `$rand` size (`examples/glass_break.rs`); a bell = `impulse` -> `modal`
+  metal with a small `size`.
+- Honest limits: I cannot hear these. Plates are idealized (square, simply
+  supported); real doors, bells and glass differ, so treat `size` as a
+  pitch knob (give the human a macro on it) rather than a physical dimension.
+  Foley's mode table is private, so this is a reimplementation of its
+  formulas (plus a gentle high-frequency tilt), not a call into it; the
+  material table and `hertz_time` are foley's.
+
 ## Macros: knobs for the human
 
 You cannot hear, so give the human a front panel: a few knobs that move

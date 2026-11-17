@@ -36,6 +36,8 @@ cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings 
 
 ## Status
 
+**Phase 4, lane modal: `modal` (a struck plate from foley's material table), `contact` (Hertz force pulse), `friction` (stick-slip) in `nodes/modal.rs`, plus `examples/door_creak.rs` and `examples/glass_break.rs`; see "Physical models" in AGENTS.md.**
+
 **Phase 3 (events, voices, feedback, expr, instancing, offline pitch/time): done.** See "Phase 3 notes" below.
 
 **Phase 3, offline pitch / time / spectral: `pitch_shift`, `time_stretch`, `spectral` (freeze, blur, gate, morph) in `nodes/spectral.rs`; see AGENTS.md.**
