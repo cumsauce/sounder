@@ -30,3 +30,12 @@
   - still running or unmerged (worktrees under .swarm/wt, branches swarm/<id>): M3 M4 M5 M6 M7 M8 X1. Each commits on its own branch; merge with: cd .swarm/wt/<id> && git rebase swarm/main; git merge --ff-only swarm/<id> (from main checkout)
   - not started: X2 (bands.rs), X3 (Grains/cloud), docs step (fold docs/nodes/*.md into AGENTS.md + INSTRUCTIONS), round 1..5 (section 9), final REPORT.md
   - findings: shared cargo target dir gives false passes (removed); S1 has 3 #[ignore]d tests; T0b oversampler 30 dB test #[ignore]d
+- usage limit reset; merged M4 water; resuming M3 M5 M6 M7 M8 X1 via SendMessage; launching X2 X3
+- merged M3 elements
+- merged M8 voice upgrades
+- merged M6 surface
+- merged M5 waveguide
+- merged X3 cloud/grains
+- merged X1 spectral
+- merged M7 modal fixes/shapes/shatter (modal default level changed by design)
+- merged X2 bands. ALL wave 0-3 tasks merged; workspace tests green (52 suites ok). launching DOCS (fold docs/nodes into AGENTS.md + INSTRUCTIONS)
