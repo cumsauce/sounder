@@ -425,6 +425,22 @@ pub struct Footstep {
     /// sharper, with a heel click), `boot`, `bare` (soft, no click).
     #[serde(default)]
     pub shoe: Option<String>,
+    /// Scales the resonant body frequency, 0.5..2 (default 1), independent
+    /// of `weight`: wood's three body modes, concrete's low thud, gravel's
+    /// thump and grass's soft low band all move by this factor (0.5 an
+    /// octave down, 2 an octave up). The sharp upper part (ticks, scuffs)
+    /// does not move. A number outside 0.5..2 is an error.
+    #[serde(default)]
+    pub body: Option<f32>,
+    /// Balance of the continuous swish against the stalk / stone-tick layer,
+    /// 0..1 (default 0.5, the unchanged recipe). Grass: the swish bands scale
+    /// by `1 + 2 (swish - 0.5)` and the stalk ticks by `1 - 2 (swish - 0.5)`
+    /// (0 is ticks only, at twice the level; 1 is swish only). Gravel: below
+    /// 0.5 the stone ticks grow up to 1.6x; above it they fade to 0.4x and a
+    /// swish bed (the grass band) fades in. Concrete and wood ignore it. A
+    /// number outside 0..1 is an error.
+    #[serde(default)]
+    pub swish: Option<f32>,
     /// When the heel lands, seconds (default 0). The step lasts up to about
     /// 0.6 s after it; whatever passes the end of the sound is cut.
     #[serde(default)]
@@ -436,7 +452,7 @@ pub struct Footstep {
 }
 
 impl Describe for Footstep {
-    const BLURB: &'static str = "one footstep: heel then toe on concrete, gravel, grass or wood, by weight, pace and shoe (a finished recipe; seed for another step)";
+    const BLURB: &'static str = "one footstep: heel then toe on concrete, gravel, grass or wood, by weight, pace, shoe, body and swish (a finished recipe; seed for another step)";
     const WORDS: &'static [&'static str] = &["surface", "pace", "shoe"];
     fn example() -> serde_json::Value {
         serde_json::json!({"surface": "concrete", "weight": 0.5, "pace": "walk", "shoe": "sneaker", "at": 0.0, "seed": 1})
@@ -449,6 +465,9 @@ struct Step {
     w: f32,
     pace: f32,
     shoe: Shoe,
+    /// Body frequency factor and swish balance (`body`, `swish`).
+    body: f32,
+    swish: f32,
     /// Heel landing and toe landing, seconds, with their strengths.
     heel: (f32, f32),
     toe: (f32, f32),
@@ -561,7 +580,7 @@ impl Step {
         let f = tilt * jitter;
         // A dead slab: a low thud and short mid modes.
         let modes = [
-            (120.0 / tilt.sqrt() * jitter, 0.05, 0.45),
+            (120.0 / tilt.sqrt() * jitter * self.body, 0.05, 0.45),
             (640.0 * f, 0.07, 0.6),
             (1180.0 * f, 0.06, 0.55),
             (1900.0 * f, 0.05, 0.5),
@@ -609,7 +628,7 @@ impl Step {
         for (t, a) in self.impacts() {
             add_pulse(&mut force, sr, t, width, a);
         }
-        let thump = ring(&force, &[(95.0 / tilt.sqrt(), 0.05, 0.5)], sr);
+        let thump = ring(&force, &[(95.0 / tilt.sqrt() * self.body, 0.05, 0.5)], sr);
         add(&mut out, &thump, 1.0);
         // The crunch chain: clusters spaced 30+ ms apart from the heel on;
         // the toe is the cluster nearest its landing. Every random number is
@@ -634,6 +653,8 @@ impl Step {
             times[toe_k] = times[toe_k].max(times[toe_k - 1] + 0.032);
         }
         let click = self.shoe.click().max(0.5);
+        // Stone ticks: 1.6x at swish 0, 1x at 0.5, 0.4x at 1.
+        let tick_gain = 1.0 - (self.swish - 0.5) * 1.2;
         for (k, &t) in times.iter().enumerate() {
             let fade = (count - k as f32).clamp(0.0, 1.0);
             let fall = (-(t - self.heel.0) / 0.45).exp();
@@ -652,8 +673,32 @@ impl Step {
                 let hz = 1700.0 * (4.5f32).powf(self.rng.unit()) * tilt;
                 let q = lerp(2.0, 5.0, self.rng.unit());
                 let decay = lerp(0.0018, 0.005, self.rng.unit());
-                let amp = strength * on * lerp(0.35, 1.0, self.rng.unit()) * 0.5 * click;
+                let amp =
+                    strength * on * lerp(0.35, 1.0, self.rng.unit()) * 0.5 * click * tick_gain;
                 add_noise(&mut out, &mut self.rng, sr, t + dt, hz, q, amp, 0.0, decay);
+            }
+        }
+        // The swish bed (only above swish 0.5, drawn last so nothing else
+        // moves): the grass band under heel and toe.
+        let bed = (self.swish - 0.5).max(0.0) * 2.0;
+        if bed > 0.0 {
+            let attack = lerp(0.034, 0.046, self.w) * lerp(1.2, 0.8, self.pace);
+            for (t, a, long) in [
+                (self.heel.0, self.heel.1, 1.0),
+                (self.toe.0, self.toe.1, 0.8),
+            ] {
+                let r = self.rng.signed();
+                add_noise(
+                    &mut out,
+                    &mut self.rng,
+                    sr,
+                    t,
+                    3100.0 * tilt * (1.0 + 0.06 * r),
+                    0.55,
+                    0.35 * a * bed,
+                    attack * long,
+                    lerp(0.04, 0.065, self.w),
+                );
             }
         }
         out
@@ -664,6 +709,8 @@ impl Step {
         let tilt = self.tilt();
         let mut out = vec![0.0f32; n];
         let attack = lerp(0.034, 0.046, self.w) * lerp(1.2, 0.8, self.pace);
+        let swish_gain = 1.0 + (self.swish - 0.5) * 2.0;
+        let tick_gain = 1.0 - (self.swish - 0.5) * 2.0;
         // The swishes: wide noise bands, slow rise, heel then toe.
         for (t, a, long) in [
             (self.heel.0, self.heel.1, 1.0),
@@ -677,7 +724,7 @@ impl Step {
                 t,
                 3100.0 * tilt * (1.0 + 0.06 * r),
                 0.55,
-                0.9 * a,
+                0.9 * a * swish_gain,
                 attack * long,
                 lerp(0.04, 0.065, self.w),
             );
@@ -689,7 +736,7 @@ impl Step {
                 &mut self.rng,
                 sr,
                 t,
-                140.0,
+                140.0 * self.body,
                 0.5,
                 0.55 * a * lerp(0.7, 1.4, self.w),
                 attack,
@@ -708,7 +755,8 @@ impl Step {
             };
             let t = base + 0.01 + self.rng.unit() * 0.18;
             let hz = lerp(2200.0, 6000.0, self.rng.unit()) * tilt;
-            let amp = lerp(0.06, 0.2, self.rng.unit()) * self.shoe.click().max(0.5) * on;
+            let amp =
+                lerp(0.06, 0.2, self.rng.unit()) * self.shoe.click().max(0.5) * on * tick_gain;
             add_noise(&mut out, &mut self.rng, sr, t, hz, 1.5, amp, 0.0, 0.0025);
         }
         out
@@ -723,7 +771,7 @@ impl Step {
         for (t, a) in self.impacts() {
             add_pulse(&mut body_force, sr, t, width, a);
         }
-        let f0 = lerp(215.0, 105.0, self.w) * (1.0 + 0.04 * self.rng.signed());
+        let f0 = lerp(215.0, 105.0, self.w) * (1.0 + 0.04 * self.rng.signed()) * self.body;
         let body = ring(
             &body_force,
             &[
@@ -785,6 +833,18 @@ impl Eval for Footstep {
         };
         let shoe = Shoe::parse(self.shoe.as_deref().unwrap_or("sneaker"))?;
         let at = non_negative("at", self.at.unwrap_or(0.0))?;
+        let body = self.body.unwrap_or(1.0);
+        if !(0.5..=2.0).contains(&body) {
+            return Err(format!(
+                "body: {body}: give a number from 0.5 (an octave down) to 2 (an octave up), default 1"
+            ));
+        }
+        let swish = self.swish.unwrap_or(0.5);
+        if !(0.0..=1.0).contains(&swish) {
+            return Err(format!(
+                "swish: {swish}: give a number from 0 (ticks only) to 1 (swish only), default 0.5"
+            ));
+        }
         let mut rng = cx.rng(self.seed);
         // Per-step variation, drawn first so every surface sees the same
         // numbers for the same seed: the gap, the two strengths.
@@ -798,6 +858,8 @@ impl Eval for Footstep {
             w: weight,
             pace,
             shoe,
+            body,
+            swish,
             heel: (at, heel_a),
             toe: (at + gap, toe_a),
             rng,

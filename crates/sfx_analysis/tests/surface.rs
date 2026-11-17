@@ -657,3 +657,216 @@ fn footstep_one_liners_render_through_the_output_stage() {
         assert!(d.peak_db > -20.0 && d.peak_db < -3.0);
     }
 }
+
+// ------------------------------------------------------------ R2-G: body, swish
+
+fn fnv(x: &[f32]) -> u64 {
+    let mut h = 0xcbf2_9ce4_8422_2325u64;
+    for v in x {
+        for b in v.to_bits().to_le_bytes() {
+            h ^= u64::from(b);
+            h = h.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    }
+    h
+}
+
+/// The nine renders recorded before `body` and `swish` existed.
+fn baseline_cases() -> Vec<(String, Value)> {
+    let mut v = Vec::new();
+    for s in ["concrete", "gravel", "grass", "wood"] {
+        v.push((format!("{s} default"), step(s, json!({}))));
+    }
+    for s in ["concrete", "gravel", "grass", "wood"] {
+        v.push((
+            format!("{s} heavy run boot"),
+            step(
+                s,
+                json!({"weight": 0.8, "pace": "run", "shoe": "boot", "seed": 3}),
+            ),
+        ));
+    }
+    v.push((
+        "wood hard light sneak".into(),
+        step(
+            "wood",
+            json!({"weight": 0.2, "pace": "sneak", "shoe": "hard", "seed": 5}),
+        ),
+    ));
+    v
+}
+
+const BASELINES: [u64; 9] = [
+    0xca4e_df16_3ed1_a572,
+    0xc005_c951_bef1_3afd,
+    0x4a64_bd8a_1697_af30,
+    0xe12c_c77e_9923_4945,
+    0xfc7d_172a_6f70_5a5f,
+    0x5834_23b2_0ed2_2779,
+    0x9e32_1ce3_2bc9_bc29,
+    0x32e7_5c23_5103_3ab7,
+    0x901e_1415_d839_32cb,
+];
+
+#[test]
+fn body_and_swish_defaults_are_bit_identical_to_before() {
+    let cases = baseline_cases();
+    let mut bad = Vec::new();
+    for ((name, node), want) in cases.iter().zip(BASELINES) {
+        let x = node_audio(vec![node.clone()], "n", 1.0);
+        println!("{name}: hash {:016x}", fnv(&x));
+        if fnv(&x) != want {
+            bad.push(name.clone());
+        }
+    }
+    assert!(bad.is_empty(), "changed: {bad:?}");
+}
+
+/// The strongest spectral peak (a local maximum) between `lo` and `hi` Hz.
+fn strongest_in(x: &[f32], lo: f32, hi: f32) -> f32 {
+    peaks(x, SR, 200, 200.0)
+        .into_iter()
+        .find(|(hz, _)| (lo..=hi).contains(hz))
+        .map(|p| p.0)
+        .unwrap()
+}
+
+#[test]
+fn footstep_body_moves_the_wood_mode_by_the_factor() {
+    // Strongest low mode (40-400 Hz), body 0.5 vs 2, at three weights: the
+    // ratio is 4 within 10 %, whatever the weight.
+    for w in [0.2, 0.5, 0.8] {
+        let lo = node_audio(
+            vec![step("wood", json!({"weight": w, "body": 0.5}))],
+            "n",
+            1.0,
+        );
+        let hi = node_audio(
+            vec![step("wood", json!({"weight": w, "body": 2.0}))],
+            "n",
+            1.0,
+        );
+        let (a, b) = (
+            strongest_in(&lo, 50.0, 600.0),
+            strongest_in(&hi, 50.0, 600.0),
+        );
+        println!(
+            "wood weight {w}: body 0.5 -> {a:.1} Hz, body 2 -> {b:.1} Hz, ratio {:.2}",
+            b / a
+        );
+        assert!((b / a - 4.0).abs() < 0.4, "{a} {b}");
+    }
+}
+
+#[test]
+fn footstep_body_is_independent_of_weight_and_moves_concrete_gravel_grass() {
+    // Weight moves the wood mode by 2x over its range; body at a fixed weight
+    // moves it by the factor, and a body of 1 is the unchanged recipe.
+    let one = node_audio(vec![step("wood", json!({"body": 1.0}))], "n", 1.0);
+    let none = node_audio(vec![step("wood", json!({}))], "n", 1.0);
+    assert_eq!(fnv(&one), fnv(&none));
+    // Concrete: the low thud (60-300 Hz band level) falls in pitch with
+    // body 0.5 and rises with 2: the band centroid below 400 Hz orders.
+    let low_centroid = |surface: &str, body: f32| {
+        let x = node_audio(vec![step(surface, json!({"body": body}))], "n", 1.0);
+        let sp = spectrum(&x, SR);
+        let (mut num, mut den) = (0.0f64, 0.0f64);
+        for (hz, m) in sp.iter().filter(|(hz, _)| (30.0..=400.0).contains(hz)) {
+            let p = 10f64.powf(f64::from(*m) / 10.0);
+            num += f64::from(*hz) * p;
+            den += p;
+        }
+        (num / den) as f32
+    };
+    for surface in ["concrete", "gravel", "grass"] {
+        let c: Vec<f32> = [0.5, 0.71, 1.0, 1.41, 2.0]
+            .iter()
+            .map(|b| low_centroid(surface, *b))
+            .collect();
+        println!("{surface}: centroid below 400 Hz at body 0.5 .. 2: {c:.0?}");
+        assert!(c.windows(2).all(|w| w[1] > w[0]), "{surface}: {c:?}");
+    }
+}
+
+fn share_above(x: &[f32], hz: f32) -> f32 {
+    10f32.powf((band_db(x, SR, hz, SR as f32 / 2.0) - band_db(x, SR, 0.0, SR as f32 / 2.0)) / 10.0)
+}
+
+#[test]
+fn footstep_swish_trades_the_swish_for_the_ticks_on_grass() {
+    let share: Vec<f32> = [0.0, 0.25, 0.5, 0.75, 1.0]
+        .iter()
+        .map(|s| {
+            let x = node_audio(vec![step("grass", json!({"swish": s}))], "n", 1.0);
+            assert_finite(&x, "grass swish");
+            share_above(&x, 2000.0)
+        })
+        .collect();
+    println!("grass energy share above 2 kHz, swish 0 .. 1: {share:.3?}");
+    // More swish, less of the low soft body left over once the ticks are gone
+    // from the top: the share above 2 kHz rises every step.
+    assert!(share.windows(2).all(|w| w[1] > w[0]), "{share:?}");
+    assert!(share[4] - share[0] > 0.3, "{share:?}");
+    // Swish 0.5 is the default.
+    let d = node_audio(vec![step("grass", json!({}))], "n", 1.0);
+    let h = node_audio(vec![step("grass", json!({"swish": 0.5}))], "n", 1.0);
+    assert_eq!(fnv(&d), fnv(&h));
+}
+
+#[test]
+fn footstep_swish_on_gravel_fades_stones_and_adds_a_bed() {
+    let rms = |s: f32| {
+        let x = node_audio(vec![step("gravel", json!({"swish": s}))], "n", 1.0);
+        assert_finite(&x, "gravel swish");
+        (share_above(&x, 2000.0), rms_db(&x))
+    };
+    let r: Vec<(f32, f32)> = [0.0, 0.25, 0.5, 0.75, 1.0]
+        .iter()
+        .map(|s| rms(*s))
+        .collect();
+    println!("gravel swish 0 .. 1: (share above 2 kHz, rms dB) {r:.3?}");
+    // More swish, fewer stone ticks: the share of energy above 2 kHz falls
+    // (the bed is wide and the stones are narrow bands at 1.7-7.6 kHz) or at
+    // least changes monotonically.
+    let dir = r[1].0 - r[0].0;
+    assert!(r.windows(2).all(|w| (w[1].0 - w[0].0) * dir > 0.0), "{r:?}");
+}
+
+#[test]
+fn footstep_body_and_swish_errors_say_what_to_do() {
+    let e = render_error(step("wood", json!({"body": 3.0})));
+    println!("{e}");
+    assert!(
+        e.contains("body: 3") && e.contains("0.5") && e.contains("to 2"),
+        "{e}"
+    );
+    let e = render_error(step("wood", json!({"body": 0.1})));
+    assert!(e.contains("body: 0.1"), "{e}");
+    let e = render_error(step("grass", json!({"swish": 1.5})));
+    println!("{e}");
+    assert!(
+        e.contains("swish: 1.5") && e.contains("0 (ticks only)"),
+        "{e}"
+    );
+    let e = render_error(step("grass", json!({"swish": -0.1})));
+    assert!(e.contains("swish: -0.1"), "{e}");
+}
+
+#[test]
+fn footstep_body_and_swish_extremes_are_finite_and_bit_identical() {
+    for surface in ["concrete", "gravel", "grass", "wood"] {
+        for (b, s) in [(0.5, 0.0), (2.0, 1.0), (0.5, 1.0), (2.0, 0.0)] {
+            let x = node_audio(
+                vec![step(
+                    surface,
+                    json!({"body": b, "swish": s, "weight": 1.0, "pace": 1.0}),
+                )],
+                "n",
+                1.0,
+            );
+            assert_finite(&x, surface);
+            assert!(peak_db(&x) < 3.0, "{surface} {b} {s}: {}", peak_db(&x));
+        }
+        assert_bit_identical(vec![step(surface, json!({"body": 0.7, "swish": 0.8}))], 0.8);
+    }
+}
