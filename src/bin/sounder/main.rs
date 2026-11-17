@@ -15,8 +15,10 @@ use rmcp::ServiceExt;
 use sounder::session::Session;
 use sounder::store;
 
-const USAGE: &str = "usage: sounder --headless [--project DIR] [--restore] [--feedback-report]
+const USAGE: &str =
+    "usage: sounder --headless [--audio] [--project DIR] [--restore] [--feedback-report]
   --headless          serve MCP on stdio (the only mode until the window exists)
+  --audio             with --headless: also open the speakers so `play` works
   --project DIR       the game project (default: the nearest ancestor with .sounder/)
   --restore           reopen the sounds left in the autosave
   --feedback-report   print the friction log's report and exit";
@@ -25,6 +27,7 @@ fn main() {
     let mut headless = false;
     let mut restore = false;
     let mut report = false;
+    let mut audio = false;
     let mut print_dir = false;
     let mut project: Option<PathBuf> = None;
     let mut args = std::env::args().skip(1);
@@ -32,6 +35,7 @@ fn main() {
         match a.as_str() {
             "--headless" => headless = true,
             "--restore" => restore = true,
+            "--audio" => audio = true,
             "--feedback-report" => report = true,
             "--print-catalog-dir" => print_dir = true,
             "--project" => match args.next() {
@@ -119,6 +123,7 @@ fn main() {
         }
     }
 
+    let player = start_audio(audio);
     let (tx, rx) = mpsc::channel::<server::Cmd>();
     let done = server::Done::new();
     let server_done = done.clone();
@@ -135,7 +140,10 @@ fn main() {
             }
         };
         rt.block_on(async move {
-            let server = match server::Tools::new(tx).serve(rmcp::transport::stdio()).await {
+            let server = match server::Tools::new(tx, player)
+                .serve(rmcp::transport::stdio())
+                .await
+            {
                 Ok(s) => s,
                 Err(e) => {
                     eprintln!("sounder: MCP server failed to start: {e}");
@@ -154,4 +162,28 @@ fn main() {
     let _session = server::run_headless(session, rx, done);
     store::release_lock_at(&lock, pid);
     let _ = server_thread.join();
+}
+
+/// The speakers for `play`, when `--audio` asked for them.
+#[cfg(feature = "audio")]
+fn start_audio(want: bool) -> Option<std::sync::Arc<dyn sounder::player::PlayerControl>> {
+    if !want {
+        return None;
+    }
+    match sounder::player::Player::start() {
+        Ok(p) => Some(std::sync::Arc::new(p)),
+        Err(e) => {
+            eprintln!("sounder: {e}");
+            std::process::exit(1);
+        }
+    }
+}
+
+#[cfg(not(feature = "audio"))]
+fn start_audio(want: bool) -> Option<std::sync::Arc<dyn sounder::player::PlayerControl>> {
+    if want {
+        eprintln!("sounder: --audio needs a build with the `audio` feature (this one has none)");
+        std::process::exit(2);
+    }
+    None
 }

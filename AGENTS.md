@@ -354,6 +354,24 @@ log (`<library>/feedback.jsonl`, never sent anywhere) also records every failed
 call and slow call; `session_log(report: true)` or `sounder --feedback-report`
 folds it into what to fix first.
 
+## Playback
+
+- `play {node?, seed?, loop?, stop?, doc?}` renders the sound (or one node, or
+  a re-render with `seed`) and sends it to the speakers; it answers with one
+  line ("playing `laser` (0.40 s) on <device>; loop"). `loop` defaults to
+  true for `kind: loop` sounds. `stop: true` stops. A new `play` replaces
+  what is playing.
+- Speakers exist in the window (`sounder`) or with `sounder --headless
+  --audio`. Without them `play` errors ("play needs a speaker ...") and you
+  use `listen`. A build without the `audio` feature rejects `--audio`.
+- The window seeks and loops spans through the same `Player`
+  (`src/player.rs`): `Engine` (pure, tested: resampling to the device rate,
+  sample-accurate loop wrap, output limiter at +-1) behind `PlayerControl`
+  (`play stop seek position playing set_event_handler`); `Player` owns the
+  cpal stream on its own thread and reports `PlayerEvent`s.
+- Honest limit: the human hears it, you do not. `play` succeeding means the
+  samples were sent, nothing about how they sound.
+
 ## Not now
 
 - A **live runtime** for the causal subset (every node here has a per-sample
