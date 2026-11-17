@@ -38,7 +38,9 @@ the page shows comes from `Session`: no DSP in JS.
   "doc": "laser",                  // the open sound
   "sounds": [ { "name": "laser", "kind": "oneshot|loop", "by": "look",
                 "ago": "2 min", "working": true, "saved": false,
-                "open_comments": 1 } ],
+                "open_comments": 1,
+                "seconds": 0.404, "lufs": -18.2 } ],   // seconds, lufs: optional, for the All-sounds tile
+  "project": "friendSLOP",         // optional: the top bar's label
   "agents": [ { "name": "look", "live": true } ],
   "feed": [ { "agent": "look", "tool": "sound_ops", "what": "laser · ~lp",
               "ago": "0:12", "doc": "laser" } ],        // newest first, <= 30
@@ -62,6 +64,7 @@ the page shows comes from `Session`: no DSP in JS.
     "comments": [ { "id": 1, "text": "...", "by": "you", "node": null,
                     "time": [0.0, 0.07], "hz": [2500, 9000],
                     "resolved": false, "reply": null } ],
+                    // reply: null | "text" | {by, text}; an optional "ago" string is shown if present
     "history": [ { "id": 3, "label": "~lp", "by": "look", "version": 4, "current": true } ],
     "checks": [ { "name": "peak_db", "pass": true, "detail": "-1.00 dBFS (max -0.3)" } ],
     "descriptors": { /* sfx_analysis::Descriptors as JSON: lufs, bands [8][5], centroid_hz, modes, ... */ }
@@ -88,9 +91,17 @@ the window never recomputes them.
 | `add_annotation` | `{text, node?, time?, hz?}` | a comment by `you` |
 | `jump` | `{id}` | history jump (undo / redo are jumps) |
 | `solo` | `{node: string|null}` | what the player plays; the data URLs below take `node` too |
-| `play` | `{from?, span?, loop?}` | start playback of the (solo) render; `from` seconds, `span` `[t0, t1]` to loop |
+| `play` | `{from?, span?, loop?}` | start playback of the (solo) render; `from` seconds, `span` `[t0, t1]` the region (the page's Play / Loop it): with `loop` false play the span once and stop at `t1`, with `loop` true loop it |
 | `stop` / `seek` | `{}` / `{t}` | |
-| `catalog_list` / `catalog_load` | `{}` / `{name}` | saved sounds; load opens it |
+| `catalog_list` / `catalog_load` | `{}` / `{name}` | saved sounds (`[{name, kind}]`, bare names also accepted; the switcher shows the ones not open); load opens it, then the page calls `select_sound` |
+
+The page has no call for params (`$name`: shown read-only in the Sound tab) and
+auditioning a tile in the All-sounds grid is `select_sound {doc}` then `play`
+(the window's open sound follows). `descriptors` keys the page reads:
+`rms_db`, `centroid_hz` (a number or `{start, middle, end}`), `bands` ([8][5]).
+Macro checks may be in `checks` (names starting `macro `); if not, the page
+lists each macro's `result` there. `sounder.changed(rev)` while a knob is being
+dragged only refreshes the picture; the state is pulled on release.
 
 ## Bulk data (GET)
 
@@ -123,7 +134,8 @@ output). Little-endian, no compression.
   `api` calls over `Session`, the protocol handlers' bytes, `state` shape
   matching this file (a JSON-schema-ish test of key names).
 - **p5-ui**: `ui/index.html`, `ui/app.js`, `ui/style.css`, `ui/fixture.json`,
-  `ui/fonts/` (copy the IBM Plex files modeler ships under
+  `ui/fonts/`, `ui/fixture.js` (the plain-browser stand-in; the window never
+  loads it, no need to embed it) (copy the IBM Plex files modeler ships under
   `~/Code/modeler/src/bin/modeler/preview/fonts/` with their licence
   text; remove the Google Fonts link). Delete the mock's `evaluate`, `fft`,
   `stft`, `describe`, `lufs`, `macroCheck`, `applyMacros`, WebAudio playback,

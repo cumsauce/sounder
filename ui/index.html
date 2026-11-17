@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sounder Window</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-grid" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></symbol>
+  <symbol id="i-play" viewBox="0 0 16 16"><path d="M5 3v10l8-5z"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 16 16"><rect x="4" y="4" width="8" height="8" rx="1"/></symbol>
+  <symbol id="i-loop" viewBox="0 0 16 16"><path d="M3 7V6a2 2 0 012-2h7l-2-2M13 9v1a2 2 0 01-2 2H4l2 2"/></symbol>
+  <symbol id="i-dice" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><circle cx="5.5" cy="5.5" r=".8" fill="currentColor"/><circle cx="10.5" cy="10.5" r=".8" fill="currentColor"/><circle cx="8" cy="8" r=".8" fill="currentColor"/></symbol>
+  <symbol id="i-phones" viewBox="0 0 16 16"><path d="M2.5 11V8.5a5.5 5.5 0 0111 0V11"/><rect x="2" y="10" width="3" height="4" rx="1"/><rect x="11" y="10" width="3" height="4" rx="1"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 16 16"><path d="M1.5 8h2l1.5-4 2 8 2-10 2 9 1.5-3h2"/></symbol>
+  <symbol id="i-noise" viewBox="0 0 16 16"><path d="M2 9l1-3 1 5 1-6 1 4 1-2 1 5 1-7 1 6 1-3 1 2 1-1"/></symbol>
+  <symbol id="i-env" viewBox="0 0 16 16"><path d="M1.5 13L4 3l3 5h4l3.5 5"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 16 16"><path d="M1.5 6h6c2 0 3 1 4 3l3 4"/></symbol>
+  <symbol id="i-math" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></symbol>
+  <symbol id="i-mix" viewBox="0 0 16 16"><path d="M2 3c4 0 5 5 6 5M2 13c4 0 5-5 6-5h6"/></symbol>
+  <symbol id="i-ring" viewBox="0 0 16 16"><path d="M1.5 8h1"/><path d="M3 8c1-5 2-5 3 0s2 4 3 0 1.5-3 2.5 0 1 2 1.5 0 .5-1 1 0"/></symbol>
+  <symbol id="i-out" viewBox="0 0 16 16"><path d="M3 6h2.5L9 3v10l-3.5-3H3z"/><path d="M11.5 5.5a3.5 3.5 0 010 5"/></symbol>
+  <symbol id="i-ctrl" viewBox="0 0 16 16"><path d="M1.5 8c2-5 4-5 6.5 0s4.5 5 6.5 0"/></symbol>
+  <symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></symbol>
+  <symbol id="i-zoom" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 16 16"><path d="M8 14s4.5-4.2 4.5-7.5a4.5 4.5 0 10-9 0C3.5 9.8 8 14 8 14z"/><circle cx="8" cy="6.5" r="1.5"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2l6.5 11.5h-13z"/><path d="M8 6.5v3M8 11.6v.1"/></symbol>
+  <symbol id="i-hist" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></symbol>
+</svg>
+
+<div class="app">
+  <header class="top">
+    <div class="where" role="group" aria-label="View">
+      <button id="gridbtn" aria-pressed="false" title="Every open sound side by side"><svg class="i"><use href="#i-grid"/></svg><span class="lbl">All sounds</span><span class="count" id="doccount"></span></button>
+      <button id="docbtn" aria-pressed="true" title="Switch sound"><span class="docproj">friendSLOP /</span><span class="docname" id="cdoc"></span><svg class="i"><use href="#i-chev"/></svg></button>
+    </div>
+    <div class="transport" id="transport">
+      <button class="play" id="playbtn" title="Play / stop (Space)" aria-label="Play"><svg class="i"><use href="#i-play"/></svg></button>
+      <button class="tbtn" id="loopbtn" aria-pressed="false" title="Loop (L)"><svg class="i"><use href="#i-loop"/></svg><span class="lbl">Loop</span> <kbd>L</kbd></button>
+      <div class="seed" title="Seed: the sound's randomness. R rolls a new one">
+        <button id="seeddn" aria-label="Previous seed">&lsaquo;</button><span id="seedv"></span><button id="seedup" aria-label="Next seed">&rsaquo;</button><button id="seedroll" aria-label="Roll a seed" title="Roll (R)"><svg class="i"><use href="#i-dice"/></svg></button>
+      </div>
+      <span class="hearing" id="hearing"></span>
+    </div>
+    <div class="spacer"></div>
+    <div class="agents" id="agents"></div>
+  </header>
+  <div class="docpop" id="docpop" hidden><input id="docq" placeholder="Find a sound" autocomplete="off"><div class="list" id="doclist"></div></div>
+  <div class="bpop" id="bpop" hidden></div>
+  <div class="kpop" id="kpop" hidden></div>
+
+  <div class="work" id="work">
+    <main class="view" id="view">
+      <div class="hudbar" id="hudbar"></div>
+      <div class="plot" id="plot">
+        <canvas id="base"></canvas><canvas id="ov"></canvas>
+        <div id="pins"></div>
+        <div class="regbar" id="regbar" hidden></div>
+        <div class="graphhost" id="graphhost" hidden></div>
+        <div class="toast" id="toast" hidden></div>
+      </div>
+    </main>
+    <section class="dock" id="dock"></section>
+    <aside class="right" id="right"></aside>
+  </div>
+
+  <div class="overview" id="overview" hidden>
+    <div class="ovgrid" id="ovgrid"></div>
+    <aside class="ovside"><div class="paneh">What agents are doing</div><div class="sect feed" id="feed"></div></aside>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
