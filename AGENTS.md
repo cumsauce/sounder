@@ -26,7 +26,9 @@ warm"; say what you measured.
 ## Getting started (agent)
 
 The MCP config runs `python3 mcp_driver.py --proxy` (one shared daemon for
-every session; each session is a client with its own active sound), or the
+every session; each session is a client with its own active sound; the daemon
+opens the window, so the human sees every agent's sounds in one place:
+`--proxy --headless` keeps it off), or the
 binary directly: `target/debug/sounder --headless`. Example `.mcp.json`:
 
 ```json

@@ -4,7 +4,7 @@ MCP tool list is frozen without mcp__sounder__* tools).
 
 Proxy (what the MCP config runs: one shared server and window for every
 Claude session):
-    mcp_driver.py --proxy [--offscreen | --headless] [--socket PATH]
+    mcp_driver.py --proxy [--headless] [--socket PATH]   (the shared daemon opens the window unless --headless)
         an MCP stdio server that passes JSON-RPC through to the daemon,
         starting it (windowed by default, detached) when none answers. Every
         session's proxy shares that one daemon, so there is one sounder server
@@ -57,8 +57,16 @@ import subprocess, sys, base64, os, signal, socket, stat, time
 
 # The server binary: SOUNDER_BINARY, else target/debug/sounder next to
 # this script (the repo checkout it lives in).
-BINARY = os.environ.get("SOUNDER_BINARY") or os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "target", "debug", "sounder")
+def _default_binary():
+    here = os.path.dirname(os.path.abspath(__file__))
+    rel = os.path.join(here, "target", "release", "sounder")
+    dbg = os.path.join(here, "target", "debug", "sounder")
+    # The newer of the two builds (a fresh `cargo install` / release build wins).
+    cands = [p for p in (rel, dbg) if os.path.exists(p)]
+    return max(cands, key=os.path.getmtime) if cands else dbg
+
+
+BINARY = os.environ.get("SOUNDER_BINARY") or _default_binary()
 # The daemon socket: SOUNDER_SOCKET (one daemon per agent), else the one
 # shared daemon. --socket PATH overrides both.
 SOCKET = os.environ.get("SOUNDER_SOCKET") or "/tmp/sounder-mcp.sock"
@@ -794,8 +802,9 @@ def main():
         calls_path = argv[argv.index("--calls") + 1]
 
     if "--proxy" in argv:
-        # The MCP config's command.
-        proxy_mode(socket_path, "headless")
+        # The MCP config's command. The shared daemon opens the window (so
+        # the human sees what every agent builds); --headless keeps it off.
+        proxy_mode(socket_path, "headless" if "--headless" in argv else "windowed")
     elif daemon:
         daemon_mode(socket_path, mode)
     elif connect:
