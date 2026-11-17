@@ -362,6 +362,8 @@ node_types! {
     "gunshot" => Gunshot,
 
     // slot M2
+    "engine" => Engine,
+    "motor" => Motor,
 
     // slot M3
 

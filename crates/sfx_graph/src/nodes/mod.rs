@@ -53,6 +53,7 @@ mod lofi;
 mod blast;
 
 // slot M2
+mod machines;
 
 // slot M3
 
@@ -124,6 +125,7 @@ pub use lofi::*;
 pub use blast::*;
 
 // slot M2
+pub use machines::*;
 
 // slot M3
 
