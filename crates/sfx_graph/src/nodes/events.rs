@@ -274,12 +274,18 @@ pub struct Bounce {
     /// Multiplies the impact strength by a seeded draw.
     #[serde(default)]
     pub values: Option<Values>,
+    /// 0..0.5 (default 0): each hit after the first moves by a seeded
+    /// random amount of up to this fraction of the gap before it, so
+    /// exported variations (other seeds) differ in timing.
+    #[serde(default)]
+    pub jitter: Option<f32>,
     #[serde(default)]
     pub seed: u64,
 }
 
 impl Describe for Bounce {
-    const BLURB: &'static str = "events of a dropped object: intervals shrink by the restitution";
+    const BLURB: &'static str =
+        "events of a dropped object: intervals shrink by the restitution (optional jitter)";
     fn example() -> serde_json::Value {
         serde_json::json!({"first": 0.3, "restitution": 0.6, "min_interval": 0.004})
     }
@@ -301,6 +307,12 @@ impl Eval for Bounce {
             "min_interval",
             self.min_interval.unwrap_or(0.004),
         )?);
+        let jitter = f64::from(self.jitter.unwrap_or(0.0));
+        if !(0.0..=0.5).contains(&jitter) {
+            return Err(format!(
+                "jitter: {jitter}: give a fraction of the gap from 0 to 0.5"
+            ));
+        }
         let mut rng = cx.rng(self.seed);
         let mut t = f64::from(non_negative("start", self.start.unwrap_or(0.0))?);
         let mut gap = first;
@@ -308,9 +320,16 @@ impl Eval for Bounce {
         let mut times = vec![(t, 1.0f32)];
         while gap >= min && times.len() < MAX_EVENTS {
             t += gap;
+            // The unshifted times keep running; only the stored hit moves,
+            // and no draw is made at jitter 0 (the stream is unchanged).
+            let shifted = if jitter > 0.0 {
+                t + (unit(&mut rng) * 2.0 - 1.0) * jitter * gap
+            } else {
+                t
+            };
             gap *= r;
             strength *= r;
-            times.push((t, strength as f32));
+            times.push((shifted, strength as f32));
         }
         if gap >= min {
             return Err(format!(

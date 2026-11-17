@@ -86,9 +86,30 @@ pub struct Wander {
     /// Map -1..1 onto [lo, hi] (default: -1..1).
     #[serde(default)]
     pub range: Option<[f32; 2]>,
+    /// With `max`: the same as `range: [min, max]` (not with `range`).
+    #[serde(default)]
+    pub min: Option<f32>,
+    /// With `min`: the same as `range: [min, max]` (not with `range`).
+    #[serde(default)]
+    pub max: Option<f32>,
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
+}
+
+impl Wander {
+    /// `range`, or `[min, max]`; both forms, or half of one, is an error.
+    fn bounds(&self) -> Result<Option<[f32; 2]>, String> {
+        match (self.range, self.min, self.max) {
+            (r, None, None) => Ok(r),
+            (None, Some(lo), Some(hi)) => Ok(Some([lo, hi])),
+            (Some(_), _, _) => Err(
+                "wander: give `range: [min, max]` or `min` and `max`, not both: drop `min` and `max`"
+                    .into(),
+            ),
+            _ => Err("wander: `min` and `max` go together: give both, or use `range: [min, max]`".into()),
+        }
+    }
 }
 
 impl Describe for Wander {
@@ -110,6 +131,7 @@ impl Eval for Wander {
                 cx.sr
             ));
         }
+        let range = self.bounds()?;
         let mut rng = cx.rng(self.seed);
         let per = cx.sr / rate;
         let count = (cx.n as f32 / per).ceil() as usize + 4;
@@ -126,7 +148,7 @@ impl Eval for Wander {
                     + (-p0 + p2) * f
                     + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * f * f
                     + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * f * f * f);
-            ranged(v.clamp(-1.0, 1.0), self.range)
+            ranged(v.clamp(-1.0, 1.0), range)
         })))
     }
 }
@@ -235,8 +257,12 @@ impl Eval for Slew {
 pub struct Ramp {
     pub from: f32,
     pub to: f32,
-    /// Seconds the sweep takes.
-    pub time: f32,
+    /// Seconds the sweep takes (or give `duration`).
+    #[serde(default)]
+    pub time: Option<f32>,
+    /// The same as `time` (not both).
+    #[serde(default)]
+    pub duration: Option<f32>,
     /// exp (default: geometric, right for pitch and cutoff), linear, smooth.
     #[serde(default)]
     pub curve: Option<CurveSpec>,
@@ -255,7 +281,21 @@ impl Describe for Ramp {
 
 impl Eval for Ramp {
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
-        let time = non_negative("time", self.time)?;
+        let (name, time) = match (self.time, self.duration) {
+            (Some(t), None) => ("time", t),
+            (None, Some(d)) => ("duration", d),
+            (Some(_), Some(_)) => {
+                return Err(
+                    "ramp: give `time` or `duration` (the same field), not both: drop one".into(),
+                );
+            }
+            (None, None) => {
+                return Err(
+                    "ramp: missing `time` (seconds the sweep takes; `duration` also works)".into(),
+                );
+            }
+        };
+        let time = non_negative(name, time)?;
         let at = self.at.unwrap_or(0.0);
         let curve = self.curve.unwrap_or(CurveSpec::Exp).curve();
         Ok(one(mono(cx.n, |i| {
