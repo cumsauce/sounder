@@ -63,3 +63,4 @@
 - merged R2-H docs; ROUND 3 setup (binary f5c7f06); 28 sounds (24 core + rock_debris ice_in_glass boiling_loop rope_creak)
 - ROUND 3: testers 1-12 launched; queue: stream splash rain wind fire thunder cloth paper sword punch switch keys + rock_debris ice_in_glass boiling_loop rope_creak; then judges
 - round 3: all 28 testers launched; judges running for concrete gravel grass wood creak slam knock; pending judges: pipe coin drip stream splash rain wind fire thunder cloth paper sword punch switch keys rock ice boiling rope (agent cap is 20 concurrent)
+- ROUND 3 DONE core judge 9.25 diff 1.29 failed 1.42; stop test: criteria 2,3 met but criterion 1 not (more than 3 qualifying issues): round 4 will run after fixes R3-A..F
