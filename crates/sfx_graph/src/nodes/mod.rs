@@ -75,6 +75,7 @@ mod fracture;
 // slot X1
 
 // slot X2
+mod bands;
 
 // slot X3
 
@@ -152,6 +153,7 @@ pub use fracture::*;
 // slot X1
 
 // slot X2
+pub use bands::*;
 
 // slot X3
 

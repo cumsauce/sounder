@@ -391,6 +391,9 @@ node_types! {
     // slot X1
 
     // slot X2
+    "filterbank" => Filterbank,
+    "vocoder" => Vocoder,
+    "multiband" => Multiband,
 
     // slot X3
     "cloud" => Cloud,
