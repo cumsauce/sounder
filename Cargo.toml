@@ -21,6 +21,7 @@ hound = "3.5"
 realfft = "3"
 # Foley's DSP (the user's repo), pinned to the rev phase 1 was written against.
 foley-dsp = { git = "https://github.com/cumsauce/foley", rev = "963d67eb2de81bd43b008b30cc0109f875c940f1" }
+foley-synth = { git = "https://github.com/cumsauce/foley", rev = "963d67eb2de81bd43b008b30cc0109f875c940f1" }
 
 [workspace.lints.clippy]
 unwrap_used = "deny"
@@ -37,6 +38,17 @@ png.workspace = true
 base64 = "0.22"
 rmcp = { version = "1", features = ["server", "transport-io", "macros"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+wry = { version = "0.57.2", optional = true }
+tao = { version = "0.37.2", optional = true }
+cpal = { version = "0.18.2", optional = true }
+
+[features]
+# `window` is the phase 5 webview (wry on tao) and brings audio with it;
+# `audio` alone is playback (cpal) for the MCP `play` tool. A
+# `--no-default-features` build is the headless server: no wry / tao / cpal.
+default = ["window"]
+audio = ["dep:cpal"]
+window = ["audio", "dep:wry", "dep:tao"]
 
 [lints]
 workspace = true
@@ -56,3 +68,4 @@ opt-level = 3
 
 [profile.dev.package.sfx_analysis]
 opt-level = 3
+
