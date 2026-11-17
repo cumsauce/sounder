@@ -983,3 +983,201 @@ fn thickness_errors_say_what_to_do_and_the_hint_uses_it() {
     assert!(lo_thin < lo_default, "{lo_thin} {lo_default}");
     assert!(e.contains("`thickness` field"), "{e}");
 }
+
+// ------------------------------------------------------------ R3-C: band and f0
+
+/// Spectrum level (dB, 0 = the strongest bin) summed as a maximum over the bins
+/// outside `[lo, hi]` Hz widened by a factor `margin` each way, and inside it.
+fn band_levels(x: &[f32], lo: f32, hi: f32, margin: f32) -> (f32, f32) {
+    let s = spectrum(x, SR);
+    let top = s.iter().map(|p| p.1).fold(f32::MIN, f32::max);
+    let (mut outside, mut inside) = (f32::MIN, f32::MIN);
+    for &(hz, db) in &s {
+        let rel = db - top;
+        if hz < lo / margin || hz > hi * margin {
+            outside = outside.max(rel);
+        } else if hz >= lo && hz <= hi {
+            inside = inside.max(rel);
+        }
+    }
+    (outside, inside)
+}
+
+#[test]
+fn f0_puts_the_lowest_mode_at_the_asked_frequency_for_every_shape() {
+    for shape in ["plate", "bar", "tube", "membrane"] {
+        for material in ["wood", "metal", "glass"] {
+            for f0 in [800.0f32, 2000.0, 5000.0] {
+                let hz = modes_hz(
+                    json!({"material": material, "shape": shape, "f0": f0}),
+                    0.25,
+                    32,
+                );
+                let err = (hz[0] / f0 - 1.0).abs() * 100.0;
+                println!(
+                    "{shape} {material} f0 {f0}: lowest peak {:.1} Hz ({err:.2} %)",
+                    hz[0]
+                );
+                assert!(
+                    err < 3.0,
+                    "{shape} {material} f0 {f0}: lowest peak {:.1}",
+                    hz[0]
+                );
+            }
+        }
+    }
+    // The two shapes the card does not name, by the same rule.
+    for shape in ["string", "shell"] {
+        let hz = modes_hz(
+            json!({"material": "metal", "shape": shape, "f0": 2000.0}),
+            0.25,
+            32,
+        );
+        let err = (hz[0] / 2000.0 - 1.0).abs() * 100.0;
+        println!(
+            "{shape} metal f0 2000: lowest peak {:.1} Hz ({err:.2} %)",
+            hz[0]
+        );
+        assert!(err < 3.0, "{shape}: {:.1}", hz[0]);
+    }
+}
+
+#[test]
+fn f0_uses_the_effective_thickness() {
+    // f0 solves for the size with the effective thickness: a thinner wall
+    // needs a smaller object for the same pitch.
+    let base = json!({"material": "metal", "shape": "bar", "f0": 1500.0, "seed": 4});
+    let mut thin = base.clone();
+    thin["thickness"] = json!(0.002);
+    let a = modes_hz(base, 0.25, 32);
+    let b = modes_hz(thin, 0.25, 32);
+    println!(
+        "bar f0 1500: default thickness {:.1} Hz, 2 mm {:.1} Hz",
+        a[0], b[0]
+    );
+    assert!((a[0] / 1500.0 - 1.0).abs() < 0.03 && (b[0] / 1500.0 - 1.0).abs() < 0.03);
+}
+
+#[test]
+fn f_min_and_f_max_remove_the_modes_outside_the_band() {
+    // A wood plate 0.5 m a side: lowest mode ~425 Hz, then a dense series.
+    let plain = node_audio(
+        modal(json!({"material": "metal", "size": 0.5, "loss": 0.4})),
+        "m",
+        0.6,
+    );
+    let band = node_audio(
+        modal(
+            json!({"material": "metal", "size": 0.5, "loss": 0.4, "f_min": 1500.0, "f_max": 4000.0}),
+        ),
+        "m",
+        0.6,
+    );
+    let (out_plain, _) = band_levels(&plain[480..], 1500.0, 4000.0, 1.25);
+    let (out, inside) = band_levels(&band[480..], 1500.0, 4000.0, 1.25);
+    println!(
+        "outside the band: {out_plain:.1} dB without, {out:.1} dB with; inside {inside:.1} dB"
+    );
+    assert!(
+        out_plain > -40.0,
+        "the unbanded plate has energy outside: {out_plain}"
+    );
+    assert!(out < -40.0, "peaks outside the band: {out} dB");
+    assert!(inside > -10.0, "the band is not empty: {inside}");
+    // One-sided bands.
+    let lowpass = node_audio(
+        modal(json!({"material": "metal", "size": 0.5, "loss": 0.4, "f_max": 2000.0})),
+        "m",
+        0.6,
+    );
+    let (out, inside) = band_levels(&lowpass[480..], 20.0, 2000.0, 1.25);
+    println!("f_max 2000: outside {out:.1} dB, inside {inside:.1} dB");
+    assert!(out < -40.0, "{out}");
+    let highpass = node_audio(
+        modal(json!({"material": "metal", "size": 0.5, "loss": 0.4, "f_min": 3000.0})),
+        "m",
+        0.6,
+    );
+    let (out, inside) = band_levels(&highpass[480..], 3000.0, 22000.0, 1.25);
+    println!("f_min 3000: outside {out:.1} dB, inside {inside:.1} dB");
+    assert!(out < -40.0, "{out}");
+    // Every shape keeps its band.
+    for shape in SHAPES {
+        let x = node_audio(
+            modal(
+                json!({"material": "metal", "shape": shape, "size": 0.3, "loss": 0.4,
+                "f_min": 2500.0, "f_max": 6000.0}),
+            ),
+            "m",
+            0.5,
+        );
+        let (out, inside) = band_levels(&x[480..], 2500.0, 6000.0, 1.25);
+        println!("{shape}: outside {out:.1} dB, inside {inside:.1} dB");
+        assert!(out < -40.0, "{shape}: {out}");
+        assert!(inside > -10.0, "{shape}: {inside}");
+    }
+}
+
+#[test]
+fn modes_counts_the_kept_modes_and_a_wide_band_changes_nothing() {
+    // `modes` is applied after the band: 3 modes inside 1.5 .. 4 kHz, not 3 of
+    // the table of which some fall outside.
+    let x = node_audio(
+        modal(
+            json!({"material": "metal", "size": 0.5, "loss": 0.4, "modes": 3,
+            "f_min": 1500.0, "f_max": 4000.0}),
+        ),
+        "m",
+        0.6,
+    );
+    let (out, inside) = band_levels(&x[480..], 1500.0, 4000.0, 1.05);
+    println!("modes 3 in a band: outside {out:.1} dB, inside {inside:.1} dB");
+    assert!(out < -40.0 && inside > -10.0);
+    let hz = peaks(&x[480..], SR, 8, 40.0);
+    assert!(hz.len() <= 3, "{} peaks for 3 modes: {hz:?}", hz.len());
+    // A band that holds the whole table is bit-identical to no band.
+    let render = |extra: Value| {
+        let mut e = json!({"material": "wood", "size": 0.5, "seed": 2});
+        e.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        let mut nodes = modal(e);
+        nodes[0] = json!({"type": "impulse", "name": "hit", "at": [0.0]});
+        node_audio(nodes, "m", 1.0)
+    };
+    let plain = render(json!({}));
+    let wide = render(json!({"f_min": 1.0, "f_max": 100_000.0}));
+    assert_eq!(
+        plain, wide,
+        "a band around the whole table changes the render"
+    );
+}
+
+#[test]
+fn band_and_f0_errors_say_what_to_do() {
+    let err = |extra: Value| render_error(modal(extra), 0.2);
+    let e = err(json!({"material": "wood", "size": 0.5, "f_min": 100.0, "f_max": 200.0}));
+    println!("{e}");
+    assert!(
+        e.contains("f_min 100 / f_max 200") && e.contains("span") && e.contains("Hz"),
+        "{e}"
+    );
+    let e = err(json!({"material": "wood", "size": 0.5, "f_min": 3000.0, "f_max": 2000.0}));
+    assert!(e.contains("f_min") && e.contains("f_max"), "{e}");
+    let e = err(json!({"material": "wood", "size": 0.5, "f_max": -5.0}));
+    assert!(e.contains("f_max"), "{e}");
+    let e = err(json!({"material": "wood", "size": 0.5, "f0": 1000.0}));
+    assert!(
+        e.contains("size") && e.contains("f0") && e.contains("both"),
+        "{e}"
+    );
+    let e = err(json!({"material": "wood"}));
+    assert!(e.contains("size") && e.contains("f0"), "{e}");
+    for bad in [10.0, 25_000.0] {
+        let e = err(json!({"material": "wood", "f0": bad}));
+        assert!(
+            e.contains("f0") && e.contains("20") && e.contains("18000"),
+            "{e}"
+        );
+    }
+}

@@ -486,11 +486,16 @@ struct Table<'a> {
     stiffness: f32,
     count: usize,
     sr: f32,
+    /// `f_min` / `f_max`: only modes inside the band are kept.
+    f_min: Option<f32>,
+    f_max: Option<f32>,
 }
 
 impl Table<'_> {
-    /// The modes, lowest first.
-    fn modes(&self, rng: &mut crate::dsp::Rng) -> Vec<Mode> {
+    /// The modes, lowest first. Empty when the table has no mode in
+    /// 20 Hz .. the top of the band (the caller says what to do); an error
+    /// when `f_min` / `f_max` leave none of the table's modes.
+    fn modes(&self, rng: &mut crate::dsp::Rng) -> Result<Vec<Mode>, String> {
         let (p, size, pos, sr) = (self.props, self.size, self.pos, self.sr);
         let top = top_hz(sr);
         let (a, power) = lowest_mode(self.shape, p);
@@ -584,7 +589,40 @@ impl Table<'_> {
                 }
             }
         }
-        select(all, self.count, p)
+        if self.f_min.is_none() && self.f_max.is_none() {
+            return Ok(select(all, self.count, p));
+        }
+        // The band comes after the table (mistuning included) and before the
+        // `modes` cap, so `modes` counts kept modes and the lowest half are the
+        // lowest kept ones.
+        let (lo, hi) = (self.f_min.unwrap_or(0.0), self.f_max.unwrap_or(f32::MAX));
+        let (table_lo, table_hi) = all
+            .iter()
+            .fold((f32::MAX, 0.0f32), |(a, b), c| (a.min(c.0), b.max(c.0)));
+        let total = all.len();
+        all.retain(|c| c.0 >= lo && c.0 <= hi);
+        let given = match (self.f_min, self.f_max) {
+            (Some(a), Some(b)) => format!("f_min {a} / f_max {b}"),
+            (Some(a), None) => format!("f_min {a}"),
+            (None, Some(b)) => format!("f_max {b}"),
+            (None, None) => String::new(),
+        };
+        if total == 0 {
+            return Ok(Vec::new());
+        }
+        if all.is_empty() {
+            return Err(format!(
+                "{given}: no mode of this {} falls in the band; its {total} modes span {table_lo:.1} to {table_hi:.1} Hz at this size, material and thickness: widen the band, or change `size` / `f0` / `thickness`",
+                self.shape.name()
+            ));
+        }
+        let kept = select(all, self.count, p);
+        if kept.is_empty() {
+            return Err(format!(
+                "{given}: the modes inside the band are not excited at this `strike_position` (the table spans {table_lo:.1} to {table_hi:.1} Hz): widen the band or move `strike_position`"
+            ));
+        }
+        Ok(kept)
     }
 }
 
@@ -627,7 +665,25 @@ pub struct Modal {
     /// (18 kHz at 48 kHz): a size outside it is an error that names the range
     /// for the material and shape, and the thickness that would fix it.
     /// Modes above the top of the band are dropped, never folded back.
-    pub size: In,
+    /// Leave it out when `f0` is given.
+    #[serde(default)]
+    pub size: Option<In>,
+    /// Frequency of the lowest mode of the shape, Hz (20..18000, a number,
+    /// `$param` or `=expr`, read once): sets `size` so that the table's lowest
+    /// mode sits here, from the shape's own table and the effective material
+    /// and `thickness` (the seeded mistuning moves it by up to 1.5 % for a
+    /// plate, 0.3 % for the others). Giving both `f0` and `size` is an error.
+    /// `f_min` does not move it: it drops modes, not the size.
+    #[serde(default)]
+    pub f0: Option<In>,
+    /// Keep only modes at or above this frequency, Hz (default none). Applied
+    /// after the mode table and before the `modes` cap, so `modes` counts kept
+    /// modes. A band with no mode in it is an error that gives the table's range.
+    #[serde(default)]
+    pub f_min: Option<f32>,
+    /// Keep only modes at or below this frequency, Hz (default none); see `f_min`.
+    #[serde(default)]
+    pub f_max: Option<f32>,
     /// What is struck: plate (default) bar tube membrane string shell.
     #[serde(default)]
     pub shape: ModalShape,
@@ -677,9 +733,12 @@ const MAX_TILT: f32 = 12.0;
 /// `thickness` limits, metres.
 const MIN_THICKNESS: f32 = 0.0001;
 const MAX_THICKNESS: f32 = 0.5;
+/// `f0` limits, Hz.
+const MIN_F0: f32 = 20.0;
+const MAX_F0: f32 = 18_000.0;
 
 impl Describe for Modal {
-    const BLURB: &'static str = "a struck object: excite audio rings modes computed from material, size, shape (plate bar tube membrane string shell) and strike position (bigger = lower); thickness (m) overrides the material's; loss scales the ring time, tilt (dB/oct) the mode balance; a unit impulse peaks near 0 dBFS";
+    const BLURB: &'static str = "a struck object: excite audio rings modes computed from material, size, shape (plate bar tube membrane string shell) and strike position (bigger = lower); thickness (m) overrides the material's; f0 (Hz) sets size from the lowest mode; f_min / f_max keep only modes in a band; loss scales the ring time, tilt (dB/oct) the mode balance; a unit impulse peaks near 0 dBFS";
     fn example() -> serde_json::Value {
         serde_json::json!({"excite": "contact1", "material": "wood", "size": 0.5,
             "strike_position": 0.3, "modes": 48})
@@ -716,7 +775,40 @@ impl Eval for Modal {
                 -MAX_TILT
             ));
         }
-        let size = positive("size", cx.mono("size", &self.size)?.at(0))?;
+        let size = match (&self.size, &self.f0) {
+            (Some(_), Some(_)) => {
+                return Err("size and f0 are both given: `f0` sets the size so the lowest mode sits at that frequency, so give one of them".into());
+            }
+            (None, None) => {
+                return Err("give `size` (metres) or `f0` (Hz of the lowest mode)".into());
+            }
+            (Some(s), None) => positive("size", cx.mono("size", s)?.at(0))?,
+            (None, Some(f)) => {
+                let f0 = cx.mono("f0", f)?.at(0);
+                if !(f0.is_finite() && (MIN_F0..=MAX_F0).contains(&f0)) {
+                    return Err(format!(
+                        "f0: {f0}: give the lowest mode in Hz, {MIN_F0}..{MAX_F0}"
+                    ));
+                }
+                // The lowest mode sits at a / size^p.
+                let (a, pw) = lowest_mode(self.shape, &props);
+                (a / f0).powf(1.0 / pw)
+            }
+        };
+        for (name, v) in [("f_min", self.f_min), ("f_max", self.f_max)] {
+            if let Some(v) = v
+                && !(v.is_finite() && v > 0.0)
+            {
+                return Err(format!("{name}: {v}: give a frequency in Hz above 0"));
+            }
+        }
+        if let (Some(a), Some(b)) = (self.f_min, self.f_max)
+            && a >= b
+        {
+            return Err(format!(
+                "f_min {a} is not below f_max {b}: give a band, f_min < f_max"
+            ));
+        }
         let pos = cx
             .mono_or("strike_position", &self.strike_position, 0.3)?
             .at(0)
@@ -745,8 +837,10 @@ impl Eval for Modal {
             stiffness,
             count,
             sr: cx.sr,
+            f_min: self.f_min,
+            f_max: self.f_max,
         };
-        let mut modes = table.modes(&mut rng);
+        let mut modes = table.modes(&mut rng)?;
         if modes.is_empty() {
             return Err(no_mode_error(
                 size,
@@ -958,8 +1052,11 @@ mod tests {
             stiffness: 0.0,
             count: 48,
             sr: 48_000.0,
+            f_min: None,
+            f_max: None,
         }
         .modes(&mut rng)
+        .unwrap()
     }
 
     fn close(a: f64, b: f64, rel: f64) -> bool {
