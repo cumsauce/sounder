@@ -131,6 +131,21 @@ impl Session {
         let now_live =
             |t: Option<Instant>, within: Duration| t.is_some_and(|t| t.elapsed() < within);
 
+        // Each open sound's length and loudness (the grid's tiles show them):
+        // from the render cache, rendering when it is stale; null when the
+        // sound does not render yet.
+        let opts = self.render_opts();
+        let salt = self.generation();
+        let mut stats: BTreeMap<String, (Option<f32>, Option<f32>)> = BTreeMap::new();
+        for (n, s) in self.sounds.iter_mut() {
+            stats.insert(
+                n.clone(),
+                s.rendered(&opts, salt)
+                    .map(|r| (Some(r.audio.seconds()), Some(r.lufs)))
+                    .unwrap_or((None, None)),
+            );
+        }
+
         // Sounds.
         let sounds: Vec<Value> = self
             .order
@@ -155,6 +170,8 @@ impl Session {
                     "working": working,
                     "saved": !s.unsaved,
                     "open_comments": s.open_annotations().count(),
+                    "seconds": stats.get(n).and_then(|x| x.0),
+                    "lufs": stats.get(n).and_then(|x| x.1),
                 })
             })
             .collect();
@@ -188,7 +205,17 @@ impl Session {
             .collect();
 
         let sound = target.clone().map(|n| self.window_sound(&n));
+        // The top bar's label: the game project's folder, or the shared library.
+        let project = self
+            .project
+            .as_ref()
+            .and_then(|p| p.file_name())
+            .map_or_else(
+                || "shared library".to_string(),
+                |n| n.to_string_lossy().into_owned(),
+            );
         Ok(json!({
+            "project": project,
             "rev": self.rev,
             "doc": target,
             "sounds": sounds,

@@ -39,8 +39,8 @@ the page shows comes from `Session`: no DSP in JS.
   "sounds": [ { "name": "laser", "kind": "oneshot|loop", "by": "look",
                 "ago": "2 min", "working": true, "saved": false,
                 "open_comments": 1,
-                "seconds": 0.404, "lufs": -18.2 } ],   // seconds, lufs: optional, for the All-sounds tile
-  "project": "friendSLOP",         // optional: the top bar's label
+                "seconds": 0.404, "lufs": -18.2 } ],   // seconds, lufs: for the All-sounds tile (null if it does not render yet)
+  "project": "friendSLOP",         // the top bar's label: the project folder, or "shared library"
   "agents": [ { "name": "look", "live": true } ],
   "feed": [ { "agent": "look", "tool": "sound_ops", "what": "laser · ~lp",
               "ago": "0:12", "doc": "laser" } ],        // newest first, <= 30
