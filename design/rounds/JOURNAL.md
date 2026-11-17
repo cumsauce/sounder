@@ -4,3 +4,5 @@
 - wave 0: launched T0a, T0b (worktrees .swarm/wt/T0a, T0b)
 - round 0 (baseline): launching testers 1-12 on binary built from f0ea79a-equivalent
 - launched: T0a, T0b (wave 0) + 12 round-0 testers (sounds 1-12); sounds 13-24 pending a free slot
+- round 0: all 24 testers launched; 12 done so far (1-12 minus stragglers); wave 0 T0a/T0b still running
+- wave 0: T0a merged (fa5bb26 + a919fa7 refs_typed callers); T0b running. round 0: 21/24 testers done; judging started
