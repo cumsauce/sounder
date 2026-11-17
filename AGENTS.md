@@ -540,6 +540,16 @@ redraws the open page without a reload. Caveat for browser tooling: a page
 without focus gets no `requestAnimationFrame`, so the first paint can wait for
 a screenshot or click.
 
+### Checking the native webview without a screenshot
+
+`SOUNDER_PROBE=/path/out.json sounder` (window build) makes the window measure
+its own rendered page 6 s after it opens and write the result: user agent,
+loaded fonts, JS errors, rect / font / colour of the layout elements, canvas
+sizes and how many sampled pixels are lit (did the spectrogram paint). The
+driver's `--daemon --windowed` starts the window. Last run (WKWebView, dpr 2):
+no errors, four Plex faces loaded, layout rects equal to the mock's
+(top 48, hud 40, dock 162, right 300), spectrogram canvas painted.
+
 ## Not now
 
 - A **live runtime** for the causal subset (`summary` reports whether a sound is

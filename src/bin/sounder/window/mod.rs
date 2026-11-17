@@ -46,6 +46,8 @@ pub enum Ui {
     Changed(u64),
     /// The player's state, as JSON text.
     Played(String),
+    /// Script to run in the page (the layout probe, `SOUNDER_PROBE`).
+    Eval(String),
 }
 
 /// The window, before it runs. Create it on the main thread.
@@ -170,6 +172,17 @@ impl Window {
                 .map_err(|e| format!("could not start the webview: {e}"))?
         };
 
+        // Dev aid: `SOUNDER_PROBE=/path/out.json` makes the window measure
+        // its own rendered page a few seconds after it opens and write the
+        // result there (see `PROBE_JS`), so the native webview can be checked
+        // without a screenshot.
+        if std::env::var_os("SOUNDER_PROBE").is_some() {
+            let p = proxy.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(6));
+                let _ = p.send_event(Ui::Eval(PROBE_JS.to_string()));
+            });
+        }
         self.event_loop.run_return(move |event, _, flow| {
             *flow = ControlFlow::Wait;
             let _keep = (&window, &webview);
@@ -184,6 +197,9 @@ impl Window {
                 }
                 Event::UserEvent(Ui::Changed(rev)) => {
                     let _ = webview.evaluate_script(&js_call("changed", &rev.to_string()));
+                }
+                Event::UserEvent(Ui::Eval(js)) => {
+                    let _ = webview.evaluate_script(&js);
                 }
                 Event::UserEvent(Ui::Played(json)) => {
                     let _ = webview.evaluate_script(&js_call("played", &json));
@@ -209,6 +225,12 @@ fn handle_ipc(
             return;
         }
     };
+    if msg.get("name").and_then(Value::as_str) == Some("probe_report") {
+        if let Some(path) = std::env::var_os("SOUNDER_PROBE") {
+            let _ = std::fs::write(path, msg["args"].to_string());
+        }
+        return;
+    }
     let id = msg.get("id").cloned().unwrap_or(Value::Null);
     let name = msg
         .get("name")
@@ -271,3 +293,22 @@ fn install_player_events(
         let _ = proxy.send_event(Ui::Played(j.to_string()));
     }));
 }
+
+/// Measures the rendered page: the engine, fonts, canvas sizes, and the rect
+/// and computed style of the elements that carry the layout. Posts it back as
+/// the `probe_report` message.
+const PROBE_JS: &str = r#"(() => {
+  const sels = ['body','.top','.where','.seed','#hudbar','.plot','#base','.dock','.knob','.right','.tabs','.sect','.field','.cmt','.chip','.tbtn','.gnode','#hearing'];
+  const out = { ua: navigator.userAgent, dpr: devicePixelRatio, inner: [innerWidth, innerHeight], fonts: [...document.fonts].filter(f => f.status === 'loaded').map(f => f.family + ' ' + f.weight), els: {}, errors: window.__errs || [] };
+  for (const s of sels) {
+    const e = document.querySelector(s); if (!e) { out.els[s] = null; continue; }
+    const r = e.getBoundingClientRect(), c = getComputedStyle(e);
+    out.els[s] = { x: +r.x.toFixed(1), y: +r.y.toFixed(1), w: +r.width.toFixed(1), h: +r.height.toFixed(1), font: c.fontFamily.split(',')[0] + ' ' + c.fontSize + ' ' + c.fontWeight, color: c.color, bg: c.backgroundColor };
+  }
+  out.canvas = [...document.querySelectorAll('canvas')].slice(0, 6).map(c => [c.id || c.className, c.width, c.height]);
+  out.paint = [...document.querySelectorAll('canvas')].slice(0, 6).map(c => {
+    try { const x = c.getContext('2d'), d = x.getImageData(0, 0, c.width, c.height).data; let lit = 0, sum = 0; for (let i = 0; i < d.length; i += 4 * 17) { if (d[i + 3] > 0 && (d[i] + d[i + 1] + d[i + 2]) > 30) lit++; sum += d[i] + d[i + 1] + d[i + 2]; } return [c.id || c.className, lit, Math.round(sum / (d.length / 68))]; } catch (e) { return [c.id, 'err ' + e]; }
+  });
+  out.state = typeof ST !== 'undefined' && ST ? { doc: ST.doc, sounds: (ST.sounds || []).length, nodes: ST.sound && ST.sound.nodes.length } : null;
+  window.ipc.postMessage(JSON.stringify({ name: 'probe_report', args: out }));
+})()"#;

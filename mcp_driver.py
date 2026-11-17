@@ -115,10 +115,9 @@ class SounderSession:
     """Owns the sounder process and the JSON-RPC conversation."""
 
     def __init__(self, mode="headless", log=None, slot=None):
-        # mode: "windowed" (preview window), "offscreen" (renders agent views,
-        # no window), "headless" (no renderer at all).
-        # No window yet (phase 5): every mode serves headless.
-        cmd = [BINARY, "--headless"] + os.environ.get("SOUNDER_EXTRA_ARGS", "").split()
+        # mode: "windowed" (the sounder window beside the server), anything
+        # else is headless (no window).
+        cmd = [BINARY] + ([] if mode == "windowed" else ["--headless"]) + os.environ.get("SOUNDER_EXTRA_ARGS", "").split()
         cmd.append("--restore")  # daemon restarts and throwaway runs pick up the autosave
         env = dict(os.environ)
         if slot:
@@ -778,7 +777,6 @@ def main():
     daemon = "--daemon" in argv
     connect = "--connect" in argv
     windowed = "--windowed" in argv
-    # No window yet (phase 5): every mode serves headless.
     mode = "windowed" if windowed else "headless"
     socket_path = default_socket()
     if "--socket" in argv:
