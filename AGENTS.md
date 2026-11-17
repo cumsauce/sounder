@@ -51,7 +51,13 @@ modeler's `MODELER_*`.
    remove a node put `{"type": "delete", "name": "x"}` in `ops` (one item per
    node; a top-level `delete` is not a field and errors).
 3. `listen`, `verify`, fix, repeat.
-4. Add 2-4 **macros** (knobs) so the human can fit the sound by ear.
+4. Add **macros** (knobs) so the human can fit the sound by ear: at least one
+   on every sound, unasked (`summary` reports "macros: none yet" until there is
+   one), usually 1-4. Choose the dimension that gives the most useful control
+   while staying inside the brief: the 1-2 fields that dominate the character
+   (size / pitch, brightness, length, density, intensity). The brief's values
+   are the default and the range ends stay near them: a knob must not turn the
+   sound into a different one.
 5. `catalog save`, `export`.
 
 ## The tools (16)
