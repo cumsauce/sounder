@@ -49,7 +49,7 @@ modeler's `MODELER_*`.
    a hit or a mechanism, read "Layering a designed sound": the node is the
    body layer, and a designed sound adds the pre, crack, weight and after
    layers on a dry bus.
-   `describe_op` lists the 110 node types; `describe_op {kind: "filter"}` gives
+   `describe_op` lists the 112 node types; `describe_op {kind: "filter"}` gives
    one's example and schema (`type` and `node` are aliases of `kind`). To
    remove a node put `{"type": "delete", "name": "x"}` in `ops` (one item per
    node; a top-level `delete` is not a field and errors).
@@ -181,7 +181,7 @@ expression exactly as if it began with `=`, so a `voices` patch needs no leading
 a node. The error for an unknown node name shows the hint (`write expressions
 with a leading `=`, e.g. "=1.5 * $value"`).
 
-Families (110 types; groups marked * have a section under "More nodes, by
+Families (112 types; groups marked * have a section under "More nodes, by
 group" below):
 
 - sources: `osc noise impulse sample` and `fm wavetable`*; control `lfo wander
@@ -191,6 +191,7 @@ group" below):
 - filters `filter onepole comb allpass resonators` and `ladder eq filterbank
   vocoder multiband`*; time `delay convolve`, `reverb` (models)* and `ir`*;
   nonlinear `shape compress limit` and `ringmod transient gate sub exciter`*; the bus `finish`*;
+  exaggeration `subdrop riser`*;
   modulation effects `chorus flanger phaser freq_shift`*; lo-fi and loops
   `crossfade_loop resample tape stutter`*.
 - mix `mix pan width` and `haas decorrelate doppler`*; offline `reverse
@@ -436,6 +437,7 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 | a latch, a switch, a button, a lock, a buckle | `click` | `kind` latch / switch / button / lock / clasp, `size`, `hardness` | one or two transients through small resonators; a hit at t = 0: `fade_in` 0.0005 |
 | thunder, a distant storm | `thunder` | `distance`, `brightness`, `length`, `duration` | foley's N-wave and rumble; `brightness` tilts above 100 Hz, `length` stretches the rumble; a `duration` that fits |
 | a struck object: panel, bell, pipe, keys, a door's thud | `modal` fed by `contact`, `impulse` or a noise burst | `shape` plate / bar / tube / membrane / string / shell, `material`, `size`, `thickness`, `loss`, `tilt` | normalized; `size` and `thickness` are pitch knobs (small thin objects: `thickness` 0.0015 instead of a custom material); `loss` 0.5 rings twice as long; `tilt` flattens a one-mode plate |
+| a larger-than-life hit (cinematic, trailer, a game's heavy impact) | `subdrop` under it, `riser` into it | `from` / `to` / `decay`, `drive`; `at` (the hit), `length`, `shape` | tonal on purpose: add them to a layered hit only when the brief asks for exaggeration (a realistic slam with a sine sub read as a tuned drum) |
 | a robot voice, speech-like texture, band dynamics | `vocoder`, `multiband`, `filterbank` | a pitched `carrier` + a noisy `modulator`; `crossovers` + `bands` | see "Bands and vocoder" |
 | a swarm, a swell, a granular wash | `cloud`, `grains` | `source`, `density` (signal), `size`, `pitch_spread` | grains from any node or WAV |
 | a vowel, a creature call | `glottis` into `tract` | `f0` (signal), `tension`, `vowel`, `scale` | "Foley models" |
@@ -1345,6 +1347,44 @@ Measured (`tests/finish.rs`): crest 22.08 / 23.71 / 24.71 dB at punch 0 / .5 /
 down 3.9 dB (two thirds: noise jitter reads as rising level) and left the
 attack; shelves +5.9 dB where set, 0.01 dB at 1 kHz; width 2 doubled the side
 above 150 Hz (+6.0 dB) with the side under 60 Hz 34 dB under the mid.
+
+### Exaggeration and liveliness (`docs/nodes/phase6.md`)
+
+- `modal` `strike_glide` (cents, 0..1200): every mode starts sharp at the
+  ring's loudest and settles with the level; `rattle` (0..1): the ring above
+  a gap (its loudest 5 ms level at 0, 30 dB under at 1) added back
+  high-passed above 1.5 kHz, a buzz that stops when the ring falls under the
+  gap. Both off by default (bit-identical). Measured: `strike_glide` 100 on
+  a metal bar, +45.5 cents at 20-110 ms and +2.1 at 1-1.5 s (the full glide
+  only at the loudest instant); `rattle` 0.5 on a wood body, +14.7 dB at
+  2-12 kHz in the first 100 ms, untouched once the ring is under the gap. A
+  rattle reads on dull bodies; a metal bar already has the highs.
+- `subdrop` {[from 90], [to 32], [time 0.6], [attack 0.004], [decay 1.2],
+  [at], [drive 0..1], [amp 0.8]}: a sine sweeping down under a hit (`drive`
+  adds harmonics for speakers with no sub; 90 to 32 Hz measured 86.3 Hz in
+  the first 50 ms and 32.0 Hz after).
+- `riser` {at (the hit), [length 1.5], [from 200], [to 2000], [noise 0.6],
+  [shape 2], [release 0.01], [amp 0.8], [seed]}: noise through a rising
+  band-pass plus a rising tone, swelling as (time / length)^shape to `at`
+  and stopping (rms -40 / -20 / -11 dB across the swell, -120 dB after).
+- Tonal on purpose: a cinematic hit with a `subdrop` read voiced 0.58, so
+  the `layers` `impact` preset (realistic hits) fails it; give `layers` its
+  own `voiced_max` and `body` for an exaggerated hit.
+
+<!-- recipe 2.5 -->
+```json
+[
+  {"type": "riser", "name": "rise", "at": 1.0, "length": 0.9, "from": 300, "to": 3000, "amp": 0.3},
+  {"type": "noise", "name": "n", "color": "white", "seed": 2},
+  {"type": "decay", "name": "ce", "time": 0.02, "at": 1.0},
+  {"type": "math", "name": "crack", "op": "mul", "a": "n", "b": "ce"},
+  {"type": "decay", "name": "be", "time": 0.012, "at": 1.0},
+  {"type": "math", "name": "burst", "op": "mul", "a": "n", "b": "be"},
+  {"type": "modal", "name": "body", "excite": "burst", "material": "wood", "size": 0.6, "loss": 1.5, "rattle": 0.4},
+  {"type": "subdrop", "name": "drop", "from": 90, "to": 30, "time": 0.8, "decay": 1.5, "at": 1.0, "drive": 0.3},
+  {"type": "mix", "name": "all", "inputs": ["rise", {"input": "crack", "gain": 0.5}, "body", {"input": "drop", "gain": 0.7}]}
+]
+```
 
 ### Shape, oversampling, ring modulation (`docs/nodes/S3.md`, `ringmod.md`)
 

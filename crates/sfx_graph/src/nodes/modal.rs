@@ -725,10 +725,106 @@ pub struct Modal {
     /// map it. Absent or 0 leaves the samples unchanged.
     #[serde(default)]
     pub gain_db: Option<f32>,
+    /// Pitch glide of a hard strike, cents (default none, 0..1200): every
+    /// mode starts this far sharp at the ring's loudest and settles as it
+    /// decays (the pitch follows the level, as a struck plate's tension
+    /// does). Left out or 0, the samples are unchanged.
+    #[serde(default)]
+    pub strike_glide: Option<f32>,
+    /// A loose part buzzing while the ring is loud, 0..1 (default none): the
+    /// part of the ring above a gap (the ring's level, its loudest 5 ms as a
+    /// sine peak, at 0; 30 dB under it at 1) is
+    /// added back high-passed above 1.5 kHz, so the buzz lasts longer as
+    /// `rattle` rises and stops when the ring falls under the gap. Left out
+    /// or 0, the samples are unchanged.
+    #[serde(default)]
+    pub rattle: Option<f32>,
     /// Mixed with the document seed and the node name (default 0): the
     /// mistuning.
     #[serde(default)]
     pub seed: u64,
+}
+
+/// The ring's level envelope relative to its peak (0..1): instant attack,
+/// 30 ms release.
+fn level_envelope(x: &[f32], sr: f32) -> Vec<f32> {
+    let k = (-1.0 / (0.03 * sr)).exp();
+    let mut e = 0.0f32;
+    let env: Vec<f32> = x
+        .iter()
+        .map(|v| {
+            let a = v.abs();
+            e = if a > e { a } else { e * k + a * (1.0 - k) };
+            e
+        })
+        .collect();
+    let top = env.iter().copied().fold(0.0f32, f32::max);
+    if top > 0.0 {
+        env.iter().map(|v| v / top).collect()
+    } else {
+        env
+    }
+}
+
+/// The modes again, each retuned per sample by `cents x level`.
+fn glide_modes(
+    x: &[f32],
+    modes: &[(f32, f32, f32)],
+    level: &[f32],
+    cents: f32,
+    sr: f32,
+) -> Vec<f32> {
+    let mut out = vec![0.0f32; x.len()];
+    let top = max_hz(sr);
+    for &(f, t60, g) in modes {
+        let w0 = 2.0 * PI * f.clamp(1.0, top) / sr;
+        let r = (-(1000f32.ln()) / (t60.max(1e-4) * sr)).exp();
+        let b0 = g * w0.sin();
+        let (mut y1, mut y2) = (0.0f32, 0.0f32);
+        for i in 0..x.len() {
+            let w = (w0 * 2f32.powf(cents * level[i] / 1200.0)).min(PI * 0.98);
+            let y = crate::dsp::flush(b0 * x[i] + 2.0 * r * w.cos() * y1 - r * r * y2);
+            y2 = y1;
+            y1 = y;
+            out[i] += y;
+        }
+    }
+    out
+}
+
+/// The buzz's gain: at 2 it sat about 30 dB under a wood body (barely
+/// there), at 8 about 18 dB under.
+const RATTLE_GAIN: f32 = 8.0;
+
+/// The buzz of `rattle`: the ring above the gap, high-passed at 1.5 kHz.
+fn rattle_buzz(x: &[f32], rattle: f32, sr: f32) -> Vec<f32> {
+    // The ring's level, not the sample peak: an impulse response's first
+    // samples spike far above the ring that follows. The loudest 5 ms RMS,
+    // as a sine's peak.
+    let w = ((0.005 * sr) as usize).max(1);
+    let mut acc = 0.0f64;
+    let mut loud = 0.0f64;
+    for i in 0..x.len() {
+        acc += f64::from(x[i]) * f64::from(x[i]);
+        if i >= w {
+            acc -= f64::from(x[i - w]) * f64::from(x[i - w]);
+        }
+        loud = loud.max(acc.max(0.0) / w as f64);
+    }
+    let level = (2.0 * loud).sqrt() as f32;
+    let gap = level * 10f32.powf(-30.0 * rattle / 20.0);
+    let a = (-2.0 * PI * 1500.0 / sr).exp();
+    let (mut lp1, mut lp2) = (0.0f32, 0.0f32);
+    x.iter()
+        .map(|v| {
+            let over = (v.abs() - gap).max(0.0) * v.signum();
+            // Two one-pole high-passes (12 dB/oct).
+            lp1 = a * lp1 + (1.0 - a) * over;
+            let h1 = over - lp1;
+            lp2 = a * lp2 + (1.0 - a) * h1;
+            RATTLE_GAIN * (h1 - lp2)
+        })
+        .collect()
 }
 
 /// The linear gain of an optional `gain_db` (-60..60): None for absent or 0,
@@ -889,12 +985,36 @@ impl Eval for Modal {
                 m.2 *= g;
             }
         }
+        let glide = match self.strike_glide {
+            None => None,
+            Some(c) if c.is_finite() && (0.0..=1200.0).contains(&c) => (c > 0.0).then_some(c),
+            Some(c) => {
+                return Err(format!(
+                    "strike_glide: {c}: give cents 0..1200 (100 = a semitone)"
+                ));
+            }
+        };
+        let rattle = match self.rattle {
+            None => None,
+            Some(r) if r.is_finite() && (0.0..=1.0).contains(&r) => (r > 0.0).then_some(r),
+            Some(r) => return Err(format!("rattle: {r}: give 0..1")),
+        };
         Ok(one(per_channel(&input, cx.n, |x| {
             let mut out = vec![0.0f32; x.len()];
             for &(f, t60, g) in &modes {
                 let mut r = Resonator::new(f, t60, g, cx.sr);
                 for (o, v) in out.iter_mut().zip(x) {
                     *o += r.tick(*v);
+                }
+            }
+            if let Some(c) = glide {
+                let level = level_envelope(&out, cx.sr);
+                out = glide_modes(x, &modes, &level, c, cx.sr);
+            }
+            if let Some(r) = rattle {
+                let buzz = rattle_buzz(&out, r, cx.sr);
+                for (o, b) in out.iter_mut().zip(buzz) {
+                    *o += b;
                 }
             }
             out

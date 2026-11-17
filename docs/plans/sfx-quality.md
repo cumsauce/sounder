@@ -220,6 +220,15 @@ with its noise.
   its own envelope) and `riser` (noise + pitched swell ending at `at`), each a
   finished layer like `click` (pattern: `crates/sfx_graph/src/nodes/mechanism.rs:110`).
 
+- **Done (2026-11-17).** As built (`docs/nodes/phase6.md`): `strike_glide`
+  follows the ring's level (not a fixed time), so the glide is full only at
+  the loudest instant (100 cents measured +45.5 at 20-110 ms); `rattle`'s gap
+  is set from the ring's loudest 5 ms level (the sample peak, an impulse
+  response's first spike, left almost nothing over the gap) and its buzz
+  gain is 8 (at 2 it sat 30 dB under a wood body). `subdrop` and `riser` in
+  `nodes/exaggerate.rs`. A cinematic hit with a `subdrop` reads voiced 0.58,
+  so the `layers` impact preset fails it by design: documented. Not heard.
+
 ## Verification (every phase)
 
 ```sh

@@ -86,6 +86,8 @@ mod mechanism;
 mod crackle;
 // Phase 2: the finishing bus.
 mod finish;
+// Phase 6: exaggeration layers.
+mod exaggerate;
 
 pub use control::*;
 pub use envelopes::*;
@@ -170,6 +172,7 @@ pub use mechanism::*;
 
 // slot R2D
 pub use crackle::*;
+pub use exaggerate::*;
 pub use finish::*;
 
 use serde::Deserialize;

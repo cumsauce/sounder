@@ -395,6 +395,8 @@ node_types! {
     "vocoder" => Vocoder,
     "multiband" => Multiband,
     "finish" => Finish,
+    "subdrop" => Subdrop,
+    "riser" => Riser,
 
     // slot X3
     "cloud" => Cloud,
