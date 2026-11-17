@@ -1,6 +1,29 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "design", "runtimeExecutable": "python3", "runtimeArgs": ["-m", "http.server", "8765", "--directory", "design"], "port": 8765 }
+    {
+      "name": "design",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8765",
+        "--directory",
+        "design"
+      ],
+      "port": 8765
+    },
+    {
+      "name": "ui",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8766",
+        "--directory",
+        "ui"
+      ],
+      "port": 8766
+    }
   ]
 }
