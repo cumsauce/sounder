@@ -17,6 +17,7 @@ pub mod checks;
 pub mod descriptors;
 pub mod image;
 pub mod measure;
+pub mod modal;
 pub mod pitch;
 pub mod raster;
 pub mod reference;

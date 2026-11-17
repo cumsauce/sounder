@@ -277,3 +277,67 @@ fn the_reference_check_passes_close_and_fails_far_with_words() {
     assert!(!missing[0].pass && missing[0].detail.contains("nope.wav"), "{}", missing[0].detail);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Renders an `impulse` into `node` (a resonators node reading `hit`) with
+/// no loudness target: whatever level the gains give.
+fn rebuild(node: &Value, duration: f32) -> Audio {
+    let mut d = SoundDoc::named("rebuilt");
+    d.nodes = vec![
+        json!({"type": "impulse", "name": "hit"}),
+        node.clone(),
+        json!({"type": "output", "name": "out", "input": "modes"}),
+    ];
+    d.duration = Some(duration);
+    d.render(&RenderOpts::default()).unwrap().audio
+}
+
+fn shifted_modes(node: &Value, factor: f64) -> Value {
+    let mut n = node.clone();
+    for m in n["modes"].as_array_mut().unwrap() {
+        m[0] = json!(m[0].as_f64().unwrap() * factor);
+    }
+    n
+}
+
+fn rebuild_distances(modes: Value, count: usize) -> (f32, f32, f32, Value) {
+    let original = struck(modes, None, 0.8);
+    let node = sfx_analysis::modes_node(&original, count, "modes", "hit");
+    let good = compare(&rebuild(&node, 0.8), &original);
+    let bad = compare(&rebuild(&shifted_modes(&node, 1.10), 0.8), &original);
+    (good.distance_db, good.gain_db, bad.distance_db, node)
+}
+
+#[test]
+fn extract_modes_rebuilds_a_struck_object_close_to_its_own_render() {
+    // A hit with five well-spaced modes and a noise tick.
+    let (good, gain, bad, node) = rebuild_distances(modes(), 5);
+    eprintln!("easy: {good:.2} dB, gain {gain:+.2} dB, shifted 10%: {bad:.2} dB\n{node}");
+    // Measured 0.69 dB (a plain peak-pick of the old extractor: 3.77 dB, and
+    // a +2.1 dB loudness error); the shifted rebuild 13.6 dB.
+    assert!(good < 1.2, "rebuilt distance {good}");
+    assert!(gain.abs() < 0.5, "the rebuilt level is off by {gain} dB");
+    assert!(bad > 4.0 * good && bad > 8.0, "shifted: {bad} vs {good}");
+}
+
+#[test]
+fn extract_modes_handles_fast_decays_and_close_pairs() {
+    // 30 ms and 20 ms modes, and a pair 25 Hz apart.
+    let hard = json!([[400, 0.03, 1.0], [1000, 0.3, 0.8], [1025, 0.3, 0.6], [2500, 0.05, 0.5], [7000, 0.02, 0.4]]);
+    let (good, gain, bad, node) = rebuild_distances(hard, 5);
+    // Measured 1.21 dB, level +0.06 dB, shifted rebuild 13.3 dB.
+    assert!(good < 2.0, "rebuilt distance {good}");
+    assert!(gain.abs() < 0.5, "the rebuilt level is off by {gain} dB");
+    assert!(bad > 4.0 * good, "shifted: {bad} vs {good}");
+    let rows: Vec<Vec<f64>> = node["modes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m.as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect())
+        .collect();
+    assert_eq!(rows.len(), 5, "{node}");
+    for (row, hz) in rows.iter().zip([400.0, 1000.0, 1025.0, 2500.0, 7000.0]) {
+        assert!((row[0] - hz).abs() < 3.0, "mode at {} Hz, wanted {hz}: {node}", row[0]);
+    }
+    // The 30 ms mode reads 30 ms (not smeared by the analysis window).
+    assert!((rows[0][1] - 0.03).abs() < 0.01, "decay {}", rows[0][1]);
+}
