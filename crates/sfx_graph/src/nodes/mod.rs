@@ -48,6 +48,7 @@ mod sequence;
 mod space;
 
 // slot S12
+mod lofi;
 
 mod blast;
 
@@ -118,6 +119,7 @@ pub use sequence::*;
 pub use space::*;
 
 // slot S12
+pub use lofi::*;
 
 pub use blast::*;
 

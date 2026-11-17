@@ -353,6 +353,10 @@ node_types! {
     "ir" => Ir,
 
     // slot S12
+    "crossfade_loop" => CrossfadeLoop,
+    "resample" => Resample,
+    "tape" => Tape,
+    "stutter" => Stutter,
 
     "explosion" => Explosion,
     "gunshot" => Gunshot,
