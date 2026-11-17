@@ -79,6 +79,9 @@ mod bands;
 
 // slot X3
 
+// slot R1F
+mod mechanism;
+
 pub use control::*;
 pub use envelopes::*;
 pub use events::*;
@@ -156,6 +159,9 @@ pub use fracture::*;
 pub use bands::*;
 
 // slot X3
+
+// slot R1F
+pub use mechanism::*;
 
 use serde::Deserialize;
 
