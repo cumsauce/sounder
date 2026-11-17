@@ -62,6 +62,7 @@ mod elements;
 mod water;
 
 // slot M5
+mod waveguide;
 
 // slot M6
 mod surface;
@@ -137,6 +138,7 @@ pub use elements::*;
 pub use water::*;
 
 // slot M5
+pub use waveguide::*;
 
 // slot M6
 pub use surface::*;

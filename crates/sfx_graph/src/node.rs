@@ -375,6 +375,8 @@ node_types! {
     "splash" => Splash,
 
     // slot M5
+    "tube" => Tube,
+    "string" => StringNode,
 
     // slot M6
     "rolling" => Rolling,
