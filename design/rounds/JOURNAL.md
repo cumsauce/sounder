@@ -49,3 +49,4 @@
 - merged R1-B (laser lufs hash changed by design: targets met after fades)
 - merged R1-D modal loss/tilt
 - merged R1-E splash; workspace clean (fmt/clippy/tests). launching R1-H docs
+- merged R1-H docs. ROUND 2 setup done (binary commit 2764919); 28 sounds (24 core + 4 reserve)
