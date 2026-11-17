@@ -56,6 +56,7 @@ mod blast;
 mod machines;
 
 // slot M3
+mod elements;
 
 // slot M4
 mod water;
@@ -129,6 +130,7 @@ pub use blast::*;
 pub use machines::*;
 
 // slot M3
+pub use elements::*;
 
 // slot M4
 pub use water::*;

@@ -366,6 +366,9 @@ node_types! {
     "motor" => Motor,
 
     // slot M3
+    "fire" => Fire,
+    "wind" => Wind,
+    "spark" => Spark,
 
     // slot M4
     "water" => Water,
