@@ -172,6 +172,34 @@ Recipe, a tail for a hit: `pitch_shift` the hit down 7 semitones, run it
 through `time_stretch` factor 3 (set `duration` to fit), `gain` it -12 dB and
 `mix` it under the dry hit with a small `at` offset.
 
+## Events and grains
+
+An **event stream** is a node output of kind `events`: a list of `{t, value,
+id}` (seconds, a number, 0..n in time order), sorted, inside the document.
+It is not audio: `mix`, `filter` and the like refuse it. Event nodes make
+streams; `grains` turns one into sound now, and `voices` (rendering a sub-patch
+per event) will after it lands. Every generator takes `values {min, max,
+[curve]}` for a seeded per-event `value` (default 1); `curve` is `linear`
+(uniform), `exp` (geometric, both ends > 0) or `smooth`. All take `[seed]`.
+
+| Node | Fields |
+|---|---|
+| `once` | `[at]` |
+| `pattern` | `times: [..]` or `every` + `count`; `[start]` added to all; `[jitter]` seconds, each time moves within +-jitter |
+| `poisson` | `rate` events/s, a number or a signal (thinning, so the rate can vary) |
+| `bounce` | `first` (seconds from the first impact to the second), `restitution` (0..1 exclusive), `[min_interval 0.004]`, `[start]`; gap k is `first * restitution^k`, impact k has value `restitution^k` |
+| `burst` | `count`, `spread` (first to last event), `[curve]` timing density (linear even, exp dense early, smooth dense at both ends), `[at]` |
+| `on_threshold` | `input` (mono audio), `level`, `[hold 0.01]`: an event at each rising crossing (interpolated time), value = the signal there; a signal that starts above `level` fires at 0 |
+| `grains` | `source` (a node or a `.wav`), `events`, `size` s, `[position 0..1 or signal]` where each grain starts reading, `[pitch]` ratio, `[window hann\|tri\|rect]`, `[pan_spread 0..1]` (stereo, random pan per grain), `[jitter]` (+- of the source length on the position) |
+
+`grains` places one windowed grain per event at the event time, scaled by the
+event value; the output has exactly the document's length. Recipes: **rain** =
+`poisson` (rate 40..200, `values` 0.2..1) -> `grains` of a short filtered
+`noise` burst times a fast `decay`, `pan_spread` 0.6; **a bouncing ball** =
+`bounce` -> `grains` of a short decaying `osc` thump (event value is the
+impact strength), or later `voices`; **a crackle** = `poisson` with a
+`wander` rate. `Cx::events` (in `node.rs`) is how a node reads a stream.
+
 ## Macros: knobs for the human
 
 You cannot hear, so give the human a front panel: a few knobs that move

@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::buf::{Buf, Sig};
+use crate::buf::{Buf, Event, Sig};
 use crate::dsp::Rng;
 use crate::nodes::*;
 
@@ -76,6 +76,23 @@ impl Cx<'_> {
             ));
         }
         Ok(s)
+    }
+
+    /// An event-stream input: its events, sorted by time, ids 0..n.
+    pub fn events(&self, field: &str, i: &In) -> Result<Vec<Event>, String> {
+        match (self.get)(i).map_err(|e| format!("{field}: {e}"))? {
+            Sig::Buf(b) => match &*b {
+                Buf::Events(v) => Ok(v.clone()),
+                _ => Err(format!(
+                    "{field}: `{}` is audio, not events: use on_threshold to make events from a signal",
+                    name_of(i)
+                )),
+            },
+            _ => Err(format!(
+                "{field}: `{}` is a number, not events: use an event node (once, pattern, poisson, bounce, burst, on_threshold)",
+                name_of(i)
+            )),
+        }
     }
 
     /// An optional mono input with a default.
@@ -217,6 +234,14 @@ node_types! {
     "pitch_shift" => PitchShift,
     "time_stretch" => TimeStretch,
     "spectral" => Spectral,
+    // phase 3: events
+    "once" => Once,
+    "pattern" => Pattern,
+    "poisson" => Poisson,
+    "bounce" => Bounce,
+    "burst" => Burst,
+    "on_threshold" => OnThreshold,
+    "grains" => Grains,
 }
 
 /// "unknown node type", naming the closest types.
@@ -303,7 +328,7 @@ pub fn is_file(s: &str) -> bool {
 /// a file, as (node, port).
 pub fn refs(body: &Value) -> Vec<(String, String)> {
     const WORDS: &[&str] = &[
-        "type", "name", "op", "mode", "shape", "curve", "color", "file",
+        "type", "name", "op", "mode", "shape", "curve", "color", "file", "window",
     ];
     let mut out = Vec::new();
     fn walk(v: &Value, key: Option<&str>, out: &mut Vec<(String, String)>) {
@@ -381,6 +406,14 @@ fn blurb(ty: &str) -> &'static str {
         "spectral" => {
             "spectrum edits: freeze (hold a moment as texture), blur, gate (zero quiet bins), morph (toward another node) (acausal)"
         }
+        // phase 3: events
+        "once" => "an event stream with one event at a time",
+        "pattern" => "events at listed times, or every N seconds (optional jitter)",
+        "poisson" => "random events at a rate per second (the rate may be a signal)",
+        "bounce" => "events of a dropped object: intervals shrink by the restitution",
+        "burst" => "a cluster of events over a short span",
+        "on_threshold" => "an event at each rising crossing of a level by an audio signal",
+        "grains" => "granular playback of a node or WAV, one windowed grain per event",
         _ => "",
     }
 }
@@ -437,6 +470,14 @@ pub fn example(ty: &str) -> Option<Value> {
         "pitch_shift" => json!({"input": "src", "semitones": -5}),
         "time_stretch" => json!({"input": "src", "factor": 1.5}),
         "spectral" => json!({"input": "src", "mode": "freeze", "at": 0.1, "length": 0.15}),
+        // phase 3: events
+        "once" => json!({"at": 0.1}),
+        "pattern" => json!({"every": 0.25, "count": 4, "jitter": 0.01}),
+        "poisson" => json!({"rate": 20, "values": {"min": 0.3, "max": 1.0}}),
+        "bounce" => json!({"first": 0.3, "restitution": 0.6, "min_interval": 0.004}),
+        "burst" => json!({"count": 6, "spread": 0.05, "curve": "exp"}),
+        "on_threshold" => json!({"input": "src", "level": 0.2, "hold": 0.01}),
+        "grains" => json!({"source": "noise1", "events": "ev", "size": 0.03, "pan_spread": 0.5}),
         _ => return None,
     };
     let mut m = serde_json::Map::new();

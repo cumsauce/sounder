@@ -435,6 +435,16 @@ fn every_node_type_renders_its_example() {
         json!({"type": "mix", "name": "body", "inputs": ["src"]}),
         json!({"type": "mix", "name": "click", "inputs": ["hit"]}),
         json!({"type": "mix", "name": "mix1", "inputs": ["src"]}),
+        json!({"type": "pattern", "name": "ev", "every": 0.1, "count": 3}),
+    ];
+    // Event streams are not audio: they are evaluated and read, not mixed.
+    let event_types = [
+        "once",
+        "pattern",
+        "poisson",
+        "bounce",
+        "burst",
+        "on_threshold",
     ];
     for t in sfx_graph::NODE_TYPES {
         if matches!(*t, "sample" | "convolve" | "output") {
@@ -446,7 +456,13 @@ fn every_node_type_renders_its_example() {
         nodes.retain(|n| n["name"] != "under_test");
         nodes.push(ex);
         // Every stand-in and the node under test feed the output.
-        let names: Vec<Value> = nodes.iter().map(|n| n["name"].clone()).collect();
+        let names: Vec<Value> = nodes
+            .iter()
+            .filter(|n| {
+                n["name"] != "ev" && !event_types.contains(&n["type"].as_str().unwrap_or_default())
+            })
+            .map(|n| n["name"].clone())
+            .collect();
         nodes.push(json!({"type": "mix", "name": "all", "inputs": names, "to": "stereo"}));
         nodes.push(json!({"type": "output", "name": "out", "input": "all"}));
         let mut d = doc_with(nodes);
@@ -458,6 +474,10 @@ fn every_node_type_renders_its_example() {
             r.audio.channels.iter().flatten().all(|x| x.is_finite()),
             "{t}"
         );
+        if event_types.contains(t) {
+            let buf = r.eval.buf("under_test").unwrap();
+            assert!(matches!(*buf, sfx_graph::Buf::Events(_)), "{t}");
+        }
     }
 }
 
