@@ -159,7 +159,13 @@ fn macros_knob_moves_and_summary() {
     assert!(text.contains("claim holds"), "{text}");
     // The human turns the knob; the agent reads the move once.
     let (o, g) = (s.render_opts(), s.generation());
-    let before = s.sound(None).unwrap().rendered(&o, g).unwrap().lufs;
+    let before = s
+        .sound(None)
+        .unwrap()
+        .rendered(&o, g)
+        .unwrap()
+        .audio
+        .mix_mono();
     s.move_knob(None, "brightness", 0.9).unwrap();
     s.move_knob(None, "brightness", 0.8).unwrap();
     assert!(
@@ -178,8 +184,14 @@ fn macros_knob_moves_and_summary() {
     assert!(!text.contains("knob"), "reading clears them: {text}");
     // The move changed the sound; no history step was recorded for it.
     let (o, g) = (s.render_opts(), s.generation());
-    let after = s.sound(None).unwrap().rendered(&o, g).unwrap().lufs;
-    assert!((after - before).abs() < 3.0);
+    let after = s
+        .sound(None)
+        .unwrap()
+        .rendered(&o, g)
+        .unwrap()
+        .audio
+        .mix_mono();
+    assert_ne!(after, before, "the knob must change the samples");
     assert_eq!(s.sound(None).unwrap().history.nodes.len(), 3);
     // After the agent read it, a move is from there (0.80): moving away and
     // back leaves no net move.

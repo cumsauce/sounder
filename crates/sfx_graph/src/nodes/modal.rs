@@ -194,6 +194,11 @@ impl Eval for Modal {
         // The point on the plate: x is the position, y follows it so that 0.5
         // is the centre in both.
         let modes = plate_modes(&props, size, pos, 0.25 + 0.5 * pos, count, cx.sr, &mut rng);
+        if modes.is_empty() {
+            return Err(format!(
+                "size {size}: no mode falls between 20 Hz and the top of the band (material and size set the pitch): try a size between about 0.05 and 5 m"
+            ));
+        }
         Ok(one(per_channel(&input, cx.n, |x| {
             let mut out = vec![0.0f32; x.len()];
             for &(f, t60, g) in &modes {

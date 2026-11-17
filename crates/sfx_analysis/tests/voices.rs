@@ -407,3 +407,29 @@ fn a_long_unary_chain_is_an_error() {
     );
     assert!(d.render(&RenderOpts::default()).is_err());
 }
+
+#[test]
+fn unbounded_work_is_an_error_not_a_silent_cut() {
+    // A bounce that would never stop.
+    let d = doc(
+        vec![
+            json!({"type": "bounce", "name": "b", "first": 1e-5, "restitution": 0.9999999, "min_interval": 1e-9}),
+            json!({"type": "once", "name": "e"}),
+            json!({"type": "output", "name": "out", "input": "e"}),
+        ],
+        0.1,
+    );
+    // The bounce node is unread, but still evaluated: it must refuse.
+    assert!(d.render(&RenderOpts::default()).is_err());
+    // A plate so large no mode is audible.
+    let d = doc(
+        vec![
+            json!({"type": "impulse", "name": "i"}),
+            json!({"type": "modal", "name": "m", "excite": "i", "material": "wood", "size": 1e6}),
+            json!({"type": "output", "name": "out", "input": "m"}),
+        ],
+        0.1,
+    );
+    let e = d.render(&RenderOpts::default()).unwrap_err();
+    assert!(e.contains("size"), "{e}");
+}

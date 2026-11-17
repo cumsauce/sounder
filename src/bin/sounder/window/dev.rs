@@ -2,7 +2,7 @@
 //! --dev-ui PORT` serves the page and the same calls / bulk data the webview
 //! gets, over plain HTTP on 127.0.0.1, so a browser (or an agent's browser)
 //! can drive the REAL page against the REAL session. Not part of the product:
-//! no auth, local only, std only.
+//! local only (Host / Origin checked, JSON-only POSTs), std only.
 //!
 //! - `GET /<host>/<path>?<query>`: [`protocol::respond`] (`/app/index.html`,
 //!   `/fonts/<file>`, `/render/<doc>/spectrogram?...`)
@@ -68,8 +68,9 @@ pub fn serve(
     std::thread::spawn(move || {
         for stream in listener.incoming().flatten() {
             let (tx, shared, rev) = (tx.clone(), Arc::clone(&shared), Arc::clone(&rev));
+            let _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
             std::thread::spawn(move || {
-                let _ = handle(stream, &tx, &shared, &rev);
+                let _ = handle(stream, bound, &tx, &shared, &rev);
             });
         }
     });
@@ -79,7 +80,7 @@ pub fn serve(
 fn reply(s: &mut TcpStream, status: u16, ctype: &str, body: &[u8]) -> std::io::Result<()> {
     write!(
         s,
-        "HTTP/1.1 {status} X\r\nContent-Type: {ctype}\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: content-type\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 {status} X\r\nContent-Type: {ctype}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
         body.len()
     )?;
     s.write_all(body)
@@ -87,26 +88,60 @@ fn reply(s: &mut TcpStream, status: u16, ctype: &str, body: &[u8]) -> std::io::R
 
 fn handle(
     mut s: TcpStream,
+    port: u16,
     tx: &mpsc::Sender<Cmd>,
     shared: &Arc<api::Shared>,
     rev: &Arc<Rev>,
 ) -> std::io::Result<()> {
-    let mut r = BufReader::new(s.try_clone()?);
+    let mut r = BufReader::new(s.try_clone()?.take(16 * 1024));
     let mut line = String::new();
     r.read_line(&mut line)?;
     let mut it = line.split_whitespace();
     let (method, target) = (it.next().unwrap_or(""), it.next().unwrap_or("/"));
+    let (method, target) = (method.to_string(), target.to_string());
     let mut len = 0usize;
+    let (mut host_ok, mut origin_ok, mut json_ok) = (false, true, false);
+    let same = |v: &str| {
+        let v = v.trim().trim_start_matches("http://");
+        v == "127.0.0.1"
+            || v == "localhost"
+            || v == format!("127.0.0.1:{port}")
+            || v == format!("localhost:{port}")
+    };
     loop {
         let mut h = String::new();
-        r.read_line(&mut h)?;
+        if r.read_line(&mut h)? == 0 {
+            return reply(&mut s, 431, "text/plain", b"headers too large");
+        }
         if h.trim().is_empty() {
             break;
         }
-        if let Some(v) = h.to_ascii_lowercase().strip_prefix("content-length:") {
+        let lower = h.to_ascii_lowercase();
+        if let Some(v) = lower.strip_prefix("content-length:") {
             len = v.trim().parse().unwrap_or(0);
+        } else if let Some(v) = lower.strip_prefix("host:") {
+            host_ok = same(v);
+        } else if let Some(v) = lower.strip_prefix("origin:") {
+            origin_ok = same(v);
+        } else if let Some(v) = lower.strip_prefix("content-type:") {
+            json_ok = v.trim().starts_with("application/json");
         }
     }
+    // Only the page this bridge serves may talk to it: a Host check stops
+    // DNS rebinding, an Origin check and a JSON-only POST stop other sites.
+    if !host_ok || !origin_ok {
+        return reply(&mut s, 403, "text/plain", b"forbidden: host or origin");
+    }
+    let (method, target) = (method.as_str(), target.as_str());
+    if method == "POST" && !json_ok {
+        return reply(
+            &mut s,
+            415,
+            "text/plain",
+            b"POST needs Content-Type: application/json",
+        );
+    }
+    r.get_mut().set_limit(len.min(1 << 20) as u64);
     let mut body = vec![0u8; len.min(1 << 20)];
     r.read_exact(&mut body)?;
     let (path, query) = target.split_once('?').unwrap_or((target, ""));
@@ -191,10 +226,33 @@ mod tests {
         http(
             port,
             &format!(
-                "POST {path} HTTP/1.1\r\nHost: x\r\nContent-Length: {}\r\n\r\n{body}",
+                "POST {path} HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
                 body.len()
             ),
         )
+    }
+
+    #[test]
+    fn other_hosts_origins_and_plain_posts_are_refused() {
+        let (tx, _rx) = mpsc::channel();
+        let port = serve(0, tx, Arc::new(NullPlayer), Arc::new(Rev::default())).expect("serve");
+        let (st, _, _) = http(
+            port,
+            "GET /app/index.html HTTP/1.1\r\nHost: evil.example\r\n\r\n",
+        );
+        assert_eq!(st, 403);
+        let (st, _, _) = http(
+            port,
+            "GET /app/index.html HTTP/1.1\r\nHost: 127.0.0.1\r\nOrigin: http://evil.example\r\n\r\n",
+        );
+        assert_eq!(st, 403);
+        let (st, _, _) = http(
+            port,
+            &format!(
+                "POST /call HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\n{{}}"
+            ),
+        );
+        assert_eq!(st, 415);
     }
 
     #[test]
@@ -234,10 +292,13 @@ mod tests {
         let port = serve(0, tx.clone(), Arc::new(NullPlayer), Arc::clone(&rev)).expect("serve");
 
         // The page.
-        let (st, head, body) = http(port, "GET /app/index.html HTTP/1.1\r\nHost: x\r\n\r\n");
+        let (st, head, body) = http(
+            port,
+            "GET /app/index.html HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n",
+        );
         assert_eq!(st, 200, "{head}");
         assert!(
-            head.contains("text/html") && head.contains("Access-Control-Allow-Origin: *"),
+            head.contains("text/html") && !head.contains("Access-Control-Allow-Origin"),
             "{head}"
         );
         assert!(String::from_utf8_lossy(&body).contains("<html"));
@@ -263,15 +324,18 @@ mod tests {
         // Bulk data: 3 arrays of w floats for the wave.
         let (st, _, body) = http(
             port,
-            "GET /render/tone/wave?w=10 HTTP/1.1\r\nHost: x\r\n\r\n",
+            "GET /render/tone/wave?w=10 HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n",
         );
         assert_eq!((st, body.len()), (200, 3 * 10 * 4));
         // An unknown route 404s with a reason.
-        let (st, _, body) = http(port, "GET /nowhere/x HTTP/1.1\r\nHost: x\r\n\r\n");
+        let (st, _, body) = http(port, "GET /nowhere/x HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
         assert_eq!(st, 404, "{}", String::from_utf8_lossy(&body));
         // poll: returns at once when the rev is already past `since`, and
         // wakes when a change moves it.
-        let (_, _, body) = http(port, "GET /poll?since=0 HTTP/1.1\r\nHost: x\r\n\r\n");
+        let (_, _, body) = http(
+            port,
+            "GET /poll?since=0 HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n",
+        );
         let r0 = serde_json::from_slice::<Value>(&body).expect("json")["rev"]
             .as_u64()
             .expect("rev");
@@ -279,7 +343,7 @@ mod tests {
         let waiter = std::thread::spawn(move || {
             let (_, _, body) = http(
                 port,
-                &format!("GET /poll?since={r0} HTTP/1.1\r\nHost: x\r\n\r\n"),
+                &format!("GET /poll?since={r0} HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"),
             );
             serde_json::from_slice::<Value>(&body).expect("json")["rev"]
                 .as_u64()

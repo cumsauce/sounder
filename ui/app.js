@@ -153,7 +153,8 @@ function renderTop() {
 function renderHud() {
   const d = doc();
   const z = S.zoom ? `<span class="chip">${ic('zoom')}<b>${S.zoom.t[0].toFixed(2)}-${S.zoom.t[1].toFixed(2)} s${S.zoom.hz ? ` · ${fmtHz(S.zoom.hz[0])}-${fmtHz(S.zoom.hz[1])} Hz` : ''}</b><button data-unzoom aria-label="Reset zoom">${ic('x')}</button></span>` : '';
-  const stats = `<span class="chip"><b>${d.seconds.toFixed(2)} s</b></span><span class="chip">pk <b>${d.peak_db.toFixed(1)}</b></span><span class="chip"><b>${d.lufs.toFixed(1)}</b> LUFS</span>`;
+  const ss = (ST.solo && ST.solo_stats) || d, fin = x => (Number.isFinite(x) ? x : -90);
+  const stats = `<span class="chip"><b>${ss.seconds.toFixed(2)} s</b></span><span class="chip">pk <b>${fin(ss.peak_db).toFixed(1)}</b></span><span class="chip"><b>${fin(ss.lufs).toFixed(1)}</b> LUFS</span>`;
   $('#hudbar').innerHTML = `<div class="seg" role="group" aria-label="Centre"><button data-centre="sound" aria-pressed="${S.centre === 'sound'}">Spectrogram <kbd>1</kbd></button><button data-centre="graph" aria-pressed="${S.centre === 'graph'}">Graph <kbd>2</kbd></button></div>${z}<span class="grow"></span>${stats}<button class="tbtn" data-hist title="History (H): undo / redo and compare">${ic('hist')}<span class="lbl">v${d.version}</span>${ic('chev')}</button>`;
 }
 

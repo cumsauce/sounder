@@ -67,6 +67,14 @@ pub fn read(path: &Path) -> Result<Audio, String> {
     let err = |e: hound::Error| format!("reading {}: {e}", path.display());
     let mut r = hound::WavReader::open(path).map_err(err)?;
     let spec = r.spec();
+    // Reading is whole-file and the reference path resamples per sample.
+    if u64::from(r.duration()) * u64::from(spec.channels.max(1)) > 100_000_000 {
+        return Err(format!(
+            "{}: too long ({} frames): trim it below about 10 minutes",
+            path.display(),
+            r.duration()
+        ));
+    }
     let chans = usize::from(spec.channels.max(1));
     let flat: Vec<f32> = match spec.sample_format {
         hound::SampleFormat::Float => r.samples::<f32>().collect::<Result<_, _>>().map_err(err)?,

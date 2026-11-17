@@ -205,12 +205,18 @@ impl Sound {
     /// A sound that instances others also keys on the session's generation:
     /// editing an instanced sound changes nothing in this document.
     pub fn doc_hash(&self, generation: u64) -> u64 {
+        hash_of(&(&self.doc, self.salt(generation)))
+    }
+
+    /// The generation matters only to a sound that instances others; every
+    /// other sound's render and checks survive edits elsewhere.
+    fn salt(&self, generation: u64) -> u64 {
         let instances = self
             .doc
             .nodes
             .iter()
             .any(|n| n.get("type").and_then(|t| t.as_str()) == Some("sound"));
-        hash_of(&(&self.doc, if instances { generation } else { 0 }))
+        if instances { generation } else { 0 }
     }
 
     /// The (cached) render of the document as it stands.
@@ -219,6 +225,7 @@ impl Sound {
     /// whenever any sound is edited, opened, closed or saved, so a render that
     /// instances another sound never outlives an edit to it.
     pub fn rendered(&mut self, opts: &RenderOpts, salt: u64) -> Result<&Rendered, String> {
+        let salt = self.salt(salt);
         let key = hash_of(&(&self.doc, &opts.base_dir, salt));
         if self.render.as_ref().is_none_or(|(k, _)| *k != key) {
             let r = self.doc.render(opts)?;
@@ -232,7 +239,7 @@ impl Sound {
 
     /// Stores a render the caller already made for this document.
     pub fn set_render(&mut self, opts: &RenderOpts, salt: u64, r: Rendered) {
-        self.render = Some((hash_of(&(&self.doc, &opts.base_dir, salt)), r));
+        self.render = Some((hash_of(&(&self.doc, &opts.base_dir, self.salt(salt))), r));
     }
 
     pub fn open_annotations(&self) -> impl Iterator<Item = &Annotation> {

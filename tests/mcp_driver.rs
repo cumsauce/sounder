@@ -34,8 +34,9 @@ fn drive(calls: &Value, data: &Path) -> Option<Vec<Value>> {
     {
         Ok(o) => o,
         Err(e) => {
-            eprintln!("python3 not available ({e}): skipping the driver test");
-            return None;
+            // Missing python3 is a failure, not a pass: the driver test is
+            // the only end-to-end check of the stdio server.
+            panic!("python3 is required for the driver tests: {e}");
         }
     };
     let text = String::from_utf8_lossy(&out.stdout).to_string();

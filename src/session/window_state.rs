@@ -223,6 +223,7 @@ impl Session {
             "feed": feed,
             "sound": sound,
             "solo": null,
+            "solo_stats": null,
             "playing": false,
         }))
     }
@@ -296,7 +297,7 @@ impl Session {
                 out["causal"] = json!(r.causal);
                 out["warnings"] = json!(r.warnings);
                 let desc = match desc_hit {
-                    Some((h, g, v)) if h == hash && g == salt => v,
+                    Some((h, _, v)) if h == hash => v,
                     _ => {
                         let v = serde_json::to_value(sfx_analysis::describe(&r.audio))
                             .unwrap_or(Value::Null);

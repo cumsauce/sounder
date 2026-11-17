@@ -48,6 +48,12 @@ pub fn spectrogram_grid(
     hz1: f32,
 ) -> Vec<f32> {
     let (w, h) = (w.clamp(1, MAX_DIM), h.clamp(1, MAX_DIM));
+    // Keep one request under ~16 MB of grid.
+    let (w, h) = if w * h > 4_000_000 {
+        (w.min(2048), h.min(2048))
+    } else {
+        (w, h)
+    };
     let mut grid = vec![DB_FLOOR; w * h];
     let sr = audio.sample_rate;
     let mono = audio.mix_mono();

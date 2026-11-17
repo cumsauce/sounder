@@ -16,6 +16,9 @@ pub mod dev;
 pub mod player_iface;
 pub mod protocol;
 
+/// Bulk-data requests being served (bounded: each renders a spectrogram).
+static INFLIGHT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -119,7 +122,15 @@ impl Window {
                     request.uri().path().to_string(),
                     request.uri().query().unwrap_or("").to_string(),
                 );
-                // Renders can take a moment: off the UI thread.
+                // Renders can take a moment: off the UI thread, and not
+                // unbounded in number.
+                if INFLIGHT.fetch_add(1, std::sync::atomic::Ordering::SeqCst) >= 16 {
+                    INFLIGHT.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+                    let mut busy = Response::new(Vec::new());
+                    *busy.status_mut() = wry::http::StatusCode::SERVICE_UNAVAILABLE;
+                    responder.respond(busy);
+                    return;
+                }
                 std::thread::spawn(move || {
                     let r = protocol::respond(&*backend, &method, &host, &path, &query);
                     let cache = if r.immutable {
@@ -135,6 +146,7 @@ impl Window {
                         .body(r.body)
                         .unwrap_or_else(|_| Response::new(Vec::new()));
                     responder.respond(resp);
+                    INFLIGHT.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
                 });
             })
             .with_ipc_handler(move |req| {

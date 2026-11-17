@@ -279,6 +279,11 @@ impl Eval for Bounce {
             strength *= r;
             times.push((t, strength as f32));
         }
+        if gap >= min {
+            return Err(format!(
+                "bounce: more than {MAX_EVENTS} impacts: raise min_interval or lower restitution"
+            ));
+        }
         stream(cx, &mut rng, &self.values, times)
     }
 }
@@ -458,6 +463,13 @@ impl Eval for Grains {
         } else {
             Vec::new()
         };
+        let work = events.len() as f64 * glen.min(cx.n) as f64;
+        if work > 2.0e9 {
+            return Err(format!(
+                "{} events of {size} s grains is about {work:.0} samples of work (limit 2e9): shorten size or thin the events",
+                events.len()
+            ));
+        }
         let slen = src.len();
         if slen == 0 {
             return Err("source is empty".into());

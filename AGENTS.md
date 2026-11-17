@@ -518,8 +518,8 @@ Data flow (the contract is `design/window-api.md`):
 - Bulk data comes over `sounder://render/<doc>/{spectrogram,wave,loudness}`
   and `.../node/<name>/spark` from `sfx_analysis::view` (the same STFT window,
   dB scale and loudness window rule as `listen`'s image), `?rev=` caches.
-- Playback goes through `PlayerControl` (`window/player_iface.rs`, a stand-in
-  for `src/player.rs`); player events become `sounder.played({...})`.
+- Playback goes through `PlayerControl` (`window/player_iface.rs`, a re-export
+  of `src/player.rs`); player events become `sounder.played({...})`.
 
 What the window cannot do yet: no Edit menu (so no Cmd-C / Cmd-V in text
 fields), no `catalog_save` call, no resolving comments (the agent does that).

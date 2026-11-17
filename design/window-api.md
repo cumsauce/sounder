@@ -70,6 +70,7 @@ the page shows comes from `Session`: no DSP in JS.
     "descriptors": { /* sfx_analysis::Descriptors as JSON: lufs, bands [8][5], centroid_hz, modes, ... */ }
   },
   "solo": null,                      // node name or null: what the player hears
+  "solo_stats": null,                // {seconds, peak_db, lufs} of the soloed node, else null
   "playing": false
 }
 ```

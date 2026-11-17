@@ -194,8 +194,11 @@ fn run(s: &mut Session, sh: &Arc<Shared>, name: &str, a: &Value) -> Result<Value
             Ok(json!({"playing": false}))
         }
         "seek" => {
-            sh.player.seek(num_arg(a, "t")? as f32);
-            Ok(json!({"pos": sh.player.position()}))
+            // The player applies a seek asynchronously: answer with the
+            // requested time (its `Seeked` event confirms).
+            let t = num_arg(a, "t")? as f32;
+            sh.player.seek(t);
+            Ok(json!({"pos": t}))
         }
         "catalog_list" => {
             let lib = s.library_dir()?;
@@ -235,6 +238,19 @@ fn state(s: &mut Session, sh: &Arc<Shared>, doc: Option<&str>) -> Result<Value, 
     if solo.is_none() {
         sh.set_solo(None);
     }
+    // A soloed node's own length / level, for the stats chips.
+    st["solo_stats"] = solo
+        .as_deref()
+        .and_then(|n| s.node_audio(doc, Some(n)).ok())
+        .map(|a| {
+            let d = sfx_analysis::describe(&a);
+            json!({
+                "seconds": a.len() as f32 / a.sample_rate.max(1) as f32,
+                "peak_db": d.peak_db,
+                "lufs": d.lufs,
+            })
+        })
+        .unwrap_or(Value::Null);
     st["solo"] = json!(solo);
     st["playing"] = json!(sh.player.playing());
     schedule_settle(s, sh, doc);
