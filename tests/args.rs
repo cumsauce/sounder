@@ -192,6 +192,20 @@ fn verify_names_the_checks_it_cannot_run_bare_and_the_ones_it_does_not_know() {
     );
 }
 
+#[test]
+fn verify_can_name_variations_bare_in_checks_and_only() {
+    let mut s = session("verify_var");
+    let only = s.verify(None, &[], &keys(&["variations"]), &[]).unwrap();
+    assert_eq!(names(&only), vec!["variations".to_string()]);
+    assert!(only[0].detail.starts_with("4 seeds"), "{:?}", only[0]);
+    let with = names(&s.verify(None, &keys(&["variations"]), &[], &[]).unwrap());
+    assert!(with.contains(&"variations".to_string()), "{with:?}");
+    // Settings keep working.
+    let e: Expect = serde_json::from_value(json!({"variations": {"seeds": 3}})).unwrap();
+    let r = s.verify(None, &[], &[], &[&e]).unwrap();
+    assert!(r[0].detail.starts_with("3 seeds"), "{:?}", r[0]);
+}
+
 // ------------------------------------------------------------------ export
 
 fn export_opts(dir: PathBuf, variations: u32) -> export::ExportOpts {

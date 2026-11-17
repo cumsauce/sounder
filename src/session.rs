@@ -1177,8 +1177,10 @@ fn arg_hint(tool: &str, key: &str, value: &Value) -> Option<String> {
 fn bare_check(name: &str) -> Result<Value, String> {
     use serde_json::json;
     Ok(match name {
-        "finite" | "silent_edges" | "clicks" | "dc" | "loop_seam" | "variations" | "rebuild"
-        | "macros" => json!(true),
+        "finite" | "silent_edges" | "clicks" | "dc" | "loop_seam" | "rebuild" | "macros" => {
+            json!(true)
+        }
+        "variations" => json!({"seeds": 4}),
         "peak_db" => json!({"max": -0.3}),
         "true_peak_db" => json!({"max": -1.0}),
         "lufs" => return needs_settings(name, r#"{"min": -20, "max": -14}"#),

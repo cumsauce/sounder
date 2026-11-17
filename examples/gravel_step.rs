@@ -72,6 +72,7 @@ fn main() -> Result<(), String> {
             seeds: Some(6),
             lufs_spread: Some(1.0),
             min_distance: Some(1.0),
+            ..Default::default()
         })),
         ..Expect::defaults_for(&doc)
     };

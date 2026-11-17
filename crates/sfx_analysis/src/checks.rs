@@ -3,6 +3,7 @@
 //! says what to change. Modeled on modeler's `MatExpect` + `MatDoc::check`.
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sfx_graph::{Kind, RenderOpts, Rendered, SoundDoc, db_to_gain, gain_to_db};
 
 use crate::descriptors::{self, BAND_LABELS, BANDS, Descriptors, SEGMENTS};
@@ -50,11 +51,51 @@ impl OnsetsCheck {
 }
 
 /// `true`, or the check's settings.
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum Toggle<T> {
     On(bool),
     With(T),
+}
+
+/// A check that takes `true` or settings: its name and its setting fields,
+/// for the error a wrong shape gets.
+pub trait ToggleSettings {
+    const CHECK: &'static str;
+    const FIELDS: &'static str;
+}
+
+impl<'de, T> Deserialize<'de> for Toggle<T>
+where
+    T: serde::de::DeserializeOwned + ToggleSettings,
+{
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        use serde::de::Error;
+        let v = Value::deserialize(d)?;
+        let forms = || format!("{}: expected true or {{{}}}", T::CHECK, T::FIELDS);
+        match v {
+            Value::Bool(b) => Ok(Toggle::On(b)),
+            Value::Object(_) => serde_json::from_value::<T>(v)
+                .map(Toggle::With)
+                .map_err(|e| D::Error::custom(format!("{}: {e}", forms()))),
+            other => Err(D::Error::custom(format!("{}, got {other}", forms()))),
+        }
+    }
+}
+
+impl ToggleSettings for DcCheck {
+    const CHECK: &'static str = "dc";
+    const FIELDS: &'static str = "max";
+}
+
+impl ToggleSettings for Variations {
+    const CHECK: &'static str = "variations";
+    const FIELDS: &'static str = "seeds, lufs_spread, peak_spread_db, min_distance";
+}
+
+impl ToggleSettings for AliasingCheck {
+    const CHECK: &'static str = "aliasing";
+    const FIELDS: &'static str = "max_db";
 }
 
 impl<T: Default + Clone> Toggle<T> {
@@ -134,9 +175,16 @@ pub struct Variations {
     /// Seeds 1..=N rendered (default 6).
     #[serde(default)]
     pub seeds: Option<u64>,
-    /// Largest loudness spread across them, LU (default 1).
+    /// Largest loudness spread across them, LU (default 1). Applies when the
+    /// output normalizes loudness (`lufs`) or nothing; when the output uses
+    /// `peak_db` the loudness spread is only reported and `peak_spread_db`
+    /// applies instead.
     #[serde(default)]
     pub lufs_spread: Option<f32>,
+    /// Largest sample-peak spread across them, dB (default 1). Applies when
+    /// the output uses `peak_db`.
+    #[serde(default)]
+    pub peak_spread_db: Option<f32>,
     /// Smallest STFT distance between any two, dB (default 1).
     #[serde(default)]
     pub min_distance: Option<f32>,
@@ -972,12 +1020,14 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
         let spread_max = v.lufs_spread.unwrap_or(1.0);
         let dmin = v.min_distance.unwrap_or(1.0);
         let mut renders = Vec::new();
+        let mut peaks = Vec::new();
         for s in 1..=n {
             let r = cx.doc.render(&RenderOpts {
                 seed: Some(s),
                 ..cx.opts.clone()
             })?;
             renders.push((r.lufs, r.audio.mix_mono()));
+            peaks.push(r.peak_db);
         }
         let lo = renders.iter().map(|r| r.0).fold(f32::MAX, f32::min);
         let hi = renders.iter().map(|r| r.0).fold(f32::MIN, f32::max);
@@ -990,17 +1040,38 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
                 }
             }
         }
-        let ok_spread = hi - lo <= spread_max;
+        let by_peak = cx.doc.nodes.iter().any(|n| {
+            n.get("type").and_then(Value::as_str) == Some("output")
+                && n.get("peak_db").is_some_and(|v| !v.is_null())
+        });
+        let lu = hi - lo;
+        let pk_lo = peaks.iter().cloned().fold(f32::MAX, f32::min);
+        let pk_hi = peaks.iter().cloned().fold(f32::MIN, f32::max);
+        let pk = pk_hi - pk_lo;
+        let peak_max = v.peak_spread_db.unwrap_or(1.0);
+        let ok_spread = if by_peak {
+            pk <= peak_max
+        } else {
+            lu <= spread_max
+        };
         let ok_dist = closest.0 >= dmin;
-        let mut why = format!(
-            "{n} seeds: loudness spread {:.2} LU (max {spread_max}), closest pair seeds {} and {} at {:.2} dB (min {dmin})",
-            hi - lo,
-            closest.1,
-            closest.2,
-            closest.0
+        let pair = format!(
+            "closest pair seeds {} and {} at {:.2} dB (min {dmin})",
+            closest.1, closest.2, closest.0
         );
+        let mut why = if by_peak {
+            format!(
+                "{n} seeds: peak spread {pk:.2} dB (max {peak_max}; the output uses peak_db, so peak was compared), loudness spread {lu:.2} LU (reported only), {pair}"
+            )
+        } else {
+            format!("{n} seeds: loudness spread {lu:.2} LU (max {spread_max}), {pair}")
+        };
         if !ok_spread {
-            why += ": the loudness varies too much; narrow the random ranges that drive level or set output lufs";
+            why += if by_peak {
+                ": the peak varies too much between seeds (the output peak_db should pin it: is a limiter or a clipped node in the way?); narrow the random ranges that drive level or raise peak_spread_db"
+            } else {
+                ": the loudness varies too much; narrow the random ranges that drive level, set output lufs, or raise lufs_spread"
+            };
         } else if !ok_dist {
             why += ": the seeds sound alike; let the seed drive more (noise seeds, wander, random pitch)";
         }
