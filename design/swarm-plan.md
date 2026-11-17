@@ -300,7 +300,9 @@ No task depends on another. All need wave 0 merged.
 - `compress` gains `[key]` (a signal that drives the detector instead of
   the input).
 - Tests: 5 kHz sine, `clip`, drive 8: `alias_db` improves by at least
-  30 dB from oversample 1 to 4. `asym` produces a 2nd harmonic above
+  22 dB (below 20 kHz) from oversample 1 to 4 (T0b measured 24.8 dB for a
+  hard clip at drive 8: the 30 dB figure in the first draft was not
+  reachable, the clip's own 1/k^2 spectrum folds back at any filter quality). `asym` produces a 2nd harmonic above
   -30 dB where `tanh` has it under -70 dB. `table` with the identity is
   the input bit for bit. `key`: a steady tone keyed by a 4 Hz pulse train
   shows gain dips at the pulses of the stated ratio within 1 dB.
