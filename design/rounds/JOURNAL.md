@@ -12,3 +12,21 @@
 - launching wave 1: S1 S2 S3 S4
 - merged F1 (tools args); launching S5
 - FINDING: shared target dir gives false test results (workspace crates collide across worktrees; deps dir vanished). Removed .cargo/config.toml; every worktree now builds in its own target/ (cold ~80s). Told S1-S5.
+- merged T0c ringmod, F2 macros, S8b descriptors, S4 filters; launching S6 S7 S8a S9. integrator follow-ups done (with_loop, window param, fixture).
+- merged S2 fm/wavetable; launched S10
+- merged S5 dynamics; launched S11 S12
+- merged S1 osc/noise (2 tolerances #[ignore]d with measured values)
+- merged S3 shape/compress; launched M1
+- merged S10 sequence nodes; launched M2
+- merged S6 modfx; launched M3
+- merged S9 modulators; launched M4
+- merged S7 motion; launched M5
+- merged S8a senses; launched M6; integrator todo: Measure::Inharmonicity/Roughness variants, print extra lines
+- merged M1 blast; launched M7
+- merged S11 spaces; launched M8
+- merged S12 lofi; launched X1 (wave 3 starts; X2 X3 pending slots)
+- merged M2 engine/motor. USAGE LIMIT HIT here. State for resuming:
+  - merged to swarm/main: T0a T0b T0c F1 F2 F3 S1-S12 (S8a,S8b) M1 M2
+  - still running or unmerged (worktrees under .swarm/wt, branches swarm/<id>): M3 M4 M5 M6 M7 M8 X1. Each commits on its own branch; merge with: cd .swarm/wt/<id> && git rebase swarm/main; git merge --ff-only swarm/<id> (from main checkout)
+  - not started: X2 (bands.rs), X3 (Grains/cloud), docs step (fold docs/nodes/*.md into AGENTS.md + INSTRUCTIONS), round 1..5 (section 9), final REPORT.md
+  - findings: shared cargo target dir gives false passes (removed); S1 has 3 #[ignore]d tests; T0b oversampler 30 dB test #[ignore]d
