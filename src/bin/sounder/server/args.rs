@@ -32,7 +32,9 @@ pub(crate) struct SoundOpsArgs {
     /// name (re-issue to tweak; {"type": "delete", "name": "x"} in this list
     /// removes one, one item per node; there is no top-level `delete`). Nodes
     /// read other nodes by name ("sweep" or a port "verb.wet"); numbers are
-    /// constants; "$param" and "=expr" read params. Exactly one `output` node.
+    /// constants; "$param" and "=expr" read params (a string with `$` or
+    /// number arithmetic, "1.5 * $value", is an expression too). Exactly one
+    /// `output` node.
     /// describe_op lists every node type with an example. Atomic: any error
     /// changes nothing.
     #[serde(default)]
@@ -48,7 +50,10 @@ pub(crate) struct SoundOpsArgs {
     /// "index": 1, "key": "gain", "from": 0.1, "to": 0.9}]}. The name is a
     /// claim: `claim` [measure, direction] (measures centroid, decay, crest,
     /// lufs, flatness, swing, inharmonicity, roughness, density, attack,
-    /// spacing; 1 rises over 0..1, -1 falls; optional) is checked by verify,
+    /// spacing; 1 rises over 0..1, -1 falls; optional; pick one that fits:
+    /// density for event-rate knobs (holds to ~500/s), centroid, decay for
+    /// single-hit sounds; an output.lufs target renormalizes the level, so a
+    /// loudness knob cannot claim lufs) is checked by verify,
     /// which also fails a knob that moves its measure by under 2 %. A map entry may write a sound param instead:
     /// {"param": "size", "from": 0.2, "to": 0.8}. Name knobs with an adjective; 2-4 per sound; the human turns
     /// them in the window to fit it by ear. game: true exports it as a
@@ -76,8 +81,10 @@ pub(crate) struct SoundOpsArgs {
     pub(crate) sample_rate: Option<u32>,
     /// Checks to run in the same call (the same fields as verify's
     /// `expect`): {"duration": {"min": 0.4, "max": 1.2}, "onsets": {"min": 1,
-    /// "max": 3, "spacing_ms": 5}, "clicks": true}. `spacing_ms` (default 40)
-    /// is the onset merge distance: 5 counts dense ticks. A failed check is an
+    /// "max": 3, "spacing_ms": 5, "gap": [0.15, 0.3]}, "clicks": true}.
+    /// `spacing_ms` (default 40) is the onset merge distance: 5 counts dense
+    /// ticks; `gap` [lo, hi] seconds bounds every gap between consecutive
+    /// onsets (leave 10 ms of margin). A failed check is an
     /// error but the batch stays applied.
     #[serde(default)]
     pub(crate) expect: Option<Expect>,
@@ -159,7 +166,8 @@ pub(crate) struct VerifyArgs {
     #[serde(default)]
     pub(crate) only: Vec<String>,
     /// Checks with settings, the same shape as `sound_ops` `expect`, e.g.
-    /// {"duration": {"min": 0.4, "max": 1.2}, "onsets": {"min": 1, "max": 3},
+    /// {"duration": {"min": 0.4, "max": 1.2}, "onsets": {"min": 1, "max": 3,
+    /// "gap": [0.15, 0.3]},
     /// "lufs": {"min": -20, "max": -14}, "clicks": true}. Given alone, only
     /// these run; with `checks` they run on top of the defaults.
     #[serde(default, rename = "expect")]
@@ -172,8 +180,9 @@ pub(crate) struct VerifyArgs {
     pub(crate) expect: Expect,
     /// 2..8: re-render with seeds 1..N (the document's seed is replaced for
     /// those renders only; nothing is saved) and run the same checks on
-    /// each. FAILs are grouped by seed ("seed 3: loop_seam"). A sound that
-    /// passes only at its own seed is not finished.
+    /// each. FAILs are grouped by seed ("seed 3: loop_seam"). A plain verify
+    /// renders only the seed in the document, so a sound that passes only at
+    /// its own seed is not finished: run `seeds: 4`.
     #[serde(default)]
     pub(crate) seeds: Option<u32>,
     /// Run on this open sound instead of your active one.

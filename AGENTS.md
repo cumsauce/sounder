@@ -157,7 +157,12 @@ fade used to leave. A sound the fades barely touch keeps its exact gain.
 ...fields}`; unknown fields are errors that list the node's fields. Signal
 fields take a number, `"$param"`, `"=expr"` (`+ - * /`, parentheses, `$name`)
 or the **name of another node** (`"freq": "sweep"`: audio-rate modulation, a
-port as `"verb.wet"`).
+port as `"verb.wet"`). A string that contains `$` or number arithmetic
+(`"1.5 * $value"`, `"0.1 + $value * 0.9"`, `"2*$rand"`) is read as an
+expression exactly as if it began with `=`, so a `voices` patch needs no leading
+`=`; a string that is a valid node or port name (`"verb.wet"`, `"a_b"`) is always
+a node. The error for an unknown node name shows the hint (`write expressions
+with a leading `=`, e.g. "=1.5 * $value"`).
 
 Families (109 types; groups marked * have a section under "More nodes, by
 group" below):
@@ -289,7 +294,8 @@ and objects mix freely, `to: "mono" | "stereo"` forces the width. The gain is
 `gain`, not `gain_db`: use a `gain` node with `db` (or `gain_db`) before the mix
 for decibels. A macro can move one input's level: `{"node": "scene", "field":
 "inputs", "index": 1, "key": "gain", "from": 0.1, "to": 0.9}`. Inside a feedback
-loop a `mix` takes no `pan` / `at`.
+loop a `mix` takes no `pan` / `at`. Layer with the object form (a tail with
+`at`, a balance with `gain`) rather than extra `gain` nodes.
 
 ## Feedback loops
 
@@ -459,6 +465,18 @@ impact strength), or later `voices`; **a crackle** = `poisson` with a
   `loop: true` (the default in a `kind: loop` document) and render periodic in
   the duration; for hand-built textures make every `wander` / `lfo` slow or
   periodic. Keep control signals (`intensity`, `speed`, `flow`) periodic too.
+  **A filter (or any recursive node: `onepole`, `comb`, `allpass`, `delay`, `reverb`,
+  `ladder`, `eq`, `chorus`, `flanger`, `phaser`) after a looped source starts from zero state, so its output is not
+  periodic at the wrap and can break the seam**, though the source alone passes
+  (`water` -> `filter` hp 250 -> `filter` lp 6 kHz failed `loop_seam` in 35 % of
+  480 cases at 3 s; with `crossfade_loop` `fade` 0.25 after the filters, 1 of
+  480). The render now WARNS ("filters the looped source ... add a
+  `crossfade_loop` after it"): put `crossfade_loop` last, after the filter. A
+  `splash` in a short loop is sparse and random, so one end window may hold a
+  splash and the other not and the spectral half of `loop_seam` fails by chance
+  (about 17 % at `splash` 0.5; raise `flow`, or crossfade). `water` alone is
+  periodic: 0 of 480 failures at 1 s and 3 s over seeds, flow and density
+  (`docs/nodes/R3-E.md`).
 
 ## Physical models: modal, contact, friction
 
@@ -468,8 +486,8 @@ impact strength), or later `voices`; **a crackle** = `poisson` with a
 {"type": "friction", "name": "hinge", "speed": "swing", "pressure": 0.8, "roughness": 0.3}
 ```
 
-- `modal` {excite, material, size, [strike_position 0.3], [modes 48], [loss 1],
-  [tilt 0], [seed]}:
+- `modal` {excite, material, **`size` or `f0`** (one of the two), [strike_position
+  0.3], [modes 48], [loss 1], [tilt 0], [thickness], [f_min], [f_max], [seed]}:
   a simply supported square plate `size` metres a side. `material` is a foley
   name (`stone wood metal glass ice earth granular plant soft snow`) or
   `{young, density, poisson, loss, thickness}`; the `thickness` field
@@ -488,6 +506,20 @@ impact strength), or later `voices`; **a crackle** = `poisson` with a
   The `excite` signal is the strike: modal is linear, so a `contact`
   pulse, an `impulse`, a noise burst or a `friction` stream all work.
   Stereo excite rings each channel alone.
+  **`f0`** (Hz, 20..18000, a number, `"$param"` or `"=expr"`, read once) sets
+  `size` so the lowest mode of the shape's table sits at `f0` ("lowest mode 2
+  kHz" is one field; measured within 0.22 % for a plate, 0.04-0.10 % for the
+  other shapes, in `tests/m7.rs`). It replaces `size`: giving both is an error,
+  giving neither is an error. The seeded mistuning can move the lowest mode by
+  up to 1.5 % (plate). A macro that maps `f0` must not also map `size`.
+  **`f_min` / `f_max`** (Hz, default none) keep only the modes inside the band,
+  applied after the mode table and before the `modes` cap (so `modes` counts
+  kept modes); the strongest kept mode is the level reference. An empty band is
+  an error naming the table's range ("widen the band, or change `size` / `f0` /
+  `thickness`"), and so is a band whose modes the strike does not excite (a
+  node at `strike_position`). With neither field the output is bit-identical to
+  before. Use them for glass, ice, coins and keys: `f0` where the object rings,
+  `f_max` to keep the top of the table out. Detail: `docs/nodes/R3-C.md`.
   **`modal` normalizes its output**: a unit impulse (1.0 at one sample, or a
   `contact` of mass x speed = 0.1) peaks near 0 dBFS (measured within 0.01 dB
   over 10 materials x 6 shapes x 3 sizes); a stronger strike is louder. It has
@@ -594,7 +626,15 @@ until it fits; you read their moves in `summary`.
   up, punch / snap -> crest up, grit / howl -> flatness, gustiness -> swing,
   clang / stiffness -> inharmonicity up, rattle / buzz -> roughness up,
   rate / busyness -> density up, softness / swell -> attack up, spread /
-  bounciness -> spacing up. `decay`, `swing` and `crest` read the whole sound:
+  bounciness -> spacing up. Pick the claim that fits: `density` for any
+  event-rate knob (rain, crackle, crumple, bubbles), `centroid` for tone,
+  `decay` for a single-hit sound. The `density` claim holds for tick trains
+  from 10 to about 500 events/s (calibrated on 3 ms ticks; it is an estimate
+  when the ticks overlap, which `listen` says: "density estimate").
+  **An `output.lufs` target renormalizes the level, so a "loudness" /
+  "volume" macro with claim `lufs` cannot move**: use a `peak_db` target (then
+  map a `gain` before the output) or claim another measure, or leave the
+  claim off. `decay`, `swing` and `crest` read the whole sound:
   they are unreliable on a very short or multi-hit sound (several separate
   hits), so give those a `density`, `attack` or `spacing` claim, or leave the
   claim off, rather than rename the knob to fit.
@@ -625,6 +665,11 @@ until it fits; you read their moves in `summary`.
     `density` is built on; it resolves hits 5 ms apart; the first 40 are listed
     in ms, 20 to a line, with "... N more fine onsets not shown" after; not
     for a loop), `pitch` (YIN, voiced share, harmonicity).
+  - `events: N strong (>= 0.5 of the loudest onset), M weak; last event at T s`
+    (from the fine onsets by peak strength: clinks against crackle, a hit
+    against its chips; it also says what follows the last event; omitted for a
+    loop), and when the ticks overlap the `density` line reads "density
+    estimate" (see the `density` claim above).
   - `spectrum (start/middle/end)` centroid / rolloff / flatness, then the
     **whole-sound** line (centroid, rolloff, full-band flatness, and flatness
     over the **occupied band**, the middle 80 % of the energy, "none" when that
@@ -690,7 +735,20 @@ until it fits; you read their moves in `summary`.
     `spacing_ms` (default 40, the descriptors' merge distance, so a fast
     double like a `switch` click or a 200/s tick train reads as one): under
     30 counts with a fine detector above 1 kHz (`spacing_ms: 5` counted a 200/s
-    click train within 10 %), over 40 merges more.
+    click train within 10 %), over 40 merges more. `onsets` also takes
+    `gap: [lo, hi]` (seconds): every gap between consecutive onsets, at the
+    `spacing_ms` resolution, must lie in the range, and a FAIL lists the
+    offending gap and its times. "Exactly 3 hits 0.15-0.3 s apart" is
+    `{"min": 3, "max": 3, "gap": [0.15, 0.3]}`; leave 10 ms of margin on the
+    gap bounds (onset times are measured, not exact).
+  - **`verify {seeds: N}`** (2..8) re-renders the sound with seeds 1..N (the
+    document's seed is replaced for those renders only; nothing is saved) and
+    runs the same checks on each; the report groups results by seed ("seed 3:
+    loop_seam FAIL ..."). A plain `verify` renders only the seed in the
+    document, so a loop or a random texture that passes at seed 1 can still
+    fail at another: run `seeds: 4` before calling it finished. `variations`
+    (bare, or with settings) is a different check: it compares the seeds with
+    each other.
   - Settings of the rest: `bands [{band: "1k" (or Hz), segment 0..4, min_db,
     max_db}]`; `variations {seeds 6, lufs_spread 1, peak_spread_db 1, min_distance 1}`
     (it compares the quantity the output normalizes: the sample-peak spread,
@@ -775,7 +833,7 @@ follow the document's rate. `describe_op <type>` has the schema.
 | `glottis` | `f0` (signal), `[tension 0.65]`, `[breath 0.05]`, `[vibrato_cents]`, `[vibrato_hz 5.5]`, `[amp]`, `[seed]` | Foley's Liljencrants-Fant flow derivative (`lf_pulse`; tension 1 = pressed Rd 0.3, 0 = breathy Rd 2.7) with seeded breath noise. Pitch reads exactly (YIN). Aliases above ~1.5 kHz. |
 | `tract` | `input`, `[vowel a]`, `[vowel_to]`, `[morph]`, `[formants [[hz, bw]..]]`, `[scale]` | **Not foley's waveguide** (its `Tract` is private): a 4-formant Klatt cascade at Peterson-Barney vowels `a e i o u ae uh schwa`. `vowel_to` + `morph` (signal) glide; `scale` > 1 shortens the tract (child, small creature), < 1 lengthens. Feed it a `glottis`. |
 | `syrinx` | `species` or `pitch`; `[harmonic] [waver]` (whistle); `[rate] [at]` (species); `[amp] [seed]` | `species`: foley's `birdsong2`, any of 57 (`robin`, `cardinal`, `dove`, `crow`, `wood_thrush`, `boreal_owl`...; a bad name lists all), a phrase of its own length placed at `at`, cut/padded to the document; each `seed` is another individual; `rate` resamples (pitch and speed). `pitch`: a whistle from a contour signal (sine + 2nd harmonic + waver, as foley's songbirds). |
-| `thunder` | `[distance 1500]`, `[celsius]`, `[humidity 90]`, `[exposure 1]`, `[brightness 0.5]`, `[length 1]`, `[at]`, `[amp]`, `[seed]` | Foley's `strike` (Ribner-Roy N-wave over a jagged channel). Silent until `distance / 343` s, then clap and a rumble of several seconds with centroid ~30-50 Hz: set `duration` to fit (a 1.5 km flash: ~14 s). Foley levels every flash to a similar peak, so distance changes timing, brightness and length, not loudness. `exposure` 0 = shut in (low-pass to 200 Hz). `brightness` 0..1 (0.5 = foley's spectrum, bit-identical) is a +-24 dB high shelf at 100 Hz, peak kept: above 0.5 the centroid rises. `length` 0.5..3 (1 = as foley makes it, bit-identical) stretches the rumble after the first 0.1 s clap by overlap-add of 120 ms grains, so the spectrum stays and the rumble lasts `length` times as long (a longer `duration`). |
+| `thunder` | `[distance 1500]`, `[celsius]`, `[humidity 90]`, `[exposure 1]`, `[brightness 0.5]`, `[length 1]`, `[at]`, `[amp]`, `[seed]` | Foley's `strike` (Ribner-Roy N-wave over a jagged channel). Silent until `distance / 343` s, then clap and a rumble of several seconds with centroid ~30-50 Hz: set `duration` to fit (a 1.5 km flash: ~14 s). Foley levels every flash to a similar peak, so distance changes timing, brightness and length, not loudness. `exposure` 0 = shut in (low-pass to 200 Hz). `brightness` 0..1 (0.5 = foley's spectrum, bit-identical) is a +-24 dB high shelf at 100 Hz, peak kept: above 0.5 the centroid rises. `length` 0.5..3 (1 = as foley makes it, bit-identical) stretches the rumble after the first 0.1 s clap by overlap-add of 120 ms grains, so the spectrum stays and the rumble lasts `length` times as long (a longer `duration`). `rumble` 0..1 (0 = off, bit-identical) adds a continuous bed of seeded noise band-limited to 25-90 Hz from the first sound to the end of the audible tail, so the tail is not isolated spikes; its rms is `sqrt(rumble)` times the rms of the flash's loudest 0.4 s (0.6 is 2.2 dB under) and falls 3 dB over the tail; it is added before `exposure`, `brightness` and `amp` and the level is not re-normalised, so the flash gets louder with `rumble`. Measured at 1500 m: the 400 ms rms across the mid-tail spans 18-50 dB at 0, 2.2-5.9 dB at 0.6; centroid stays under 100 Hz (`docs/nodes/r3f.md`). |
 
 `species` / `thunder` are finished one-shots, so they are not causal for a
 live runtime (`summary` says so); the rest are. All seeded nodes are
