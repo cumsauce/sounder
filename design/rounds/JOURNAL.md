@@ -70,3 +70,4 @@
 - merged R3-F thunder rumble
 - merged R3-E water loop docs (integrator todo: warning for filter after looped source)
 - merged R3-B density/events (1 #[ignore]d: poisson carrier at 500/s) + my loop-seam render warning; all R3 fixes merged; docs R3-H next
+- merged R3-H docs; ROUND 4 setup (binary 639a8ef); 28 sounds (24 core + book_drop match_strike typewriter_key car_door)
