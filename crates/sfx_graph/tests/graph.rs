@@ -517,3 +517,199 @@ fn sample_and_convolve_read_project_files() {
     }
     std::fs::remove_dir_all(&dir).ok();
 }
+
+// ---- phase 3: expr ----
+
+/// Evaluates `nodes` (no output node needed) and returns node `name`'s mono
+/// samples.
+fn node_samples(nodes: &[Value], name: &str, n: usize) -> Vec<f32> {
+    let ctx = sfx_graph::Ctx {
+        sample_rate: 48000,
+        n,
+        seed: 1,
+        looped: false,
+        base_dir: None,
+    };
+    let ev = sfx_graph::evaluate(nodes, &Default::default(), &ctx, false)
+        .unwrap_or_else(|e| panic!("{e}"));
+    match &*ev.ports[name][0].1 {
+        sfx_graph::Buf::Audio(v) => v.clone(),
+        other => panic!("{name}: {}", other.kind()),
+    }
+}
+
+fn eval_error(nodes: Vec<Value>) -> String {
+    let ctx = sfx_graph::Ctx {
+        sample_rate: 48000,
+        n: 100,
+        seed: 1,
+        looped: false,
+        base_dir: None,
+    };
+    sfx_graph::evaluate(&nodes, &Default::default(), &ctx, false).unwrap_err()
+}
+
+#[test]
+fn expr_matches_the_equivalent_math_graph() {
+    let srcs = vec![
+        json!({"type": "osc", "name": "a", "freq": 220, "amp": 0.7}),
+        json!({"type": "noise", "name": "b", "color": "pink", "seed": 2}),
+    ];
+    let mut g = srcs.clone();
+    g.push(json!({"type": "math", "name": "m1", "op": "mul", "a": "a", "b": "b"}));
+    g.push(json!({"type": "math", "name": "m2", "op": "add", "a": "m1", "b": 0.5}));
+    g.push(
+        json!({"type": "expr", "name": "e", "inputs": {"a": "a", "b": "b"},
+        "out": "a * b + 0.5"}),
+    );
+    let n = 4800;
+    let want = node_samples(&g, "m2", n);
+    let got = node_samples(&g, "e", n);
+    let worst = want
+        .iter()
+        .zip(&got)
+        .map(|(a, b)| (a - b).abs())
+        .fold(0.0f32, f32::max);
+    // Measured worst difference: 6.0e-8.
+    assert!(worst < 1e-6, "worst difference {worst}");
+}
+
+#[test]
+fn expr_one_pole_with_state_tracks_the_onepole_node() {
+    // The onepole node is a TPT filter: with k = g / (1 + g), g = tan(pi fc /
+    // sr), the output is lp = s + k (x - s) and the state moves s += 2 k (x -
+    // s). That is `state` + `update` written out.
+    let sr = 48000.0f64;
+    let k = 0.05f64;
+    let g = k / (1.0 - k);
+    let fc = g.atan() * sr / std::f64::consts::PI;
+    let g = vec![
+        json!({"type": "noise", "name": "a", "color": "white", "seed": 9}),
+        json!({"type": "onepole", "name": "op", "input": "a", "freq": fc}),
+        json!({"type": "expr", "name": "e", "inputs": {"a": "a"}, "state": {"s": 0},
+            "out": format!("s + {k} * (a - s)"),
+            "update": {"s": format!("s + 2 * {k} * (a - s)")}}),
+    ];
+    let n = 9600;
+    let want = node_samples(&g, "op", n);
+    let got = node_samples(&g, "e", n);
+    let worst = want
+        .iter()
+        .zip(&got)
+        .map(|(a, b)| (a - b).abs())
+        .fold(0.0f32, f32::max);
+    // Measured worst difference: 8.9e-8 (f64 recurrence vs the f32 TPT).
+    assert!(worst < 1e-6, "worst difference {worst}");
+}
+
+#[test]
+fn expr_state_updates_read_the_old_state() {
+    // A two-sample delay line: s2 <- s1, s1 <- a. If updates saw each other's
+    // new values, s2 would equal s1.
+    let g = vec![
+        json!({"type": "impulse", "name": "a", "at": [0.0]}),
+        json!({"type": "expr", "name": "e", "inputs": {"a": "a"},
+            "state": {"s1": 0, "s2": 0}, "out": "s2",
+            "update": {"s1": "a", "s2": "s1"}}),
+    ];
+    let y = node_samples(&g, "e", 8);
+    assert_eq!(&y[..4], &[0.0, 0.0, 1.0, 0.0], "{y:?}");
+}
+
+#[test]
+fn expr_t_sr_and_noise() {
+    let g = vec![
+        json!({"type": "expr", "name": "t", "out": "t * sr"}),
+        json!({"type": "expr", "name": "n", "out": "noise(1)"}),
+        json!({"type": "expr", "name": "n2", "out": "noise(1)", "seed": 3}),
+    ];
+    let t = node_samples(&g, "t", 5);
+    assert_eq!(t, [0.0, 1.0, 2.0, 3.0, 4.0]);
+    let a = node_samples(&g, "n", 2000);
+    assert_eq!(a, node_samples(&g, "n", 2000), "deterministic");
+    assert!(a.iter().all(|x| (-1.0..1.0).contains(x)));
+    assert!(a.windows(2).any(|w| w[0] != w[1]));
+    assert_ne!(a, node_samples(&g, "n2", 2000), "own seed changes it");
+}
+
+#[test]
+fn expr_sanitizes_non_finite_values() {
+    let g = vec![
+        json!({"type": "expr", "name": "e", "state": {"s": 1},
+        "out": "s", "update": {"s": "1 / 0"}}),
+        json!({"type": "expr", "name": "nan", "out": "log(0 - 1)"}),
+    ];
+    assert_eq!(node_samples(&g, "e", 4), [1.0, 0.0, 0.0, 0.0]);
+    assert_eq!(node_samples(&g, "nan", 2), [0.0, 0.0]);
+}
+
+#[test]
+fn expr_errors_name_the_node_the_expression_and_the_position() {
+    let e = eval_error(vec![
+        json!({"type": "osc", "name": "src", "freq": 100}),
+        json!({"type": "expr", "name": "x", "inputs": {"a": "src"}, "state": {"y1": 0},
+            "out": "a + foo * 2"}),
+    ]);
+    assert!(
+        e.starts_with("node `x` (expr): out `a + foo * 2`: unknown name `foo` at 4"),
+        "{e}"
+    );
+    assert!(e.contains("names: t, a, y1, pi, sr"), "{e}");
+    let e = eval_error(vec![
+        json!({"type": "expr", "name": "x", "state": {"y1": 0},
+        "out": "y1", "update": {"y2": "1"}}),
+    ]);
+    assert!(
+        e.contains("update: `y2` is not a state variable (state: y1)"),
+        "{e}"
+    );
+    let e = eval_error(vec![
+        json!({"type": "expr", "name": "x", "state": {"y1": 0},
+        "out": "y1", "update": {"y1": "sin(y1"}}),
+    ]);
+    assert!(e.contains("update.y1 `sin(y1`: missing `)`"), "{e}");
+    // `out` / `update` are not mangled as $param / =expr fields, and an input
+    // is the only thing that counts as a reference.
+    let e = eval_error(vec![
+        json!({"type": "expr", "name": "x", "inputs": {"a": "nope"},
+        "out": "a"}),
+    ]);
+    assert!(e.contains("reads `nope`, which is not a node"), "{e}");
+}
+
+#[test]
+fn expr_params_expressions_get_functions_and_ternary() {
+    let mut d = SoundDoc::named("t");
+    d.params.insert("hz".into(), 300.0);
+    d.nodes = vec![
+        json!({"type": "osc", "name": "o", "freq": "=$hz > 200 ? max($hz, 440) : 100", "amp": 0.3}),
+        json!({"type": "output", "name": "out", "input": "o"}),
+    ];
+    d.duration = Some(0.1);
+    assert!(d.render(&RenderOpts::default()).is_ok());
+}
+
+#[test]
+fn expr_recipes_from_the_docs_run() {
+    let g = vec![
+        json!({"type": "osc", "name": "tone", "freq": 110, "amp": 0.9}),
+        // Wavefolder.
+        json!({"type": "expr", "name": "fold", "inputs": {"a": "tone"},
+            "out": "sin(a * 3 * pi / 2)"}),
+        // Bouncing ball: hits every `gap` seconds, each gap 0.7x the last.
+        json!({"type": "expr", "name": "bounce",
+            "state": {"ph": 0, "gap": 0.3, "amp": 1},
+            "out": "amp * exp(0 - ph * 40)",
+            "update": {"ph": "ph >= gap ? 0 : ph + 1 / sr",
+                       "gap": "ph >= gap ? max(gap * 0.7, 0.01) : gap",
+                       "amp": "ph >= gap ? amp * 0.7 : amp"}}),
+    ];
+    let n = 48000;
+    let f = node_samples(&g, "fold", n);
+    assert!(f.iter().all(|x| x.abs() <= 1.0) && f.iter().any(|x| x.abs() > 0.5));
+    let b = node_samples(&g, "bounce", n);
+    // Count hits: the envelope jumps up at each bounce.
+    let hits = b.windows(2).filter(|w| w[1] > w[0] + 0.05).count();
+    assert!((5..=30).contains(&hits), "{hits} bounces");
+    assert!(b[0] > 0.99 && b.iter().all(|x| (0.0..=1.0).contains(x)));
+}

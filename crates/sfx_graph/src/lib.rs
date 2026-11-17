@@ -16,6 +16,7 @@
 #![allow(clippy::needless_range_loop)]
 
 pub mod buf;
+pub mod calc;
 pub mod doc;
 pub mod dsp;
 pub mod eval;

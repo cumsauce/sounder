@@ -242,6 +242,8 @@ node_types! {
     "burst" => Burst,
     "on_threshold" => OnThreshold,
     "grains" => Grains,
+    // phase 3: expr
+    "expr" => Expr,
 }
 
 /// "unknown node type", naming the closest types.
@@ -331,6 +333,17 @@ pub fn refs(body: &Value) -> Vec<(String, String)> {
         "type", "name", "op", "mode", "shape", "curve", "color", "file", "window",
     ];
     let mut out = Vec::new();
+    // phase 3: expr. Its `out` / `update` / `state` are expression text, not
+    // references: only the `inputs` values read other nodes. (No other node
+    // has a string `out` without an `input`; `fade`'s `out` is a number.)
+    if body.get("out").is_some_and(Value::is_string) && body.get("input").is_none() {
+        if let Some(Value::Object(inputs)) = body.get("inputs") {
+            for v in inputs.values() {
+                walk(v, Some("inputs"), &mut out);
+            }
+        }
+        return out;
+    }
     fn walk(v: &Value, key: Option<&str>, out: &mut Vec<(String, String)>) {
         match v {
             Value::String(s) => {
@@ -414,6 +427,10 @@ fn blurb(ty: &str) -> &'static str {
         "burst" => "a cluster of events over a short span",
         "on_threshold" => "an event at each rising crossing of a level by an audio signal",
         "grains" => "granular playback of a node or WAV, one windowed grain per event",
+        // phase 3: expr
+        "expr" => {
+            "per-sample maths with state: out/update text over t, sr, inputs, state (sin tanh min clamp noise, ?:, ...)"
+        }
         _ => "",
     }
 }
@@ -478,6 +495,9 @@ pub fn example(ty: &str) -> Option<Value> {
         "burst" => json!({"count": 6, "spread": 0.05, "curve": "exp"}),
         "on_threshold" => json!({"input": "src", "level": 0.2, "hold": 0.01}),
         "grains" => json!({"source": "noise1", "events": "ev", "size": 0.03, "pan_spread": 0.5}),
+        // phase 3: expr
+        "expr" => json!({"inputs": {"a": "src"}, "state": {"y1": 0}, "out": "y1",
+            "update": {"y1": "y1 + 0.1 * (a - y1)"}}),
         _ => return None,
     };
     let mut m = serde_json::Map::new();

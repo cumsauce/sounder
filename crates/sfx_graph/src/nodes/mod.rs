@@ -4,6 +4,7 @@
 mod control;
 mod envelopes;
 mod events;
+mod expr;
 mod filters;
 mod maths;
 mod mixing;
@@ -16,6 +17,7 @@ mod time;
 pub use control::*;
 pub use envelopes::*;
 pub use events::*;
+pub use expr::*;
 pub use filters::*;
 pub use maths::*;
 pub use mixing::*;
