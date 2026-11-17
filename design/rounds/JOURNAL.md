@@ -64,3 +64,9 @@
 - ROUND 3: testers 1-12 launched; queue: stream splash rain wind fire thunder cloth paper sword punch switch keys + rock_debris ice_in_glass boiling_loop rope_creak; then judges
 - round 3: all 28 testers launched; judges running for concrete gravel grass wood creak slam knock; pending judges: pipe coin drip stream splash rain wind fire thunder cloth paper sword punch switch keys rock ice boiling rope (agent cap is 20 concurrent)
 - ROUND 3 DONE core judge 9.25 diff 1.29 failed 1.42; stop test: criteria 2,3 met but criterion 1 not (more than 3 qualifying issues): round 4 will run after fixes R3-A..F
+- merged R3-A
+- merged R3-C modal f0/band
+- merged R3-D onsets gap + verify seeds
+- merged R3-F thunder rumble
+- merged R3-E water loop docs (integrator todo: warning for filter after looped source)
+- merged R3-B density/events (1 #[ignore]d: poisson carrier at 500/s) + my loop-seam render warning; all R3 fixes merged; docs R3-H next
