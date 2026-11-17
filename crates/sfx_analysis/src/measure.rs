@@ -89,6 +89,7 @@ pub fn measure(audio: &Audio, m: Measure) -> f32 {
         Measure::Density => density_per_s(audio),
         Measure::Attack => attack_ms(audio),
         Measure::Spacing => spacing_s(audio),
+        Measure::Ring => ring_ms(audio),
         Measure::Swing => {
             // Loudness over 0.2 s windows every 0.05 s; a sound under 0.6 s
             // uses a third of its length (20 ms at the least), so a short
@@ -1042,4 +1043,71 @@ pub fn spacing_s(audio: &Audio) -> f32 {
         .collect();
     let gaps: Vec<f32> = t.windows(2).map(|w| w[1] - w[0]).collect();
     median_of(gaps).unwrap_or(0.0)
+}
+
+/// Per-hit ring-out in milliseconds (`Measure::Ring`): the median over the
+/// strong onsets of each one's own -20 dB fall time.
+///
+/// Onsets are [`fine_events`] above 100 Hz (10 ms refractory) whose level is
+/// at least 0.25 of the loudest. For each, the peak is the largest 2.5 ms
+/// peak-hold envelope value between the onset and 30 ms later (or the next
+/// onset), and the fall is the time from that peak to the first envelope
+/// frame under peak - 20 dB. The hit's window ends at the next onset: a hit
+/// the next one arrives over before it fell is skipped. A last hit that
+/// reaches the end of the sound counts up to the end. No usable hit: the
+/// whole-sound `decay`, in ms.
+pub fn ring_ms(audio: &Audio) -> f32 {
+    let sr = audio.sample_rate;
+    let x = audio.mix_mono();
+    let fallback = || measure(audio, Measure::Decay) * 1000.0;
+    let ev = fine_events(&x, sr, 100.0, 10);
+    let top = ev.iter().map(|e| e.level).fold(0.0f32, f32::max);
+    if ev.is_empty() || top <= 0.0 {
+        return fallback();
+    }
+    // Peak-hold envelope: max |x| over 2.5 ms, every 0.25 ms.
+    let hop = (sr as usize / 4000).max(1);
+    let hold = hop * 10;
+    let abs: Vec<f32> = x.iter().map(|v| v.abs()).collect();
+    let env: Vec<f32> = (0..abs.len().div_ceil(hop))
+        .map(|k| {
+            let a = k * hop;
+            abs[a..(a + hold).min(abs.len())]
+                .iter()
+                .copied()
+                .fold(0.0f32, f32::max)
+        })
+        .collect();
+    let to_frame = |t: f32| ((t * sr as f32) as usize) / hop;
+    let mut falls = Vec::new();
+    for (i, e) in ev.iter().enumerate() {
+        if e.level < 0.25 * top {
+            continue;
+        }
+        let a = to_frame(e.t).min(env.len().saturating_sub(1));
+        let next = ev
+            .get(i + 1)
+            .map_or(env.len(), |n| to_frame(n.t).min(env.len()));
+        let search_end = (a + 120).min(next).max(a + 1);
+        let Some((pk, pv)) = (a..search_end)
+            .map(|k| (k, env[k]))
+            .max_by(|p, q| p.1.total_cmp(&q.1))
+        else {
+            continue;
+        };
+        if pv <= 0.0 {
+            continue;
+        }
+        let th = pv * 0.1;
+        match (pk + 1..next).find(|k| env[*k] < th) {
+            Some(k) => falls.push((k - pk) as f32),
+            // Reached the end of the sound before another onset or the fall.
+            None if next >= env.len() && i + 1 >= ev.len() => falls.push((next - pk) as f32),
+            None => {}
+        }
+    }
+    match median_of(falls) {
+        Some(f) => f * hop as f32 * 1000.0 / sr as f32,
+        None => fallback(),
+    }
 }

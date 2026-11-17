@@ -54,10 +54,16 @@ pub enum Measure {
     /// For a bounce, a drum roll or a footfall pair: a longer first gap
     /// widens it. 0 under two onsets.
     Spacing,
+    /// Per-hit ring-out, milliseconds: the median over the strong onsets
+    /// (at least 0.25 of the loudest) of each hit's own fall to -20 dB under
+    /// its peak, stopping at the next onset. Unlike `decay` it reads one hit
+    /// at a time, so it suits a knock, a typewriter or a footfall train whose
+    /// whole-sound decay is set by the last hit.
+    Ring,
 }
 
 impl Measure {
-    pub const ALL: [Measure; 11] = [
+    pub const ALL: [Measure; 12] = [
         Measure::Centroid,
         Measure::Decay,
         Measure::Crest,
@@ -69,6 +75,7 @@ impl Measure {
         Measure::Density,
         Measure::Attack,
         Measure::Spacing,
+        Measure::Ring,
     ];
 
     pub fn name(self) -> &'static str {
@@ -84,6 +91,7 @@ impl Measure {
             Measure::Density => "density",
             Measure::Attack => "attack",
             Measure::Spacing => "spacing",
+            Measure::Ring => "ring",
         }
     }
 
@@ -100,6 +108,7 @@ impl Measure {
             Measure::Density => "events/s",
             Measure::Attack => "ms",
             Measure::Spacing => "s",
+            Measure::Ring => "ms",
         }
     }
 }
