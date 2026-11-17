@@ -400,6 +400,9 @@ node_types! {
 
     // slot R1F
     "click" => Click,
+
+    // slot R2D
+    "crumple" => Crumple,
 }
 
 /// "unknown node type", naming the closest types.

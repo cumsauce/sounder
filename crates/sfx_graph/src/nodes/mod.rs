@@ -82,6 +82,9 @@ mod bands;
 // slot R1F
 mod mechanism;
 
+// slot R2D
+mod crackle;
+
 pub use control::*;
 pub use envelopes::*;
 pub use events::*;
@@ -162,6 +165,9 @@ pub use bands::*;
 
 // slot R1F
 pub use mechanism::*;
+
+// slot R2D
+pub use crackle::*;
 
 use serde::Deserialize;
 
