@@ -53,3 +53,10 @@
 - ROUND 2: testers 1-12 launched; queue: stream_loop splash rain_loop wind_loop fire_loop thunder_distant cloth_rustle paper_crumple sword_whoosh punch_thud switch_click keys_jingle + reserve chain_rattle zipper pencil_scribble drawer_slide; then judges
 - round 2: all 28 testers launched; judges launched for concrete gravel grass wood creak slam knock break clink pipe coin drip; still to judge: stream splash rain wind fire thunder cloth paper sword punch switch keys chain zipper pencil drawer
 - ROUND 2 DONE core judge 9.50 diff 1.46 failed 2.25 (r1 9.12/1.67/3.21). fix tasks R2-A..G launched
+- merged R2-E modal thickness (1 #[ignore]d card test: coin numbers unreachable with metal constants)
+- merged R2-A variations (docs todo: peak_spread_db, bare variations)
+- merged R2-F
+- merged R2-B (true-peak ceiling; peak_db can deliver lower sample peak for noisy hits: document)
+- merged R2-G
+- merged R2-C descriptors; integrator todo: wire descriptors_window into listen zoom text
+- merged R2-D crumple; all R2 fixes merged; docs pass R2-H next
