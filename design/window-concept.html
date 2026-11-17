@@ -3,9 +3,9 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout (plan phase 5): top bar = which sound + transport (play, loop, seed, A/B); left = open sounds and the
-   selected sound's nodes in signal order; centre = spectrogram / waveform / loudness with a playhead (or the node
-   graph); bottom dock = history; right = node | sound | comments tabs. Tokens match modeler's ds.rs. Phase 5 ships
+/* Layout (plan phase 5): top bar = which sound + transport (play, loop, seed) + history menu; centre =
+   spectrogram / waveform / loudness with a playhead, or the node graph (its cards carry solo, comment counts and
+   warnings); bottom dock = macro knobs; right = node | sound | comments tabs. Tokens match modeler's ds.rs. Phase 5 ships
    this page in a webview with the Rust session behind it. The audio is real: the mock renders the same node JSON in the browser. */
 :root {
   color-scheme: dark;
@@ -74,10 +74,9 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .bpop .h { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); padding: 6px 8px; }
 
 /* workspace */
-.work { display: grid; grid-template-columns: 250px 1fr 300px; grid-template-rows: 1fr auto; min-height: 0; }
-.left, .right { background: var(--panel); min-height: 0; overflow: auto; }
-.left { border-right: 1px solid var(--line); grid-row: 1 / 3; overflow-x: hidden; }
-.right { border-left: 1px solid var(--line); grid-row: 1 / 3; grid-column: 3; display: flex; flex-direction: column; }
+.work { display: grid; grid-template-columns: 1fr 300px; grid-template-rows: 1fr auto; min-height: 0; }
+.right { background: var(--panel); min-height: 0; overflow: auto; }
+.right { border-left: 1px solid var(--line); grid-row: 1 / 3; grid-column: 2; display: flex; flex-direction: column; }
 .paneh { position: sticky; top: 0; background: var(--panel); z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
 .paneh .badge { text-transform: none; letter-spacing: 0; }
 .tree { padding: 0 6px 12px; }
@@ -130,12 +129,21 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .gnode.solo { box-shadow: 0 0 0 2px rgba(111,168,255,.35); }
 .gnode .n { font-size: 12px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; gap: 6px; }
 .gnode .t { font: 10.5px var(--mono); color: var(--faint); line-height: 1.2; }
+.gnode .gsolo { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 5px; color: var(--faint); opacity: 0; }
+.gnode:hover .gsolo, .gnode .gsolo.on, .gnode .gsolo:focus-visible { opacity: 1; }
+.gnode .gsolo:hover { color: var(--fg); background: var(--bg); }
+.gnode .gsolo.on { color: var(--accent); }
+.gnode .n { padding-right: 20px; }
+.gnode .gbadges { display: flex; gap: 4px; align-items: center; }
+.gnode .pinc { font: 600 10px var(--sans); background: var(--warn); color: #1b1600; border-radius: 99px; padding: 0 5px; }
+.gnode .warnc { color: var(--warn); display: grid; place-items: center; }
+.gnode.out { border-width: 2px; }
 .gnode canvas { width: 100%; height: 22px; display: block; margin-top: 4px; }
 .toast { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 6; }
 .toast[hidden] { display: none !important; }
 
 /* history dock */
-.dock { grid-column: 2; border-top: 1px solid var(--line); background: var(--panel); min-width: 0; }
+.dock { grid-column: 1; border-top: 1px solid var(--line); background: var(--panel); min-width: 0; }
 .dock[hidden] { display: none !important; }
 .dockh { display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: 12px; color: var(--dim); }
 .dockh .t { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
@@ -254,7 +262,7 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 
 @media (max-width: 900px) {
   .work { grid-template-columns: 1fr; grid-template-rows: 56vh auto auto auto; overflow: auto; }
-  .left, .right, .dock { grid-column: 1; grid-row: auto; border: 0; border-top: 1px solid var(--line); }
+  .right, .dock { grid-column: 1; grid-row: auto; border: 0; border-top: 1px solid var(--line); }
   .view { grid-row: 1; }
   .docproj, .agents .agent span, .where .lbl, .hearing, .tbtn .lbl { display: none; }
   .top { overflow-x: auto; }
@@ -311,7 +319,6 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
   <div class="kpop" id="kpop" hidden></div>
 
   <div class="work" id="work">
-    <aside class="left" id="left"></aside>
     <main class="view" id="view">
       <div class="hudbar" id="hudbar"></div>
       <div class="plot" id="plot">
@@ -604,12 +611,12 @@ const FEED = [
 ];
 const NOTES = {
   sound: [
-    '<b>Macros</b> (bottom): knobs the agent made and named. Each moves several fields at once; hover one to see what it moves, its checked claim, and which nodes light up. Drag up / down, double-click to reset.',
+    '<b>Macros</b> (bottom): knobs the agent made and named. Each moves several fields at once; hover one to see what it moves and its checked claim (in the Graph view the nodes it moves light up). Drag up / down, double-click to reset.',
     'Each name is a <b>claim</b> that verify checks: brightness means the centroid rises over 0..1, at 5 positions, with no position clipping. Results are in the hover and the Sound tab\'s checks.',
     'Your knob moves go to agents in summary ("brightness 0.50 → 0.72"). <b>GAME</b> knobs are exported for the game to set at runtime.',
     '<b>Space</b> plays, <b>L</b> loops, <b>R</b> rolls a seed. Drag on the spectrogram for a time × frequency region to loop, zoom or comment on. The seed buttons re-roll the randomness. History (undo / redo) is the <b>v4 ▾</b> menu (<b>H</b>).',
   ],
-  graph: ['<b>2</b> shows the node graph in signal order (depth = columns). Each card has its own waveform. <b>1</b> goes back to the spectrogram.'],
+  graph: ['<b>2</b> shows the node graph in signal order (depth = columns). Each card has its waveform; hover one for its <b>headphones</b> (hear just that node, levelled), and see its open comment count and an unread-node warning. Click a card to edit it on the right. <b>1</b> goes back to the spectrogram.'],
   grid: ['Every open sound with its spectrogram. Hover a tile and press its play button to audition without opening it. The feed shows what agents are doing.'],
 };
 
@@ -667,16 +674,6 @@ function renderTop() {
 // ---------- left: sounds + nodes ----------
 function spark(c, x) { const g = c.getContext('2d'), W = c.width = 92, H = c.height = 32; g.clearRect(0, 0, W, H); if (!x) return; let pk = 1e-9; for (const v of x) pk = Math.max(pk, Math.abs(v)); g.fillStyle = 'rgba(120,200,255,.75)'; const step = x.length / W;
   for (let i = 0; i < W; i++) { let m = 0; for (let j = Math.floor(i * step); j < Math.floor((i + 1) * step); j++) m = Math.max(m, Math.abs(x[j])); const h = Math.max(1, m / pk * (H / 2 - 1)); g.fillRect(i, H / 2 - h, 1, 2 * h); } }
-function renderLeft() {
-  const d = doc(); const warn = unread(d);
-  const list = R ? R.list : d.nodes;
-  const nodes = list.map(n => {
-    const open = d.comments.filter(c => !c.resolved && c.on.node === n.name).length;
-    return `<div class="row ${n.type === 'output' ? 'out' : ''} ${S.sel === n.name ? 'sel' : ''} ${S.hot && macroTargets(S.hot).includes(n.name) ? 'mac' : ''}" data-node="${n.name}" title="${n.type}: ${BLURB[n.type] || ''}">${ic(ICON[n.type] || 'wave')}<span class="name">${n.name}</span>${open ? `<span class="pinc">${open}</span>` : ''}${warn.includes(n.name) ? `<span class="warnc" title="nothing reads this node">${ic('warn')}</span>` : ''}<canvas class="spark" data-spark="${n.name}"></canvas><button class="solo ${S.solo === n.name ? 'on' : ''}" data-solo="${n.name}" aria-label="Solo ${n.name}" title="Hear this node">${ic('phones')}</button></div>`;
-  }).join('');
-  $('#left').innerHTML = `    <div class="paneh">Nodes <span class="badge">${d.kind}${d.duration ? ' · ' + d.duration + ' s' : ' · auto'}</span></div><div class="tree">${nodes}</div>`;
-  document.querySelectorAll('[data-spark]').forEach(c => spark(c, R && R.bufs[c.dataset.spark]));
-}
 function unread(d) { const all = new Set(d.nodes.flatMap(reads)); return d.nodes.filter(n => n.type !== 'output' && !all.has(n.name)).map(n => n.name); }
 
 // ---------- centre: hud ----------
@@ -769,11 +766,12 @@ function showRegbar() {
 // ---------- centre: graph and seeds ----------
 function renderGraph() {
   const host = $('#graphhost'); host.hidden = S.centre !== 'graph'; if (host.hidden || !R) return;
+  const d = doc(), unreadSet = new Set(unread(d)), openOn = n => d.comments.filter(c => !c.resolved && c.on.node === n).length;
   const cols = {}; R.list.forEach(n => (cols[R.depth[n.name]] ||= []).push(n)); const pos = {};
   Object.entries(cols).forEach(([c, ns]) => ns.forEach((n, i) => pos[n.name] = [c * 190, i * 84 + (c % 2) * 18]));
   const W = Math.max(...Object.values(pos).map(p => p[0])) + 170, H = Math.max(...Object.values(pos).map(p => p[1])) + 80;
   const wires = R.list.flatMap(n => reads(n).filter(r => pos[r]).map(r => { const [x0, y0] = pos[r], [x1, y1] = pos[n.name]; const a = [x0 + 150, y0 + 28], b = [x1, y1 + 28]; return `<path d="M${a[0]},${a[1]} C${a[0] + 40},${a[1]} ${b[0] - 40},${b[1]} ${b[0]},${b[1]}" stroke="${S.sel === n.name || S.sel === r ? '#6fa8ff' : '#3a404c'}" stroke-width="1.5" fill="none"/>`; })).join('');
-  host.innerHTML = `<div class="graph" style="width:${W}px;height:${H}px"><svg class="wires">${wires}</svg>${R.list.map(n => `<div class="gnode ${S.sel === n.name ? 'sel' : ''} ${S.solo === n.name ? 'solo' : ''} ${S.hot && macroTargets(S.hot).includes(n.name) ? 'mac' : ''}" data-node="${n.name}" style="left:${pos[n.name][0]}px;top:${pos[n.name][1]}px"><div class="n">${ic(ICON[n.type] || 'wave')}${n.name}</div><div class="t">${n.type}</div><canvas data-gspark="${n.name}"></canvas></div>`).join('')}</div>`;
+  host.innerHTML = `<div class="graph" style="width:${W}px;height:${H}px"><svg class="wires">${wires}</svg>${R.list.map(n => `<div class="gnode ${n.type === 'output' ? 'out' : ''} ${S.sel === n.name ? 'sel' : ''} ${S.solo === n.name ? 'solo' : ''} ${S.hot && macroTargets(S.hot).includes(n.name) ? 'mac' : ''}" data-node="${n.name}" style="left:${pos[n.name][0]}px;top:${pos[n.name][1]}px"><div class="n">${ic(ICON[n.type] || 'wave')}${n.name}</div><button class="gsolo ${S.solo === n.name ? 'on' : ''}" data-solo="${n.name}" aria-label="Solo ${n.name}" title="Hear this node">${ic('phones')}</button><div class="gbadges"><span class="t">${n.type}</span>${openOn(n.name) ? `<span class="pinc" title="open comments on this node">${openOn(n.name)}</span>` : ''}${unreadSet.has(n.name) ? `<span class="warnc" title="nothing reads this node">${ic('warn')}</span>` : ''}</div><canvas data-gspark="${n.name}"></canvas></div>`).join('')}</div>`;
   host.querySelectorAll('[data-gspark]').forEach(c => spark(c, R.bufs[c.dataset.gspark]));
 }
 
@@ -814,7 +812,7 @@ function setMacro(name, v) {
 function finishMacro(name, from) {
   const d = doc(), m = d.macros.find(x => x.name === name);
   if (Math.abs(m.value - from) > 0.005) { const f = d.feedback.find(x => x.name === name); if (f) { f.to = m.value; f.ago = 'now'; } else d.feedback.push({ name, from, to: m.value, ago: 'now' }); d.saved = false; toast(`${name} ${from.toFixed(2)} → ${m.value.toFixed(2)} · agents see it in summary`); }
-  rerender(); renderLeft(); renderDock(); renderRight(); renderCentre(); restartKeeping();
+  rerender(); renderDock(); renderRight(); renderCentre(); restartKeeping();
 }
 function showKpop(name, el) {
   const d = doc(), m = d.macros.find(x => x.name === name), p = $('#kpop'), r = el.getBoundingClientRect();
@@ -890,7 +888,7 @@ function audition(id) { const d = DOCS.find(x => x.id === id); const r = evaluat
 function toast(t) { const e = $('#toast'); e.innerHTML = `<span class="chip"><b>${t}</b></span>`; e.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => e.hidden = true, 2600); }
 function renderNotes() { $('#notelist').innerHTML = NOTES[S.view === 'grid' ? 'grid' : S.centre === 'graph' ? 'graph' : 'sound'].map(n => `<li>${n}</li>`).join(''); }
 function renderCentre() { renderHud(); renderGraph(); requestAnimationFrame(() => { renderPlot(); showRegbar(); }); }
-function renderAll() { renderTop(); renderOverview(); renderLeft(); renderCentre(); renderDock(); renderRight(); renderNotes(); }
+function renderAll() { renderTop(); renderOverview(); renderCentre(); renderDock(); renderRight(); renderNotes(); }
 function commit(label) { const d = doc(); d.ver = d.hist[d.hist.length - 1].v + 1; d.hist.push({ v: d.ver, label, by: 'you', ago: 'now', nodes: clone(d.nodes) }); d.saved = false; rerender(); renderAll(); restartKeeping(); }
 function setDoc(id) { stop(); S.doc = id; S.view = 'doc'; S.solo = null; S.region = null; S.zoom = null; S.pendingPin = null; const d = doc(); S.sel = (d.nodes.find(n => n.type === 'filter') || d.nodes[0]).name; rerender(); renderAll(); }
 
@@ -905,37 +903,34 @@ $('#docq').oninput = renderDocList;
 $('#doclist').onclick = e => { const r = e.target.closest('[data-doc]'); if (r) { $('#docpop').hidden = true; setDoc(r.dataset.doc); } };
 $('#playbtn').onclick = toggle;
 $('#loopbtn').onclick = () => { if (doc().kind === 'loop') return toast('A loop sound always loops'); S.loop = !S.loop; renderTop(); restartKeeping(); };
-const setSeed = s => { const d = doc(); d.seed = Math.max(1, s); rerender(); renderTop(); renderCentre(); renderLeft(); renderRight(); restartKeeping(); };
+const setSeed = s => { const d = doc(); d.seed = Math.max(1, s); rerender(); renderTop(); renderCentre(); renderRight(); restartKeeping(); };
 $('#seeddn').onclick = () => setSeed(doc().seed - 1); $('#seedup').onclick = () => setSeed(doc().seed + 1); $('#seedroll').onclick = () => setSeed(1 + Math.floor(Math.random() * 999));
 function openHist(anchor) { const d = doc(), p = $('#bpop'); const r = anchor.getBoundingClientRect(); p.style.left = Math.max(8, Math.min(innerWidth - 330, r.right - 320)) + 'px';
   p.innerHTML = `<div class="h">History · click to jump (undo / redo)</div>${[...d.hist].reverse().map(h => `<div class="hstep" data-hv="${h.v}"><span class="mono" style="color:var(--faint)">v${h.v}</span><span class="l" title="${h.label}">${h.label}</span><span class="r" style="display:flex;gap:5px;align-items:center;color:var(--faint);font-size:11px">${h.v === d.ver ? '<span class="tagA">now</span>' : ''}<i class="dot" style="background:${AGENTS[h.by].color}"></i>${h.by}</span></div>`).join('')}`; p.hidden = false; }
 $('#bpop').onclick = e => { const h = e.target.closest('[data-hv]'); if (!h) return; const d = doc(), v = +h.dataset.hv; $('#bpop').hidden = true; if (v === d.ver) return; d.nodes = clone(d.hist.find(x => x.v === v).nodes); d.ver = v; rerender(); renderAll(); restartKeeping(); toast(`Jumped to v${v}`); };
 $('#hearing').onclick = e => { if (e.target.closest('[data-unsolo]')) { S.solo = null; rerender(); renderAll(); restartKeeping(); } };
-$('#left').onclick = e => {
-  const so = e.target.closest('[data-solo]'); if (so) { e.stopPropagation(); S.solo = S.solo === so.dataset.solo ? null : so.dataset.solo; if (S.solo === 'out') S.solo = null; rerender(); renderAll(); restartKeeping(); return; }
-  const dd = e.target.closest('[data-doc]'); if (dd) return setDoc(dd.dataset.doc);
-  const n = e.target.closest('[data-node]'); if (n) { S.sel = n.dataset.node; if (S.tab === 'comments') S.pendingPin = null; else S.tab = 'node'; renderLeft(); renderRight(); renderGraph(); }
-};
 $('#hudbar').onclick = e => { const c = e.target.closest('[data-centre]'); if (c) { S.centre = c.dataset.centre; renderCentre(); renderNotes(); return; }
   if (e.target.closest('[data-unzoom]')) { S.zoom = null; renderCentre(); return; } const hb = e.target.closest('[data-hist]'); if (hb) openHist(hb); };
-$('#graphhost').onclick = e => { const n = e.target.closest('[data-node]'); if (n) { S.sel = n.dataset.node; S.tab = 'node'; renderGraph(); renderLeft(); renderRight(); } };
+$('#graphhost').onclick = e => {
+  const so = e.target.closest('[data-solo]'); if (so) { e.stopPropagation(); S.solo = S.solo === so.dataset.solo ? null : so.dataset.solo; rerender(); renderAll(); restartKeeping(); return; }
+  const n = e.target.closest('[data-node]'); if (n) { S.sel = n.dataset.node; S.tab = 'node'; renderGraph(); renderRight(); } };
 $('#dock').addEventListener('pointerdown', e => { const k = e.target.closest('[data-dial]'); if (!k) return; e.preventDefault(); k.setPointerCapture(e.pointerId); const m = doc().macros.find(x => x.name === k.dataset.dial); KD = { name: m.name, y: e.clientY, v: m.value, from: m.value }; $('#kpop').hidden = true; });
 $('#dock').addEventListener('pointermove', e => { if (!KD) return; const v = KD.v + (KD.y - e.clientY) / (e.shiftKey ? 600 : 150); setMacro(KD.name, v); });
 $('#dock').addEventListener('pointerup', () => { if (!KD) return; const k = KD; KD = null; finishMacro(k.name, k.from); });
 $('#dock').addEventListener('dblclick', e => { const k = e.target.closest('[data-dial]'); if (!k) return; const m = doc().macros.find(x => x.name === k.dataset.dial); const from = m.value; setMacro(m.name, m.default); finishMacro(m.name, from); });
 $('#dock').addEventListener('wheel', e => { const k = e.target.closest('[data-dial]'); if (!k) return; e.preventDefault(); const m = doc().macros.find(x => x.name === k.dataset.dial); if (!KD) KD = { name: m.name, from: m.value, wheel: true }; setMacro(m.name, m.value - e.deltaY * 0.0015); clearTimeout(KD.t); KD.t = setTimeout(() => { const kk = KD; KD = null; finishMacro(kk.name, kk.from); }, 350); }, { passive: false });
 $('#dock').addEventListener('keydown', e => { const k = e.target.closest('[data-dial]'); if (!k || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return; e.preventDefault(); e.stopPropagation(); const m = doc().macros.find(x => x.name === k.dataset.dial); const from = m.value; setMacro(m.name, m.value + (/Up|Right/.test(e.key) ? 1 : -1) * (e.shiftKey ? 0.01 : 0.05)); finishMacro(m.name, from); requestAnimationFrame(() => document.querySelector(`[data-dial="${m.name}"]`)?.focus()); });
-$('#dock').addEventListener('mouseover', e => { const k = e.target.closest('[data-knob]'); if (!k || KD) return; if (S.hot !== k.dataset.knob) { S.hot = k.dataset.knob; document.querySelectorAll('.knob').forEach(x => x.classList.toggle('hot', x.dataset.knob === S.hot)); renderLeft(); renderGraph(); } showKpop(k.dataset.knob, k); });
-$('#dock').addEventListener('mouseleave', () => { if (KD) return; S.hot = null; $('#kpop').hidden = true; document.querySelectorAll('.knob').forEach(x => x.classList.remove('hot')); renderLeft(); renderGraph(); });
+$('#dock').addEventListener('mouseover', e => { const k = e.target.closest('[data-knob]'); if (!k || KD) return; if (S.hot !== k.dataset.knob) { S.hot = k.dataset.knob; document.querySelectorAll('.knob').forEach(x => x.classList.toggle('hot', x.dataset.knob === S.hot)); renderGraph(); } showKpop(k.dataset.knob, k); });
+$('#dock').addEventListener('mouseleave', () => { if (KD) return; S.hot = null; $('#kpop').hidden = true; document.querySelectorAll('.knob').forEach(x => x.classList.remove('hot')); renderGraph(); });
 $('#dock').onclick = e => { const d = doc();
   if (e.target.closest('[data-kreset]')) { d.macros.forEach(m => m.value = m.default); toast('Knobs back at the agent\'s defaults'); finishMacro(d.macros[0].name, d.macros[0].value); } };
 $('#right').onclick = e => {
   const t = e.target.closest('[data-tab]'); if (t) { S.tab = t.dataset.tab; renderRight(); return; }
   const so = e.target.closest('[data-solo]'); if (so) { S.solo = S.solo === so.dataset.solo ? null : so.dataset.solo; if (S.solo === 'out') S.solo = null; rerender(); renderAll(); restartKeeping(); return; }
   const kf = e.target.closest('[data-kfocus]'); if (kf) { const el = document.querySelector(`[data-dial="${kf.dataset.kfocus}"]`); if (el) { el.focus(); el.closest('.knob').animate([{ boxShadow: '0 0 0 4px rgba(111,168,255,.5)' }, { boxShadow: '0 0 0 0 rgba(111,168,255,0)' }], 900); } return; }
-  const go = e.target.closest('[data-goto]'); if (go) { e.preventDefault(); S.sel = go.dataset.goto.split('.')[0]; renderLeft(); renderRight(); renderGraph(); return; }
+  const go = e.target.closest('[data-goto]'); if (go) { e.preventDefault(); S.sel = go.dataset.goto.split('.')[0]; renderRight(); renderGraph(); return; }
   const en = e.target.closest('[data-enum]'); if (en) { const d = doc(); d.nodes = edit(d.nodes, S.sel, { [en.dataset.enum]: en.dataset.v }); commit(`~${S.sel}`); return; }
-  const cm = e.target.closest('[data-cmt]'); if (cm) { const c = doc().comments.find(x => x.n == cm.dataset.cmt); if (c.on.node) S.sel = c.on.node; if (c.on.t) { S.region = { t: c.on.t, hz: c.on.hz }; showRegbar(); } renderLeft(); return; }
+  const cm = e.target.closest('[data-cmt]'); if (cm) { const c = doc().comments.find(x => x.n == cm.dataset.cmt); if (c.on.node) S.sel = c.on.node; if (c.on.t) { S.region = { t: c.on.t, hz: c.on.hz }; showRegbar(); } return; }
   if (e.target.closest('[data-unpin]')) { S.pendingPin = {}; renderRight(); return; }
   if (e.target.id === 'csend') postComment();
 };
@@ -946,7 +941,7 @@ $('#right').oninput = e => {
   const ik = e.target.dataset.input; if (ik) { d.inputs[ik].value = +e.target.value; $(`[data-inputv="${ik}"]`).textContent = (+e.target.value).toFixed(2); return; }
   const pk = e.target.dataset.param; if (pk) { d.params[pk] = Math.round(Math.exp(+e.target.value)); $(`[data-paramv="${pk}"]`).textContent = d.params[pk]; }
 };
-$('#right').onchange = e => { if (e.target.dataset.num) commit(`~${S.sel}`); else if (e.target.dataset.input || e.target.dataset.param) { rerender(); renderTop(); renderCentre(); renderLeft(); restartKeeping(); toast(e.target.dataset.input ? 'Input changed for listening; the doc keeps its default' : 'Param changed'); } };
+$('#right').onchange = e => { if (e.target.dataset.num) commit(`~${S.sel}`); else if (e.target.dataset.input || e.target.dataset.param) { rerender(); renderTop(); renderCentre(); restartKeeping(); toast(e.target.dataset.input ? 'Input changed for listening; the doc keeps its default' : 'Param changed'); } };
 $('#ovgrid').onclick = e => { const a = e.target.closest('[data-audition]'); if (a) { e.stopPropagation(); audition(a.dataset.audition); return; } const t = e.target.closest('[data-doc]'); if (t) setDoc(t.dataset.doc); };
 $('#feed').onclick = e => { const r = e.target.closest('[data-doc]'); if (r) setDoc(r.dataset.doc); };
 $('#pins').onclick = e => { const p = e.target.closest('[data-cmt]'); if (p) { S.tab = 'comments'; renderRight(); } };
