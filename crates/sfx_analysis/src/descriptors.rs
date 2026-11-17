@@ -56,6 +56,22 @@ pub struct OnsetRow {
     /// least three voiced frames (a chirp or a drip).
     pub pitch_start_hz: Option<f32>,
     pub pitch_end_hz: Option<f32>,
+    /// Milliseconds after the hit's peak until the level (smoothed over 6 ms)
+    /// stays 60 dB under it. When `decay60_open` it did not fall that far
+    /// before the next onset (or the end): the value is the time available,
+    /// printed as `>N`.
+    pub decay60_ms: f32,
+    pub decay60_open: bool,
+    /// The table prints `n/a` in the pitch column: the hit's strongest
+    /// partials are inharmonic (over 100 cents), or under 30% of its audible
+    /// pitch frames are voiced, so any pitch would be a guess.
+    pub pitch_na: bool,
+    /// Inharmonicity of the hit's strongest partials, cents (None: under 3
+    /// clear partials, or a noisy spectrum).
+    pub inharmonicity_cents: Option<f32>,
+    /// A burst under 60 ms whose spectral peak clearly rises or falls: the
+    /// peak's start and end frequency, Hz (a short-time spectrum every 2 ms).
+    pub glide_hz: Option<(f32, f32)>,
 }
 
 /// Events per second at a fine time resolution, apart from the merged
@@ -204,6 +220,12 @@ pub struct Descriptors {
     pub fine_onsets: Vec<f32>,
     /// Fine events per second in each tenth of the sound.
     pub density_tenths: Vec<f32>,
+    /// Mean deviation, cents, of the strongest partials' ratios to the
+    /// lowest of them from whole numbers (None: under 3 partials, or noise).
+    /// Not a pitch guess: see [`partial_inharmonicity_cents`].
+    pub inharmonicity_cents: Option<f32>,
+    /// Pairs of consecutive fine events under 20 ms apart: (t1, t2) seconds.
+    pub close_pairs: Vec<(f32, f32)>,
 }
 
 fn rms(x: &[f32]) -> f32 {
@@ -478,14 +500,43 @@ fn onset_rows(
                 .find(|k| sm[*k] >= 0.1 * top)
                 .filter(|last| last + 1 < b && top > 0.0)
                 .map(|last| (last + 1 - p) as f32 * ms_per_chunk);
+            // -60 dB: the same, 60 dB under the hit's loudest smoothed level;
+            // open ("at least") when it is still above that at the next
+            // onset or the end.
+            let last60 = (p..b).rev().find(|k| sm[*k] >= 0.001 * top);
+            let (decay60_ms, decay60_open) = match last60 {
+                Some(last) if last + 1 < b && top > 0.0 => {
+                    ((last + 1 - p) as f32 * ms_per_chunk, false)
+                }
+                _ => ((b - p) as f32 * ms_per_chunk, true),
+            };
             // Spectrum of the first 100 ms of the hit.
             let f0 = ((t * sr / spec.hop as f32).round() as usize).min(spec.frames.len() - 1);
             let f1 = (((t + 0.1).min(next.unwrap_or(f32::MAX)) * sr / spec.hop as f32).ceil()
                 as usize)
                 .clamp(f0 + 1, spec.frames.len());
-            let centroid_hz = centroid(&spec.mean(f0..f1));
+            let onset_spec = spec.mean(f0..f1);
+            let centroid_hz = centroid(&onset_spec);
+            let inharmonicity_cents = {
+                let lo = spec.bin(20.0).max(1);
+                let flat = flatness_of(&onset_spec[lo..onset_spec.len() - 1]);
+                let hz = spectrum_partials(spec, &onset_spec);
+                if flat > 0.3 {
+                    None
+                } else {
+                    partial_inharmonicity_cents(&hz)
+                }
+            };
             // f0 of the voiced frames of the hit.
             let hi = next.unwrap_or(f32::MAX);
+            let in_hit = |f: &&pitch::PitchFrame| f.t >= t - 0.01 && f.t < hi;
+            let audible: Vec<&pitch::PitchFrame> = pitch_frames
+                .iter()
+                .filter(in_hit)
+                .filter(|f| f.level_db > -50.0)
+                .collect();
+            let audible_frames = audible.len();
+            let voiced_audible = audible.iter().filter(|f| f.hz.is_some()).count();
             let voiced: Vec<f32> = pitch_frames
                 .iter()
                 .filter(|f| f.t >= t - 0.01 && f.t < hi)
@@ -504,6 +555,8 @@ fn onset_rows(
             // 40 ms directly, in place of them. Its end is where the level
             // first falls 30 dB under the peak (looking past the next onset:
             // a blip's own tail can raise one).
+            let mut blip = false;
+            let mut glide_hz = None;
             {
                 let thr = 0.0316 * env[p];
                 let end30 = (p..env.len())
@@ -516,8 +569,17 @@ fn onset_rows(
                     && let Some((a, z)) = blip_glide(x, spec.sr, s0, s1)
                 {
                     (ps, pe) = (Some(a), Some(z));
+                    blip = true;
+                }
+                if env[p] > 0.0 && (8.0..=60.0).contains(&len_ms) {
+                    glide_hz = spectral_glide(x, spec.sr, s0, s1);
                 }
             }
+            let pitch_na = !blip
+                && glide_hz.is_none()
+                && (inharmonicity_cents.is_some_and(|c| c > INHARMONIC_CENTS)
+                    || (!voiced.is_empty()
+                        && (voiced_audible as f32) < 0.3 * audible_frames as f32));
             OnsetRow {
                 t,
                 strength: o.strength,
@@ -527,9 +589,159 @@ fn onset_rows(
                 pitch_hz: median(voiced),
                 pitch_start_hz: ps,
                 pitch_end_hz: pe,
+                decay60_ms,
+                decay60_open,
+                pitch_na,
+                inharmonicity_cents,
+                glide_hz,
             }
         })
         .collect()
+}
+
+/// Inharmonicity (cents) over which the table calls partials inharmonic: the
+/// `inharmonic: partials at` line is printed and a hit's pitch reads `n/a`.
+pub const INHARMONIC_CENTS: f32 = 100.0;
+
+/// Mean distance, in cents, of the partials' frequency ratios to the lowest
+/// partial from the nearest whole number (the lowest itself is the reference
+/// and is not counted). Harmonic partials of a series that starts at its
+/// lowest member read near 0; 1 : 1.29 : 2.6 : 3.5 reads over 200. None:
+/// under 3 partials. It uses no pitch guess.
+pub fn partial_inharmonicity_cents(hz: &[f32]) -> Option<f32> {
+    if hz.len() < 3 {
+        return None;
+    }
+    let lo = hz.iter().copied().fold(f32::MAX, f32::min);
+    if lo <= 0.0 {
+        return None;
+    }
+    let dev: Vec<f32> = hz
+        .iter()
+        .filter(|h| **h > lo)
+        .map(|h| {
+            let r = h / lo;
+            (1200.0 * (r / r.round().max(1.0)).log2()).abs()
+        })
+        .collect();
+    (!dev.is_empty()).then(|| dev.iter().sum::<f32>() / dev.len() as f32)
+}
+
+/// The strongest (up to 6) peaks of a mean power spectrum within 30 dB of its
+/// loudest, at least 4 bins apart, refined on log power (Hz, ascending).
+fn spectrum_partials(s: &Spectra, avg: &[f32]) -> Vec<f32> {
+    let lo = s.bin(30.0).max(2);
+    let hi = s.bins().saturating_sub(2);
+    if hi <= lo {
+        return Vec::new();
+    }
+    let top = avg[lo..hi].iter().copied().fold(0.0f32, f32::max);
+    if top <= 0.0 {
+        return Vec::new();
+    }
+    let mut peaks: Vec<usize> = (lo..hi)
+        .filter(|&b| {
+            avg[b] > avg[b - 1]
+                && avg[b] >= avg[b + 1]
+                && avg[b] > avg[b - 2]
+                && avg[b] >= avg[b + 2]
+                && db(avg[b]) > db(top) - 30.0
+        })
+        .collect();
+    peaks.sort_by(|a, b| avg[*b].total_cmp(&avg[*a]));
+    let mut chosen: Vec<usize> = Vec::new();
+    for b in peaks {
+        if chosen.iter().all(|c| c.abs_diff(b) > 3) {
+            chosen.push(b);
+        }
+        if chosen.len() == 6 {
+            break;
+        }
+    }
+    let mut out: Vec<f32> = chosen
+        .into_iter()
+        .map(|b| {
+            let (a, c0, c) = (db(avg[b - 1]), db(avg[b]), db(avg[b + 1]));
+            let den = a - 2.0 * c0 + c;
+            let off = if den.abs() > 1e-9 {
+                0.5 * (a - c) / den
+            } else {
+                0.0
+            };
+            s.hz(b) + off.clamp(-0.5, 0.5) * s.sr as f32 / s.win as f32
+        })
+        .collect();
+    out.sort_by(f32::total_cmp);
+    out
+}
+
+/// A short burst `x[s0..s1]` (at most its first 60 ms) whose spectral peak
+/// clearly glides: the peak of a Hann spectrum of about 5.5 ms every 2 ms
+/// (frames within 25 dB of the loudest), a line fitted to its log frequency;
+/// returns the fitted start and end Hz when at least 5 frames fit with
+/// R^2 over 0.75 and the change is over 250 cents. None for a steady tone,
+/// a click or noise.
+fn spectral_glide(x: &[f32], sr: u32, s0: usize, s1: usize) -> Option<(f32, f32)> {
+    let s1 = s1.min(s0 + sr as usize * 60 / 1000).min(x.len());
+    if s1 <= s0 + sr as usize / 125 {
+        return None;
+    }
+    let win = 1usize << ((sr as f32 * 0.0055).log2().round().max(6.0) as u32);
+    let hop = (sr as usize * 2 / 1000).max(1);
+    let sp = stft::stft(&x[s0..s1], sr, win, hop);
+    let energy: Vec<f32> = sp.frames.iter().map(|f| f.iter().sum()).collect();
+    let top = energy.iter().copied().fold(0.0f32, f32::max);
+    if top <= 0.0 {
+        return None;
+    }
+    let (lo, hi) = (
+        sp.bin(300.0).max(2),
+        (sp.bin(0.45 * sr as f32)).min(sp.bins() - 3),
+    );
+    if hi <= lo {
+        return None;
+    }
+    let mut pts: Vec<(f32, f32)> = Vec::new();
+    for (k, f) in sp.frames.iter().enumerate() {
+        if energy[k] < top * 0.003 {
+            continue;
+        }
+        // Only frames whose window lies inside the burst.
+        let c = k * hop;
+        if c < win / 2 || c + win / 2 > s1 - s0 {
+            continue;
+        }
+        let b = (lo..=hi).fold(lo, |m, i| if f[i] > f[m] { i } else { m });
+        let (a, c0, cc) = (db(f[b - 1]), db(f[b]), db(f[b + 1]));
+        let den = a - 2.0 * c0 + cc;
+        let off = if den.abs() > 1e-9 {
+            0.5 * (a - cc) / den
+        } else {
+            0.0
+        };
+        let hz = sp.hz(b) + off.clamp(-0.5, 0.5) * sr as f32 / win as f32;
+        if hz > 0.0 {
+            pts.push((sp.time(k), hz.ln()));
+        }
+    }
+    if pts.len() < 5 {
+        return None;
+    }
+    let n = pts.len() as f32;
+    let mx = pts.iter().map(|p| p.0).sum::<f32>() / n;
+    let my = pts.iter().map(|p| p.1).sum::<f32>() / n;
+    let sxx: f32 = pts.iter().map(|p| (p.0 - mx).powi(2)).sum();
+    let syy: f32 = pts.iter().map(|p| (p.1 - my).powi(2)).sum();
+    let sxy: f32 = pts.iter().map(|p| (p.0 - mx) * (p.1 - my)).sum();
+    if sxx <= 0.0 || syy <= 0.0 {
+        return None;
+    }
+    let r2 = sxy * sxy / (sxx * syy);
+    let slope = sxy / sxx;
+    let (t_a, t_b) = (pts[0].0, pts[pts.len() - 1].0);
+    let (ln_a, ln_b) = (my + slope * (t_a - mx), my + slope * (t_b - mx));
+    let cents = 1200.0 * (ln_b - ln_a) / std::f32::consts::LN_2;
+    (r2 > 0.75 && cents.abs() > 250.0).then(|| (ln_a.exp(), ln_b.exp()))
 }
 
 /// Events per second from a 1 ms envelope of the sound above 1 kHz: an event
@@ -731,13 +943,19 @@ pub fn descriptors_window(audio: &Audio, t0: f32, t1: f32) -> Descriptors {
 /// subharmonic guess, and everything is a high multiple of it). Without a
 /// pitch, the `harmonicity` alone decides. Noise (`flatness` over 0.3) has no
 /// partials to name.
-fn inharmonic(modes: &[Mode], pitch_hz: Option<f32>, harmonicity: f32, flatness: f32) -> Vec<f32> {
+fn inharmonic(
+    modes: &[Mode],
+    pitch_hz: Option<f32>,
+    harmonicity: f32,
+    flatness: f32,
+) -> (Vec<f32>, Option<f32>) {
     let mut top: Vec<Mode> = modes.to_vec();
     top.sort_by(|a, b| b.level_db.total_cmp(&a.level_db));
     top.truncate(6);
     if top.len() < 3 || flatness > 0.3 {
-        return Vec::new();
+        return (Vec::new(), None);
     }
+    let cents = partial_inharmonicity_cents(&top.iter().map(|m| m.hz).collect::<Vec<_>>());
     let harmonic = |f0: f32| {
         top.iter()
             .filter(|m| {
@@ -750,13 +968,14 @@ fn inharmonic(modes: &[Mode], pitch_hz: Option<f32>, harmonicity: f32, flatness:
     let bad = match pitch_hz {
         Some(f0) => harmonic(f0) < top.len().div_ceil(2),
         None => harmonicity < 0.5,
-    } || harmonicity < 0.5;
+    } || harmonicity < 0.5
+        || cents.is_some_and(|c| c > INHARMONIC_CENTS);
     if !bad {
-        return Vec::new();
+        return (Vec::new(), cents);
     }
     let mut hz: Vec<f32> = top.iter().map(|m| m.hz).collect();
     hz.sort_by(f32::total_cmp);
-    hz
+    (hz, cents)
 }
 
 fn flatness_of(p: &[f32]) -> f32 {
@@ -1055,7 +1274,7 @@ pub fn describe(audio: &Audio) -> Descriptors {
             })
         }
     };
-    let inharmonic_partials = inharmonic(
+    let (inharmonic_partials, inharmonicity_cents) = inharmonic(
         &mode_list,
         median(frames.iter().filter_map(|f| f.hz).collect()),
         harmonicity,
@@ -1106,8 +1325,14 @@ pub fn describe(audio: &Audio) -> Descriptors {
         steadiness,
         is_loop: false,
         swell_attack_s,
+        close_pairs: fine_onsets
+            .windows(2)
+            .filter(|w| w[1] - w[0] < 0.02)
+            .map(|w| (w[0], w[1]))
+            .collect(),
         fine_onsets,
         density_tenths,
+        inharmonicity_cents,
     }
 }
 
@@ -1210,9 +1435,14 @@ impl Descriptors {
             );
         }
         if !self.modes.is_empty() {
+            // A partial whose fitted decay is over 5 times the sound's length
+            // says nothing about the sound (a noise bin's flat track).
+            let limit = self.seconds * 5.0;
+            let ignored = self.modes.iter().filter(|m| m.decay_s > limit).count();
             let m: Vec<String> = self
                 .modes
                 .iter()
+                .filter(|m| m.decay_s <= limit)
                 .map(|m| {
                     let d = if m.decay_s >= 600.0 {
                         "sustained".to_string()
@@ -1222,7 +1452,16 @@ impl Descriptors {
                     format!("{} Hz {d} {:.0} dB", hz(m.hz), m.level_db)
                 })
                 .collect();
-            o += &format!("modes: {}\n", m.join("; "));
+            let note = if ignored > 0 {
+                format!(" ({ignored} ignored: slower than the sound)")
+            } else {
+                String::new()
+            };
+            if m.is_empty() {
+                o += &format!("modes: none left{note}\n");
+            } else {
+                o += &format!("modes: {}{note}\n", m.join("; "));
+            }
         }
         if let Some(s) = self.stereo {
             o += &format!(
@@ -1328,8 +1567,11 @@ impl Descriptors {
         if !self.inharmonic_partials.is_empty() {
             let p: Vec<String> = self.inharmonic_partials.iter().map(|f| hz(*f)).collect();
             o += &format!(
-                "inharmonic: partials at {} Hz (the pitch line is one of them or a guess)\n",
-                p.join(" ")
+                "inharmonic: partials at {} Hz{} (the pitch line is one of them or a guess)\n",
+                p.join(" "),
+                self.inharmonicity_cents.map_or(String::new(), |c| format!(
+                    ", {c:.0} cents off whole ratios to the lowest"
+                ))
             );
         }
         if !self.is_loop {
@@ -1368,6 +1610,24 @@ impl Descriptors {
         }
         if let Some(line) = self.events_line() {
             o += &line;
+        }
+        if !self.is_loop && !self.close_pairs.is_empty() {
+            let at: Vec<String> = self
+                .close_pairs
+                .iter()
+                .take(4)
+                .map(|(a, b)| format!("{:.1}, {:.1}", a * 1000.0, b * 1000.0))
+                .collect();
+            o += &format!(
+                "closely spaced events: {} pairs within 20 ms (at {} ms{})\n",
+                self.close_pairs.len(),
+                at.join("; "),
+                if self.close_pairs.len() > 4 {
+                    "; ..."
+                } else {
+                    ""
+                }
+            );
         }
         if !self.is_loop && !self.fine_onsets.is_empty() {
             // Compact, 20 to a line; the last row says the unit.
@@ -1409,21 +1669,38 @@ impl Descriptors {
         if self.is_loop {
             o += "onset table: left out for a loop (read density)\n";
         } else if !self.onset_rows.is_empty() {
-            o += "onset table: t s, strength, attack ms (0.25 res), -20 dB ms, centroid Hz, pitch Hz (start>end)\n";
+            o += "onset table: t s, strength, attack ms (0.25 res), -20 dB ms, -60 dB ms (>N: still sounding at the next onset), centroid Hz, pitch Hz (start>end; n/a: inharmonic or unvoiced)\n";
             for r in &self.onset_rows {
-                let pitch = match (r.pitch_hz, r.pitch_start_hz, r.pitch_end_hz) {
-                    (_, Some(a), Some(b)) if crate::pitch::cents(a, b).abs() > 60.0 => {
-                        format!("{}>{}", hz(a), hz(b))
+                let pitch = if let Some((a, b)) = r.glide_hz {
+                    format!(
+                        "glide {} {}>{}",
+                        if b > a { "up" } else { "down" },
+                        hz(a),
+                        hz(b)
+                    )
+                } else if r.pitch_na {
+                    "n/a".into()
+                } else {
+                    match (r.pitch_hz, r.pitch_start_hz, r.pitch_end_hz) {
+                        (_, Some(a), Some(b)) if crate::pitch::cents(a, b).abs() > 60.0 => {
+                            format!("{}>{}", hz(a), hz(b))
+                        }
+                        (Some(p), _, _) => hz(p),
+                        _ => "-".into(),
                     }
-                    (Some(p), _, _) => hz(p),
-                    _ => "-".into(),
+                };
+                let d60 = if r.decay60_open {
+                    format!(">{:.0}", r.decay60_ms)
+                } else {
+                    format!("{:.0}", r.decay60_ms)
                 };
                 o += &format!(
-                    "  {:7.3} {:4.1} {:6.2} {:>6} {:>6} {:>10}\n",
+                    "  {:7.3} {:4.1} {:6.2} {:>6} {:>7} {:>6} {:>20}\n",
                     r.t,
                     r.strength,
                     r.attack_ms,
                     r.decay20_ms.map_or("-".into(), |v| format!("{v:.0}")),
+                    d60,
                     hz(r.centroid_hz),
                     pitch
                 );
