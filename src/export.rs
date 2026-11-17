@@ -27,6 +27,9 @@ pub struct Exported {
     pub files: Vec<PathBuf>,
     pub manifest_path: PathBuf,
     pub manifest: Value,
+    /// Things worth knowing about what was written (e.g. identical
+    /// variations).
+    pub warnings: Vec<String>,
 }
 
 pub fn export(doc: &SoundDoc, o: &ExportOpts) -> Result<Exported, String> {
@@ -41,6 +44,7 @@ pub fn export(doc: &SoundDoc, o: &ExportOpts) -> Result<Exported, String> {
     let mut files = Vec::new();
     let mut entries = Vec::new();
     let mut causal = true;
+    let mut rendered: Vec<Vec<Vec<f32>>> = Vec::new();
     for i in 1..=o.variations {
         let seed = if o.variations == 1 {
             doc.seed
@@ -70,7 +74,11 @@ pub fn export(doc: &SoundDoc, o: &ExportOpts) -> Result<Exported, String> {
             "peak_db": r.peak_db,
         }));
         files.push(path);
+        if o.variations > 1 {
+            rendered.push(r.audio.channels.clone());
+        }
     }
+    let warnings = identical_variations(&rendered);
     let game: Vec<Value> = doc
         .macros
         .iter()
@@ -104,7 +112,40 @@ pub fn export(doc: &SoundDoc, o: &ExportOpts) -> Result<Exported, String> {
         files,
         manifest_path,
         manifest,
+        warnings,
     })
+}
+
+/// A warning when two variations (seed k = variation k) came out bit for bit
+/// the same: nothing in the sound reads the seed, so N files are one sound.
+fn identical_variations(rendered: &[Vec<Vec<f32>>]) -> Vec<String> {
+    let same = |a: &Vec<Vec<f32>>, b: &Vec<Vec<f32>>| {
+        a.len() == b.len()
+            && a.iter().zip(b).all(|(x, y)| {
+                x.len() == y.len() && x.iter().zip(y).all(|(p, q)| p.to_bits() == q.to_bits())
+            })
+    };
+    let mut pairs = Vec::new();
+    for i in 0..rendered.len() {
+        for j in (i + 1)..rendered.len() {
+            if same(&rendered[i], &rendered[j]) {
+                pairs.push((i + 1, j + 1));
+            }
+        }
+    }
+    if pairs.is_empty() {
+        return Vec::new();
+    }
+    let all = pairs.len() == rendered.len() * (rendered.len() - 1) / 2;
+    let which = if all {
+        format!("all {} variations are", rendered.len())
+    } else {
+        let list: Vec<String> = pairs.iter().map(|(a, b)| format!("{a} and {b}")).collect();
+        format!("variations {} are", list.join("; "))
+    };
+    vec![format!(
+        "{which} bit-identical: no node reads the seed, so the variations are the same; add jitter or a seeded node (noise, a wander, a pattern with jitter, poisson)"
+    )]
 }
 
 /// Where a path argument lands (see `store::resolve_export_dir`).

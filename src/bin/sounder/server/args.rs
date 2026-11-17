@@ -19,7 +19,8 @@ pub(crate) struct SoundOpsArgs {
     #[serde(default)]
     pub(crate) sound: Option<String>,
     /// Node upserts: [{"type": "osc", "name": "tone", ...fields}]. Upsert by
-    /// name (re-issue to tweak; {"type": "delete", "name"} removes one). Nodes
+    /// name (re-issue to tweak; {"type": "delete", "name": "x"} in this list
+    /// removes one, one item per node; there is no top-level `delete`). Nodes
     /// read other nodes by name ("sweep" or a port "verb.wet"); numbers are
     /// constants; "$param" and "=expr" read params. Exactly one `output` node.
     /// describe_op lists every node type with an example. Atomic: any error
@@ -59,8 +60,10 @@ pub(crate) struct SoundOpsArgs {
     /// Sample rate (default 48000).
     #[serde(default)]
     pub(crate) sample_rate: Option<u32>,
-    /// Checks to run in the same call (same fields as verify). A failed
-    /// check is an error but the batch stays applied.
+    /// Checks to run in the same call (the same fields as verify's
+    /// `expect`): {"duration": {"min": 0.4, "max": 1.2}, "onsets": {"min": 1,
+    /// "max": 3}, "clicks": true}. A failed check is an error but the batch
+    /// stays applied.
     #[serde(default)]
     pub(crate) expect: Option<Expect>,
     /// Run on this open sound instead of your active one (see `sound`).
@@ -69,6 +72,7 @@ pub(crate) struct SoundOpsArgs {
 }
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct SweepArg {
     /// A param name, or a macro name.
     pub(crate) param: String,
@@ -77,6 +81,7 @@ pub(crate) struct SweepArg {
 }
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct ZoomArg {
     /// Seconds [from, to].
     #[serde(default)]
@@ -125,8 +130,26 @@ pub(crate) struct ListenArgs {
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 pub(crate) struct VerifyArgs {
-    /// Checks to run; with none, the defaults (finite, peak_db max -0.3,
-    /// silent_edges, dc, rebuild, and macros when the sound has knobs).
+    /// Check names to run IN ADDITION to the defaults: ["clicks"]. Only
+    /// checks that need no settings can be named (finite, peak_db (max
+    /// -0.3), true_peak_db (max -1), silent_edges, clicks, dc, loop_seam,
+    /// variations, rebuild, macros); the others (lufs, duration, bands,
+    /// pitch, onsets, reference) take settings: give them in `expect`.
+    #[serde(default)]
+    pub(crate) checks: Vec<String>,
+    /// Check names to run INSTEAD of the defaults: ["clicks", "dc"].
+    #[serde(default)]
+    pub(crate) only: Vec<String>,
+    /// Checks with settings, the same shape as `sound_ops` `expect`, e.g.
+    /// {"duration": {"min": 0.4, "max": 1.2}, "onsets": {"min": 1, "max": 3},
+    /// "lufs": {"min": -20, "max": -14}, "clicks": true}. Given alone, only
+    /// these run; with `checks` they run on top of the defaults.
+    #[serde(default, rename = "expect")]
+    pub(crate) explicit: Option<Expect>,
+    /// The same fields as `expect`, at the top level (verify {"clicks":
+    /// true}). With none of `checks`, `only`, `expect` or these, the
+    /// defaults run (finite, peak_db max -0.3, silent_edges, dc, rebuild, and
+    /// macros when the sound has knobs).
     #[serde(flatten)]
     pub(crate) expect: Expect,
     /// Run on this open sound instead of your active one.
@@ -140,6 +163,12 @@ pub(crate) struct DescribeArgs {
     /// every type, one line each.
     #[serde(default)]
     pub(crate) kind: Option<String>,
+    /// Alias for `kind`.
+    #[serde(default, rename = "type")]
+    pub(crate) type_: Option<String>,
+    /// Alias for `kind`.
+    #[serde(default)]
+    pub(crate) node: Option<String>,
 }
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]

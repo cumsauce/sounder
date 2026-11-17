@@ -2,7 +2,7 @@
 //! and awaits its reply, so all state changes happen on one thread.
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{Arc, Mutex, OnceLock, mpsc};
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as B64;
@@ -372,6 +372,9 @@ fn do_export(s: &mut Session, a: ExportArgs) -> R {
         );
     }
     text += &format!("manifest: {}\n", ex.manifest_path.display());
+    for w in &ex.warnings {
+        text += &format!("WARNING {w}\n");
+    }
     let inputs = ex.manifest["inputs"].as_array().map_or(0, Vec::len);
     if inputs > 0 {
         text += &format!("{inputs} game input(s) in the manifest (macros with game: true)\n");
@@ -380,6 +383,7 @@ fn do_export(s: &mut Session, a: ExportArgs) -> R {
         "files": ex.files.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
         "manifest_path": ex.manifest_path.display().to_string(),
         "manifest": ex.manifest,
+        "warnings": ex.warnings,
     })))
 }
 
@@ -483,6 +487,34 @@ fn do_catalog(s: &mut Session, a: CatalogArgs) -> R {
     }
 }
 
+/// The keys each tool takes, read from its input schema (so they cannot
+/// drift from the argument structs).
+fn accepted_keys() -> &'static HashMap<String, Vec<String>> {
+    static KEYS: OnceLock<HashMap<String, Vec<String>>> = OnceLock::new();
+    KEYS.get_or_init(|| {
+        Tools::tool_router()
+            .list_all()
+            .into_iter()
+            .map(|t| {
+                let keys = t
+                    .input_schema
+                    .get("properties")
+                    .and_then(Value::as_object)
+                    .map(|p| p.keys().cloned().collect())
+                    .unwrap_or_default();
+                (t.name.to_string(), keys)
+            })
+            .collect()
+    })
+}
+
+/// An error message when the call carries a key its tool does not take.
+fn unknown_args(tool: &str, args: Option<&serde_json::Map<String, Value>>) -> Option<String> {
+    let args = args?;
+    let accepted = accepted_keys().get(tool)?;
+    sounder::session::check_tool_args(tool, args, accepted).err()
+}
+
 #[tool_router]
 impl Tools {
     /// Everything about the sound: kind, length, nodes (one line each, with
@@ -504,7 +536,8 @@ impl Tools {
     }
 
     /// Build or edit a sound: an atomic batch of node upserts (and
-    /// `{"type": "delete", "name"}`), plus params, macros (the knobs the human
+    /// `{"type": "delete", "name": "x"}`, one item per node; there is no
+    /// top-level `delete`), plus params, macros (the knobs the human
     /// turns to fit it by ear), kind, duration, seed. Creates the sound when
     /// `sound` names a new one. The sound is rendered for real, so a node that
     /// cannot render fails the whole batch and changes nothing. Returns what
@@ -542,21 +575,23 @@ impl Tools {
     /// to change): peak_db, true_peak_db, lufs, duration, silent_edges, clicks,
     /// dc, finite, loop_seam, bands, pitch, onsets, variations, rebuild,
     /// reference {file, max_distance} (STFT distance to a WAV),
-    /// macros (every knob keeps its claim). With none given: finite, peak_db
+    /// macros (every knob keeps its claim). With no arguments: finite, peak_db
     /// max -0.3, silent_edges, dc, rebuild, and macros when the sound has
-    /// knobs. Any FAIL makes the result an error.
+    /// knobs. `checks: ["clicks"]` adds checks that need no settings to those
+    /// defaults, `only: ["clicks"]` runs just them, and `expect` (the same
+    /// shape as `sound_ops` `expect`) runs checks with settings:
+    /// `{"expect": {"duration": {"min": 0.4, "max": 1.2}, "onsets": {"min": 1,
+    /// "max": 3}, "lufs": {"min": -20, "max": -14}, "clicks": true}}`. Any
+    /// FAIL makes the result an error.
     #[tool]
     async fn verify(
         &self,
         Parameters(a): Parameters<VerifyArgs>,
     ) -> Result<CallToolResult, ErrorData> {
         self.run(move |s| {
-            let e = if a.expect.is_empty() {
-                None
-            } else {
-                Some(&a.expect)
-            };
-            let results = plain(s.check(a.doc.as_deref(), e))?;
+            let mut explicit: Vec<&sfx_analysis::Expect> = vec![&a.expect];
+            explicit.extend(a.explicit.as_ref());
+            let results = plain(s.verify(a.doc.as_deref(), &a.checks, &a.only, &explicit))?;
             let ok = results.iter().all(|c| c.pass);
             let text = report_text(&results);
             let json = json!({"ok": ok, "checks": results});
@@ -569,15 +604,31 @@ impl Tools {
         .await
     }
 
-    /// With no `kind`: every node type, one line each. With a kind: an example
-    /// and the JSON schema of its fields.
+    /// With no `kind`: every node type, one line each. With a kind (`type` and
+    /// `node` also work): an example and the JSON schema of its fields.
     #[tool]
     async fn describe_op(
         &self,
         Parameters(a): Parameters<DescribeArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        self.run(move |_| plain(sfx_graph::describe(a.kind.as_deref())).map(Out::text))
-            .await
+        self.run(move |_| {
+            let given: Vec<&String> = [&a.kind, &a.type_, &a.node]
+                .into_iter()
+                .flatten()
+                .collect();
+            if given.windows(2).any(|w| w[0] != w[1]) {
+                return fail(format!(
+                    "describe_op: kind, type and node are the same argument and disagree ({}): give one",
+                    given
+                        .iter()
+                        .map(|g| format!("`{g}`"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ));
+            }
+            plain(sfx_graph::describe(given.first().map(|g| g.as_str()))).map(Out::text)
+        })
+        .await
     }
 
     /// Start from a real sound: finds the strongest partials of a WAV in the
@@ -810,9 +861,9 @@ impl Tools {
 const INSTRUCTIONS: &str = "Operating guidance for this sound server:
 - You cannot hear. You get numbers and images: summary (state + descriptors), listen (spectrogram / waveform / loudness image + descriptor table), verify (PASS / FAIL checks). The human's comments are the only real ears; the senses get you to a plausible sound, the human decides if it is good.
 - Call summary first (and after anything confusing). Open comments are requests: deal with each, then add_annotation {resolve: id, text: what you did}; never delete one.
-- Build with sound_ops: one atomic batch of nodes [{\"type\", \"name\", ...}] upserted by name, {\"type\": \"delete\", \"name\"} removes one. Exactly one `output` node. Nodes read others by name (\"sweep\" or \"verb.wet\"); signal fields take a number, \"$param\", \"=expr\" or a node (audio-rate modulation: \"freq\": \"sweep\"). Time in seconds, frequency in Hz, *_db in dB. describe_op lists every node type; describe_op(kind) gives an example and schema. Parse errors name the node and field.
+- Build with sound_ops: one atomic batch of nodes [{\"type\", \"name\", ...}] upserted by name, {\"type\": \"delete\", \"name\": \"x\"} inside `ops` removes one (one item per node; there is no top-level `delete`). Exactly one `output` node. Nodes read others by name (\"sweep\" or \"verb.wet\"); signal fields take a number, \"$param\", \"=expr\" or a node (audio-rate modulation: \"freq\": \"sweep\"). Time in seconds, frequency in Hz, *_db in dB. describe_op lists every node type; describe_op {kind: \"filter\"} gives an example and schema (`type` and `node` also work). Every tool rejects an argument it does not take and lists the ones it does. Parse errors name the node and field.
 - A oneshot with no duration renders until it decays; a loop needs a duration. Give sounds a decay envelope. Set output lufs to hit a loudness; the output ceiling limiter (-1 dBFS) and 2 ms / 5 ms edge fades are on by default.
-- Verify with sound_ops expect or verify; read the FAIL text, it says what to change. Defaults: finite, peak_db <= -0.3, silent_edges, dc, rebuild (+ macros).
+- Verify with sound_ops expect or verify; read the FAIL text, it says what to change. Defaults: finite, peak_db <= -0.3, silent_edges, dc, rebuild (+ macros). verify {checks: [\"clicks\"]} adds checks that need no settings to the defaults, verify {only: [\"clicks\"]} runs just them, and `expect` (verify's and sound_ops's, same shape) takes settings: {\"duration\": {\"min\": 0.4, \"max\": 1.2}, \"onsets\": {\"min\": 1, \"max\": 3}, \"lufs\": {\"min\": -20, \"max\": -14}, \"clicks\": true}.
 - Macros are the knobs the human turns to fit the sound by ear. After the sound works, add 2-4 with sound_ops macros: name each with an adjective (brightness, weight, grit, snap, length), map it to the fields it moves with sensible from / to ranges, and give it a claim [measure, direction] (centroid, decay, crest, lufs, flatness, swing). verify sweeps each knob and fails a name that does not do what it says. game: true exports a knob as a runtime input. Read the human's knob moves in summary and keep them as new defaults.
 - Several agents may share one server: each keeps its own active sound; pass doc when working on a specific one. undo refuses another agent's step unless force.
 - history / undo / redo / jump move a history tree; one sound_ops call is one step.
@@ -868,8 +919,13 @@ impl rmcp::ServerHandler for Tools {
                 None
             }
         };
-        let tcc = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
-        let mut result = Self::tool_router().call(tcc).await;
+        let mut result = match unknown_args(&name, request.arguments.as_ref()) {
+            Some(msg) => Ok(to_result(fail(msg))),
+            None => {
+                let tcc = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
+                Self::tool_router().call(tcc).await
+            }
+        };
         let note = match note_rx {
             Some(rx) => rx.await.ok().flatten(),
             None => None,

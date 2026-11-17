@@ -637,6 +637,9 @@ impl Session {
         items: Vec<Value>,
         edit: DocEdit,
     ) -> Result<ApplyReport, String> {
+        for (k, item) in items.iter().enumerate() {
+            reserved_name(k, item)?;
+        }
         let by = self.current.clone();
         let opts = self.render_opts();
         let name = self.target_name(doc)?;
@@ -704,6 +707,29 @@ impl Session {
             self.rev += 1;
         }
         Ok(results)
+    }
+
+    /// `verify` with named checks. `checks` run on top of the defaults,
+    /// `only` instead of them; `explicit` (the `expect` object and any
+    /// top-level check fields, later ones winning) carry settings: given
+    /// alone they are the whole set, given with `checks` they run on top of
+    /// the defaults. With nothing given this is [`Session::check`] with the
+    /// defaults.
+    pub fn verify(
+        &mut self,
+        doc: Option<&str>,
+        checks: &[String],
+        only: &[String],
+        explicit: &[&Expect],
+    ) -> Result<Vec<CheckResult>, String> {
+        let explicit: Vec<&Expect> = explicit.iter().copied().filter(|e| !e.is_empty()).collect();
+        if checks.is_empty() && only.is_empty() && explicit.is_empty() {
+            return self.check(doc, None);
+        }
+        let name = self.target_name(doc)?;
+        let defaults = Expect::defaults_for(&self.sound(Some(&name))?.doc);
+        let e = plan_checks(&defaults, checks, only, &explicit)?;
+        self.check(Some(&name), Some(&e))
     }
 
     /// A knob moved by the human (or the window): sets the macro's value and
@@ -976,6 +1002,147 @@ pub fn valid_sound_name(n: &str) -> Result<(), String> {
         ));
     }
     Ok(())
+}
+
+// ----------------------------------------------------- tool arguments
+
+/// A node may not be named `mono` or `stereo`: they are the values of the
+/// `to` field of `mix`, so a node reading "mono" would be ambiguous.
+fn reserved_name(k: usize, item: &Value) -> Result<(), String> {
+    let ty = item.get("type").and_then(Value::as_str).unwrap_or("");
+    if ty == "delete" {
+        return Ok(());
+    }
+    match item.get("name").and_then(Value::as_str) {
+        Some(n @ ("mono" | "stereo")) => Err(format!(
+            "node #{k} ({ty}): name `{n}` is reserved: `mono` and `stereo` are the values of a mix `to` field, so a node cannot be called that; pick another name (e.g. `{n}_mix`)"
+        )),
+        _ => Ok(()),
+    }
+}
+
+/// Rejects a tool call that carries keys the tool does not take. `accepted`
+/// is the tool's schema keys (everything else, including a typo or a key from
+/// another tool, would otherwise be ignored without a word). The message
+/// names the tool, each bad key and the keys it takes; a few known mistakes
+/// also get the working form.
+pub fn check_tool_args(
+    tool: &str,
+    args: &serde_json::Map<String, Value>,
+    accepted: &[String],
+) -> Result<(), String> {
+    let bad: Vec<&String> = args.keys().filter(|k| !accepted.contains(k)).collect();
+    if bad.is_empty() {
+        return Ok(());
+    }
+    let list = bad
+        .iter()
+        .map(|k| format!("`{k}`"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let mut msg = format!(
+        "{tool}: unknown argument{} {list} (it takes: {})",
+        if bad.len() == 1 { "" } else { "s" },
+        accepted.join(", ")
+    );
+    for k in bad {
+        if let Some(h) = arg_hint(tool, k, &args[k.as_str()]) {
+            msg += &format!("; {h}");
+        }
+    }
+    Err(msg)
+}
+
+/// What to do instead, for mistakes that were made in earnest.
+fn arg_hint(tool: &str, key: &str, value: &Value) -> Option<String> {
+    match (tool, key) {
+        ("sound_ops", "delete" | "delete_nodes" | "remove" | "remove_nodes") => {
+            let mut names: Vec<String> = match value {
+                Value::String(s) => vec![s.clone()],
+                Value::Array(a) => a
+                    .iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect(),
+                _ => Vec::new(),
+            };
+            if names.is_empty() {
+                names.push("x".into());
+            }
+            let ops: Vec<String> = names
+                .iter()
+                .map(|n| format!("{{\"type\": \"delete\", \"name\": \"{n}\"}}"))
+                .collect();
+            Some(format!(
+                "nodes are deleted inside `ops`, one item per node: ops: [{}]",
+                ops.join(", ")
+            ))
+        }
+        ("sound_ops", "nodes" | "graph") => Some("node upserts go in `ops`".into()),
+        ("describe_op", "name") => Some("give the node type as `kind`".into()),
+        ("verify", "check" | "names") => {
+            Some("name the checks in `checks` (added to the defaults) or `only`".into())
+        }
+        _ => None,
+    }
+}
+
+/// What naming a check with no settings means (or why it cannot be named).
+fn bare_check(name: &str) -> Result<Value, String> {
+    use serde_json::json;
+    Ok(match name {
+        "finite" | "silent_edges" | "clicks" | "dc" | "loop_seam" | "variations" | "rebuild"
+        | "macros" => json!(true),
+        "peak_db" => json!({"max": -0.3}),
+        "true_peak_db" => json!({"max": -1.0}),
+        "lufs" => return needs_settings(name, r#"{"min": -20, "max": -14}"#),
+        "duration" => return needs_settings(name, r#"{"min": 0.4, "max": 1.2}"#),
+        "onsets" => return needs_settings(name, r#"{"min": 1, "max": 3}"#),
+        "bands" => return needs_settings(name, r#"[{"band": "1k", "min_db": -40}]"#),
+        "pitch" => return needs_settings(name, r#"{"hz": 440}"#),
+        "reference" => {
+            return needs_settings(name, r#"{"file": "ref.wav", "max_distance": 6}"#);
+        }
+        other => {
+            return Err(format!(
+                "verify: unknown check `{other}`; the checks are peak_db, true_peak_db, lufs, duration, silent_edges, clicks, dc, finite, loop_seam, bands, pitch, onsets, variations, rebuild, reference, macros"
+            ));
+        }
+    })
+}
+
+fn needs_settings(name: &str, example: &str) -> Result<Value, String> {
+    Err(format!(
+        "verify: check `{name}` needs settings, so it cannot be named in `checks` / `only`: pass it in `expect`, e.g. verify {{\"expect\": {{\"{name}\": {example}}}}}"
+    ))
+}
+
+fn expect_map(e: &Expect) -> Result<serde_json::Map<String, Value>, String> {
+    match serde_json::to_value(e) {
+        Ok(Value::Object(m)) => Ok(m.into_iter().filter(|(_, v)| !v.is_null()).collect()),
+        _ => Err("expect: could not be read".into()),
+    }
+}
+
+/// The check set for `verify`: see [`Session::verify`].
+fn plan_checks(
+    defaults: &Expect,
+    checks: &[String],
+    only: &[String],
+    explicit: &[&Expect],
+) -> Result<Expect, String> {
+    let from_defaults = only.is_empty() && (explicit.is_empty() || !checks.is_empty());
+    let mut m = if from_defaults {
+        expect_map(defaults)?
+    } else {
+        serde_json::Map::new()
+    };
+    for n in only.iter().chain(checks) {
+        m.insert(n.clone(), bare_check(n)?);
+    }
+    for e in explicit {
+        m.extend(expect_map(e)?);
+    }
+    serde_json::from_value(Value::Object(m)).map_err(|e| format!("verify: {e}"))
 }
 
 // ------------------------------------------------------------- summaries
