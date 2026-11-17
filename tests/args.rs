@@ -442,3 +442,144 @@ fn every_tool_of_the_real_server_rejects_an_unknown_argument() {
     let t = text_of(&r[at(17)]);
     assert!(ok(at(17)) && !t.contains("WARNING"), "{t}");
 }
+
+// ------------------------------------------------------------------ round 1
+
+#[test]
+fn new_sound_takes_duration_seed_and_kind() {
+    let mut s = Session::new(Some(project("r1_new")));
+    let msg = s
+        .new_sound_with("rainy", Kind::Loop, Some(2.0), Some(7))
+        .unwrap();
+    assert!(msg.contains("loop") && msg.contains("2 s"), "{msg}");
+    let doc = &s.sound(Some("rainy")).unwrap().doc;
+    assert_eq!(doc.kind, Kind::Loop);
+    assert_eq!(doc.duration, Some(2.0));
+    assert_eq!(doc.seed, 7);
+    // It renders with the very first batch: one call, not two.
+    let r = s.apply_ops(None, graph(), DocEdit::default()).unwrap();
+    assert!((r.rendered.audio.seconds() - 2.0).abs() < 1e-3);
+    // The creation is the first history step, with the duration in it.
+    let h = &s.sound(Some("rainy")).unwrap().history;
+    assert_eq!(h.nodes.first().unwrap().label, "new sound");
+
+    // A duration outside 0..600 is refused, naming the field; the name stays free.
+    let e = s
+        .new_sound_with("bad", Kind::Oneshot, Some(700.0), None)
+        .unwrap_err();
+    assert!(e.contains("duration"), "{e}");
+    assert!(s.new_sound("bad", Kind::Oneshot).is_ok());
+    // Duration 0 means automatic length, like sound_ops.
+    s.new_sound_with("auto", Kind::Oneshot, Some(0.0), None)
+        .unwrap();
+    assert_eq!(s.sound(Some("auto")).unwrap().doc.duration, None);
+
+    // A loop opened without a duration still errors at its first render, naming it.
+    s.new_sound("nodur", Kind::Loop).unwrap();
+    let e = s
+        .apply_ops(Some("nodur"), graph(), DocEdit::default())
+        .map(|_| ())
+        .unwrap_err();
+    assert!(e.contains("loop needs a duration"), "{e}");
+}
+
+#[test]
+fn listen_zoom_and_sweep_errors_show_the_shape() {
+    let accepted = keys(&["node", "seeds", "sweep", "zoom"]);
+    let call = |v: Value| check_tool_args("listen", &obj(v), &accepted);
+    for bad in [
+        json!({"zoom": [0, 0.1]}),
+        json!({"zoom": {"t": [0]}}),
+        json!({"zoom": {"t": "0-1"}}),
+        json!({"zoom": {"seconds": [0, 1]}}),
+        json!({"zoom": {"hz": [200, "high"]}}),
+    ] {
+        let e = call(bad.clone()).unwrap_err();
+        assert!(
+            e.contains("zoom {t: [from_s, to_s], hz: [low, high]}"),
+            "{bad}: {e}"
+        );
+    }
+    for bad in [
+        json!({"sweep": [0, 1]}),
+        json!({"sweep": {"values": [0, 1]}}),
+        json!({"sweep": {"param": "size", "values": 3}}),
+        json!({"sweep": {"param": "size", "value": [1]}}),
+        json!({"sweep": {"param": "size", "values": ["a"]}}),
+    ] {
+        let e = call(bad.clone()).unwrap_err();
+        assert!(
+            e.contains("sweep {param: \"name\", values: [v1, v2, ...]}"),
+            "{bad}: {e}"
+        );
+    }
+    // The accepted forms pass.
+    for good in [
+        json!({"zoom": {"t": [0, 0.1], "hz": [200, 4000]}}),
+        json!({"zoom": {"hz": [200, 4000]}}),
+        json!({"sweep": {"param": "size", "values": [0.1, 0.5]}}),
+        json!({"sweep": {"param": "size", "values": []}}),
+        json!({"seeds": [1, 2]}),
+    ] {
+        assert!(call(good.clone()).is_ok(), "{good}");
+    }
+    // Other tools are not looked at.
+    assert!(check_tool_args("verify", &obj(json!({"zoom": 1})), &keys(&["zoom"])).is_ok());
+}
+
+#[test]
+fn server_new_sound_null_duration_and_catalog_doc() {
+    let dir = project("r1_server");
+    let calls = json!([
+        // 0: a loop in one call, with duration and seed.
+        {"name": "new_sound", "args": {"name": "lp", "kind": "loop", "duration": 1.5, "seed": 3}},
+        // 1: build; the length is the duration.
+        {"name": "sound_ops", "args": {"doc": "lp", "ops": graph()}},
+        // 2: a oneshot, fixed at 0.6 s.
+        {"name": "sound_ops", "args": {"sound": "one", "ops": graph(), "duration": 0.6}},
+        // 3: omitting duration changes nothing.
+        {"name": "sound_ops", "args": {"doc": "one", "seed": 2}},
+        // 4: null clears it: automatic length (the decay ends before 0.6 s).
+        {"name": "sound_ops", "args": {"doc": "one", "duration": null}},
+        // 5: 0 still works the same way.
+        {"name": "sound_ops", "args": {"doc": "one", "duration": 0.25}},
+        {"name": "sound_ops", "args": {"doc": "one", "duration": 0}},
+        // 7..: catalog with doc, with name, and with both.
+        {"name": "catalog", "args": {"action": "save", "doc": "one", "description": "d"}},
+        {"name": "catalog", "args": {"action": "describe", "doc": "one"}},
+        {"name": "catalog", "args": {"action": "describe", "name": "one", "doc": "one"}},
+        {"name": "catalog", "args": {"action": "describe", "name": "one", "doc": "lp"}},
+        // 11: a bad zoom through the real server.
+        {"name": "listen", "args": {"doc": "one", "zoom": [0, 1]}},
+    ]);
+    let r = drive(&calls, &dir);
+    let ok = |i: usize| r[i]["ok"].as_bool().unwrap_or(false);
+    let secs = |i: usize| r[i]["json"]["seconds"].as_f64().unwrap();
+    let t0 = text_of(&r[0]);
+    assert!(ok(0) && t0.contains("loop") && t0.contains("1.5 s"), "{t0}");
+    assert!(ok(1) && (secs(1) - 1.5).abs() < 1e-3, "{}", text_of(&r[1]));
+    assert!(ok(2) && (secs(2) - 0.6).abs() < 1e-3);
+    assert!(ok(3) && (secs(3) - 0.6).abs() < 1e-3, "missing keeps it");
+    assert!(ok(4), "{}", text_of(&r[4]));
+    assert!(
+        secs(4) < 0.45,
+        "null should clear the duration: {}",
+        secs(4)
+    );
+    assert!(ok(5) && (secs(5) - 0.25).abs() < 1e-3);
+    assert!(ok(6) && secs(6) < 0.45, "0 clears it: {}", secs(6));
+    assert!(ok(7), "{}", text_of(&r[7]));
+    let t = text_of(&r[8]);
+    assert!(ok(8) && t.contains("`one`") && t.contains("node(s)"), "{t}");
+    assert!(ok(9), "{}", text_of(&r[9]));
+    let t = text_of(&r[10]);
+    assert!(
+        !ok(10) && t.contains("`name`") && t.contains("`doc`") && t.contains("one"),
+        "{t}"
+    );
+    let t = text_of(&r[11]);
+    assert!(
+        !ok(11) && t.contains("zoom {t: [from_s, to_s], hz: [low, high]}"),
+        "{t}"
+    );
+}

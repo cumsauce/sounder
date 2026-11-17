@@ -55,13 +55,13 @@ modeler's `MODELER_*`.
 | Tool | What it does |
 |---|---|
 | `summary` | state, nodes (what reads what), params, macros + claim status, the human's knob moves since last read (reading clears them), open comments, warnings, causal yes/no, descriptors |
-| `sound_ops` | atomic batch: `ops` (node upserts; `{"type": "delete", "name": ...}` removes), `params`, `macros`, `delete_macros`, `kind`, `duration` (0 = automatic length again), `seed`, `sample_rate`, `expect`; renders for real; one history step if anything changed |
+| `sound_ops` | atomic batch: `ops` (node upserts; `{"type": "delete", "name": ...}` removes), `params`, `macros`, `delete_macros`, `kind`, `duration` (null or 0 = automatic length again), `seed`, `sample_rate`, `expect`; renders for real; one history step if anything changed |
 | `listen` | the image + descriptor table; `node`, `seeds`, `sweep`, `zoom`, `diff`, `reference` |
 | `verify` | PASS / FAIL checks (`checks`, `only`, `expect`; see Senses); any FAIL is an error |
 | `describe_op` | node types, one line each; or one type's example + schema (`kind`, aliases `type` / `node`) |
 | `extract_modes` | strongest partials of a WAV as a ready `resonators` node |
 | `play` | plays on the speakers for the human (the window, or `--headless --audio`); a plain headless server answers with an error saying so |
-| `new_sound` | opens a sound beside the others; an open name is refused |
+| `new_sound` | opens a sound beside the others (`kind`, `duration`, `seed` can be set at once, so a loop is one call); an open name is refused |
 | `catalog` | `list describe save load delete close` |
 | `export` | WAVs + `<name>.sfx.json` manifest |
 | `undo redo jump history` | the history tree; one `sound_ops` call is one step |

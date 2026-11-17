@@ -311,7 +311,7 @@ fn do_sound_ops(s: &mut Session, a: SoundOpsArgs) -> R {
         macros: a.macros,
         delete_macros: a.delete_macros,
         kind,
-        duration: a.duration.map(|d| if d <= 0.0 { None } else { Some(d) }),
+        duration: a.duration.map(|d| d.filter(|d| *d > 0.0)),
         seed: a.seed,
         sample_rate: a.sample_rate,
     };
@@ -392,7 +392,16 @@ fn do_export(s: &mut Session, a: ExportArgs) -> R {
     })))
 }
 
-fn do_catalog(s: &mut Session, a: CatalogArgs) -> R {
+fn do_catalog(s: &mut Session, mut a: CatalogArgs) -> R {
+    match (&a.name, &a.doc) {
+        (Some(n), Some(d)) if n != d => {
+            return fail(format!(
+                "catalog: `name` (\"{n}\") and `doc` (\"{d}\") differ: they are the same argument, pass one"
+            ));
+        }
+        (None, Some(d)) => a.name = Some(d.clone()),
+        _ => {}
+    }
     let lib = plain(s.library_dir())?;
     let force = a.force == Some(true);
     match a.action.as_str() {
@@ -698,7 +707,8 @@ impl Tools {
     }
 
     /// Start a new empty sound beside the open ones and make it your active
-    /// one. A name that is already open is refused.
+    /// one; `kind`, `duration` (a loop needs one) and `seed` can be set here.
+    /// A name that is already open is refused.
     #[tool]
     async fn new_sound(
         &self,
@@ -706,7 +716,7 @@ impl Tools {
     ) -> Result<CallToolResult, ErrorData> {
         self.run(move |s| {
             let kind = plain(parse_kind(&a.kind))?.unwrap_or_default();
-            plain(s.new_sound(&a.name, kind)).map(Out::text)
+            plain(s.new_sound_with(&a.name, kind, a.duration, a.seed)).map(Out::text)
         })
         .await
     }
@@ -868,7 +878,7 @@ impl Tools {
 const INSTRUCTIONS: &str = r#"Operating guidance for this sound server:
 - You cannot hear. You get numbers and images: summary (state + descriptors), listen (spectrogram / waveform / loudness image + descriptor table), verify (PASS / FAIL checks). The human's comments are the only real ears; the senses get you to a plausible sound, the human decides if it is good. Say what you measured, never that it "sounds" like something.
 - Call summary first (and after anything confusing). Open comments are requests: deal with each, then add_annotation {resolve: id, text: what you did}; never delete one.
-- Build with sound_ops: one atomic batch of nodes [{"type", "name", ...}] upserted by name; {"type": "delete", "name": "x"} inside `ops` removes one (one item per node; there is no top-level `delete`). Exactly one `output` node. Nodes read others by name ("sweep", or a port: "verb.wet", "tune.events"); signal fields take a number, "$param", "=expr" or a node (audio-rate modulation: "freq": "sweep"). Time in seconds, frequency in Hz, *_db in dB. `duration: 0` returns to automatic length (null changes nothing). Parse errors name the node and field.
+- Build with sound_ops: one atomic batch of nodes [{"type", "name", ...}] upserted by name; {"type": "delete", "name": "x"} inside `ops` removes one (one item per node; there is no top-level `delete`). Exactly one `output` node. Nodes read others by name ("sweep", or a port: "verb.wet", "tune.events"); signal fields take a number, "$param", "=expr" or a node (audio-rate modulation: "freq": "sweep"). Time in seconds, frequency in Hz, *_db in dB. `duration: null` (or 0) returns to automatic length; new_sound also takes duration, seed and kind, so a loop is one call. Parse errors name the node and field.
 - describe_op lists all 107 node types; describe_op {kind: "filter"} gives an example and schema (`type` and `node` also work). Every tool rejects an argument it does not take and lists the ones it does. Check describe_op before guessing a field: wander takes `range: [lo, hi]` (not min/max), impulse `at` is a number or a list, ramp defaults to an exp curve.
 - Node families: sources osc (unison sync pm) noise (blue violet velvet crackle) fm wavetable impulse sample; control lfo wander ramp slew sample_hold chaos fbm curve switch pitch_follow centroid_follow; events once pattern poisson bounce burst shatter on_threshold, turned into control by trigger_env event_gate seq notes, or into sound by grains cloud voices; filters filter (slope 12 / 24 / 48) ladder eq onepole comb allpass resonators filterbank vocoder multiband; time delay reverb (model fdn room plate spring) ir convolve; nonlinear shape (oversample) compress (key) limit transient gate sub exciter ringmod; modulation chorus flanger phaser freq_shift; space doppler haas decorrelate pan width; lo-fi crossfade_loop resample tape stutter; spectral pitch_shift (formant) time_stretch spectral (freeze blur gate morph shift stretch smear hps); physical modal (shape plate bar tube membrane string shell; output normalized) contact friction tube string rolling cloth footstep engine motor fire wind spark water splash explosion gunshot thunder bubble air glottis tract syrinx. Prefer one model node plus a few knobs over rebuilding it by hand.
 - A oneshot with no duration renders until it decays; a loop needs a duration. Give sounds a decay envelope.

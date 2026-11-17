@@ -3,6 +3,16 @@
 
 use sfx_analysis::Expect;
 
+/// Tells a missing field (`None`: leave it) from an explicit `null`
+/// (`Some(None)`: clear it).
+fn present_or_null<'de, D, T>(d: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de>,
+{
+    <Option<T> as serde::Deserialize>::deserialize(d).map(Some)
+}
+
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 pub(crate) struct DocOnly {
     /// Run on this open sound (by name) instead of your active one; errors
@@ -51,10 +61,12 @@ pub(crate) struct SoundOpsArgs {
     /// (needs a duration).
     #[serde(default)]
     pub(crate) kind: Option<String>,
-    /// Seconds. Omit for a oneshot: it renders until it falls under -80
-    /// dBFS (up to 30 s). A loop needs one. Pass 0 to clear it.
-    #[serde(default)]
-    pub(crate) duration: Option<f32>,
+    /// Seconds. Omit to leave it as it is. A oneshot with no duration renders
+    /// until it falls under -80 dBFS (up to 30 s); a loop needs one. Pass
+    /// null (or 0) to clear a fixed duration and go back to automatic length.
+    #[serde(default, deserialize_with = "present_or_null")]
+    #[schemars(with = "Option<f32>")]
+    pub(crate) duration: Option<Option<f32>>,
     /// The sound's randomness (default 1).
     #[serde(default)]
     pub(crate) seed: Option<u64>,
@@ -103,7 +115,8 @@ pub(crate) struct ListenArgs {
     /// Render a param or a macro at several values as columns (not with seeds).
     #[serde(default)]
     pub(crate) sweep: Option<SweepArg>,
-    /// Zoom the picture: {"t": [0, 0.1], "hz": [200, 4000]}.
+    /// Zoom the picture: {"t": [0, 0.1], "hz": [200, 4000]} (seconds, Hz;
+    /// either key alone is fine).
     #[serde(default)]
     pub(crate) zoom: Option<ZoomArg>,
     /// A WAV to compare the sound against (relative paths resolve against the
@@ -204,6 +217,13 @@ pub(crate) struct NewSoundArgs {
     /// "oneshot" (default) or "loop".
     #[serde(default)]
     pub(crate) kind: Option<String>,
+    /// Seconds (0..600). A loop needs one before it can render: pass it here
+    /// or in the first sound_ops call. Omit for a oneshot (automatic length).
+    #[serde(default)]
+    pub(crate) duration: Option<f32>,
+    /// The sound's randomness (default 1).
+    #[serde(default)]
+    pub(crate) seed: Option<u64>,
 }
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
@@ -213,6 +233,10 @@ pub(crate) struct CatalogArgs {
     /// The sound (save: defaults to your active sound).
     #[serde(default)]
     pub(crate) name: Option<String>,
+    /// Alias for `name`, like every other tool's `doc`; both given and
+    /// different is an error.
+    #[serde(default)]
+    pub(crate) doc: Option<String>,
     #[serde(default)]
     pub(crate) description: Option<String>,
     #[serde(default)]

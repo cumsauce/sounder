@@ -547,25 +547,61 @@ impl Session {
 
     /// Opens a new sound beside the others and makes it the caller's active.
     pub fn new_sound(&mut self, name: &str, kind: Kind) -> Result<String, String> {
+        self.new_sound_with(name, kind, None, None)
+    }
+
+    /// [`Session::new_sound`] with a fixed `duration` (seconds; 0 or less
+    /// means automatic length) and / or a `seed`. A loop opened without a
+    /// duration is allowed (it errors at its first render, naming the field).
+    pub fn new_sound_with(
+        &mut self,
+        name: &str,
+        kind: Kind,
+        duration: Option<f32>,
+        seed: Option<u64>,
+    ) -> Result<String, String> {
         valid_sound_name(name)?;
+        let duration = match duration {
+            Some(d) if !d.is_finite() || d > 600.0 => {
+                return Err(format!("duration: {d}: give seconds in 0..600"));
+            }
+            Some(d) if d > 0.0 => Some(d),
+            _ => None,
+        };
         if self.sounds.contains_key(name) {
             return Err(format!(
                 "`{name}` is already open: pick another name, or work on it with doc: \"{name}\""
             ));
         }
         let by = self.current.clone();
-        self.sounds
-            .insert(name.to_string(), Sound::new(name, kind, by.as_deref()));
+        let mut sound = Sound::new(name, kind, by.as_deref());
+        if duration.is_some() || seed.is_some() {
+            sound.doc.duration = duration;
+            if let Some(sd) = seed {
+                sound.doc.seed = sd;
+            }
+            sound.history = History::default();
+            sound.history.record(Step(sound.doc.clone()), "new sound");
+            if let Some(n) = sound.history.nodes.last_mut() {
+                n.author = by.clone();
+            }
+        }
+        self.sounds.insert(name.to_string(), sound);
         self.order.push(name.to_string());
         self.set_active(name);
         self.touch(name);
         self.mark_dirty();
+        let length = match (kind, duration) {
+            (_, Some(d)) => format!("{d} s"),
+            (Kind::Loop, None) => "needs a duration: pass one to sound_ops".to_string(),
+            _ => "its length follows the decay".to_string(),
+        };
         Ok(format!(
-            "opened `{name}` ({}): add nodes with sound_ops; describe_op lists the node types",
+            "opened `{name}` ({}: {length}): add nodes with sound_ops; describe_op lists the node types",
             if kind == Kind::Loop {
-                "loop: needs a duration"
+                "loop"
             } else {
-                "oneshot: its length follows the decay"
+                "oneshot"
             }
         ))
     }
@@ -1033,7 +1069,7 @@ pub fn check_tool_args(
 ) -> Result<(), String> {
     let bad: Vec<&String> = args.keys().filter(|k| !accepted.contains(k)).collect();
     if bad.is_empty() {
-        return Ok(());
+        return check_shapes(tool, args);
     }
     let list = bad
         .iter()
@@ -1051,6 +1087,57 @@ pub fn check_tool_args(
         }
     }
     Err(msg)
+}
+
+/// Nested arguments whose serde error says little: `listen` `zoom` and
+/// `sweep`. A wrong one gets the accepted shape.
+fn check_shapes(tool: &str, args: &serde_json::Map<String, Value>) -> Result<(), String> {
+    if tool != "listen" {
+        return Ok(());
+    }
+    const ZOOM: &str = "zoom {t: [from_s, to_s], hz: [low, high]} (seconds and Hz; either key alone, e.g. zoom {t: [0, 0.1]})";
+    const SWEEP: &str = "sweep {param: \"name\", values: [v1, v2, ...]} (a param or macro name; macro values are 0..1; at most 8 values)";
+    let pair = |v: &Value| {
+        v.as_array()
+            .is_some_and(|a| a.len() == 2 && a.iter().all(Value::is_number))
+    };
+    if let Some(z) = args.get("zoom").filter(|z| !z.is_null()) {
+        let why = match z.as_object() {
+            None => Some("it must be an object".to_string()),
+            Some(o) => o.iter().find_map(|(k, v)| match k.as_str() {
+                "t" | "hz" if v.is_null() || pair(v) => None,
+                "t" | "hz" => Some(format!("`{k}` must be a two-number array [a, b]")),
+                _ => Some(format!("unknown key `{k}`; it takes t and hz")),
+            }),
+        };
+        if let Some(why) = why {
+            return Err(format!("listen: bad `zoom` ({why}): use {ZOOM}"));
+        }
+    }
+    if let Some(sw) = args.get("sweep").filter(|z| !z.is_null()) {
+        let why = match sw.as_object() {
+            None => Some("it must be an object".to_string()),
+            Some(o) => {
+                if let Some(k) = o.keys().find(|k| !matches!(k.as_str(), "param" | "values")) {
+                    Some(format!("unknown key `{k}`; it takes param and values"))
+                } else if !o.get("param").is_some_and(Value::is_string) {
+                    Some("`param` must be a name".to_string())
+                } else if !o
+                    .get("values")
+                    .and_then(Value::as_array)
+                    .is_some_and(|a| a.iter().all(Value::is_number))
+                {
+                    Some("`values` must be an array of numbers".to_string())
+                } else {
+                    None
+                }
+            }
+        };
+        if let Some(why) = why {
+            return Err(format!("listen: bad `sweep` ({why}): use {SWEEP}"));
+        }
+    }
+    Ok(())
 }
 
 /// What to do instead, for mistakes that were made in earnest.
