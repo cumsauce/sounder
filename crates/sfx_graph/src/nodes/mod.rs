@@ -17,6 +17,9 @@ mod spectral;
 mod time;
 mod voices;
 
+// slot T0c
+mod ringmod;
+
 // slot S1
 
 // slot S2
@@ -78,6 +81,9 @@ pub use sources::*;
 pub use spectral::*;
 pub use time::*;
 pub use voices::*;
+
+// slot T0c
+pub use ringmod::*;
 
 // slot S1
 

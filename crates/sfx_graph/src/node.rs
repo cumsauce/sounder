@@ -303,6 +303,9 @@ node_types! {
     "syrinx" => Syrinx,
     "thunder" => Thunder,
 
+    // slot T0c
+    "ringmod" => RingMod,
+
     // slot S1
 
     // slot S2
