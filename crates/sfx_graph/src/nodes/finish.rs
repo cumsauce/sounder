@@ -115,6 +115,7 @@ fn stage(
         seed: cx.seed,
         looped: cx.looped,
         base_dir: cx.base_dir,
+        sources: cx.sources,
         params: cx.params,
         sounds: cx.sounds,
         stack: cx.stack,

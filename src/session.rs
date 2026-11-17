@@ -11,7 +11,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::hash::{Hash, Hasher};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
@@ -509,6 +509,75 @@ impl Session {
         self.project.clone()
     }
 
+    /// `catalog sources`: every WAV in the sources folders (subfolders
+    /// included), one line each: path to use in a node, length, rate,
+    /// channels, peak and centroid (of the first 10 s).
+    pub fn sources_text(&self) -> String {
+        let dirs = self.source_dirs();
+        let mut out = String::new();
+        let mut total = 0;
+        for dir in &dirs {
+            let mut files = Vec::new();
+            wav_files(dir, &mut files);
+            files.sort();
+            out += &format!(
+                "{} ({} WAV; use the path as listed):\n",
+                dir.display(),
+                files.len()
+            );
+            for f in &files {
+                total += 1;
+                let rel = f.strip_prefix(dir).unwrap_or(f).display().to_string();
+                match sfx_graph::wav::read(f) {
+                    Ok(a) => {
+                        let ten = (a.sample_rate as usize) * 10;
+                        let clip = sfx_graph::Audio {
+                            sample_rate: a.sample_rate,
+                            channels: a
+                                .channels
+                                .iter()
+                                .map(|c| c[..c.len().min(ten)].to_vec())
+                                .collect(),
+                        };
+                        let d = sfx_analysis::describe(&clip);
+                        out += &format!(
+                            "- {rel}: {:.2} s, {} Hz, {}, peak {:.1} dBFS, centroid {:.0} Hz\n",
+                            a.seconds(),
+                            a.sample_rate,
+                            if a.channels.len() > 1 {
+                                "stereo"
+                            } else {
+                                "mono"
+                            },
+                            d.peak_db,
+                            d.centroid_all_hz
+                        );
+                    }
+                    Err(e) => out += &format!("- {rel}: unreadable: {e}\n"),
+                }
+            }
+        }
+        if total == 0 {
+            out += "no recordings yet: put WAVs (recordings, impulse responses) in one of these folders; nodes find them by file name (`sample` file, `grains` / `cloud` source, `convolve` ir, `listen` reference, `extract_modes` file). Only use material the project has the rights to (own recordings, CC0).\n";
+        }
+        out
+    }
+
+    /// The folders a relative file is looked for in after the project: the
+    /// project's `assets/sources/`, then the library's `sources/` (recordings
+    /// and impulse responses kept for `sample`, `grains`, `cloud`,
+    /// `convolve`, `extract_modes` and `listen reference`).
+    pub fn source_dirs(&self) -> Vec<PathBuf> {
+        let mut v = Vec::new();
+        if let Some(p) = &self.project {
+            v.push(p.join("assets").join("sources"));
+        }
+        if let Ok(l) = self.library_dir() {
+            v.push(l.join("sources"));
+        }
+        v
+    }
+
     /// How a `sound` node reaches other sounds: the open ones first, then the
     /// catalog.
     pub fn sound_source(&self) -> SoundSource {
@@ -538,6 +607,7 @@ impl Session {
     pub fn render_opts(&self) -> RenderOpts {
         RenderOpts {
             base_dir: self.base_dir(),
+            sources: self.source_dirs(),
             sounds: Some(self.sound_source()),
             ..RenderOpts::default()
         }
@@ -1250,9 +1320,10 @@ fn bare_check(name: &str) -> Result<Value, String> {
         "reference" => {
             return needs_settings(name, r#"{"file": "ref.wav", "max_distance": 6}"#);
         }
+        "reference_set" => return needs_settings(name, r#"{"set": "door_slam"}"#),
         other => {
             return Err(format!(
-                "verify: unknown check `{other}`; the checks are peak_db, true_peak_db, lufs, duration, silent_edges, clicks, dc, finite, loop_seam, bands, pitch, onsets, variations, rebuild, reference, macros, layers (bare: the impact preset), aliasing, inharmonicity, modulation, roughness (the last four need settings: use expect)"
+                "verify: unknown check `{other}`; the checks are peak_db, true_peak_db, lufs, duration, silent_edges, clicks, dc, finite, loop_seam, bands, pitch, onsets, variations, rebuild, reference, reference_set, macros, layers (bare: the impact preset), aliasing, inharmonicity, modulation, roughness (the last four need settings: use expect)"
             ));
         }
     })
@@ -1268,6 +1339,21 @@ fn expect_map(e: &Expect) -> Result<serde_json::Map<String, Value>, String> {
     match serde_json::to_value(e) {
         Ok(Value::Object(m)) => Ok(m.into_iter().filter(|(_, v)| !v.is_null()).collect()),
         _ => Err("expect: could not be read".into()),
+    }
+}
+
+/// Every .wav under `dir` (subfolders included).
+fn wav_files(dir: &Path, out: &mut Vec<PathBuf>) {
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for e in rd.flatten() {
+        let p = e.path();
+        if p.is_dir() {
+            wav_files(&p, out);
+        } else if p.to_str().is_some_and(sfx_graph::node::is_file) {
+            out.push(p);
+        }
     }
 }
 

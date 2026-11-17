@@ -62,13 +62,10 @@ pub struct Comparison {
     pub padded: Audio,
 }
 
-/// Reads a WAV: relative paths resolve against `base` (the project).
-pub fn load(file: &str, base: Option<&Path>) -> Result<Audio, String> {
-    let p = Path::new(file);
-    let path: PathBuf = match (base, p.is_relative()) {
-        (Some(root), true) => root.join(p),
-        _ => p.to_path_buf(),
-    };
+/// Reads a WAV: relative paths resolve against `base` (the project), then
+/// the `sources` folders (`sfx_graph::node::resolve_file`).
+pub fn load(file: &str, base: Option<&Path>, sources: &[PathBuf]) -> Result<Audio, String> {
+    let path: PathBuf = sfx_graph::node::resolve_file(file, base, sources);
     if !path.is_file() {
         return Err(format!(
             "reference `{file}`: no such file ({}); give a WAV path, relative to the project or absolute",
@@ -85,52 +82,9 @@ pub fn load(file: &str, base: Option<&Path>) -> Result<Audio, String> {
     Ok(audio)
 }
 
-/// `audio` at `sr` (windowed-sinc, Blackman window of 48 taps each side; the
-/// cutoff drops to the lower Nyquist when downsampling).
+/// `audio` at `sr` (windowed-sinc; see [`sfx_graph::wav::resample`]).
 pub fn resample(audio: &Audio, sr: u32) -> Audio {
-    if audio.sample_rate == sr || audio.is_empty() {
-        return Audio {
-            sample_rate: sr,
-            channels: audio.channels.clone(),
-        };
-    }
-    let ratio = f64::from(audio.sample_rate) / f64::from(sr);
-    let cutoff = (1.0 / ratio).min(1.0);
-    const HALF: isize = 48;
-    let n_out = (audio.len() as f64 / ratio).round() as usize;
-    let channels = audio
-        .channels
-        .iter()
-        .map(|x| {
-            (0..n_out)
-                .map(|i| {
-                    let pos = i as f64 * ratio;
-                    let c = pos.floor() as isize;
-                    let mut acc = 0.0f64;
-                    for j in (c - HALF + 1)..=(c + HALF) {
-                        if j < 0 || j as usize >= x.len() {
-                            continue;
-                        }
-                        let d = pos - j as f64;
-                        let u = d * cutoff;
-                        let sinc = if u.abs() < 1e-9 {
-                            1.0
-                        } else {
-                            (std::f64::consts::PI * u).sin() / (std::f64::consts::PI * u)
-                        };
-                        let ph = std::f64::consts::PI * d / (HALF as f64 + 1.0);
-                        let w = 0.42 + 0.5 * ph.cos() + 0.08 * (2.0 * ph).cos();
-                        acc += f64::from(x[j as usize]) * sinc * cutoff * w;
-                    }
-                    acc as f32
-                })
-                .collect()
-        })
-        .collect();
-    Audio {
-        sample_rate: sr,
-        channels,
-    }
+    sfx_graph::wav::resample(audio, sr)
 }
 
 /// Seconds of the first sample within 30 dB of the sound's peak (0 for

@@ -139,6 +139,14 @@ pub(crate) struct ListenArgs {
     /// differences. Not with seeds, sweep or diff.
     #[serde(default)]
     pub(crate) reference: Option<String>,
+    /// A reference set: a folder of recordings of one kind of sound
+    /// (`<project>/refs/<set>/`, at least two WAVs). Gives the distance to
+    /// each, the nearest against the set's own spread, and every feature
+    /// (weight / body / crack energy, crest, tail, centroid, voiced, ringing
+    /// partials) against the span the recordings cover; the image compares
+    /// with the nearest. Not with reference, seeds, sweep or diff.
+    #[serde(default)]
+    pub(crate) reference_set: Option<String>,
     /// Show the previous render of this same request beside this one, and
     /// the difference spectrogram (now minus before, in dB: blue = quieter
     /// now, red = louder now, grey = same).
@@ -211,6 +219,12 @@ pub(crate) struct ExtractModesArgs {
     /// How many modes (default 8, at most 12).
     #[serde(default)]
     pub(crate) count: Option<usize>,
+    /// A file name ("knock_residual.wav"): also write the residual (the
+    /// recording minus the fitted modes: the hit's noise, rattle, room) into
+    /// the sources folder (`<project>/assets/sources/`, or the library's
+    /// `sources/`) and return a rebuild that mixes it with the modes.
+    #[serde(default)]
+    pub(crate) residual: Option<String>,
 }
 
 /// `play`: needs a speaker (the window, or `--headless --audio`).
@@ -246,7 +260,8 @@ pub(crate) struct NewSoundArgs {
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 pub(crate) struct CatalogArgs {
-    /// list, describe, save, load, delete or close.
+    /// list, sources (the recordings and impulse responses in the sources
+    /// folders), describe, save, load, delete or close.
     pub(crate) action: String,
     /// The sound (save: defaults to your active sound).
     #[serde(default)]

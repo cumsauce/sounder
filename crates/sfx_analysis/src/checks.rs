@@ -294,6 +294,17 @@ impl LayersCheck {
 const RING_WITHIN_DB: f32 = 6.0;
 const RING_S: f32 = 0.6;
 
+/// The strong partials that ring (within `RING_WITHIN_DB` of the strongest,
+/// over `RING_S` to fall 60 dB), as "hz (decay)" words.
+pub fn ringing_partials(d: &Descriptors) -> Vec<String> {
+    let top = d.modes.iter().map(|x| x.level_db).fold(f32::MIN, f32::max);
+    d.modes
+        .iter()
+        .filter(|x| x.level_db >= top - RING_WITHIN_DB && x.decay_s > RING_S && x.decay_s < 600.0)
+        .map(|x| format!("{:.0} Hz ({:.2} s)", x.hz, x.decay_s))
+        .collect()
+}
+
 /// Every `reverb` / `convolve` node in a list of nodes, patches included.
 fn wet_nodes(nodes: &[Value], out: &mut Vec<String>) {
     for n in nodes {
@@ -383,15 +394,7 @@ fn layers_results(l: &LayersCheck, d: &Descriptors, doc: &SoundDoc) -> Vec<(Stri
         ));
     }
     if let Some(m) = l.ringing_max {
-        let top = d.modes.iter().map(|x| x.level_db).fold(f32::MIN, f32::max);
-        let ringing: Vec<String> = d
-            .modes
-            .iter()
-            .filter(|x| {
-                x.level_db >= top - RING_WITHIN_DB && x.decay_s > RING_S && x.decay_s < 600.0
-            })
-            .map(|x| format!("{:.0} Hz ({:.2} s)", x.hz, x.decay_s))
-            .collect();
+        let ringing = ringing_partials(d);
         let ok = ringing.len() <= m;
         out.push((
             "layers ringing".into(),
@@ -466,6 +469,18 @@ fn layers_results(l: &LayersCheck, d: &Descriptors, doc: &SoundDoc) -> Vec<(Stri
         ));
     }
     out
+}
+
+/// The `reference_set` check.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReferenceSetCheck {
+    /// The set: a folder name under `<project>/refs/`, or a path.
+    pub set: String,
+    /// Largest STFT distance to the nearest recording, dB (left out: not
+    /// checked; the features are).
+    #[serde(default)]
+    pub max_distance: Option<f32>,
 }
 
 /// The `reference` check: the sound stays within `max_distance` dB of a WAV.
@@ -553,6 +568,11 @@ pub struct Expect {
     /// crest, tail and no reverb; `{"preset": "impact"}` for a hit.
     #[serde(default)]
     pub layers: Option<LayersCheck>,
+    /// Inside the span of a set of recordings (`<project>/refs/<set>/`):
+    /// every feature within the set's range, and the nearest within
+    /// `max_distance` dB when given.
+    #[serde(default)]
+    pub reference_set: Option<ReferenceSetCheck>,
 }
 
 impl Expect {
@@ -1419,7 +1439,7 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
         push("variations", ok_spread && ok_dist, why);
     }
     if let Some(rc) = &e.reference {
-        let rf = crate::reference::load(&rc.file, cx.opts.base_dir.as_deref())?;
+        let rf = crate::reference::load(&rc.file, cx.opts.base_dir.as_deref(), &cx.opts.sources)?;
         let c = crate::reference::compare(a, &rf);
         let ok = c.distance_db <= rc.max_distance;
         let mut why = format!(
@@ -1433,6 +1453,25 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
             }
         }
         push("reference", ok, why);
+    }
+    if let Some(rs) = &e.reference_set {
+        let members = crate::refset::load_set(&rs.set, cx.opts.base_dir.as_deref())?;
+        let c = crate::refset::compare_set(a, &rs.set, &members);
+        for f in &c.features {
+            push(&format!("reference_set {}", f.name), f.pass, f.words());
+        }
+        let (near, dn) = &c.distances[c.nearest];
+        let ok = rs.max_distance.is_none_or(|m| *dn <= m);
+        push(
+            "reference_set nearest",
+            ok,
+            format!(
+                "{near} at {dn:.2} dB (the set's own spread {:.2} dB{})",
+                c.spread_db,
+                rs.max_distance
+                    .map_or(String::new(), |m| format!("; max {m}"))
+            ),
+        );
     }
     if let Some(l) = &e.layers {
         let l = l.resolved()?;

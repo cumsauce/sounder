@@ -113,6 +113,7 @@ impl Eval for Voices {
                 seed: vseed,
                 looped: false,
                 base_dir: cx.base_dir.map(std::path::Path::to_path_buf),
+                sources: cx.sources.to_vec(),
                 params: p,
                 sounds: cx.sounds.cloned(),
                 stack: cx.stack.to_vec(),
@@ -243,6 +244,7 @@ impl Eval for SoundNode {
                 seed: Some(mix_seed(cx.seed, self.seed.unwrap_or(0))),
                 macros: self.macros.clone().unwrap_or_default(),
                 base_dir: cx.base_dir.map(std::path::Path::to_path_buf),
+                sources: cx.sources.to_vec(),
                 sounds: Some(src.clone()),
                 stack: cx.stack.to_vec(),
                 ..RenderOpts::default()

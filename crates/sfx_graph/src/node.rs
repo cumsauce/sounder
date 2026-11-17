@@ -49,6 +49,9 @@ pub struct Cx<'a> {
     pub looped: bool,
     /// Where relative file paths (`sample`, `convolve`) resolve.
     pub base_dir: Option<&'a Path>,
+    /// Folders searched after `base_dir` for a relative file that is not
+    /// there (the project's `assets/sources/`, the library's `sources/`).
+    pub sources: &'a [PathBuf],
     /// The document's params.
     pub params: &'a Params,
     /// How `sound` nodes reach other documents.
@@ -116,13 +119,10 @@ impl Cx<'_> {
         Rng::new(crate::mix_seed(self.seed, own))
     }
 
-    /// A file path as the node wrote it, resolved against the project.
+    /// A file path as the node wrote it, resolved against the project and
+    /// then the sources folders (see [`resolve_file`]).
     pub fn path(&self, file: &str) -> PathBuf {
-        let p = Path::new(file);
-        match self.base_dir {
-            Some(b) if p.is_relative() => b.join(p),
-            _ => p.to_path_buf(),
-        }
+        resolve_file(file, self.base_dir, self.sources)
     }
 
     /// Seconds to a sample index (clamped to the buffer).
@@ -481,6 +481,38 @@ fn de<T: serde::de::DeserializeOwned>(ctx: &str, body: &Value) -> Result<T, Stri
 }
 
 /// True for a string that names a file rather than a node.
+/// Where a file a node names is read from: an absolute path as given; a
+/// relative one against `base_dir` (the project) when it exists there, else
+/// the first of `sources` that holds it (the path as written, then its file
+/// name alone), else against `base_dir` (so the error names the project
+/// path).
+pub fn resolve_file(file: &str, base_dir: Option<&Path>, sources: &[PathBuf]) -> PathBuf {
+    let p = Path::new(file);
+    if p.is_absolute() {
+        return p.to_path_buf();
+    }
+    let first = match base_dir {
+        Some(b) => b.join(p),
+        None => p.to_path_buf(),
+    };
+    if first.exists() {
+        return first;
+    }
+    for dir in sources {
+        let full = dir.join(p);
+        if full.exists() {
+            return full;
+        }
+        if let Some(name) = p.file_name() {
+            let flat = dir.join(name);
+            if flat.exists() {
+                return flat;
+            }
+        }
+    }
+    first
+}
+
 pub fn is_file(s: &str) -> bool {
     let l = s.to_ascii_lowercase();
     l.ends_with(".wav") || l.ends_with(".wave")

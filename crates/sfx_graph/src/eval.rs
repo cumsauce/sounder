@@ -31,6 +31,8 @@ pub struct Ctx {
     pub looped: bool,
     /// Relative file paths resolve here.
     pub base_dir: Option<PathBuf>,
+    /// Then in these folders (see `node::resolve_file`).
+    pub sources: Vec<PathBuf>,
     /// The document's params (a `voices` patch reads them as defaults).
     pub params: Params,
     /// How `sound` nodes reach other documents.
@@ -47,6 +49,7 @@ impl Default for Ctx {
             seed: 1,
             looped: false,
             base_dir: None,
+            sources: Vec::new(),
             params: Params::new(),
             sounds: None,
             stack: Vec::new(),
@@ -362,14 +365,11 @@ pub fn evaluate(
             }
             // A file-reading node also keys on its file's path and mtime, so
             // editing the WAV re-renders.
-            for f in ["file", "ir"] {
+            for f in ["file", "ir", "source"] {
                 if let Some(path) = p.body.get(f).and_then(Value::as_str)
                     && node::is_file(path)
                 {
-                    let full = match &ctx.base_dir {
-                        Some(b) => b.join(path),
-                        None => PathBuf::from(path),
-                    };
+                    let full = node::resolve_file(path, ctx.base_dir.as_deref(), &ctx.sources);
                     full.hash(&mut h);
                     std::fs::metadata(&full)
                         .and_then(|m| m.modified())
@@ -454,6 +454,7 @@ pub fn evaluate(
                     seed: node_seed(ctx.seed, &p.name),
                     looped: ctx.looped,
                     base_dir: ctx.base_dir.as_deref(),
+                    sources: &ctx.sources,
                     params: &ctx.params,
                     sounds: ctx.sounds.as_ref(),
                     stack: &ctx.stack,

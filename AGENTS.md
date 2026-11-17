@@ -69,13 +69,13 @@ modeler's `MODELER_*`.
 |---|---|
 | `summary` | state, nodes (what reads what), params, macros + claim status, the human's knob moves since last read (reading clears them), open comments, warnings, causal yes/no, descriptors |
 | `sound_ops` | atomic batch: `ops` (node upserts; `{"type": "delete", "name": ...}` removes), `params`, `macros`, `delete_macros`, `kind`, `duration` (null or 0 = automatic length again), `seed`, `sample_rate`, `expect`; renders for real; one history step if anything changed |
-| `listen` | the image + descriptor table; `node`, `seeds`, `sweep {param, values: [..]}`, `zoom {t: [a, b], hz: [lo, hi]}`, `diff`, `reference` (a bad `zoom` / `sweep` error shows the accepted shape) |
+| `listen` | the image + descriptor table; `node`, `seeds`, `sweep {param, values: [..]}`, `zoom {t: [a, b], hz: [lo, hi]}`, `diff`, `reference`, `reference_set` (a bad `zoom` / `sweep` error shows the accepted shape) |
 | `verify` | PASS / FAIL checks (`checks`, `only`, `expect`; see Senses); any FAIL is an error |
 | `describe_op` | node types, one line each; or one type's example + schema (`kind`, aliases `type` / `node`) |
-| `extract_modes` | strongest partials of a WAV as a ready `resonators` node |
+| `extract_modes` | strongest partials of a WAV as a ready `resonators` node; `residual: "x.wav"` also writes what they miss and returns a rebuild |
 | `play` | plays on the speakers for the human (the window, or `--headless --audio`); a plain headless server answers with an error saying so |
 | `new_sound` | opens a sound beside the others (`kind`, `duration` 0..600 s, `seed` can be set at once, so a loop is one call; a loop with no `duration` is an error naming the field); an open name is refused |
-| `catalog` | `list describe save load delete close`; the sound is `name` or `doc` (both given and different is an error) |
+| `catalog` | `list sources describe save load delete close` (`sources`: the WAVs in the sources folders); the sound is `name` or `doc` (both given and different is an error) |
 | `export` | WAVs + `<name>.sfx.json` manifest |
 | `undo redo jump history` | the history tree; one `sound_ops` call is one step |
 | `add_annotation` | comment on a node / region, or `resolve` / `reopen` one |
@@ -953,7 +953,7 @@ until it fits; you read their moves in `summary`.
   the numbers below describe this window; times count from a" says so), so
   onset, fine-onset and peak times count from `a`. `descriptors: false`
   returns the image alone.
-- `listen reference: "file.wav"` (relative to the project, or absolute): the
+- `listen reference: "file.wav"` (relative to the project or a sources folder, or absolute): the
   reference is resampled to the sound's rate, moved so its first onset (30 dB
   under its peak) meets the sound's, and scaled to the sound's integrated
   loudness (the shift and the gain are reported). The image is [sound,
@@ -966,9 +966,34 @@ until it fits; you read their moves in `summary`.
   Not with seeds, sweep or diff. This is the distance, not a taste verdict.
   Reading the picture: x is time, y log frequency, colour dB from -90 (black)
   to 0.
+- `listen reference_set: "door_slam"`: a **reference set** is a folder of
+  recordings of one kind of sound, `<project>/refs/<set>/` (at least two
+  WAVs; a path with a `/` names any folder). One recording is a poor target:
+  in Phase 0 a real door slam sat 10.4 dB from two other real slams, further
+  than a good synthetic one, so a distance below about 10 dB ranks nothing.
+  A set gives the distance to each recording, the nearest against the set's
+  own spread (the mean distance between its recordings), and eight features
+  against the span the recordings cover: `weight` / `body` / `crack` energy
+  (under 200 Hz / 200 Hz-2 kHz / above 2 kHz), `crest`, `tail` (to -20 dB),
+  `centroid`, `voiced`, `ringing` partials. A feature passes inside [min,
+  max] widened by a quarter of the span, at least a floor (3 % for shares,
+  1 % crack, 3 dB crest: the crest of a noise hit moves several dB with the
+  seed, 20 ms tail, 10 % centroid, 0.05 voiced). The image compares with the
+  nearest. `verify expect reference_set {set, [max_distance]}` reports each
+  feature (`reference_set weight` ...) and the nearest. Measured against
+  three CC0 door slams (406635, 571797, 724124; they sit 10.06 dB from each
+  other): the round-0 build is outside on weight (86 % against 12-39 %),
+  body, tail, centroid and voiced, and 13.3 dB from the nearest; the
+  layered build the listener called a tuned drum is outside on crest (28.3
+  dB against 16-24), centroid and ringing (3 against 0-2); the approved one
+  is inside on all eight, 6.9 dB from the nearest. Limits: a few recordings
+  make a thin range; the ringing count reads noise partials in band-passed
+  noise (a synthetic noise set spanned 0-4), so it catches less against
+  noisy sets; sets are for comparison only (keep `refs/` out of git and out
+  of shipped sounds unless the licence allows).
 - `verify` / `expect` checks: `peak_db` `true_peak_db` `lufs` `duration`
   `silent_edges` `clicks` `dc` `finite` `loop_seam` `bands` `pitch` `onsets`
-  `variations` `rebuild` `reference` `macros` `layers`, and the synthesis checks
+  `variations` `rebuild` `reference` `reference_set` `macros` `layers`, and the synthesis checks
   `aliasing` `inharmonicity` `modulation` `roughness`. Each line is PASS /
   FAIL with the measured value; a FAIL says what to change. Four ways to ask:
   - no arguments: the defaults (`finite`, `peak_db` max -0.3, `silent_edges`
@@ -1047,6 +1072,24 @@ until it fits; you read their moves in `summary`.
   hit with a noise tick sits 0.69 dB (STFT distance) from its original and
   within 0.1 dB in level; a hard case (30 ms and 20 ms modes, a pair 25 Hz
   apart) 1.21 dB; a rebuild with the modes shifted 10 % sits 13 dB away.
+  `residual: "name.wav"` (a file name) also writes the **residual** into the
+  sources folder: the recording from 5 ms before its onset minus the modes
+  as the `resonators` play them from an impulse at that time. It returns the
+  rebuild (`impulse` at the lead-in time, the `resonators`, a `sample` of the
+  residual from 0, a `mix`), which sums back to the recording: on the
+  five-mode hit 0.22 dB from the original, against 4.85 dB for the modes
+  alone (2 modes: 0.22 against 10.44 dB; `the_residual_restores_what_the_modes_miss`).
+  The residual holds the hit's noise, rattle and room, and also what the
+  fitted partials get wrong, so retuning the modes later leaves their old
+  partials in it: keep the modes' pitch and edit their decay and level, or
+  re-extract. A recording with under 5 ms before its hit needs the output's
+  `fade_in: 0.0005` (the tool says so). **Only for clean struck objects**:
+  on a noisy hit the fit cancels close partials against each other with
+  phases the `resonators` do not keep, so the modes play far louder than the
+  recording (a real door slam: 46 dB at 8 modes, 13 dB at 3; band-passed
+  noise: 85 dB; the clean five-mode hit: 0.2 dB). Over 6 dB `extract_modes`
+  warns, and with `residual` it refuses and says why: use such a recording
+  as a `sample` layer (`a_non_modal_recording_gets_no_residual`).
 
 Warnings in `summary`: a node nothing reads, a frequency above Nyquist, a
 silent output, DC over -40 dB, an output whose input is squashed by the
@@ -1055,6 +1098,31 @@ ceiling limiter, a sound that never decays, one that is mostly silence, an
 fade-in cutting a first hit (it suggests `fade_in` 0.0005; not given for
 a `fade_in` of 1 ms or less or when the target is met), a field driven by a
 macro (your value is ignored).
+
+## Source material: recordings and impulse responses
+
+Synthesis alone gets to a plausible sound; recorded material carries the
+irregular detail it lacks. A relative file a node names (`sample` `file`,
+`grains` / `cloud` `source`, `convolve` `ir`, `listen` / `verify`
+`reference`, `extract_modes` `file`) is looked for in the project first,
+then in the **sources folders**: `<project>/assets/sources/`, then
+`<library>/sources/` (the path as written, then its file name alone).
+`catalog {action: "sources"}` lists every WAV there with its length, rate,
+channels, peak and centroid. Rules:
+
+- **Only material the project may use**: your own recordings or CC0 (the
+  repo ships none; reference sets for comparison live in `refs/`, which is
+  gitignored). Nothing licensed for research only goes into a shipped sound.
+- `convolve` resamples an impulse response recorded at another rate to the
+  sound's (windowed sinc), so a 44.1 or 96 kHz IR works as is (`convolve`
+  of a 44.1 kHz click 10 ms in lands on sample 720 at 48 kHz:
+  `tests/sources.rs`).
+- Editing a WAV re-renders every node that reads it (`file`, `ir` and
+  `source` are keyed on the resolved path and its modification time).
+- A recording as a layer: a `sample` (with `rate` to pitch it) as the body or
+  the crack of a layered sound, the rest synthesized (Phase 0 `slam_c`). A
+  struck object: `extract_modes` with `residual` gives editable modes plus
+  the recording's noise.
 
 ## Sessions, history, comments
 

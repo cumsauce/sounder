@@ -135,6 +135,13 @@ fn do_listen(s: &mut Session, a: ListenArgs) -> R {
     if a.reference.is_some() && (a.seeds.is_some() || a.sweep.is_some() || a.diff == Some(true)) {
         return fail("reference compares one render with one recording: drop seeds / sweep / diff");
     }
+    if a.reference_set.is_some()
+        && (a.reference.is_some() || a.seeds.is_some() || a.sweep.is_some() || a.diff == Some(true))
+    {
+        return fail(
+            "reference_set compares one render with a set: drop reference / seeds / sweep / diff",
+        );
+    }
     let opts = s.render_opts();
     let salt = s.generation();
     let name = plain(s.target_name(a.doc.as_deref()))?;
@@ -245,7 +252,11 @@ fn do_listen(s: &mut Session, a: ListenArgs) -> R {
     sound.last_listen.insert(key, cols[0].1.clone());
     let mut text = note;
     if let Some(file) = &a.reference {
-        let rf = plain(sfx_analysis::reference::load(file, s.project.as_deref()))?;
+        let rf = plain(sfx_analysis::reference::load(
+            file,
+            s.project.as_deref(),
+            &s.source_dirs(),
+        ))?;
         let c = sfx_analysis::compare(&cols[0].1, &rf);
         text += &format!("== comparison with {file} ==\n{}", c.text());
         shown = vec![
@@ -256,6 +267,25 @@ fn do_listen(s: &mut Session, a: ListenArgs) -> R {
             "sound minus reference (dB)".to_string(),
             c.padded.clone(),
             c.aligned.clone(),
+        ));
+        ref_json = Some(serde_json::to_value(&c).unwrap_or_default());
+    }
+    if let Some(set) = &a.reference_set {
+        let members = plain(sfx_analysis::refset::load_set(set, s.project.as_deref()))?;
+        let c = sfx_analysis::refset::compare_set(&cols[0].1, set, &members);
+        text += &format!("== {} ==\n", c.text());
+        let near = &c.distances[c.nearest].0;
+        shown = vec![
+            (cols[0].0.clone(), cols[0].1.clone()),
+            (
+                format!("nearest: {near} (aligned)"),
+                c.nearest_cmp.aligned.clone(),
+            ),
+        ];
+        diff_col = Some((
+            "sound minus nearest (dB)".to_string(),
+            c.nearest_cmp.padded.clone(),
+            c.nearest_cmp.aligned.clone(),
         ));
         ref_json = Some(serde_json::to_value(&c).unwrap_or_default());
     }
@@ -356,6 +386,7 @@ fn report_text(results: &[sfx_analysis::CheckResult]) -> String {
 fn do_export(s: &mut Session, a: ExportArgs) -> R {
     let project = s.project.clone();
     let base = s.base_dir();
+    let sources = s.source_dirs();
     let sounds = Some(s.sound_source());
     let sound = plain(s.sound(a.doc.as_deref()))?;
     let bits = match a.bits.unwrap_or(16) {
@@ -371,6 +402,7 @@ fn do_export(s: &mut Session, a: ExportArgs) -> R {
         bits,
         sample_rate: a.sample_rate,
         base_dir: base,
+        sources,
         sounds,
         catalog_name: sound.catalog_name.clone(),
     };
@@ -416,6 +448,7 @@ fn do_catalog(s: &mut Session, mut a: CatalogArgs) -> R {
     let force = a.force == Some(true);
     match a.action.as_str() {
         "list" => Ok(Out::text(catalog::format_list(&catalog::list(&lib)))),
+        "sources" => Ok(Out::text(s.sources_text())),
         "describe" => {
             let Some(n) = &a.name else {
                 return fail("describe needs name");
@@ -506,7 +539,7 @@ fn do_catalog(s: &mut Session, mut a: CatalogArgs) -> R {
             Ok(Out::text(plain(s.close_sound(&name, force))?))
         }
         o => fail(format!(
-            "action `{o}`: use list, describe, save, load, delete or close"
+            "action `{o}`: use list, sources, describe, save, load, delete or close"
         )),
     }
 }
@@ -600,6 +633,7 @@ impl Tools {
     /// dc, finite, loop_seam, bands, pitch, onsets, variations (bare: 4
     /// seeds; compares peak when the output uses peak_db, else loudness),
     /// rebuild, reference {file, max_distance} (STFT distance to a WAV),
+    /// reference_set {set, max_distance?} (features against a set of recordings),
     /// macros (every knob keeps its claim), layers (a designed sound: energy
     /// by role, voiced share, ringing partials, crest, tail, no reverb;
     /// {preset: "impact"} or bare in checks), and the synthesis checks
@@ -667,35 +701,87 @@ impl Tools {
     }
 
     /// Start from a real sound: finds the strongest partials of a WAV in the
-    /// project and their decay times, and returns them as a ready `resonators`
-    /// node (feed it an impulse or a noise burst to hear the object).
+    /// project or the sources folders and their decay times, and returns them
+    /// as a ready `resonators` node (feed it an impulse or a noise burst to
+    /// hear the object). `residual: "name.wav"` also writes what the modes
+    /// miss (the recording minus them: the hit's noise, rattle, room) into the
+    /// sources folder and returns a rebuild that mixes the two.
     #[tool]
     async fn extract_modes(
         &self,
         Parameters(a): Parameters<ExtractModesArgs>,
     ) -> Result<CallToolResult, ErrorData> {
         self.run(move |s| {
-            let path = {
-                let p = std::path::Path::new(&a.file);
-                match (&s.project, p.is_relative()) {
-                    (Some(root), true) => root.join(p),
-                    _ => p.to_path_buf(),
-                }
-            };
-            let audio = plain(wav::read(&path))?;
+            let sources = s.source_dirs();
+            let path = sfx_graph::node::resolve_file(&a.file, s.project.as_deref(), &sources);
+            let audio = plain(wav::read(&path).map_err(|e| {
+                format!("{e} (looked in the project, then the sources folders; `catalog sources` lists the paths to use)")
+            }))?;
             if audio.len() < 2048 {
                 return fail(format!("{}: only {} samples: give a recording at least a few hundredths of a second long", a.file, audio.len()));
             }
-            let node = sfx_analysis::modes_node(&audio, a.count.unwrap_or(8), "modes", "hit");
+            let count = a.count.unwrap_or(8).clamp(1, 32);
+            let modes = sfx_analysis::modal::extract(&audio, count);
+            let node = sfx_analysis::modes_node_from(&modes, "modes", "hit");
             let n = node["modes"].as_array().map_or(0, Vec::len);
-            let text = format!(
+            let mut text = format!(
                 "{n} mode(s) from {} ({} Hz, {:.2} s); add it with an excitation named `hit`:\n{}\n",
                 a.file,
                 audio.sample_rate,
                 audio.seconds(),
                 serde_json::to_string(&node).unwrap_or_default()
             );
-            Ok(Out::text(text).with_json(node))
+            if let Ok(over) = sfx_analysis::modal::modes_over_db(&audio, &node)
+                && over > sfx_analysis::modal::MODES_OVER_DB
+            {
+                text += &format!(
+                    "WARNING these modes play {over:.0} dB louder than the recording from a unit impulse: {}\n",
+                    sfx_analysis::modal::not_modal_advice(&node)
+                );
+            }
+            let Some(name) = a.residual else {
+                return Ok(Out::text(text).with_json(node));
+            };
+            let file = std::path::Path::new(&name);
+            if !sfx_graph::node::is_file(&name) || file.components().count() != 1 {
+                return fail(format!(
+                    "residual: `{name}`: give a file name ending in .wav (no folder): it is written into the sources folder"
+                ));
+            }
+            let Some(dir) = sources.first() else {
+                return fail("residual: no sources folder (no project and no library)");
+            };
+            let (residual, at) = plain(sfx_analysis::modal::residual_after(&audio, &node))?;
+            plain(std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display())))?;
+            let out = dir.join(file);
+            let res_audio = sfx_graph::Audio {
+                sample_rate: audio.sample_rate,
+                channels: vec![residual],
+            };
+            plain(wav::write(&out, &res_audio, wav::Bits::Float32))?;
+            let peak = |x: &[f32]| x.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+            let rec_peak = peak(&audio.mix_mono());
+            let res_peak = peak(&res_audio.channels[0]);
+            let rebuild = serde_json::json!([
+                {"type": "impulse", "name": "hit", "at": at},
+                node,
+                {"type": "sample", "name": "residual", "file": name},
+                {"type": "mix", "name": "rebuild", "inputs": ["modes", "residual"]}
+            ]);
+            if at < 0.0049 {
+                text += &format!(
+                    "the recording has only {:.1} ms before its hit: give the output fade_in 0.0005, or the default 2 ms fade-in cuts the hit\n",
+                    at * 1000.0
+                );
+            }
+            text += &format!(
+                "residual (the recording minus these modes as the resonators play them, from its onset; peak {:.1} dB under the recording's; retuning the modes later leaves their old partials in it) written to {}\nrebuild = modes + residual (the residual keeps {:.1} ms of lead-in, so the impulse fires at {at:.4} s and the default fade-in misses the hit; the sample is found by name in the sources folder):\n{}\n",
+                sfx_graph::gain_to_db(rec_peak.max(1e-9)) - sfx_graph::gain_to_db(res_peak.max(1e-9)),
+                out.display(),
+                at * 1000.0,
+                serde_json::to_string(&rebuild).unwrap_or_default()
+            );
+            Ok(Out::text(text).with_json(serde_json::json!({"modes": node, "residual": out, "rebuild": rebuild})))
         })
         .await
     }
@@ -740,7 +826,9 @@ impl Tools {
         .await
     }
 
-    /// Saved sounds: action list, describe (name), save (your active sound,
+    /// Saved sounds: action list, sources (the WAVs in the sources folders:
+    /// recordings and impulse responses nodes find by file name),
+    /// describe (name), save (your active sound,
     /// with description / tags / prompt), load (name; force replaces an open
     /// one), delete (name), close (an open sound; force drops unsaved work).
     #[tool]
@@ -909,6 +997,8 @@ const INSTRUCTIONS: &str = r#"Operating guidance for this sound server:
 - Verify with sound_ops expect or verify; read the FAIL text, it says what to change. Defaults: finite, peak_db <= -0.3, silent_edges (loop: loop_seam), dc, rebuild (+ macros). verify {checks: ["clicks"]} adds checks that need no settings to the defaults (finite peak_db true_peak_db silent_edges clicks dc loop_seam variations (4 seeds) rebuild macros), verify {only: ["clicks"]} runs just them, and verify {seeds: N} (2..8) re-renders seeds 1..N and groups the results by seed (a plain verify checks only the doc's seed), and `expect` (verify's and sound_ops's, same shape) takes checks with settings: {"duration": {"min": 0.4, "max": 1.2}, "onsets": {"min": 1, "max": 3, "spacing_ms": 5, "gap": [0.15, 0.3]} (events closer than 40 ms merge unless spacing_ms is lower: 5 counts dense ticks; gap bounds every spacing between hits, leave 10 ms margin), "lufs": {"min": -20, "max": -14}, "pitch": {"hz": 440}, "clicks": true, "variations": {"seeds": 4, "peak_spread_db": 1}} (variations compares the sample peak when the output uses peak_db, else the loudness: lufs_spread). Also in expect: bands, reference {file, max_distance}, and the synthesis checks aliasing (true or {max_db}), inharmonicity {min, max} cents, modulation {rate_hz, mode "amplitude" or "pitch"}, roughness {min, max} percent. For a hit, slam, knock or blow add verify {checks: ["layers"]} (the impact preset: weight 15-60 % of the energy under 200 Hz, body 30-80 % at 200 Hz-2 kHz, crack >= 1.5 % above 2 kHz, voiced <= 0.3, at most 1 strong partial ringing over 0.6 s, crest <= 23 dB, no reverb / convolve); each FAIL names the layer to add. expect layers {preset, weight, body, crack {min, max}, voiced_max, ringing_max, crest_db, tail_ms {min, max}, dry} overrides one measure. summary warns when 80 % of a oneshot's energy sits in one role band.
 - listen's table has: level, time (attack, decay, silence), onsets (40 ms merge) and fine onsets (5 ms, with a time list), the one-line `swell/attack (the headline)`, an onset table (time, strength, attack, -20 dB ms, -60 dB ms (`>N`: still sounding at the next onset), centroid, pitch start>end per hit; `n/a` for inharmonic or unvoiced hits, `glide up/down` for 8-60 ms bursts), a `closely spaced events` line (pairs within 20 ms), modes ("N ignored: slower than the sound"), an `inharmonic:` line from partial ratios (the separate inharmonicity line uses an older method: they can disagree), an `events:` line (strong / weak hits, last event), density (events/s; "density estimate" when ticks overlap) and density by tenth, pitch and pitch by tenth, whole-sound centroid / rolloff / flatness (full-band, and of the occupied band: a band-limited texture reads low then high; verify has no check for it, read the lines at the knob's ends with sweep), energy shares, centroid by tenth, the 8 octave-band x 5 time-segment dB table, attack detail, steadiness (loops), and aliasing / inharmonicity / modulation / roughness lines. Use zoom {t: [from_s, to_s], hz: [low, high]} (either key alone) for attacks (with t the text describes that window, times counted from a), diff after a change, sweep {param, values} to tile a knob, reference (a WAV) for a distance in words.
 - Macros are the knobs the human turns to fit the sound by ear. Every sound you build ships with at least one, unasked (a sound with none is unfinished; summary says so): pick the dimension(s) that give the most useful control while staying inside what the user requested (the brief sets the default value and the range ends; never a knob that turns it into a different sound), usually the 1-2 fields that dominate the character (size / pitch, brightness, length, density, intensity). After the sound works, add 1-4 with sound_ops macros: name each with an adjective (brightness, weight, grit, snap, length), map it to the fields it moves with sensible from / to ranges. `claim` [measure, direction] is optional (a knob without one is not swept): centroid, decay, crest, lufs, flatness, swing, inharmonicity, roughness, density (events/s; holds to ~500/s, the counter caps near 590), attack (ms), spacing (median gap between hits, s), ring (ms, median per-hit fall to -20 dB, each hit stopped at the next onset; falls as modal loss rises): layer level -> lufs only with a peak_db output (else flatness or no claim), filter -> centroid, envelope time -> attack / decay, event spacing -> spacing / density, per-hit ring in a knock or typewriter -> ring; decay only for single-hit sounds; decay / swing / crest misread multi-hit sounds: leave the claim off there. Under a density knob a pattern with jitter counts steadier than a poisson. An output.lufs target renormalizes level, so a loudness knob with claim lufs cannot move: use peak_db or another claim. verify sweeps each claimed knob and fails a name that does not do what it says or a knob that barely moves it (under 2 %: widen the map), and sound_ops sweeps a new macro at once and reports a position that fails to render. A map entry may also write a sound param ({"param": "size", "from": 0, "to": 1}); a patch node is addressed as {"node": "voices_name/patch_node", "field": ...} (every voice sees it; the "driven by macro" warning does not look inside patches), or declare a param, use it in the patch and map {"param"}. Env / curve points: {"field": "points", "index": 1, "key": "x" or "y"}; expr initial state: {"field": "state", "key": "y1"}. To replace a macro in one call, list its name in both delete_macros and macros. game: true exports a knob as a runtime input. Read the human's knob moves in summary and keep them as new defaults.
+- Reference sets: <project>/refs/<set>/ holds several recordings of one kind of sound. listen {reference_set: "door_slam"} gives the distance to each (nearest against the set's own spread: one recording is a poor target, real recordings sit ~10 dB apart) and eight features (weight / body / crack energy, crest, tail, centroid, voiced, ringing) against the span the recordings cover; verify expect reference_set {set, max_distance?} fails each feature outside it, with the fix.
+- Recordings and impulse responses: a relative file (sample file, grains / cloud source, convolve ir, listen / verify reference, extract_modes file) is looked for in the project, then <project>/assets/sources/, then <library>/sources/ (by path, then by file name); catalog {action: "sources"} lists them. convolve resamples an IR at another rate. extract_modes {file, residual: "x.wav"} also writes the recording minus the modes into the sources folder and returns a rebuild (impulse + resonators + sample of the residual) that sums back to the recording. Use only material the project may use (own recordings, CC0).
 - Several agents may share one server: each keeps its own active sound; pass doc when working on a specific one. undo refuses another agent's step unless force.
 - history / undo / redo / jump move a history tree; one sound_ops call is one step.
 - export writes WAVs and a manifest into <project>/assets/sounds/ (variations: N warns when no node reads the seed and the files are identical); catalog saves a sound for later.

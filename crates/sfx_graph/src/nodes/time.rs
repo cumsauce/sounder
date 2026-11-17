@@ -237,7 +237,9 @@ impl Eval for Reverb {
 #[serde(deny_unknown_fields)]
 pub struct Convolve {
     pub input: In,
-    /// A WAV file (".wav") or a node whose output is the response.
+    /// A WAV file (".wav", resampled to the sound's rate; relative paths
+    /// resolve against the project, then the sources folders) or a node
+    /// whose output is the response.
     pub ir: String,
     /// Wet share 0..1 (default 1: only the convolved signal).
     #[serde(default)]
@@ -259,13 +261,9 @@ impl Eval for Convolve {
         let input = cx.audio("input", &self.input)?;
         let ir: Vec<Vec<f32>> = if is_file(&self.ir) {
             let a = crate::wav::read(&cx.path(&self.ir)).map_err(|e| format!("ir: {e}"))?;
-            if a.sample_rate as f32 != cx.sr {
-                return Err(format!(
-                    "ir: {} is {} Hz but the sound is {} Hz: resample the file or set the sound's sample_rate",
-                    self.ir, a.sample_rate, cx.sr
-                ));
-            }
-            a.channels
+            // A response recorded at another rate is resampled to the
+            // sound's (windowed sinc), so a 44.1 or 96 kHz IR works as is.
+            crate::wav::resample(&a, cx.sr.round() as u32).channels
         } else {
             let s = cx.audio("ir", &In::Name(self.ir.clone()))?;
             s.channels(cx.n)

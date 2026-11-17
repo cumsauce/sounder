@@ -283,3 +283,109 @@ pub fn extract(audio: &Audio, count: usize) -> Vec<FitMode> {
     out.sort_by(|a, b| a.hz.total_cmp(&b.hz));
     out
 }
+
+/// Recording kept before the onset in a residual, seconds: the output's
+/// default 2 ms fade-in then falls on that quiet lead-in, not on the hit.
+const RESIDUAL_PREROLL_S: f32 = 0.005;
+
+/// What a `resonators` node of modes (`node`, reading an input named `hit`)
+/// misses of `audio`. Returns the residual and the time (seconds) to strike
+/// the modes at: the residual is the recording (mono mix) from 5 ms before
+/// its onset (less if the file starts sooner), minus the node's response to
+/// a unit impulse at that time, at the recording's rate. Played from 0 with
+/// the impulse at the returned time, the two sum back to the recording, so
+/// the residual holds the hit's noise, rattle and room, and also the
+/// difference between the real partials and the fitted ones: retuning the
+/// modes afterwards leaves those differences at the old pitch.
+pub fn residual_after(audio: &Audio, node: &serde_json::Value) -> Result<(Vec<f32>, f32), String> {
+    let x = audio.mix_mono();
+    let t0 = onset(&x);
+    let pre = t0.min((RESIDUAL_PREROLL_S * audio.sample_rate as f32) as usize);
+    let tail = &x[t0 - pre..];
+    let at = pre as f32 / audio.sample_rate as f32;
+    let name = node
+        .get("name")
+        .and_then(serde_json::Value::as_str)
+        .ok_or("residual: the modes node has no name")?
+        .to_string();
+    let nodes = vec![
+        serde_json::json!({"type": "impulse", "name": "hit", "at": at}),
+        node.clone(),
+    ];
+    let ctx = sfx_graph::Ctx {
+        sample_rate: audio.sample_rate,
+        n: tail.len().max(1),
+        ..sfx_graph::Ctx::default()
+    };
+    let ev = sfx_graph::evaluate(&nodes, &sfx_graph::Params::new(), &ctx, false)?;
+    let buf = ev.buf(&name)?;
+    let modes = match &*buf {
+        sfx_graph::Buf::Audio(v) => v.clone(),
+        other => return Err(format!("residual: the modes node made {}", other.kind())),
+    };
+    let peak = |v: &[f32]| v.iter().fold(0.0f32, |m, s| m.max(s.abs()));
+    let over = sfx_graph::gain_to_db(peak(&modes).max(1e-12))
+        - sfx_graph::gain_to_db(peak(tail).max(1e-12));
+    if over > MODES_OVER_DB {
+        return Err(format!(
+            "the modes play {over:.0} dB louder than the recording, so a residual would be noise at that level: {}",
+            not_modal_advice(node)
+        ));
+    }
+    Ok((tail.iter().zip(&modes).map(|(r, m)| r - m).collect(), at))
+}
+
+/// How far (dB) the modes' impulse response may peak over the recording
+/// before `residual_after` refuses and `extract_modes` warns.
+pub const MODES_OVER_DB: f32 = 6.0;
+
+/// Why fitted modes can play louder than the recording, and what to do.
+pub fn not_modal_advice(node: &serde_json::Value) -> String {
+    let hz: Vec<f64> = node["modes"]
+        .as_array()
+        .map(|a| a.iter().filter_map(|m| m[0].as_f64()).collect())
+        .unwrap_or_default();
+    let close: Vec<String> = hz
+        .windows(2)
+        .filter(|w| (w[1] - w[0]) / w[0] < 0.04)
+        .map(|w| format!("{:.0} and {:.0} Hz", w[0], w[1]))
+        .collect();
+    format!(
+        "{}the fit cancels partials against each other with phases the `resonators` do not keep (they all start at the impulse). The recording is not a clean struck object (a slam, a noisy hit): use it as a `sample` layer instead, or try a smaller `count`",
+        if close.is_empty() {
+            String::new()
+        } else {
+            format!("partials close together ({}): ", close.join(", "))
+        }
+    )
+}
+
+/// The modes' impulse response peak over the recording's (after its onset),
+/// dB: 0 means the rebuild plays at the recording's level.
+pub fn modes_over_db(audio: &Audio, node: &serde_json::Value) -> Result<f32, String> {
+    let x = audio.mix_mono();
+    let t0 = onset(&x);
+    let tail = &x[t0..];
+    let name = node
+        .get("name")
+        .and_then(serde_json::Value::as_str)
+        .ok_or("the modes node has no name")?
+        .to_string();
+    let nodes = vec![
+        serde_json::json!({"type": "impulse", "name": "hit", "at": 0}),
+        node.clone(),
+    ];
+    let ctx = sfx_graph::Ctx {
+        sample_rate: audio.sample_rate,
+        n: tail.len().max(1),
+        ..sfx_graph::Ctx::default()
+    };
+    let ev = sfx_graph::evaluate(&nodes, &sfx_graph::Params::new(), &ctx, false)?;
+    let modes = match &*ev.buf(&name)? {
+        sfx_graph::Buf::Audio(v) => v.clone(),
+        other => return Err(format!("the modes node made {}", other.kind())),
+    };
+    let peak = |v: &[f32]| v.iter().fold(0.0f32, |m, s| m.max(s.abs()));
+    Ok(sfx_graph::gain_to_db(peak(&modes).max(1e-12))
+        - sfx_graph::gain_to_db(peak(tail).max(1e-12)))
+}

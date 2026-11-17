@@ -104,3 +104,51 @@ pub fn read(path: &Path) -> Result<Audio, String> {
         channels,
     })
 }
+
+/// `audio` at `sr` (windowed-sinc, Blackman window of 48 taps each side; the
+/// cutoff drops to the lower Nyquist when downsampling).
+pub fn resample(audio: &Audio, sr: u32) -> Audio {
+    if audio.sample_rate == sr || audio.is_empty() {
+        return Audio {
+            sample_rate: sr,
+            channels: audio.channels.clone(),
+        };
+    }
+    let ratio = f64::from(audio.sample_rate) / f64::from(sr);
+    let cutoff = (1.0 / ratio).min(1.0);
+    const HALF: isize = 48;
+    let n_out = (audio.len() as f64 / ratio).round() as usize;
+    let channels = audio
+        .channels
+        .iter()
+        .map(|x| {
+            (0..n_out)
+                .map(|i| {
+                    let pos = i as f64 * ratio;
+                    let c = pos.floor() as isize;
+                    let mut acc = 0.0f64;
+                    for j in (c - HALF + 1)..=(c + HALF) {
+                        if j < 0 || j as usize >= x.len() {
+                            continue;
+                        }
+                        let d = pos - j as f64;
+                        let u = d * cutoff;
+                        let sinc = if u.abs() < 1e-9 {
+                            1.0
+                        } else {
+                            (std::f64::consts::PI * u).sin() / (std::f64::consts::PI * u)
+                        };
+                        let ph = std::f64::consts::PI * d / (HALF as f64 + 1.0);
+                        let w = 0.42 + 0.5 * ph.cos() + 0.08 * (2.0 * ph).cos();
+                        acc += f64::from(x[j as usize]) * sinc * cutoff * w;
+                    }
+                    acc as f32
+                })
+                .collect()
+        })
+        .collect();
+    Audio {
+        sample_rate: sr,
+        channels,
+    }
+}

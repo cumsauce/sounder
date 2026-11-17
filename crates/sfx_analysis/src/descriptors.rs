@@ -1722,6 +1722,15 @@ impl Descriptors {
 /// reproduces the recording's level (see [`crate::modal`]).
 pub fn modes_node(audio: &Audio, count: usize, name: &str, input: &str) -> serde_json::Value {
     let modes = crate::modal::extract(audio, count.clamp(1, 32));
+    modes_node_from(&modes, name, input)
+}
+
+/// The `resonators` node of fitted modes (four significant digits).
+pub fn modes_node_from(
+    modes: &[crate::modal::FitMode],
+    name: &str,
+    input: &str,
+) -> serde_json::Value {
     // Four significant digits.
     let sig = |v: f32| {
         if v <= 0.0 {

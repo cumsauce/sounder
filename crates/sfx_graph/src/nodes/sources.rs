@@ -407,7 +407,8 @@ impl Eval for Impulse {
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Sample {
-    /// A WAV in the project (relative paths resolve against the project).
+    /// A WAV: relative paths resolve against the project, then the sources
+    /// folders (`<project>/assets/sources/`, `<library>/sources/`).
     pub file: String,
     /// Seconds into the file to start from (default 0).
     #[serde(default)]
@@ -438,7 +439,7 @@ impl Eval for Sample {
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let path = cx.path(&self.file);
         let audio = crate::wav::read(&path)
-            .map_err(|e| format!("file: {e} (put the WAV in the project and give its path)"))?;
+            .map_err(|e| format!("file: {e} (put the WAV in the project or a sources folder, <project>/assets/sources/, and give its path as `catalog sources` lists it)"))?;
         let rate = cx.mono_or("rate", &self.rate, 1.0)?;
         let step = audio.sample_rate as f64 / f64::from(cx.sr);
         let len = audio.len();

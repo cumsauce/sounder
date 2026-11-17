@@ -23,10 +23,11 @@ pub mod modal;
 pub mod pitch;
 pub mod raster;
 pub mod reference;
+pub mod refset;
 pub mod stft;
 pub mod view;
 
 pub use checks::{CheckCx, CheckResult, Expect, report, run};
-pub use descriptors::{Descriptors, describe, modes_node};
+pub use descriptors::{Descriptors, describe, modes_node, modes_node_from};
 pub use image::{Column, DiffColumn, View, listen_png, listen_png_diff};
 pub use reference::{Comparison, compare};

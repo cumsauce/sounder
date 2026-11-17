@@ -417,3 +417,98 @@ fn extract_modes_handles_fast_decays_and_close_pairs() {
     // The 30 ms mode reads 30 ms (not smeared by the analysis window).
     assert!((rows[0][1] - 0.03).abs() < 0.01, "decay {}", rows[0][1]);
 }
+
+/// Modes plus the residual (`residual_after`) rebuild the recording
+/// closer than the modes alone, most of all when the modes miss part of it.
+/// Both renders use the same output (`fade_in` 0.0005: this recording's hit
+/// starts 15 samples in, so the default 2 ms fade would cut it).
+#[test]
+fn the_residual_restores_what_the_modes_miss() {
+    let dir = std::env::temp_dir().join(format!("sounder_residual_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let original = struck(modes(), None, 0.8);
+    let render = |nodes: Vec<Value>, out: &str| {
+        let mut d = SoundDoc::named("rebuilt");
+        d.nodes = nodes;
+        d.nodes
+            .push(json!({"type": "output", "name": "out", "input": out, "fade_in": 0.0005}));
+        d.duration = Some(0.8);
+        // The residual sits in a sources folder, found by file name.
+        d.render(&RenderOpts {
+            sources: vec![dir.clone()],
+            ..RenderOpts::default()
+        })
+        .unwrap()
+        .audio
+    };
+    for count in [5, 2] {
+        let node = sfx_analysis::modes_node(&original, count, "modes", "hit");
+        let (residual, at) = sfx_analysis::modal::residual_after(&original, &node).unwrap();
+        let file = format!("residual_{count}.wav");
+        wav::write(
+            &dir.join(&file),
+            &Audio {
+                sample_rate: original.sample_rate,
+                channels: vec![residual],
+            },
+            wav::Bits::Float32,
+        )
+        .unwrap();
+        let hit = json!({"type": "impulse", "name": "hit", "at": at});
+        let only =
+            compare(&render(vec![hit.clone(), node.clone()], "modes"), &original).distance_db;
+        let both = render(
+            vec![
+                hit,
+                node.clone(),
+                json!({"type": "sample", "name": "residual", "file": file}),
+                json!({"type": "mix", "name": "rebuild", "inputs": ["modes", "residual"]}),
+            ],
+            "rebuild",
+        );
+        let with = compare(&both, &original).distance_db;
+        eprintln!("{count} modes: alone {only:.2} dB, with the residual {with:.2} dB");
+        assert!(with < only, "{count} modes: {with} vs {only}");
+        assert!(
+            with < 0.5,
+            "{count} modes: modes + residual {with} dB from the recording"
+        );
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A noisy, non-modal hit (band-passed noise under a decay) fits as close
+/// partials whose phases cancel: the rebuild would play far louder than the
+/// recording, so `residual_after` refuses with the reason.
+#[test]
+fn a_non_modal_recording_gets_no_residual() {
+    let mut d = SoundDoc::named("noisy");
+    d.nodes = vec![
+        json!({"type": "noise", "name": "n", "color": "white", "seed": 3}),
+        json!({"type": "decay", "name": "e", "time": 0.8, "at": 0.01}),
+        json!({"type": "math", "name": "b", "op": "mul", "a": "n", "b": "e"}),
+        json!({"type": "filter", "name": "f", "input": "b", "mode": "bp", "freq": 300, "q": 4}),
+        json!({"type": "output", "name": "out", "input": "f", "peak_db": -1}),
+    ];
+    d.duration = Some(1.0);
+    let noisy = d.render(&RenderOpts::default()).unwrap().audio;
+    let node = sfx_analysis::modes_node(&noisy, 8, "modes", "hit");
+    let over = sfx_analysis::modal::modes_over_db(&noisy, &node).unwrap();
+    eprintln!("noisy hit: modes play {over:.1} dB over the recording");
+    match sfx_analysis::modal::residual_after(&noisy, &node) {
+        Err(e) => assert!(
+            e.contains("louder than the recording") && e.contains("sample"),
+            "{e}"
+        ),
+        Ok(_) => assert!(
+            over <= sfx_analysis::modal::MODES_OVER_DB,
+            "a residual was made though the modes play {over} dB over"
+        ),
+    }
+    // The clean struck object stays within the limit.
+    let clean = struck(modes(), None, 0.8);
+    let n2 = sfx_analysis::modes_node(&clean, 5, "modes", "hit");
+    let o2 = sfx_analysis::modal::modes_over_db(&clean, &n2).unwrap();
+    eprintln!("clean hit: modes play {o2:.1} dB over the recording");
+    assert!(o2 <= sfx_analysis::modal::MODES_OVER_DB, "{o2}");
+}

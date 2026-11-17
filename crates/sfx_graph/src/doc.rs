@@ -103,6 +103,9 @@ pub struct RenderOpts {
     pub macros: BTreeMap<String, f64>,
     /// Relative file paths (`sample`, `convolve`) resolve here.
     pub base_dir: Option<PathBuf>,
+    /// Then in these folders: the project's `assets/sources/` and the
+    /// library's `sources/` (the session fills them).
+    pub sources: Vec<PathBuf>,
     /// How `sound` nodes reach other documents (the session provides it).
     pub sounds: Option<crate::instance::SoundSource>,
     /// The documents already being rendered above this one (instance cycles).
@@ -116,6 +119,7 @@ impl Default for RenderOpts {
             seed: None,
             macros: BTreeMap::new(),
             base_dir: None,
+            sources: Vec::new(),
             sounds: None,
             stack: Vec::new(),
         }
@@ -255,6 +259,7 @@ impl SoundDoc {
             seed,
             looped,
             base_dir: opts.base_dir.clone(),
+            sources: opts.sources.clone(),
             params: eff.clone(),
             sounds: opts.sounds.clone(),
             stack: {

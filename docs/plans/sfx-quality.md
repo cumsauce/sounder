@@ -161,6 +161,24 @@ with its noise.
   of it) mixed with the `resonators`. Test in `tests/reference.rs`: STFT
   distance of modes + residual to the original is under the modes-only figure
   (0.69 dB for the five-mode case).
+- **Done (2026-11-17).** As built: `sfx_graph::node::resolve_file` (project,
+  then each sources folder by path, then by file name) behind `Cx::path`, the
+  cache key, `reference::load` and `extract_modes`; `RenderOpts.sources` /
+  `Ctx.sources` / `ExportOpts.sources` carry the folders. `catalog sources`
+  lists the WAVs (no mtime cache: computed per call on the first 10 s).
+  The residual is the recording minus the **rendered** `resonators` (not the
+  fit's own models: those carry the recording's phases while the resonators
+  start at phase 0, and subtracting them made the rebuild worse, 0.93 to
+  1.41 dB), with a 5 ms lead-in. Measured 0.22 dB modes + residual against
+  4.85 dB modes alone. The resampler moved from `sfx_analysis::reference` to
+  `sfx_graph::wav::resample` (the former now calls it).
+  Found on the real door slam: `extract_modes` fits a noisy hit as close
+  partials whose phases cancel, and the `resonators` (all starting at phase
+  0) then play them 46 dB louder than the recording. A pre-existing limit of
+  the extractor (the synthetic tests have clean, separated modes), now
+  caught: a warning over 6 dB, and `residual` refuses. Fixing the extractor
+  for noisy recordings (merge close pairs, or a resonator phase field) is
+  open.
 - Sourcing the WAVs is the human's call (own recordings or CC0); the repo
   ships none. **Open decision for the human**: which library and licence.
 
@@ -171,6 +189,17 @@ with its noise.
   (`reference::compare`, `crates/sfx_analysis/src/reference.rs:356`), report
   the nearest and the band-by-time cells that differ from the set's median.
 - AGENTS.md step 3 becomes "`listen` with a reference when the project has one".
+- **Done (2026-11-17).** As built: a separate `reference_set` (not
+  `reference: {set}`, whose `file` is required) on `listen` and `verify`.
+  Instead of the median band x time cells, eight features per recording
+  (weight / body / crack shares, crest, tail, centroid, voiced, ringing)
+  checked against the set's span with a tolerance (a quarter of the span, at
+  least a floor), plus every distance and the nearest against the set's own
+  spread (Phase 0 showed the distance saturates). On three CC0 door slams
+  (`refs/door_slam/`, local): slam_a outside on 5 features, slam_b on 3
+  (crest, centroid, ringing), slam_b2 inside on all 8. The crest floor had
+  to be 3 dB (a synthetic in-family hit read 23.3 dB against a 19.6-20.9
+  span: noise crest moves with the seed).
 - Out of scope here, noted for later: an audio-capable critic model or an
   embedding distance. Needs an external service; decide separately.
 

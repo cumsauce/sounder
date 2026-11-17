@@ -309,6 +309,7 @@ fn export_opts(dir: PathBuf, variations: u32) -> export::ExportOpts {
         bits: wav::Bits::Int16,
         sample_rate: None,
         base_dir: None,
+        sources: Vec::new(),
         sounds: None,
         catalog_name: None,
     }
