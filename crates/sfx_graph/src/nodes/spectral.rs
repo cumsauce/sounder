@@ -242,6 +242,303 @@ fn finite(v: Vec<f32>) -> Vec<f32> {
         .collect()
 }
 
+/// Median of a non-empty slice (reorders it).
+fn median(v: &mut [f32]) -> f32 {
+    let m = v.len() / 2;
+    *v.select_nth_unstable_by(m, f32::total_cmp).1
+}
+
+/// A real-FFT length for whole-signal processing: at least `2 n + extra`,
+/// a power of two, so circular wrap-around stays in the zero padding.
+fn big_len(n: usize, extra: usize) -> usize {
+    (2 * n + extra).max(1024).next_power_of_two()
+}
+
+/// Largest `|time|` (seconds) `smear` takes.
+const MAX_SMEAR_S: f32 = 2.0;
+/// Median kernel limits for `hps`, in frames and bins.
+const MAX_KERNEL: usize = 101;
+const DEFAULT_KERNEL: usize = 17;
+/// Largest `inharmonicity` `stretch` takes.
+const MAX_INHARM: f32 = 2.0;
+
+/// Frequency shift: every component moves by `hz[i]` Hz (single sideband:
+/// the analytic signal times a complex exponential). Components that would
+/// leave 0..Nyquist are removed before the shift, so nothing folds.
+fn shift_channel(x: &[f32], hz: &[f32], sr: f32) -> Result<Vec<f32>, String> {
+    let n = x.len();
+    let m = big_len(n, 0);
+    let mut planner = RealFftPlanner::<f32>::new();
+    let (fwd, inv) = (planner.plan_fft_forward(m), planner.plan_fft_inverse(m));
+    let mut buf = vec![0.0f32; m];
+    buf[..n].copy_from_slice(x);
+    let mut spec = fwd.make_output_vec();
+    fwd.process(&mut buf, &mut spec)
+        .map_err(|e| format!("fft: {e}"))?;
+    let (hmin, hmax) = hz
+        .iter()
+        .fold((0.0f32, 0.0f32), |(lo, hi), &h| (lo.min(h), hi.max(h)));
+    let nyq = sr / 2.0;
+    let mut re = spec.clone();
+    let mut hil = spec;
+    let last = re.len() - 1;
+    for k in 0..=last {
+        let f = k as f32 * sr / m as f32;
+        let keep = f + hmax < nyq && f + hmin >= 0.0;
+        if !keep {
+            re[k] = Complex::new(0.0, 0.0);
+            hil[k] = Complex::new(0.0, 0.0);
+        } else if k == 0 || k == last {
+            re[k].im = 0.0;
+            hil[k] = Complex::new(0.0, 0.0);
+        } else {
+            // Hilbert: multiply by -j.
+            hil[k] = Complex::new(hil[k].im, -hil[k].re);
+        }
+    }
+    let g = 1.0 / m as f32;
+    let mut xb = vec![0.0f32; m];
+    let mut hb = vec![0.0f32; m];
+    inv.process(&mut re, &mut xb)
+        .map_err(|e| format!("fft: {e}"))?;
+    inv.process(&mut hil, &mut hb)
+        .map_err(|e| format!("fft: {e}"))?;
+    let mut phase = 0.0f64;
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        let (s, c) = phase.sin_cos();
+        out.push((xb[i] as f64 * c - hb[i] as f64 * s) as f32 * g);
+        phase += std::f64::consts::TAU * hz[i] as f64 / sr as f64;
+        phase -= std::f64::consts::TAU * (phase / std::f64::consts::TAU).floor();
+    }
+    Ok(out)
+}
+
+/// Dispersion: an allpass whose group delay rises linearly from 0 at DC to
+/// `time` seconds at Nyquist (negative: falls). Magnitudes are untouched.
+fn smear_channel(x: &[f32], time: f32, sr: f32) -> Result<Vec<f32>, String> {
+    let n = x.len();
+    let extra = (time.abs() * sr).ceil() as usize + 1;
+    let m = big_len(n, extra);
+    let mut planner = RealFftPlanner::<f32>::new();
+    let (fwd, inv) = (planner.plan_fft_forward(m), planner.plan_fft_inverse(m));
+    let mut buf = vec![0.0f32; m];
+    buf[..n].copy_from_slice(x);
+    let mut spec = fwd.make_output_vec();
+    fwd.process(&mut buf, &mut spec)
+        .map_err(|e| format!("fft: {e}"))?;
+    let last = spec.len() - 1;
+    for (k, z) in spec.iter_mut().enumerate() {
+        let r = k as f64 / m as f64;
+        let theta = -std::f64::consts::TAU * f64::from(time) * r * r * f64::from(sr);
+        let rot = Complex::new(theta.cos() as f32, theta.sin() as f32);
+        *z *= rot;
+        if k == 0 || k == last {
+            z.im = 0.0;
+        }
+    }
+    inv.process(&mut spec, &mut buf)
+        .map_err(|e| format!("fft: {e}"))?;
+    let g = 1.0 / m as f32;
+    Ok(buf[..n].iter().map(|v| v * g).collect())
+}
+
+/// Inharmonic warp: each spectral peak moves from `f` to
+/// `f * sqrt(1 + b * (f / f0)^2)` (the stiff-string law: partial n of a
+/// harmonic series at `f0` lands at `n f0 sqrt(1 + b n^2)`), keeping each
+/// peak's phase advance at the new frequency (peak picking, identity phase
+/// locking, bins moved by whole-bin shifts). Peaks warped past Nyquist are
+/// dropped.
+fn warp(st: &Stft, x: &[f32], sr: f32, b: f32, f0: f32, len: usize) -> Result<Vec<f32>, String> {
+    let (n, ha) = (st.n, st.hop);
+    let mut frames = st.analyze(x)?;
+    let bins = n / 2 + 1;
+    let mut prev_ana = vec![0.0f32; bins];
+    let mut syn = vec![0.0f32; bins];
+    let mut ana = vec![0.0f32; bins];
+    let mut mag = vec![0.0f32; bins];
+    for (f, spec) in frames.iter_mut().enumerate() {
+        for k in 0..bins {
+            mag[k] = spec[k].norm();
+            ana[k] = spec[k].arg();
+        }
+        let peaks: Vec<usize> = (0..bins)
+            .filter(|&k| {
+                mag[k] > 0.0
+                    && (k.saturating_sub(2)..(k + 3).min(bins)).all(|j| j == k || mag[j] < mag[k])
+            })
+            .collect();
+        let mut next = vec![0.0f32; bins];
+        let mut out_mag = vec![0.0f32; bins];
+        let mut out_ph = vec![0.0f32; bins];
+        for (pi, &p) in peaks.iter().enumerate() {
+            let lo = if pi == 0 {
+                0
+            } else {
+                (peaks[pi - 1] + p) / 2 + 1
+            };
+            let hi = if pi + 1 == peaks.len() {
+                bins - 1
+            } else {
+                (p + peaks[pi + 1]) / 2
+            };
+            let wp = TAU * p as f32 / n as f32;
+            let w_in = if f == 0 {
+                wp
+            } else {
+                wp + wrap(ana[p] - prev_ana[p] - wp * ha as f32) / ha as f32
+            };
+            let hz = f64::from(w_in) / std::f64::consts::TAU * f64::from(sr);
+            let hz2 = if hz > 0.0 {
+                let r = hz / f64::from(f0);
+                hz * (1.0 + f64::from(b) * r * r).sqrt()
+            } else {
+                hz
+            };
+            let w_out = (hz2 / f64::from(sr) * std::f64::consts::TAU) as f32;
+            let dropped = !(w_out.is_finite() && w_out < std::f32::consts::PI);
+            let shift = if dropped {
+                0
+            } else {
+                ((w_out - w_in) * n as f32 / TAU).round() as isize
+            };
+            let sp = if f == 0 || dropped {
+                ana[p]
+            } else {
+                wrap(syn[p] + w_out * ha as f32)
+            };
+            for k in lo..=hi {
+                let ph = wrap(sp + ana[k] - ana[p]);
+                next[k] = ph;
+                let t = k as isize + shift;
+                if !dropped && t >= 0 && (t as usize) < bins && mag[k] > out_mag[t as usize] {
+                    out_mag[t as usize] = mag[k];
+                    out_ph[t as usize] = ph;
+                }
+            }
+        }
+        syn = if peaks.is_empty() { ana.clone() } else { next };
+        for k in 0..bins {
+            spec[k] = Complex::from_polar(out_mag[k], out_ph[k]);
+        }
+        prev_ana.copy_from_slice(&ana);
+    }
+    st.synth(frames, st.hop, st.n, len, |_| 1.0)
+}
+
+/// Harmonic / percussive separation (median filtering of the magnitude
+/// spectrogram, Fitzgerald 2010): a median over time (`kernel` frames) keeps
+/// steady partials, a median over frequency (`kernel` bins) keeps clicks.
+/// Soft masks `h^2 / (h^2 + p^2)` and its complement, so the two outputs sum
+/// to the input.
+fn hps_channel(
+    st: &Stft,
+    x: &[f32],
+    kernel: usize,
+    len: usize,
+) -> Result<(Vec<f32>, Vec<f32>), String> {
+    let frames = st.analyze(x)?;
+    let bins = st.n / 2 + 1;
+    let nf = frames.len();
+    let r = kernel / 2;
+    let mags: Vec<Vec<f32>> = frames
+        .iter()
+        .map(|f| f.iter().map(|z| z.norm()).collect())
+        .collect();
+    // Harmonic estimate: the median over time, bin by bin.
+    let mut h = vec![vec![0.0f32; bins]; nf];
+    let mut col = vec![0.0f32; nf];
+    let mut scratch = Vec::with_capacity(kernel);
+    for k in 0..bins {
+        for m in 0..nf {
+            col[m] = mags[m][k];
+        }
+        for m in 0..nf {
+            scratch.clear();
+            scratch.extend_from_slice(&col[m.saturating_sub(r)..=(m + r).min(nf - 1)]);
+            h[m][k] = median(&mut scratch);
+        }
+    }
+    // Percussive estimate: the median over frequency, frame by frame.
+    let mut hf = frames.clone();
+    let mut pf = frames;
+    for m in 0..nf {
+        for k in 0..bins {
+            scratch.clear();
+            scratch.extend_from_slice(&mags[m][k.saturating_sub(r)..=(k + r).min(bins - 1)]);
+            let p = median(&mut scratch);
+            let (hh, pp) = (h[m][k] * h[m][k], p * p);
+            let den = hh + pp;
+            let mh = if den > 1e-20 { hh / den } else { 0.5 };
+            hf[m][k] *= mh;
+            pf[m][k] *= 1.0 - mh;
+        }
+    }
+    let harm = finite(st.synth(hf, st.hop, st.n, len, |_| 1.0)?);
+    let perc = finite(st.synth(pf, st.hop, st.n, len, |_| 1.0)?);
+    Ok((harm, perc))
+}
+
+/// Cepstral spectral envelope (log magnitude, low quefrencies only) of a
+/// magnitude spectrum of `n` points, `q` quefrency samples kept.
+fn envelope(
+    fwd: &Arc<dyn RealToComplex<f32>>,
+    mag: &[f32],
+    n: usize,
+    q: usize,
+) -> Result<Vec<f32>, String> {
+    let bins = n / 2 + 1;
+    let mut l = vec![0.0f32; n];
+    for j in 0..n {
+        l[j] = mag[j.min(n - j)].max(1e-7).ln();
+    }
+    let mut c = fwd.make_output_vec();
+    fwd.process(&mut l, &mut c)
+        .map_err(|e| format!("fft: {e}"))?;
+    // c is real (l is even): the cepstrum times n. Lifter with a short
+    // half-cosine taper over the last quarter.
+    let taper = (q / 4).max(1);
+    let w = |i: usize| {
+        if i < q - taper {
+            1.0
+        } else if i < q {
+            0.5 + 0.5 * (std::f32::consts::PI * (i - (q - taper)) as f32 / taper as f32).cos()
+        } else {
+            0.0
+        }
+    };
+    let mut lc = vec![0.0f32; n];
+    for j in 0..n {
+        let i = j.min(n - j);
+        lc[j] = c[i].re * w(i);
+    }
+    let mut e = fwd.make_output_vec();
+    fwd.process(&mut lc, &mut e)
+        .map_err(|e| format!("fft: {e}"))?;
+    Ok((0..bins).map(|k| e[k].re / n as f32).collect())
+}
+
+/// Multiplies `shifted` by the ratio of the spectral envelope of `orig` to
+/// its own, frame by frame, so the formant peaks stay where they were.
+fn keep_envelope(st: &Stft, orig: &[f32], shifted: &[f32], sr: f32) -> Result<Vec<f32>, String> {
+    let fa = st.analyze(orig)?;
+    let mut fb = st.analyze(shifted)?;
+    let q = ((sr / 500.0).round() as usize).clamp(4, st.n / 2);
+    let mut planner = RealFftPlanner::<f32>::new();
+    let fwd = planner.plan_fft_forward(st.n);
+    let mag = |f: &Spec| f.iter().map(|z| z.norm()).collect::<Vec<f32>>();
+    for (a, b) in fa.iter().zip(fb.iter_mut()) {
+        let ea = envelope(&fwd, &mag(a), st.n, q)?;
+        let eb = envelope(&fwd, &mag(b), st.n, q)?;
+        for (k, z) in b.iter_mut().enumerate() {
+            // Clamp the correction to +-30 dB.
+            let g = (ea[k] - eb[k]).clamp(-3.45, 3.45).exp();
+            *z *= g;
+        }
+    }
+    Ok(finite(st.synth(fb, st.hop, st.n, shifted.len(), |_| 1.0)?))
+}
+
 /// Changes pitch without changing length.
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -256,11 +553,16 @@ pub struct PitchShift {
     /// FFT window in samples, a power of two (default 2048).
     #[serde(default)]
     pub window: Option<usize>,
+    /// true: put the input's spectral envelope (a cepstral estimate, about
+    /// 500 Hz resolution) back on the shifted sound, so formants stay where
+    /// they were while the pitch moves (default false; at most +-30 dB of
+    /// correction per bin).
+    #[serde(default)]
+    pub formant: bool,
 }
 
 impl Describe for PitchShift {
-    const BLURB: &'static str =
-        "phase-vocoder pitch shift by semitones or ratio, same length (acausal)";
+    const BLURB: &'static str = "phase-vocoder pitch shift by semitones or ratio, same length, optional formant keeping (acausal)";
     fn example() -> serde_json::Value {
         serde_json::json!({"input": "src", "semitones": -5})
     }
@@ -296,9 +598,12 @@ impl Eval for PitchShift {
         for c in input.channels(cx.n) {
             let longer = (c.len() as f64 * eff).ceil() as usize + 4;
             let s = stretch(&st, &c, hs, cutoff, longer)?;
-            chans.push(finite(
-                (0..cx.n).map(|i| cubic(&s, i as f64 * eff)).collect(),
-            ));
+            let shifted = finite((0..cx.n).map(|i| cubic(&s, i as f64 * eff)).collect());
+            chans.push(if self.formant {
+                keep_envelope(&st, &c, &shifted, cx.sr)?
+            } else {
+                shifted
+            });
         }
         Ok(one(Buf::from_channels(chans)))
     }
@@ -359,9 +664,18 @@ pub enum SpectralMode {
     Gate,
     /// Interpolate magnitudes between `input` and `other` by `amount`.
     Morph,
+    /// Move every component up (or down) by `hz` Hz: sidebands, not a pitch
+    /// ratio, so harmonic sounds turn inharmonic.
+    Shift,
+    /// Warp partials to the stiff-string law `f sqrt(1 + inharmonicity (f / f0)^2)`.
+    Stretch,
+    /// Disperse in time: highs arrive `time` seconds after lows.
+    Smear,
+    /// Split into steady (`harmonic`) and transient (`percussive`) parts.
+    Hps,
 }
 
-/// Spectral edits on an STFT: freeze, blur, gate, morph.
+/// Spectral edits on an STFT: freeze, blur, gate, morph, shift, stretch, smear, hps.
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Spectral {
@@ -390,6 +704,28 @@ pub struct Spectral {
     /// freeze: mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
+    /// shift: Hz to move every component by, a number or a signal, from
+    /// -sr/2 to sr/2 (negative moves down). Components that would leave
+    /// 0..Nyquist are removed, not folded. No `window`: it runs on the whole
+    /// signal.
+    #[serde(default)]
+    pub hz: Option<In>,
+    /// stretch: inharmonicity coefficient b, 0..2 (default 0.01): partial n of
+    /// a series at `f0` moves to n f0 sqrt(1 + b n^2). 0 leaves the sound
+    /// (up to the vocoder's reconstruction).
+    #[serde(default)]
+    pub inharmonicity: Option<f32>,
+    /// stretch: the series' base frequency in Hz, 1..0.49 sr (default 100).
+    #[serde(default)]
+    pub f0: Option<f32>,
+    /// smear: seconds of group delay at Nyquist (0 at DC, linear between),
+    /// -2..2; negative sends the highs first. Energy is kept; whatever lands
+    /// past the document's end is cut, so give a `duration`. No `window`.
+    #[serde(default)]
+    pub time: Option<f32>,
+    /// hps: median kernel in frames and bins, odd, 3..101 (default 17).
+    #[serde(default)]
+    pub kernel: Option<usize>,
 }
 
 impl Spectral {
@@ -406,7 +742,7 @@ impl Spectral {
 }
 
 impl Describe for Spectral {
-    const BLURB: &'static str = "spectrum edits: freeze (hold a moment as texture), blur, gate (zero quiet bins), morph (toward another node) (acausal)";
+    const BLURB: &'static str = "spectrum edits: freeze, blur, gate, morph, shift (Hz), stretch (inharmonic warp), smear (dispersion), hps (ports harmonic / percussive) (acausal)";
     fn example() -> serde_json::Value {
         serde_json::json!({"input": "src", "mode": "freeze", "at": 0.1, "length": 0.15})
     }
@@ -425,6 +761,17 @@ impl Eval for Spectral {
         self.only("length", self.length.is_some(), Freeze)?;
         self.only("threshold_db", self.threshold_db.is_some(), Gate)?;
         self.only("other", self.other.is_some(), Morph)?;
+        self.only("hz", self.hz.is_some(), Shift)?;
+        self.only("inharmonicity", self.inharmonicity.is_some(), Stretch)?;
+        self.only("f0", self.f0.is_some(), Stretch)?;
+        self.only("time", self.time.is_some(), Smear)?;
+        self.only("kernel", self.kernel.is_some(), Hps)?;
+        if self.window.is_some() && matches!(self.mode, Shift | Smear) {
+            return Err(format!(
+                "field `window` is not used by mode {:?} (it runs on the whole signal): remove it",
+                self.mode
+            ));
+        }
         if self.amount.is_some() && !matches!(self.mode, Blur | Morph) {
             return Err(format!(
                 "field `amount` is only for modes Blur and Morph, not {:?}: remove it",
@@ -576,6 +923,80 @@ impl Eval for Spectral {
                     }
                     chans.push(finite(st.synth(fa, st.hop, st.n, cx.n, |_| 1.0)?));
                 }
+            }
+            Shift => {
+                let hz_in = self.hz.as_ref().ok_or("shift needs `hz` (Hz)")?;
+                let hz = cx.mono("hz", hz_in)?;
+                let limit = cx.sr / 2.0;
+                if let Some(h) = hz.constant()
+                    && !(h.is_finite() && h.abs() <= limit)
+                {
+                    return Err(format!(
+                        "hz: {h}: give a number between -{limit} and {limit} Hz (half the sample rate)"
+                    ));
+                }
+                let hs: Vec<f32> = (0..cx.n)
+                    .map(|i| {
+                        let h = hz.at(i);
+                        if h.is_finite() {
+                            h.clamp(-limit, limit)
+                        } else {
+                            0.0
+                        }
+                    })
+                    .collect();
+                for c in input.channels(cx.n) {
+                    chans.push(finite(shift_channel(&c, &hs, cx.sr)?));
+                }
+            }
+            Stretch => {
+                let b = self.inharmonicity.unwrap_or(0.01);
+                if !(b.is_finite() && (0.0..=MAX_INHARM).contains(&b)) {
+                    return Err(format!(
+                        "inharmonicity: {b}: give a number from 0 to {MAX_INHARM}"
+                    ));
+                }
+                let f0 = self.f0.unwrap_or(100.0);
+                if !(f0.is_finite() && f0 >= 1.0 && f0 <= 0.49 * cx.sr) {
+                    return Err(format!(
+                        "f0: {f0}: give a frequency from 1 to {} Hz (0.49 of the sample rate)",
+                        0.49 * cx.sr
+                    ));
+                }
+                for c in input.channels(cx.n) {
+                    chans.push(finite(warp(&st, &c, cx.sr, b, f0, cx.n)?));
+                }
+            }
+            Smear => {
+                let t = self.time.ok_or("smear needs `time` (seconds)")?;
+                if !(t.is_finite() && t.abs() <= MAX_SMEAR_S) {
+                    return Err(format!(
+                        "time: {t}: give seconds from -{MAX_SMEAR_S} to {MAX_SMEAR_S}"
+                    ));
+                }
+                for c in input.channels(cx.n) {
+                    chans.push(finite(smear_channel(&c, t, cx.sr)?));
+                }
+            }
+            Hps => {
+                let kernel = self.kernel.unwrap_or(DEFAULT_KERNEL);
+                if !(3..=MAX_KERNEL).contains(&kernel) || kernel % 2 == 0 {
+                    return Err(format!(
+                        "kernel: {kernel}: give an odd number from 3 to {MAX_KERNEL} (default {DEFAULT_KERNEL})"
+                    ));
+                }
+                let (mut hs, mut ps) = (Vec::new(), Vec::new());
+                for c in input.channels(cx.n) {
+                    let (h, p) = hps_channel(&st, &c, kernel, cx.n)?;
+                    hs.push(h);
+                    ps.push(p);
+                }
+                let harmonic = Buf::from_channels(hs);
+                return Ok(vec![
+                    ("out", harmonic.clone()),
+                    ("harmonic", harmonic),
+                    ("percussive", Buf::from_channels(ps)),
+                ]);
             }
         }
         Ok(one(Buf::from_channels(chans)))
