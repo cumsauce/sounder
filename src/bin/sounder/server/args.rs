@@ -100,11 +100,19 @@ pub(crate) struct ListenArgs {
     /// Zoom the picture: {"t": [0, 0.1], "hz": [200, 4000]}.
     #[serde(default)]
     pub(crate) zoom: Option<ZoomArg>,
-    /// A WAV to compare against (arrives with phase 4).
+    /// A WAV to compare the sound against (relative paths resolve against the
+    /// project, or give an absolute one). The reference is resampled, aligned
+    /// by its first onset and scaled to the sound's loudness; the image is
+    /// [sound, reference, difference] (difference: blue = the sound is
+    /// quieter than the reference, red = louder, grey = same, +-24 dB) and the
+    /// text gives the STFT distance (dB, 0 = identical), the 5 biggest band x
+    /// time differences in words, and length / attack / decay / centroid
+    /// differences. Not with seeds, sweep or diff.
     #[serde(default)]
     pub(crate) reference: Option<String>,
     /// Show the previous render of this same request beside this one, and
-    /// their difference.
+    /// the difference spectrogram (now minus before, in dB: blue = quieter
+    /// now, red = louder now, grey = same).
     #[serde(default)]
     pub(crate) diff: Option<bool>,
     /// Include the descriptor table (default true).

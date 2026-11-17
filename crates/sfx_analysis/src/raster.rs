@@ -204,6 +204,19 @@ pub fn colormap(t: f32) -> [u8; 4] {
     [c(0) as u8, c(1) as u8, c(2) as u8, 255]
 }
 
+/// The diverging colour map of difference spectrograms at `t` in -1..1: blue
+/// for negative (quieter than the reference), grey at 0 (the same), red for
+/// positive (louder).
+pub fn colormap_diverging(t: f32) -> [u8; 4] {
+    const GREY: [f32; 3] = [112.0, 112.0, 118.0];
+    const BLUE: [f32; 3] = [30.0, 110.0, 255.0];
+    const RED: [f32; 3] = [255.0, 70.0, 40.0];
+    let t = t.clamp(-1.0, 1.0);
+    let (end, f) = if t < 0.0 { (BLUE, -t) } else { (RED, t) };
+    let c = |j: usize| (GREY[j] + (end[j] - GREY[j]) * f) as u8;
+    [c(0), c(1), c(2), 255]
+}
+
 /// A colour for series `i` (waveform, loudness, labels), readable on the
 /// dark background.
 pub fn series(i: usize) -> [u8; 4] {

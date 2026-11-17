@@ -5,7 +5,7 @@
 
 use sfx_graph::{Audio, gain_to_db, loudness};
 
-use crate::raster::{Canvas, colormap, series};
+use crate::raster::{Canvas, colormap, colormap_diverging, series};
 use crate::stft::{self, db};
 
 /// Pixel budget of one image.
@@ -36,6 +36,38 @@ pub struct Column<'a> {
     pub audio: &'a Audio,
 }
 
+/// The difference column: the spectrogram shows `a` minus `b` in dB
+/// (diverging colours: blue = `a` quieter, red = louder), the waveform and
+/// loudness curve show the sample difference `a - b`.
+pub struct DiffColumn<'a> {
+    pub label: String,
+    pub a: &'a Audio,
+    pub b: &'a Audio,
+}
+
+/// Largest dB difference the diverging map saturates at.
+pub const DIFF_RANGE_DB: f32 = 24.0;
+
+/// `a - b` sample by sample (the shorter padded with silence; a mono side
+/// is repeated on both channels of a stereo one).
+pub fn residual(a: &Audio, b: &Audio) -> Audio {
+    let n = a.len().max(b.len());
+    let k = a.channels.len().max(b.channels.len());
+    let at = |x: &Audio, c: usize, i: usize| {
+        x.channels
+            .get(c.min(x.channels.len().saturating_sub(1)))
+            .and_then(|ch| ch.get(i))
+            .copied()
+            .unwrap_or(0.0)
+    };
+    Audio {
+        sample_rate: a.sample_rate,
+        channels: (0..k)
+            .map(|c| (0..n).map(|i| at(a, c, i) - at(b, c, i)).collect())
+            .collect(),
+    }
+}
+
 /// Width of each column so `cols` columns fit the budget.
 fn column_width(cols: usize) -> usize {
     let cols = cols.max(1);
@@ -44,13 +76,28 @@ fn column_width(cols: usize) -> usize {
 
 /// Renders columns side by side and returns the PNG.
 pub fn listen_png(cols: &[Column], view: View) -> Result<Vec<u8>, String> {
-    if cols.is_empty() {
+    listen_png_diff(cols, None, view)
+}
+
+/// [`listen_png`] with an optional last column showing a dB difference.
+pub fn listen_png_diff(
+    cols: &[Column],
+    diff: Option<&DiffColumn>,
+    view: View,
+) -> Result<Vec<u8>, String> {
+    let total = cols.len() + usize::from(diff.is_some());
+    if total == 0 {
         return Err("nothing to show".into());
     }
-    let w = column_width(cols.len());
-    let mut c = Canvas::new(w * cols.len(), PANEL_H, BG);
-    for (k, col) in cols.iter().enumerate() {
-        let p = panel(col, w, view);
+    let w = column_width(total);
+    let mut c = Canvas::new(w * total, PANEL_H, BG);
+    let res = diff.map(|d| residual(d.a, d.b));
+    for k in 0..total {
+        let p = match (cols.get(k), diff, &res) {
+            (Some(col), _, _) => panel(&col.label, col.audio, None, w, view),
+            (None, Some(d), Some(r)) => panel(&d.label, r, Some((d.a, d.b)), w, view),
+            _ => break,
+        };
         c.blit(&p, k * w, 0);
         if k > 0 {
             c.line(
@@ -62,6 +109,71 @@ pub fn listen_png(cols: &[Column], view: View) -> Result<Vec<u8>, String> {
         }
     }
     c.to_png()
+}
+
+/// Power per pixel (x-major, SPEC_H rows) of `seg`'s spectrogram.
+fn spec_grid(
+    seg: &[f32],
+    sr: u32,
+    win: usize,
+    hop: usize,
+    span: f32,
+    pw: usize,
+    y_hz: &dyn Fn(usize) -> f32,
+) -> Vec<f32> {
+    let spec = stft::stft(seg, sr, win, hop);
+    let mut out = vec![0.0f32; pw * SPEC_H];
+    for x in 0..pw {
+        let a0 = (x as f32 * span / hop as f32) as usize;
+        let a1 = (((x + 1) as f32 * span / hop as f32) as usize)
+            .max(a0 + 1)
+            .min(spec.frames.len());
+        if a0 >= spec.frames.len() {
+            break;
+        }
+        let avg = spec.mean(a0..a1);
+        for y in 0..SPEC_H {
+            let (hi, lo) = (y_hz(y), y_hz(y + 1));
+            let (b0, b1) = (spec.bin(lo), spec.bin(hi));
+            out[x * SPEC_H + y] = if b1 > b0 + 1 {
+                avg[b0..b1].iter().copied().fold(0.0, f32::max)
+            } else {
+                // Interpolate between bins at low frequencies.
+                let fb = 0.5 * (lo + hi) * spec.win as f32 / sr as f32;
+                let k = (fb.floor() as usize).min(avg.len() - 2);
+                let f = fb - k as f32;
+                avg[k] + (avg[k + 1] - avg[k]) * f
+            };
+        }
+    }
+    out
+}
+
+/// The colour scale of a difference spectrogram, top right of its panel.
+fn legend(c: &mut Canvas, right: usize, top: usize) {
+    let (bw, bh) = (120usize, 8usize);
+    let x0 = right.saturating_sub(bw + 4);
+    for i in 0..bw {
+        let t = i as f32 / (bw - 1) as f32 * 2.0 - 1.0;
+        c.rect(x0 + i, top + 20, 1, bh, colormap_diverging(t));
+    }
+    let lo = format!("-{DIFF_RANGE_DB:.0}");
+    let hi = format!("+{DIFF_RANGE_DB:.0} dB");
+    c.text(x0, top + 30, &lo, 1);
+    c.text(x0 + bw / 2 - 3, top + 30, "0", 1);
+    c.text(
+        (x0 + bw).saturating_sub(Canvas::text_width(&hi, 1)),
+        top + 30,
+        &hi,
+        1,
+    );
+    let key = "BLUE QUIETER  RED LOUDER";
+    c.text(
+        right.saturating_sub(Canvas::text_width(key, 1) + 4),
+        top + 4,
+        key,
+        1,
+    );
 }
 
 fn nice_step(span: f32, ticks: f32) -> f32 {
@@ -87,8 +199,13 @@ fn fmt_t(t: f32, step: f32) -> String {
     }
 }
 
-fn panel(col: &Column, w: usize, view: View) -> Canvas {
-    let a = col.audio;
+fn panel(
+    label: &str,
+    a: &Audio,
+    spec_diff: Option<(&Audio, &Audio)>,
+    w: usize,
+    view: View,
+) -> Canvas {
     let sr = a.sample_rate;
     let mut c = Canvas::new(w, PANEL_H, BG);
     let mono = a.mix_mono();
@@ -105,7 +222,7 @@ fn panel(col: &Column, w: usize, view: View) -> Canvas {
     let lufs = loudness::integrated(&a.channels, sr);
     let title = format!(
         "{}  {:.2}s  pk {:.1}  {:.1} LUFS",
-        col.label,
+        label,
         total,
         gain_to_db(a.peak()),
         lufs
@@ -120,32 +237,36 @@ fn panel(col: &Column, w: usize, view: View) -> Canvas {
     let win = crate::descriptors::window_for(seg.len(), sr);
     let span = (seg.len() as f32 / pw as f32).max(1.0);
     let hop = ((span as usize).min(win / 4)).max(1);
-    let spec = stft::stft(seg, sr, win, hop);
     let y_hz = |y: usize| f0 * (f1 / f0).powf(1.0 - y as f32 / SPEC_H as f32);
+    let grid = spec_grid(seg, sr, win, hop, span, pw, &y_hz);
+    let other = spec_diff.map(|(x, y)| {
+        let part = |au: &Audio| {
+            let m = au.mix_mono();
+            let (s0, s1) = (i0.min(m.len()), i1.min(m.len()));
+            let mut v = m[s0..s1].to_vec();
+            v.resize(i1 - i0, 0.0);
+            spec_grid(&v, sr, win, hop, span, pw, &y_hz)
+        };
+        (part(x), part(y))
+    });
     for x in 0..pw {
-        let a0 = (x as f32 * span / hop as f32) as usize;
-        let a1 = (((x + 1) as f32 * span / hop as f32) as usize)
-            .max(a0 + 1)
-            .min(spec.frames.len());
-        if a0 >= spec.frames.len() {
-            break;
-        }
-        let avg = spec.mean(a0..a1);
         for y in 0..SPEC_H {
-            let (hi, lo) = (y_hz(y), y_hz(y + 1));
-            let (b0, b1) = (spec.bin(lo), spec.bin(hi));
-            let p = if b1 > b0 + 1 {
-                avg[b0..b1].iter().copied().fold(0.0, f32::max)
-            } else {
-                // Interpolate between bins at low frequencies.
-                let fb = 0.5 * (lo + hi) * spec.win as f32 / sr as f32;
-                let k = (fb.floor() as usize).min(avg.len() - 2);
-                let f = fb - k as f32;
-                avg[k] + (avg[k + 1] - avg[k]) * f
+            let colour = match &other {
+                None => colormap((db(grid[x * SPEC_H + y]) + 90.0) / 90.0),
+                Some((pa, pb)) => {
+                    let (da, db_) = (db(pa[x * SPEC_H + y]), db(pb[x * SPEC_H + y]));
+                    if da < -75.0 && db_ < -75.0 {
+                        colormap_diverging(0.0)
+                    } else {
+                        colormap_diverging((da.max(-90.0) - db_.max(-90.0)) / DIFF_RANGE_DB)
+                    }
+                }
             };
-            let v = (db(p) + 90.0) / 90.0;
-            c.set((AXIS_W + x) as i64, (top + y) as i64, colormap(v));
+            c.set((AXIS_W + x) as i64, (top + y) as i64, colour);
         }
+    }
+    if other.is_some() {
+        legend(&mut c, AXIS_W + pw, top);
     }
     // Octave grid (true octaves of 1 kHz) with nominal labels.
     const OCTAVES: [(f32, &str); 10] = [
