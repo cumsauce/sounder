@@ -156,13 +156,22 @@ fn ring(out: &mut [f32], b: &Pop, sr: f32, wrap: bool, rise_rate: f32, onset: us
 ///
 /// Every bubble rings with a pitch rise of `SPLASH_RISE` (a third of
 /// `water`'s), so a ring does not climb back into the band the cloud left.
-fn splash_buffer(size: f32, rng: &mut Rng, sr: f32) -> Vec<f32> {
+///
+/// `tail` (1 = as above, bit-identical) scales the cloud: its window `W` and
+/// its bubble count go times `tail` (the main bubble stays at the end of the
+/// window, so it comes later). `burst` (1 = as above) scales the burst's
+/// amplitude against the main bubble.
+fn splash_buffer(size: f32, tail: f32, burst_level: f32, rng: &mut Rng, sr: f32) -> Vec<f32> {
     let scale = (size / 0.05).max(1e-3);
     let r_main = (0.12 * size).clamp(1e-3, MAX_SPLASH_RADIUS_MM * 1e-3);
     let rmin = min_radius(sr);
     let r_top = r_main.max(rmin);
-    let window = 0.06 + 0.12 * scale.sqrt();
-    let count = (10.0 + 18.0 * scale.sqrt()).round().clamp(6.0, 80.0) as usize;
+    let mut window = 0.06 + 0.12 * scale.sqrt();
+    let mut count = (10.0 + 18.0 * scale.sqrt()).round().clamp(6.0, 80.0) as usize;
+    if tail != 1.0 {
+        window *= tail.max(0.05);
+        count = (count as f32 * tail).round() as usize;
+    }
     let t0 = LEAD + 0.004;
     let mut pops = vec![Pop {
         start: ((t0 + MAIN_AT * window) * sr) as usize,
@@ -214,7 +223,7 @@ fn splash_buffer(size: f32, rng: &mut Rng, sr: f32) -> Vec<f32> {
     let lead = (LEAD * sr) as usize;
     for (i, o) in out.iter_mut().enumerate().skip(lead).take(burst) {
         let e = (-((i - lead) as f32) / (tau * sr)).exp();
-        *o += BURST_AMP * e * lp.tick(rng.signed());
+        *o += BURST_AMP * burst_level * e * lp.tick(rng.signed());
     }
     let peak = out.iter().fold(0.0f32, |m, v| m.max(v.abs()));
     if peak > 0.0 {
@@ -276,6 +285,15 @@ pub struct Water {
     /// raise `splash` and `flow`, or crossfade.
     #[serde(default, rename = "loop")]
     pub looped: Option<bool>,
+    /// Tone, 0..1 (default 0.5, as before, bit-identical): a high shelf at
+    /// 2 kHz of up to +-12 dB (`(tone - 0.5) * 24` dB) over everything the
+    /// node makes (the hiss, the bubble pops and the splashes): 1 is 12 dB
+    /// brighter above 2 kHz, 0 is 12 dB darker. It is part of the render
+    /// (primed from the end of the buffer in a loop), so a loop stays
+    /// periodic; a filter after the node would not. The level is not
+    /// re-normalised. A number.
+    #[serde(default)]
+    pub tone: Option<f32>,
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
@@ -321,6 +339,7 @@ impl Eval for Water {
         };
         let depth = unit("depth", self.depth, 0.5)?;
         let splash = unit("splash", self.splash, 0.0)?;
+        let tone = unit("tone", self.tone, 0.5)?;
         let density = self.density.unwrap_or(300.0);
         if !(density.is_finite() && (0.0..=MAX_DENSITY).contains(&density)) {
             return Err(format!(
@@ -376,7 +395,7 @@ impl Eval for Water {
                 let f = clamp_flow(flow.at(i));
                 if f > 0.0 && srng.unit() < splash * f * 4.0 / sr {
                     let size = 0.02 * 6.0f32.powf(srng.unit());
-                    let seg = splash_buffer(size, &mut srng, sr);
+                    let seg = splash_buffer(size, 1.0, 1.0, &mut srng, sr);
                     for (k, v) in seg.iter().enumerate() {
                         let mut j = i + k;
                         if j >= n {
@@ -437,6 +456,28 @@ impl Eval for Water {
         for (i, o) in out.iter_mut().enumerate() {
             *o += shaped[i] * norm * HISS_RMS * clamp_flow(flow.at(i));
         }
+        if tone != 0.5 {
+            // A 2 kHz high shelf, +-12 dB. In a loop the filter is primed
+            // with the end of the (periodic) buffer, so the start has the
+            // state it would have had after one more lap.
+            let mut shelf = Biquad::new();
+            shelf.set(
+                FilterMode::HighShelf,
+                2000.0f32.min(0.4 * sr),
+                0.707,
+                (tone - 0.5) * 24.0,
+                sr,
+            );
+            if looped {
+                let pre = n.min((0.25 * sr) as usize);
+                for &x in &out[n - pre..] {
+                    shelf.tick(x);
+                }
+            }
+            for v in &mut out {
+                *v = shelf.tick(*v);
+            }
+        }
         Ok(one(Buf::Audio(out)))
     }
 }
@@ -461,6 +502,19 @@ pub struct Splash {
     /// Seconds into the sound the splash happens (default 0).
     #[serde(default)]
     pub at: Option<f32>,
+    /// 0..3, the bubble cloud after the burst (default 1, as before, bit-
+    /// identical): its length and its bubble count are times `tail`, so 2 is
+    /// a cloud twice as long with twice as many bubbles (and the main cavity
+    /// bubble, which ends the cloud, comes later); 0 is no cloud. A splash
+    /// never rings past 2.5 s.
+    #[serde(default)]
+    pub tail: Option<f32>,
+    /// 0..2, the level of the opening burst against the main cavity bubble
+    /// (default 1, as before, bit-identical). 2 makes the burst the loudest
+    /// moment; 0 drops it. The splash is then levelled to its usual peak, so
+    /// a louder burst makes everything after it quieter.
+    #[serde(default)]
+    pub burst: Option<f32>,
     /// Mixed with the document seed and the node name (default 0: another
     /// seed is another splash of the same size).
     #[serde(default)]
@@ -470,7 +524,7 @@ pub struct Splash {
 impl Describe for Splash {
     const BLURB: &'static str = "one splash: a bright brief burst, then bubbles growing in size (the centroid falls) ending in the main cavity bubble (Minnaert); size in metres; peak levelled to -6 dBFS";
     fn example() -> serde_json::Value {
-        serde_json::json!({"size": 0.08, "at": 0.05, "seed": 1})
+        serde_json::json!({"size": 0.08, "at": 0.05, "tail": 1.5, "burst": 1.5, "seed": 1})
     }
 }
 
@@ -489,8 +543,20 @@ impl Eval for Splash {
             ));
         }
         let at = non_negative("at", self.at.unwrap_or(0.0))?;
+        let tail = self.tail.unwrap_or(1.0);
+        if !(0.0..=3.0).contains(&tail) {
+            return Err(format!(
+                "tail: {tail}: give 0..3 (1 = the cloud as it is, 2 = twice as long and as many bubbles, 0 = no cloud)"
+            ));
+        }
+        let burst = self.burst.unwrap_or(1.0);
+        if !(0.0..=2.0).contains(&burst) {
+            return Err(format!(
+                "burst: {burst}: give 0..2 (1 = as it is; 2 = the opening burst twice the level of the cavity bubble, so the loudest moment)"
+            ));
+        }
         let mut rng = cx.rng(self.seed);
-        let seg = splash_buffer(size, &mut rng, cx.sr);
+        let seg = splash_buffer(size, tail, burst, &mut rng, cx.sr);
         let start = cx.at(at);
         let mut v = vec![0.0f32; cx.n];
         let room = cx.n - start;

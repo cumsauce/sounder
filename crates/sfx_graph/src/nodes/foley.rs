@@ -862,6 +862,15 @@ pub struct Thunder {
     /// re-normalised.
     #[serde(default)]
     pub rumble: Option<f32>,
+    /// 0..1, an exponential fade of the whole output (default 0, off, bit-
+    /// identical to before): from the first sound the gain falls in dB,
+    /// linearly, reaching `-40 * tail` dB at the end of the audible tail
+    /// (the last sample over -60 dB of the peak, measured after `length` and
+    /// `rumble`) and carrying on at the same slope after it. 1 is -40 dB at
+    /// the end, 0.5 is -20 dB; the -20 dB time shortens as `tail` rises.
+    /// Applied before `exposure`, `brightness` and `amp`.
+    #[serde(default)]
+    pub tail: Option<f32>,
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
@@ -988,6 +997,25 @@ fn add_rumble(x: &mut [f32], amount: f32, sr: f32, rng: &mut Rng) {
     }
 }
 
+/// Fades `x` exponentially from its first sound: `-40 * amount` dB at the
+/// last sample over -60 dB of the peak (see `Thunder::tail`).
+fn fade_tail(x: &mut [f32], amount: f32) {
+    let Some(a) = x.iter().position(|v| *v != 0.0) else {
+        return;
+    };
+    let peak = x.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+    let Some(end) = x.iter().rposition(|v| v.abs() > BED_TAIL * peak) else {
+        return;
+    };
+    if end <= a {
+        return;
+    }
+    let per_sample = -40.0 * amount / (end - a) as f32;
+    for (k, v) in x[a..].iter_mut().enumerate() {
+        *v *= 10f32.powf(per_sample * k as f32 / 20.0);
+    }
+}
+
 impl Describe for Thunder {
     const BLURB: &'static str = "one flash of thunder from its distance (foley's N-wave model): clap, then rumble; silent until the sound arrives";
     fn example() -> serde_json::Value {
@@ -1050,6 +1078,15 @@ impl Eval for Thunder {
             // A stream of its own: the draws above are untouched.
             let mut bed_rng = cx.rng(self.seed ^ 0x5255_4d42_4c45);
             add_rumble(&mut x, rumble, cx.sr, &mut bed_rng);
+        }
+        let tail = self.tail.unwrap_or(0.0);
+        if !(0.0..=1.0).contains(&tail) {
+            return Err(format!(
+                "tail: {tail}: give 0..1 (0 = foley's tail as it is, 1 = faded by 40 dB at the end of the audible tail)"
+            ));
+        }
+        if tail > 0.0 {
+            fade_tail(&mut x, tail);
         }
         if exposure < 1.0 {
             let cutoff = 20_000.0 * (200.0f32 / 20_000.0).powf(1.0 - exposure);
