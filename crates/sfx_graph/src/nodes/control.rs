@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 use super::{CurveSpec, mono, non_negative, one, per_channel};
 use crate::dsp::interp;
-use crate::node::{Cx, Eval, In, Outs};
+use crate::node::{Cx, Describe, Eval, In, Outs};
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "lowercase")]
@@ -40,6 +40,13 @@ pub struct Lfo {
     /// Map -1..1 onto [lo, hi] (default: -1..1).
     #[serde(default)]
     pub range: Option<[f32; 2]>,
+}
+
+impl Describe for Lfo {
+    const BLURB: &'static str = "low-frequency oscillator, -1..1 or a range";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"shape": "sine", "freq": 6, "range": [0.8, 1.2]})
+    }
 }
 
 impl Eval for Lfo {
@@ -82,6 +89,13 @@ pub struct Wander {
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
+}
+
+impl Describe for Wander {
+    const BLURB: &'static str = "smooth random motion at a rate (seeded), -1..1 or a range";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"rate": 3, "range": [200, 800], "seed": 2})
+    }
 }
 
 impl Eval for Wander {
@@ -130,6 +144,13 @@ pub struct SampleHold {
     pub trigger: Option<In>,
 }
 
+impl Describe for SampleHold {
+    const BLURB: &'static str = "samples the input at a rate or on a trigger and holds it";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "noise1", "rate": 20})
+    }
+}
+
 impl Eval for SampleHold {
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let input = cx.mono("input", &self.input)?;
@@ -175,6 +196,13 @@ pub struct Slew {
     pub down: f32,
 }
 
+impl Describe for Slew {
+    const BLURB: &'static str = "limits how fast a signal may rise and fall";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "steps", "up": 0.01, "down": 0.05})
+    }
+}
+
 impl Eval for Slew {
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let input = cx.audio("input", &self.input)?;
@@ -215,6 +243,14 @@ pub struct Ramp {
     /// Seconds before the sweep starts (holds `from` until then; default 0).
     #[serde(default)]
     pub at: Option<f32>,
+}
+
+impl Describe for Ramp {
+    const BLURB: &'static str =
+        "a sweep from one value to another over time (pitch drops, filter sweeps)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"from": 2000, "to": 200, "time": 0.3, "curve": "exp"})
+    }
 }
 
 impl Eval for Ramp {

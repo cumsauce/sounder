@@ -5,7 +5,7 @@ use serde::Deserialize;
 use super::{one, per_channel};
 use crate::buf::Buf;
 use crate::dsp::{Follower, limiter_gain};
-use crate::node::{Cx, Eval, In, Outs};
+use crate::node::{Cx, Describe, Eval, In, Outs};
 use crate::{db_to_gain, gain_to_db};
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, schemars::JsonSchema)]
@@ -35,6 +35,13 @@ pub struct Shape {
     /// bitcrush: bits (default 8).
     #[serde(default)]
     pub bits: Option<f32>,
+}
+
+impl Describe for Shape {
+    const BLURB: &'static str = "waveshaper tanh/clip/fold/bitcrush/rectify";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "mode": "tanh", "drive": 3.0})
+    }
 }
 
 impl Eval for Shape {
@@ -84,6 +91,13 @@ pub struct Compress {
     pub knee_db: Option<f32>,
 }
 
+impl Describe for Compress {
+    const BLURB: &'static str = "feed-forward compressor";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "threshold_db": -18, "ratio": 4, "attack": 0.005, "release": 0.1})
+    }
+}
+
 impl Eval for Compress {
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let input = cx.audio("input", &self.input)?;
@@ -128,6 +142,13 @@ pub struct Limit {
     /// Seconds to recover after a peak (default 0.05).
     #[serde(default)]
     pub release: Option<f32>,
+}
+
+impl Describe for Limit {
+    const BLURB: &'static str = "lookahead peak limiter";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "ceiling_db": -1})
+    }
 }
 
 impl Eval for Limit {

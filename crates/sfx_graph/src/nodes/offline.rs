@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 use super::{non_negative, one};
 use crate::buf::Buf;
-use crate::node::{Cx, Eval, In, Outs};
+use crate::node::{Cx, Describe, Eval, In, Outs};
 use crate::{db_to_gain, loudness};
 
 /// Plays the input backwards.
@@ -14,6 +14,13 @@ use crate::{db_to_gain, loudness};
 #[serde(deny_unknown_fields)]
 pub struct Reverse {
     pub input: In,
+}
+
+impl Describe for Reverse {
+    const BLURB: &'static str = "plays the input backwards";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "verb"})
+    }
 }
 
 impl Eval for Reverse {
@@ -71,6 +78,13 @@ pub struct Normalize {
     pub lufs: Option<f32>,
 }
 
+impl Describe for Normalize {
+    const BLURB: &'static str = "scales to a peak or a loudness";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "peak_db": -1})
+    }
+}
+
 impl Eval for Normalize {
     fn causal(&self) -> bool {
         false
@@ -94,6 +108,13 @@ pub struct Trim {
     /// Samples below this are silence, dBFS (default -60).
     #[serde(default)]
     pub threshold_db: Option<f32>,
+}
+
+impl Describe for Trim {
+    const BLURB: &'static str = "removes leading silence (the end is padded with silence)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "threshold_db": -60})
+    }
 }
 
 impl Eval for Trim {
@@ -146,6 +167,13 @@ pub struct Fade {
     /// Fade-out seconds at the very end (default 0).
     #[serde(default)]
     pub out: Option<f32>,
+}
+
+impl Describe for Fade {
+    const BLURB: &'static str = "raised-cosine fade in and out";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "in": 0.01, "out": 0.2})
+    }
 }
 
 impl Eval for Fade {
@@ -213,6 +241,14 @@ impl Output {
             sr,
         );
         Ok(ch)
+    }
+}
+
+impl Describe for Output {
+    const BLURB: &'static str =
+        "the sound: gain, loudness target, edge fades and a ceiling limiter; exactly one";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "mix1", "lufs": -16})
     }
 }
 

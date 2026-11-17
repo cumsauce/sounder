@@ -11,7 +11,7 @@ use serde::Deserialize;
 
 use super::{mono, non_negative, one, per_channel, positive};
 use crate::dsp::{Resonator, max_hz};
-use crate::node::{Cx, Eval, In, Outs};
+use crate::node::{Cx, Describe, Eval, In, Outs};
 
 /// A material: one of foley's names, or the plate's physical constants.
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
@@ -174,6 +174,14 @@ pub struct Modal {
     pub seed: u64,
 }
 
+impl Describe for Modal {
+    const BLURB: &'static str = "a struck plate: excite audio rings modes computed from material, size and strike position (bigger = lower)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"excite": "contact1", "material": "wood", "size": 0.5,
+            "strike_position": 0.3, "modes": 48})
+    }
+}
+
 impl Eval for Modal {
     fn random(&self) -> bool {
         true
@@ -228,6 +236,13 @@ pub struct Contact {
     /// When the pulse starts, seconds (default 0).
     #[serde(default)]
     pub at: Option<f32>,
+}
+
+impl Describe for Contact {
+    const BLURB: &'static str = "the force pulse of a strike (Hertz contact time: heavier, slower, softer = longer, duller); excites modal";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"speed": 1.5, "mass": 0.2, "material": "wood", "hardness": 0.7, "at": 0.0})
+    }
 }
 
 impl Eval for Contact {
@@ -298,6 +313,13 @@ fn stick_slip(ph: f32) -> f32 {
     } else {
         let u = (ph - STICK) / (1.0 - STICK);
         1.0 - 2.0 * 0.5 * (1.0 - (PI * u).cos())
+    }
+}
+
+impl Describe for Friction {
+    const BLURB: &'static str = "stick-slip sawtooth whose rate follows speed and level follows pressure (creaks, squeaks, scrapes); excites modal";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"speed": "sweep", "pressure": 0.5, "roughness": 0.2, "grain": 200})
     }
 }
 

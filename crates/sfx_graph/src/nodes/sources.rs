@@ -5,7 +5,7 @@ use serde::Deserialize;
 use super::{OneOrMany, mono, one, positive};
 use crate::buf::Buf;
 use crate::dsp::{Osc as OscState, Wave};
-use crate::node::{Cx, Eval, In, Outs};
+use crate::node::{Cx, Describe, Eval, In, Outs};
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "lowercase")]
@@ -50,6 +50,13 @@ pub struct Osc {
     pub amp: Option<In>,
 }
 
+impl Describe for Osc {
+    const BLURB: &'static str = "band-limited oscillator (sine/saw/square/tri/pulse); freq may be a node (pitch sweeps, FM)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"shape": "saw", "freq": "sweep", "amp": 0.5})
+    }
+}
+
 impl Eval for Osc {
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let freq = cx.mono("freq", &self.freq)?;
@@ -89,6 +96,13 @@ pub struct Noise {
     /// Linear amplitude (default 1).
     #[serde(default)]
     pub amp: Option<In>,
+}
+
+impl Describe for Noise {
+    const BLURB: &'static str = "white/pink/brown/velvet noise (seeded)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"color": "pink", "seed": 3})
+    }
 }
 
 #[allow(clippy::excessive_precision)]
@@ -157,6 +171,14 @@ pub struct Impulse {
     pub amp: Option<f32>,
 }
 
+impl Describe for Impulse {
+    const BLURB: &'static str =
+        "single-sample clicks at the given times (excites resonators, comb, reverb)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"at": [0.0, 0.25]})
+    }
+}
+
 impl Eval for Impulse {
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let mut v = vec![0.0f32; cx.n];
@@ -193,6 +215,13 @@ pub struct Sample {
     /// Wrap around at the end of the file instead of falling silent.
     #[serde(default, rename = "loop")]
     pub looping: bool,
+}
+
+impl Describe for Sample {
+    const BLURB: &'static str = "a WAV file from the project, at a playback rate";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"file": "refs/knock.wav", "rate": 1.2, "start": 0.0})
+    }
 }
 
 impl Eval for Sample {

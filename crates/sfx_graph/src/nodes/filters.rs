@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use super::{one, per_channel};
 use crate::dsp::{DelayLine, FilterMode, OnePole, Resonator, Svf};
-use crate::node::{Cx, Eval, In, Outs};
+use crate::node::{Cx, Describe, Eval, In, Outs};
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "lowercase")]
@@ -51,6 +51,14 @@ pub struct Filter {
     pub gain_db: Option<In>,
 }
 
+impl Describe for Filter {
+    const BLURB: &'static str =
+        "state-variable filter lp/hp/bp/notch/peak/lowshelf/highshelf; freq and q take signals";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "mode": "lp", "freq": "cutoff_env", "q": 2.0})
+    }
+}
+
 impl Eval for Filter {
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let input = cx.audio("input", &self.input)?;
@@ -86,6 +94,13 @@ pub struct Onepole {
     pub mode: PoleMode,
     /// Cutoff, Hz.
     pub freq: In,
+}
+
+impl Describe for Onepole {
+    const BLURB: &'static str = "gentle 6 dB/oct low- or high-pass";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "mode": "hp", "freq": 120})
+    }
 }
 
 impl Eval for Onepole {
@@ -151,6 +166,13 @@ pub struct Comb {
     pub damp: Option<f32>,
 }
 
+impl Describe for Comb {
+    const BLURB: &'static str = "feedback comb (resonant pitch at freq, or echo at time)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "burst", "freq": 220, "feedback": 0.9, "damp": 0.3})
+    }
+}
+
 impl Eval for Comb {
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let input = cx.audio("input", &self.input)?;
@@ -193,6 +215,13 @@ pub struct Allpass {
     pub feedback: Option<f32>,
 }
 
+impl Describe for Allpass {
+    const BLURB: &'static str = "Schroeder allpass (diffusion, smearing transients)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "time": 0.005, "feedback": 0.6})
+    }
+}
+
 impl Eval for Allpass {
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let input = cx.audio("input", &self.input)?;
@@ -223,6 +252,13 @@ pub struct Resonators {
     pub input: In,
     /// [[hz, decay_s (to -60 dB), gain], ...].
     pub modes: Vec<[f32; 3]>,
+}
+
+impl Describe for Resonators {
+    const BLURB: &'static str = "bank of ringing modes [[hz, decay_s, gain], ...] (struck objects)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "hit", "modes": [[523, 1.2, 1.0], [1410, 0.6, 0.5], [2730, 0.3, 0.3]]})
+    }
 }
 
 impl Eval for Resonators {

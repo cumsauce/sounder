@@ -5,7 +5,7 @@ use serde::Deserialize;
 use super::{one, per_channel};
 use crate::buf::Buf;
 use crate::dsp::{DelayLine, flush};
-use crate::node::{Cx, Eval, In, Outs, is_file};
+use crate::node::{Cx, Describe, Eval, In, Outs, is_file};
 
 /// An interpolated delay.
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
@@ -20,6 +20,14 @@ pub struct Delay {
     /// Echo feedback inside the line, -0.99..0.99 (default 0: one echo).
     #[serde(default)]
     pub feedback: Option<In>,
+}
+
+impl Describe for Delay {
+    const BLURB: &'static str =
+        "interpolated delay with optional internal feedback; time may be a signal";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "time": 0.25, "feedback": 0.4})
+    }
 }
 
 impl Eval for Delay {
@@ -67,6 +75,13 @@ pub struct Reverb {
     /// Seconds before the tail starts (default 0.01).
     #[serde(default)]
     pub predelay: Option<f32>,
+}
+
+impl Describe for Reverb {
+    const BLURB: &'static str = "8-line feedback delay network; stereo out";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "size": 0.6, "decay": 1.8, "damp": 0.4, "mix": 0.3})
+    }
 }
 
 impl Eval for Reverb {
@@ -148,6 +163,13 @@ pub struct Convolve {
     /// Linear gain on the wet signal (default 1).
     #[serde(default)]
     pub gain: Option<f32>,
+}
+
+impl Describe for Convolve {
+    const BLURB: &'static str = "convolution with an impulse response (a WAV file or a node)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "ir": "refs/room_ir.wav", "mix": 0.5})
+    }
 }
 
 impl Eval for Convolve {

@@ -17,6 +17,52 @@ mod spectral;
 mod time;
 mod voices;
 
+// slot S1
+
+// slot S2
+
+// slot S3
+
+// slot S4
+
+// slot S5
+
+// slot S6
+
+// slot S7
+
+// slot S8
+
+// slot S9
+
+// slot S10
+
+// slot S11
+
+// slot S12
+
+// slot M1
+
+// slot M2
+
+// slot M3
+
+// slot M4
+
+// slot M5
+
+// slot M6
+
+// slot M7
+
+// slot M8
+
+// slot X1
+
+// slot X2
+
+// slot X3
+
 pub use control::*;
 pub use envelopes::*;
 pub use events::*;
@@ -32,6 +78,52 @@ pub use sources::*;
 pub use spectral::*;
 pub use time::*;
 pub use voices::*;
+
+// slot S1
+
+// slot S2
+
+// slot S3
+
+// slot S4
+
+// slot S5
+
+// slot S6
+
+// slot S7
+
+// slot S8
+
+// slot S9
+
+// slot S10
+
+// slot S11
+
+// slot S12
+
+// slot M1
+
+// slot M2
+
+// slot M3
+
+// slot M4
+
+// slot M5
+
+// slot M6
+
+// slot M7
+
+// slot M8
+
+// slot X1
+
+// slot X2
+
+// slot X3
 
 use serde::Deserialize;
 

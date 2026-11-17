@@ -16,7 +16,7 @@ use serde::Deserialize;
 use super::{mono, non_negative, one, per_channel, positive};
 use crate::buf::Buf;
 use crate::dsp::{FilterMode, Svf};
-use crate::node::{Cx, Eval, In, Outs};
+use crate::node::{Cx, Describe, Eval, In, Outs};
 
 /// foley takes whole-number sample rates.
 fn rate(cx: &Cx) -> u32 {
@@ -73,6 +73,13 @@ pub struct BubbleNode {
     pub seed: u64,
 }
 
+impl Describe for BubbleNode {
+    const BLURB: &'static str = "a water bubble: Minnaert resonance from radius_mm (smaller = higher), decaying, rising (foley)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"radius_mm": 2.0, "at": 0.02, "seed": 1})
+    }
+}
+
 impl Eval for BubbleNode {
     fn random(&self) -> bool {
         true
@@ -124,6 +131,13 @@ pub struct Air {
     /// Apply the 1 / distance level drop (default true); false = filter only.
     #[serde(default)]
     pub level: Option<bool>,
+}
+
+impl Describe for Air {
+    const BLURB: &'static str = "distance through air: high-frequency absorption (ISO 9613-1) and 1/distance level; distance may be a signal";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "distance": 80, "humidity": 50})
+    }
 }
 
 impl Eval for Air {
@@ -247,6 +261,13 @@ pub struct Glottis {
     pub seed: u64,
 }
 
+impl Describe for Glottis {
+    const BLURB: &'static str = "voice source: Liljencrants-Fant glottal pulse at f0 (signal), tension, breath, vibrato (foley)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"f0": 140, "tension": 0.65, "breath": 0.05, "vibrato_cents": 20, "seed": 1})
+    }
+}
+
 impl Eval for Glottis {
     fn random(&self) -> bool {
         true
@@ -360,6 +381,13 @@ pub struct Tract {
     /// Formant frequency multiplier (default 1; a signal). 1.2 = a 20 % shorter tract.
     #[serde(default)]
     pub scale: Option<In>,
+}
+
+impl Describe for Tract {
+    const BLURB: &'static str = "vocal tract: formant cascade, a vowel preset (or glide between two) or a formant list; feed it a glottis";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "vowel": "a", "vowel_to": "i", "morph": 0.5})
+    }
 }
 
 impl Eval for Tract {
@@ -486,6 +514,14 @@ pub struct Syrinx {
     pub seed: u64,
 }
 
+impl Describe for Syrinx {
+    const BLURB: &'static str =
+        "a bird: foley's call for one of 57 species, or a whistle from a pitch contour signal";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"species": "robin", "at": 0.0, "seed": 1})
+    }
+}
+
 impl Eval for Syrinx {
     fn random(&self) -> bool {
         true
@@ -590,6 +626,13 @@ pub struct Thunder {
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
+}
+
+impl Describe for Thunder {
+    const BLURB: &'static str = "one flash of thunder from its distance (foley's N-wave model): clap, then rumble; silent until the sound arrives";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"distance": 400, "exposure": 0.8, "seed": 1})
+    }
 }
 
 impl Eval for Thunder {

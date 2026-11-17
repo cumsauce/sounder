@@ -11,7 +11,7 @@ use serde::Deserialize;
 
 use super::one;
 use crate::buf::Buf;
-use crate::node::{Cx, Eval, In, Outs};
+use crate::node::{Cx, Describe, Eval, In, Outs};
 
 type Spec = Vec<Complex<f32>>;
 
@@ -258,6 +258,14 @@ pub struct PitchShift {
     pub window: Option<usize>,
 }
 
+impl Describe for PitchShift {
+    const BLURB: &'static str =
+        "phase-vocoder pitch shift by semitones or ratio, same length (acausal)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "semitones": -5})
+    }
+}
+
 impl Eval for PitchShift {
     fn causal(&self) -> bool {
         false
@@ -307,6 +315,13 @@ pub struct TimeStretch {
     /// FFT window in samples, a power of two (default 2048).
     #[serde(default)]
     pub window: Option<usize>,
+}
+
+impl Describe for TimeStretch {
+    const BLURB: &'static str = "phase-vocoder time stretch (factor > 1 = slower), cut or padded to the document length (acausal)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "factor": 1.5})
+    }
 }
 
 impl Eval for TimeStretch {
@@ -387,6 +402,13 @@ impl Spectral {
         } else {
             Ok(())
         }
+    }
+}
+
+impl Describe for Spectral {
+    const BLURB: &'static str = "spectrum edits: freeze (hold a moment as texture), blur, gate (zero quiet bins), morph (toward another node) (acausal)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "mode": "freeze", "at": 0.1, "length": 0.15})
     }
 }
 

@@ -151,6 +151,18 @@ pub trait Eval {
     }
 }
 
+/// What `describe_op` and reference scanning need to know about a node type,
+/// kept beside the node's struct.
+pub trait Describe {
+    /// One line: what the node is for.
+    const BLURB: &'static str;
+    /// Field names whose string values are words, not node references.
+    const WORDS: &'static [&'static str] = &[];
+    /// The example body, without `type` / `name`. May only reference the
+    /// stand-in names listed in design/swarm-plan.md.
+    fn example() -> serde_json::Value;
+}
+
 macro_rules! node_types {
     ($( $ty:literal => $var:ident ),* $(,)?) => {
         /// One parsed node.
@@ -174,6 +186,31 @@ macro_rules! node_types {
             match ty {
                 $($ty => Some(schemars::schema_for!($var)),)*
                 _ => None,
+            }
+        }
+
+        /// One line per type: what the node is for (its [`Describe::BLURB`]).
+        fn blurb(ty: &str) -> &'static str {
+            match ty {
+                $($ty => <$var as Describe>::BLURB,)*
+                _ => "",
+            }
+        }
+
+        /// The example body of a type (without `type` / `name`).
+        fn example_body(ty: &str) -> Option<Value> {
+            match ty {
+                $($ty => Some(<$var as Describe>::example()),)*
+                _ => None,
+            }
+        }
+
+        /// Field names of a type whose string values are words, not node
+        /// references (its [`Describe::WORDS`]).
+        fn words(ty: &str) -> &'static [&'static str] {
+            match ty {
+                $($ty => <$var as Describe>::WORDS,)*
+                _ => &[],
             }
         }
 
@@ -265,6 +302,52 @@ node_types! {
     "tract" => Tract,
     "syrinx" => Syrinx,
     "thunder" => Thunder,
+
+    // slot S1
+
+    // slot S2
+
+    // slot S3
+
+    // slot S4
+
+    // slot S5
+
+    // slot S6
+
+    // slot S7
+
+    // slot S8
+
+    // slot S9
+
+    // slot S10
+
+    // slot S11
+
+    // slot S12
+
+    // slot M1
+
+    // slot M2
+
+    // slot M3
+
+    // slot M4
+
+    // slot M5
+
+    // slot M6
+
+    // slot M7
+
+    // slot M8
+
+    // slot X1
+
+    // slot X2
+
+    // slot X3
 }
 
 /// "unknown node type", naming the closest types.
@@ -348,19 +431,35 @@ pub fn is_file(s: &str) -> bool {
 }
 
 /// Node references in a node body: every string that is not a mode word or
-/// a file, as (node, port).
+/// a file, as (node, port). If the body carries `"type"`, that type's
+/// [`Describe::WORDS`] are skipped too; without it, use [`refs_typed`].
 pub fn refs(body: &Value) -> Vec<(String, String)> {
+    match body.get("type").and_then(Value::as_str) {
+        Some(ty) => refs_typed(ty, body),
+        None => refs_typed("", body),
+    }
+}
+
+/// [`refs`] for a body whose `type` was already taken out of it: the global
+/// word list plus the type's own [`Describe::WORDS`].
+pub fn refs_typed(ty: &str, body: &Value) -> Vec<(String, String)> {
+    refs_with(words(ty), body)
+}
+
+fn refs_with(own: &[&str], body: &Value) -> Vec<(String, String)> {
     const WORDS: &[&str] = &[
         "type", "name", "op", "mode", "shape", "curve", "color", "file", "window", "sound",
         // phase 4: modal (a material name is a word, not a node)
         "material", "vowel", "vowel_to", "species",
+        // enum-string fields every node may use (swarm plan, rule 5)
+        "model", "preset", "style",
     ];
     let mut out = Vec::new();
     // phase 3: voices. The `patch` is its own graph and `map` is expression
     // text: only `events` reads another node.
     if body.get("patch").is_some_and(Value::is_array) {
         if let Some(e) = body.get("events") {
-            walk(e, Some("events"), &mut out);
+            walk(e, Some("events"), own, &mut out);
         }
         return out;
     }
@@ -370,15 +469,15 @@ pub fn refs(body: &Value) -> Vec<(String, String)> {
     if body.get("out").is_some_and(Value::is_string) && body.get("input").is_none() {
         if let Some(Value::Object(inputs)) = body.get("inputs") {
             for v in inputs.values() {
-                walk(v, Some("inputs"), &mut out);
+                walk(v, Some("inputs"), own, &mut out);
             }
         }
         return out;
     }
-    fn walk(v: &Value, key: Option<&str>, out: &mut Vec<(String, String)>) {
+    fn walk(v: &Value, key: Option<&str>, own: &[&str], out: &mut Vec<(String, String)>) {
         match v {
             Value::String(s) => {
-                if key.is_some_and(|k| WORDS.contains(&k))
+                if key.is_some_and(|k| WORDS.contains(&k) || own.contains(&k))
                     || (key == Some("to") && (s == "mono" || s == "stereo"))
                     || is_file(s)
                 {
@@ -387,208 +486,20 @@ pub fn refs(body: &Value) -> Vec<(String, String)> {
                 let (n, p) = s.split_once('.').unwrap_or((s, ""));
                 out.push((n.to_string(), p.to_string()));
             }
-            Value::Array(a) => a.iter().for_each(|x| walk(x, key, out)),
-            Value::Object(m) => m.iter().for_each(|(k, x)| walk(x, Some(k), out)),
+            Value::Array(a) => a.iter().for_each(|x| walk(x, key, own, out)),
+            Value::Object(m) => m.iter().for_each(|(k, x)| walk(x, Some(k), own, out)),
             _ => {}
         }
     }
-    walk(body, None, &mut out);
+    walk(body, None, own, &mut out);
     out
-}
-
-/// One line per type: what the node is for.
-fn blurb(ty: &str) -> &'static str {
-    match ty {
-        "osc" => {
-            "band-limited oscillator (sine/saw/square/tri/pulse); freq may be a node (pitch sweeps, FM)"
-        }
-        "noise" => "white/pink/brown/velvet noise (seeded)",
-        "impulse" => "single-sample clicks at the given times (excites resonators, comb, reverb)",
-        "sample" => "a WAV file from the project, at a playback rate",
-        "env" => "breakpoint envelope [[t, v], ...]",
-        "adsr" => "attack/decay/sustain/release; held for hold seconds, or by a gate signal",
-        "decay" => {
-            "exponential fall from 1 (time = seconds to -60 dB): the workhorse amplitude envelope"
-        }
-        "follower" => "envelope follower: the input's level over time",
-        "filter" => {
-            "state-variable filter lp/hp/bp/notch/peak/lowshelf/highshelf; freq and q take signals"
-        }
-        "onepole" => "gentle 6 dB/oct low- or high-pass",
-        "comb" => "feedback comb (resonant pitch at freq, or echo at time)",
-        "allpass" => "Schroeder allpass (diffusion, smearing transients)",
-        "resonators" => "bank of ringing modes [[hz, decay_s, gain], ...] (struck objects)",
-        "delay" => "interpolated delay with optional internal feedback; time may be a signal",
-        "reverb" => "8-line feedback delay network; stereo out",
-        "convolve" => "convolution with an impulse response (a WAV file or a node)",
-        "shape" => "waveshaper tanh/clip/fold/bitcrush/rectify",
-        "compress" => "feed-forward compressor",
-        "limit" => "lookahead peak limiter",
-        "lfo" => "low-frequency oscillator, -1..1 or a range",
-        "wander" => "smooth random motion at a rate (seeded), -1..1 or a range",
-        "sample_hold" => "samples the input at a rate or on a trigger and holds it",
-        "slew" => "limits how fast a signal may rise and fall",
-        "ramp" => "a sweep from one value to another over time (pitch drops, filter sweeps)",
-        "math" => "add/sub/mul/div/min/max/pow/abs/mix of signals or numbers",
-        "remap" => "maps a range onto another",
-        "gain" => "scales by db or a linear gain (either may be a signal)",
-        "mix" => "sums inputs with gain, pan and time offset; mono or stereo",
-        "pan" => "places mono in stereo (or balances stereo)",
-        "width" => "stereo width (0 = mono, 1 = as is, 2 = wider)",
-        "reverse" => "plays the input backwards",
-        "normalize" => "scales to a peak or a loudness",
-        "trim" => "removes leading silence (the end is padded with silence)",
-        "fade" => "raised-cosine fade in and out",
-        "output" => {
-            "the sound: gain, loudness target, edge fades and a ceiling limiter; exactly one"
-        }
-        // phase 3: spectral
-        "pitch_shift" => "phase-vocoder pitch shift by semitones or ratio, same length (acausal)",
-        "time_stretch" => {
-            "phase-vocoder time stretch (factor > 1 = slower), cut or padded to the document length (acausal)"
-        }
-        "spectral" => {
-            "spectrum edits: freeze (hold a moment as texture), blur, gate (zero quiet bins), morph (toward another node) (acausal)"
-        }
-        // phase 3: voices
-        "voices" => {
-            "renders a sub-patch once per event (rain, gravel, shards, gunfire), summed at the event times"
-        }
-        "sound" => {
-            "an instance of another sound (open or saved): layer a transient, a body and a tail from separate documents"
-        }
-        // phase 3: events
-        "once" => "an event stream with one event at a time",
-        "pattern" => "events at listed times, or every N seconds (optional jitter)",
-        "poisson" => "random events at a rate per second (the rate may be a signal)",
-        "bounce" => "events of a dropped object: intervals shrink by the restitution",
-        "burst" => "a cluster of events over a short span",
-        "on_threshold" => "an event at each rising crossing of a level by an audio signal",
-        "grains" => "granular playback of a node or WAV, one windowed grain per event",
-        // phase 3: expr
-        "expr" => {
-            "per-sample maths with state: out/update text over t, sr, inputs, state (sin tanh min clamp noise, ?:, ...)"
-        }
-        // phase 4: modal
-        "modal" => {
-            "a struck plate: excite audio rings modes computed from material, size and strike position (bigger = lower)"
-        }
-        "contact" => {
-            "the force pulse of a strike (Hertz contact time: heavier, slower, softer = longer, duller); excites modal"
-        }
-        "friction" => {
-            "stick-slip sawtooth whose rate follows speed and level follows pressure (creaks, squeaks, scrapes); excites modal"
-        }
-        // phase 4: foley
-        "bubble" => {
-            "a water bubble: Minnaert resonance from radius_mm (smaller = higher), decaying, rising (foley)"
-        }
-        "air" => {
-            "distance through air: high-frequency absorption (ISO 9613-1) and 1/distance level; distance may be a signal"
-        }
-        "glottis" => {
-            "voice source: Liljencrants-Fant glottal pulse at f0 (signal), tension, breath, vibrato (foley)"
-        }
-        "tract" => {
-            "vocal tract: formant cascade, a vowel preset (or glide between two) or a formant list; feed it a glottis"
-        }
-        "syrinx" => {
-            "a bird: foley's call for one of 57 species, or a whistle from a pitch contour signal"
-        }
-        "thunder" => {
-            "one flash of thunder from its distance (foley's N-wave model): clap, then rumble; silent until the sound arrives"
-        }
-        _ => "",
-    }
 }
 
 /// An example node of each type (with `type` and `name`), used by
 /// `describe_op` and checked to parse by a test.
 pub fn example(ty: &str) -> Option<Value> {
     use serde_json::json;
-    let body = match ty {
-        "osc" => json!({"shape": "saw", "freq": "sweep", "amp": 0.5}),
-        "noise" => json!({"color": "pink", "seed": 3}),
-        "impulse" => json!({"at": [0.0, 0.25]}),
-        "sample" => json!({"file": "refs/knock.wav", "rate": 1.2, "start": 0.0}),
-        "env" => json!({"points": [[0, 0], [0.01, 1], [0.3, 0.2], [1.0, 0]], "curve": "smooth"}),
-        "adsr" => {
-            json!({"attack": 0.005, "decay": 0.1, "sustain": 0.4, "release": 0.3, "hold": 0.2})
-        }
-        "decay" => json!({"time": 0.4}),
-        "follower" => json!({"input": "drums", "attack": 0.002, "release": 0.08}),
-        "filter" => json!({"input": "src", "mode": "lp", "freq": "cutoff_env", "q": 2.0}),
-        "onepole" => json!({"input": "src", "mode": "hp", "freq": 120}),
-        "comb" => json!({"input": "burst", "freq": 220, "feedback": 0.9, "damp": 0.3}),
-        "allpass" => json!({"input": "src", "time": 0.005, "feedback": 0.6}),
-        "resonators" => {
-            json!({"input": "hit", "modes": [[523, 1.2, 1.0], [1410, 0.6, 0.5], [2730, 0.3, 0.3]]})
-        }
-        "delay" => json!({"input": "src", "time": 0.25, "feedback": 0.4}),
-        "reverb" => json!({"input": "src", "size": 0.6, "decay": 1.8, "damp": 0.4, "mix": 0.3}),
-        "convolve" => json!({"input": "src", "ir": "refs/room_ir.wav", "mix": 0.5}),
-        "shape" => json!({"input": "src", "mode": "tanh", "drive": 3.0}),
-        "compress" => {
-            json!({"input": "src", "threshold_db": -18, "ratio": 4, "attack": 0.005, "release": 0.1})
-        }
-        "limit" => json!({"input": "src", "ceiling_db": -1}),
-        "lfo" => json!({"shape": "sine", "freq": 6, "range": [0.8, 1.2]}),
-        "wander" => json!({"rate": 3, "range": [200, 800], "seed": 2}),
-        "sample_hold" => json!({"input": "noise1", "rate": 20}),
-        "slew" => json!({"input": "steps", "up": 0.01, "down": 0.05}),
-        "ramp" => json!({"from": 2000, "to": 200, "time": 0.3, "curve": "exp"}),
-        "math" => json!({"op": "mul", "a": "tone", "b": "amp_env"}),
-        "remap" => json!({"input": "lfo1", "from": [-1, 1], "to": [400, 1200], "clamp": true}),
-        "gain" => json!({"input": "src", "db": -6}),
-        "mix" => {
-            json!({"inputs": ["body", {"input": "click", "gain": 0.5, "pan": -0.3, "at": 0.01}], "to": "stereo"})
-        }
-        "pan" => json!({"input": "src", "pan": "lfo1"}),
-        "width" => json!({"input": "verb", "amount": 1.5}),
-        "reverse" => json!({"input": "verb"}),
-        "normalize" => json!({"input": "src", "peak_db": -1}),
-        "trim" => json!({"input": "src", "threshold_db": -60}),
-        "fade" => json!({"input": "src", "in": 0.01, "out": 0.2}),
-        "output" => json!({"input": "mix1", "lufs": -16}),
-        // phase 3: spectral
-        "pitch_shift" => json!({"input": "src", "semitones": -5}),
-        "time_stretch" => json!({"input": "src", "factor": 1.5}),
-        "spectral" => json!({"input": "src", "mode": "freeze", "at": 0.1, "length": 0.15}),
-        // phase 3: voices
-        "voices" => json!({"events": "ev", "length": 0.3, "map": {"pitch": "300 + $rand * 600"},
-            "patch": [{"type": "osc", "name": "tone", "freq": "$pitch", "amp": "$value"},
-                      {"type": "decay", "name": "amp", "time": 0.08},
-                      {"type": "math", "name": "hit", "op": "mul", "a": "tone", "b": "amp"}]}),
-        "sound" => json!({"sound": "thud", "at": 0.05, "gain_db": -6}),
-        // phase 3: events
-        "once" => json!({"at": 0.1}),
-        "pattern" => json!({"every": 0.25, "count": 4, "jitter": 0.01}),
-        "poisson" => json!({"rate": 20, "values": {"min": 0.3, "max": 1.0}}),
-        "bounce" => json!({"first": 0.3, "restitution": 0.6, "min_interval": 0.004}),
-        "burst" => json!({"count": 6, "spread": 0.05, "curve": "exp"}),
-        "on_threshold" => json!({"input": "src", "level": 0.2, "hold": 0.01}),
-        "grains" => json!({"source": "noise1", "events": "ev", "size": 0.03, "pan_spread": 0.5}),
-        // phase 3: expr
-        "expr" => json!({"inputs": {"a": "src"}, "state": {"y1": 0}, "out": "y1",
-            "update": {"y1": "y1 + 0.1 * (a - y1)"}}),
-        // phase 4: modal
-        "modal" => json!({"excite": "contact1", "material": "wood", "size": 0.5,
-            "strike_position": 0.3, "modes": 48}),
-        "contact" => {
-            json!({"speed": 1.5, "mass": 0.2, "material": "wood", "hardness": 0.7, "at": 0.0})
-        }
-        "friction" => json!({"speed": "sweep", "pressure": 0.5, "roughness": 0.2, "grain": 200}),
-        // phase 4: foley
-        "bubble" => json!({"radius_mm": 2.0, "at": 0.02, "seed": 1}),
-        "air" => json!({"input": "src", "distance": 80, "humidity": 50}),
-        "glottis" => {
-            json!({"f0": 140, "tension": 0.65, "breath": 0.05, "vibrato_cents": 20, "seed": 1})
-        }
-        "tract" => json!({"input": "src", "vowel": "a", "vowel_to": "i", "morph": 0.5}),
-        "syrinx" => json!({"species": "robin", "at": 0.0, "seed": 1}),
-        "thunder" => json!({"distance": 400, "exposure": 0.8, "seed": 1}),
-        _ => return None,
-    };
+    let body = example_body(ty)?;
     let mut m = serde_json::Map::new();
     m.insert("type".into(), json!(ty));
     m.insert("name".into(), json!(format!("{ty}1")));
@@ -645,6 +556,44 @@ mod tests {
     fn unknown_types_suggest_the_closest() {
         let e = unknown_type("node #0", "fliter");
         assert!(e.contains("did you mean `filter`"), "{e}");
+    }
+
+    #[test]
+    fn describe_trait_feeds_blurb_example_and_words() {
+        struct Fake;
+        impl Describe for Fake {
+            const BLURB: &'static str = "a fake";
+            const WORDS: &'static [&'static str] = &["flavour"];
+            fn example() -> Value {
+                serde_json::json!({})
+            }
+        }
+        assert_eq!(<Fake as Describe>::WORDS, ["flavour"]);
+        // Defaults: no words; every real type's words come from its impl.
+        assert!(words("osc").is_empty());
+        assert!(words("nope").is_empty());
+        assert_eq!(blurb("noise"), <Noise as Describe>::BLURB);
+        assert!(blurb("nope").is_empty());
+        assert!(example("nope").is_none());
+    }
+
+    #[test]
+    fn global_words_include_model_preset_style() {
+        let v = serde_json::json!({"model": "a", "preset": "b", "style": "c", "input": "d"});
+        let r: Vec<String> = refs(&v).into_iter().map(|(n, _)| n).collect();
+        assert_eq!(r, ["d"]);
+    }
+
+    #[test]
+    fn a_types_own_words_are_not_references() {
+        let v = serde_json::json!({"flavour": "sweet", "input": "a", "list": [{"flavour": "x"}]});
+        let names = |own: &[&str]| -> Vec<String> {
+            refs_with(own, &v).into_iter().map(|(n, _)| n).collect()
+        };
+        let mut all = names(&[]);
+        all.sort();
+        assert_eq!(all, ["a", "sweet", "x"]);
+        assert_eq!(names(&["flavour"]), ["a"]);
     }
 
     #[test]

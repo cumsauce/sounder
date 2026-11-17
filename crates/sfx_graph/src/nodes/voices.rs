@@ -11,7 +11,7 @@ use serde_json::Value;
 use super::{non_negative, one, positive};
 use crate::buf::{Audio, Buf, Event};
 use crate::eval::{Ctx, evaluate};
-use crate::node::{Cx, Eval, In, Outs};
+use crate::node::{Cx, Describe, Eval, In, Outs};
 use crate::{RenderOpts, mix_seed, params};
 
 /// A sub-patch rendered once per event, summed at the event times.
@@ -45,6 +45,16 @@ pub struct Voices {
     /// every voice's `$rand` and seeded nodes (default 0).
     #[serde(default)]
     pub seed: u64,
+}
+
+impl Describe for Voices {
+    const BLURB: &'static str = "renders a sub-patch once per event (rain, gravel, shards, gunfire), summed at the event times";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"events": "ev", "length": 0.3, "map": {"pitch": "300 + $rand * 600"},
+            "patch": [{"type": "osc", "name": "tone", "freq": "$pitch", "amp": "$value"},
+                      {"type": "decay", "name": "amp", "time": 0.08},
+                      {"type": "math", "name": "hit", "op": "mul", "a": "tone", "b": "amp"}]})
+    }
 }
 
 impl Eval for Voices {
@@ -179,6 +189,13 @@ pub struct SoundNode {
     /// Gain on the instance, dB (default 0).
     #[serde(default)]
     pub gain_db: Option<f32>,
+}
+
+impl Describe for SoundNode {
+    const BLURB: &'static str = "an instance of another sound (open or saved): layer a transient, a body and a tail from separate documents";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"sound": "thud", "at": 0.05, "gain_db": -6})
+    }
 }
 
 impl Eval for SoundNode {

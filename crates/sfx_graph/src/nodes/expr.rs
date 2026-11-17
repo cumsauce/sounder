@@ -8,7 +8,7 @@ use super::mono;
 use super::one;
 use crate::buf::Sig;
 use crate::calc::{self, CalcError, Clock, Program, Scope};
-use crate::node::{Cx, Eval, In, Outs};
+use crate::node::{Cx, Describe, Eval, In, Outs};
 
 /// Per-sample maths. `out` is the sample; `update` assigns new state after
 /// each sample (every update reads the OLD state). Written without a leading
@@ -184,6 +184,14 @@ impl ExprState {
 
 fn mentions_noise(e: &Expr) -> bool {
     e.out.contains("noise") || e.update.values().any(|u| u.contains("noise"))
+}
+
+impl Describe for Expr {
+    const BLURB: &'static str = "per-sample maths with state: out/update text over t, sr, inputs, state (sin tanh min clamp noise, ?:, ...)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"inputs": {"a": "src"}, "state": {"y1": 0}, "out": "y1",
+            "update": {"y1": "y1 + 0.1 * (a - y1)"}})
+    }
 }
 
 impl Eval for Expr {

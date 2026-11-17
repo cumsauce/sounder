@@ -5,7 +5,7 @@ use serde::Deserialize;
 use super::one;
 use crate::buf::{Buf, Sig};
 use crate::db_to_gain;
-use crate::node::{Cx, Eval, In, Outs};
+use crate::node::{Cx, Describe, Eval, In, Outs};
 
 #[derive(Clone, Copy, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "lowercase")]
@@ -50,6 +50,13 @@ pub struct Math {
     /// mix: the blend 0 (a) .. 1 (b).
     #[serde(default)]
     pub t: Option<In>,
+}
+
+impl Describe for Math {
+    const BLURB: &'static str = "add/sub/mul/div/min/max/pow/abs/mix of signals or numbers";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"op": "mul", "a": "tone", "b": "amp_env"})
+    }
 }
 
 impl Eval for Math {
@@ -102,6 +109,13 @@ pub struct Remap {
     pub clamp: bool,
 }
 
+impl Describe for Remap {
+    const BLURB: &'static str = "maps a range onto another";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "lfo1", "from": [-1, 1], "to": [400, 1200], "clamp": true})
+    }
+}
+
 impl Eval for Remap {
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let input = cx.audio("input", &self.input)?;
@@ -130,6 +144,13 @@ pub struct Gain {
     /// Linear gain (or give db).
     #[serde(default)]
     pub gain: Option<In>,
+}
+
+impl Describe for Gain {
+    const BLURB: &'static str = "scales by db or a linear gain (either may be a signal)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "db": -6})
+    }
 }
 
 impl Eval for Gain {

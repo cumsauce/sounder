@@ -3,7 +3,7 @@
 #![allow(clippy::unwrap_used)] // test helpers outside #[test] fns
 
 use serde_json::{Value, json};
-use sfx_graph::{DocEdit, Kind, RenderOpts, SoundDoc, wav};
+use sfx_graph::{Ctx, DocEdit, Kind, Params, RenderOpts, SoundDoc, evaluate, wav};
 
 /// A graph that touches randomness, modulation, stereo and parallel levels.
 fn busy() -> Vec<Value> {
@@ -439,15 +439,7 @@ fn every_node_type_renders_its_example() {
         // phase 4: modal
         json!({"type": "contact", "name": "contact1", "speed": 1.0, "mass": 0.1, "material": "wood"}),
     ];
-    // Event streams are not audio: they are evaluated and read, not mixed.
-    let event_types = [
-        "once",
-        "pattern",
-        "poisson",
-        "bounce",
-        "burst",
-        "on_threshold",
-    ];
+    let mut streams = Vec::new();
     for t in sfx_graph::NODE_TYPES {
         if matches!(*t, "sample" | "convolve" | "output" | "sound") {
             continue; // need files / are the output
@@ -457,12 +449,19 @@ fn every_node_type_renders_its_example() {
         let mut nodes = sources.clone();
         nodes.retain(|n| n["name"] != "under_test");
         nodes.push(ex);
-        // Every stand-in and the node under test feed the output.
+        // Event streams are not audio: they are evaluated and read, not
+        // mixed. Which nodes are streams is decided by what they render.
+        let cx = Ctx {
+            n: 14_400,
+            ..Ctx::default()
+        };
+        let ev = evaluate(&nodes, &Params::new(), &cx, false)
+            .unwrap_or_else(|e| panic!("{t}: evaluating: {e}"));
+        let is_events = |name: &str| matches!(*ev.buf(name).unwrap(), sfx_graph::Buf::Events(_));
+        // Every audio stand-in and the node under test feed the output.
         let names: Vec<Value> = nodes
             .iter()
-            .filter(|n| {
-                n["name"] != "ev" && !event_types.contains(&n["type"].as_str().unwrap_or_default())
-            })
+            .filter(|n| !is_events(n["name"].as_str().unwrap()))
             .map(|n| n["name"].clone())
             .collect();
         nodes.push(json!({"type": "mix", "name": "all", "inputs": names, "to": "stereo"}));
@@ -476,10 +475,28 @@ fn every_node_type_renders_its_example() {
             r.audio.channels.iter().flatten().all(|x| x.is_finite()),
             "{t}"
         );
-        if event_types.contains(t) {
-            let buf = r.eval.buf("under_test").unwrap();
-            assert!(matches!(*buf, sfx_graph::Buf::Events(_)), "{t}");
+        // The same answer from the full render as from the bare evaluation.
+        assert_eq!(
+            matches!(
+                *r.eval.buf("under_test").unwrap(),
+                sfx_graph::Buf::Events(_)
+            ),
+            is_events("under_test"),
+            "{t}"
+        );
+        if is_events("under_test") {
+            streams.push(*t);
         }
+    }
+    for t in [
+        "once",
+        "pattern",
+        "poisson",
+        "bounce",
+        "burst",
+        "on_threshold",
+    ] {
+        assert!(streams.contains(&t), "{t} should render an event stream");
     }
 }
 

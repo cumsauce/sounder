@@ -12,7 +12,7 @@ use serde::Deserialize;
 use super::{CurveSpec, non_negative, one, positive};
 use crate::buf::{Buf, Event};
 use crate::dsp::Rng;
-use crate::node::{Cx, Eval, In, Outs, is_file};
+use crate::node::{Cx, Describe, Eval, In, Outs, is_file};
 
 /// Most events one node may make (a runaway rate is an error, not a hang).
 const MAX_EVENTS: usize = 200_000;
@@ -109,6 +109,13 @@ pub struct Once {
     pub seed: u64,
 }
 
+impl Describe for Once {
+    const BLURB: &'static str = "an event stream with one event at a time";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"at": 0.1})
+    }
+}
+
 impl Eval for Once {
     fn random(&self) -> bool {
         true
@@ -143,6 +150,13 @@ pub struct Pattern {
     pub values: Option<Values>,
     #[serde(default)]
     pub seed: u64,
+}
+
+impl Describe for Pattern {
+    const BLURB: &'static str = "events at listed times, or every N seconds (optional jitter)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"every": 0.25, "count": 4, "jitter": 0.01})
+    }
 }
 
 impl Eval for Pattern {
@@ -192,6 +206,13 @@ pub struct Poisson {
     pub values: Option<Values>,
     #[serde(default)]
     pub seed: u64,
+}
+
+impl Describe for Poisson {
+    const BLURB: &'static str = "random events at a rate per second (the rate may be a signal)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"rate": 20, "values": {"min": 0.3, "max": 1.0}})
+    }
 }
 
 impl Eval for Poisson {
@@ -252,6 +273,13 @@ pub struct Bounce {
     pub seed: u64,
 }
 
+impl Describe for Bounce {
+    const BLURB: &'static str = "events of a dropped object: intervals shrink by the restitution";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"first": 0.3, "restitution": 0.6, "min_interval": 0.004})
+    }
+}
+
 impl Eval for Bounce {
     fn random(&self) -> bool {
         true
@@ -308,6 +336,13 @@ pub struct Burst {
     pub seed: u64,
 }
 
+impl Describe for Burst {
+    const BLURB: &'static str = "a cluster of events over a short span";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"count": 6, "spread": 0.05, "curve": "exp"})
+    }
+}
+
 impl Eval for Burst {
     fn random(&self) -> bool {
         true
@@ -343,6 +378,13 @@ pub struct OnThreshold {
     /// No new event for this many seconds after one (default 0.01).
     #[serde(default)]
     pub hold: Option<f32>,
+}
+
+impl Describe for OnThreshold {
+    const BLURB: &'static str = "an event at each rising crossing of a level by an audio signal";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "level": 0.2, "hold": 0.01})
+    }
 }
 
 impl Eval for OnThreshold {
@@ -428,6 +470,13 @@ pub struct Grains {
     pub jitter: Option<f32>,
     #[serde(default)]
     pub seed: u64,
+}
+
+impl Describe for Grains {
+    const BLURB: &'static str = "granular playback of a node or WAV, one windowed grain per event";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"source": "noise1", "events": "ev", "size": 0.03, "pan_spread": 0.5})
+    }
 }
 
 impl Eval for Grains {

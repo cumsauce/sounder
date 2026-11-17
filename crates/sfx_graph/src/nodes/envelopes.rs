@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use super::{CurveSpec, mono, non_negative, one, per_channel, positive};
 use crate::dsp::{Follower as FollowerState, interp};
-use crate::node::{Cx, Eval, In, Outs};
+use crate::node::{Cx, Describe, Eval, In, Outs};
 
 /// A breakpoint envelope.
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
@@ -17,6 +17,13 @@ pub struct Env {
     /// positive), smooth (raised cosine).
     #[serde(default)]
     pub curve: CurveSpec,
+}
+
+impl Describe for Env {
+    const BLURB: &'static str = "breakpoint envelope [[t, v], ...]";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"points": [[0, 0], [0.01, 1], [0.3, 0.2], [1.0, 0]], "curve": "smooth"})
+    }
 }
 
 impl Eval for Env {
@@ -72,6 +79,14 @@ pub struct Adsr {
     /// Without a gate: the trigger time, seconds (default 0).
     #[serde(default)]
     pub at: Option<f32>,
+}
+
+impl Describe for Adsr {
+    const BLURB: &'static str =
+        "attack/decay/sustain/release; held for hold seconds, or by a gate signal";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"attack": 0.005, "decay": 0.1, "sustain": 0.4, "release": 0.3, "hold": 0.2})
+    }
 }
 
 impl Eval for Adsr {
@@ -151,6 +166,14 @@ pub struct Decay {
     pub at: Option<f32>,
 }
 
+impl Describe for Decay {
+    const BLURB: &'static str =
+        "exponential fall from 1 (time = seconds to -60 dB): the workhorse amplitude envelope";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"time": 0.4})
+    }
+}
+
 impl Eval for Decay {
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let time = positive("time", self.time)?;
@@ -182,6 +205,13 @@ pub struct Follower {
     /// Seconds to follow a fall (default 0.1).
     #[serde(default)]
     pub release: Option<f32>,
+}
+
+impl Describe for Follower {
+    const BLURB: &'static str = "envelope follower: the input's level over time";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "drums", "attack": 0.002, "release": 0.08})
+    }
 }
 
 impl Eval for Follower {

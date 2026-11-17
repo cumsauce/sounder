@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 use super::one;
 use crate::buf::Buf;
-use crate::node::{Cx, Eval, In, Outs};
+use crate::node::{Cx, Describe, Eval, In, Outs};
 
 /// One `mix` input: a node name, or a node with gain, pan and offset.
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
@@ -53,6 +53,13 @@ pub struct Mix {
     /// mono or stereo (default: stereo if any input is stereo or panned).
     #[serde(default)]
     pub to: Option<To>,
+}
+
+impl Describe for Mix {
+    const BLURB: &'static str = "sums inputs with gain, pan and time offset; mono or stereo";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"inputs": ["body", {"input": "click", "gain": 0.5, "pan": -0.3, "at": 0.01}], "to": "stereo"})
+    }
 }
 
 impl Eval for Mix {
@@ -125,6 +132,13 @@ pub struct Pan {
     pub pan: In,
 }
 
+impl Describe for Pan {
+    const BLURB: &'static str = "places mono in stereo (or balances stereo)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "src", "pan": "lfo1"})
+    }
+}
+
 impl Eval for Pan {
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let input = cx.audio("input", &self.input)?;
@@ -157,6 +171,13 @@ pub struct Width {
     pub input: In,
     /// 0 = mono, 1 = unchanged, 2 = twice as wide (may be a signal).
     pub amount: In,
+}
+
+impl Describe for Width {
+    const BLURB: &'static str = "stereo width (0 = mono, 1 = as is, 2 = wider)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"input": "verb", "amount": 1.5})
+    }
 }
 
 impl Eval for Width {
