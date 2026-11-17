@@ -58,6 +58,7 @@ mod machines;
 // slot M3
 
 // slot M4
+mod water;
 
 // slot M5
 
@@ -130,6 +131,7 @@ pub use machines::*;
 // slot M3
 
 // slot M4
+pub use water::*;
 
 // slot M5
 

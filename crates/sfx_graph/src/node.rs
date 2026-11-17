@@ -368,6 +368,8 @@ node_types! {
     // slot M3
 
     // slot M4
+    "water" => Water,
+    "splash" => Splash,
 
     // slot M5
 
