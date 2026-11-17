@@ -1,9 +1,11 @@
 //! Named document parameters. A node field may be `"$cutoff"` (the
 //! parameter's value) or an expression `"=$cutoff / 2 + 100"` (`+ - * /`,
-//! parentheses, numbers, `$names`; a leading `$` also starts an expression).
+//! parentheses, numbers, `$names`, plus the functions, comparisons and `?:` of
+//! [`crate::calc`]; a leading `$` also starts an expression).
 //! The document keeps each node's unresolved JSON (its template), so changing
 //! a parameter re-resolves every node that reads it. Copied from modeler.
 
+use crate::calc::{self, Clock, Scope};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -12,6 +14,17 @@ pub type Params = BTreeMap<String, f64>;
 /// True when `s` is a parameter reference or expression.
 fn is_expr(s: &str) -> bool {
     s.starts_with('$') || s.starts_with('=')
+}
+
+/// Keys of a node object whose strings are expression source for the node's
+/// own compiler (`expr`'s `out` and `update`), never `$param` / `=expr`
+/// fields: they are written without a leading `$` or `=`.
+fn expr_text_keys(map: &serde_json::Map<String, Value>) -> &'static [&'static str] {
+    if map.get("type").and_then(Value::as_str) == Some("expr") {
+        &["out", "update"]
+    } else {
+        &[]
+    }
 }
 
 /// `v` with every reference/expression replaced by its number.
@@ -34,11 +47,20 @@ pub fn resolve(v: &Value, params: &Params) -> Result<Value, String> {
                 .map(|x| resolve(x, params))
                 .collect::<Result<_, _>>()?,
         ),
-        Value::Object(map) => Value::Object(
-            map.iter()
-                .map(|(k, x)| resolve(x, params).map(|r| (k.clone(), r)))
-                .collect::<Result<_, _>>()?,
-        ),
+        Value::Object(map) => {
+            let skip = expr_text_keys(map);
+            Value::Object(
+                map.iter()
+                    .map(|(k, x)| {
+                        if skip.contains(&k.as_str()) {
+                            Ok((k.clone(), x.clone()))
+                        } else {
+                            resolve(x, params).map(|r| (k.clone(), r))
+                        }
+                    })
+                    .collect::<Result<_, _>>()?,
+            )
+        }
         other => other.clone(),
     })
 }
@@ -70,114 +92,29 @@ fn collect(v: &Value, out: &mut BTreeSet<String>) {
             }
         }
         Value::Array(items) => items.iter().for_each(|x| collect(x, out)),
-        Value::Object(map) => map.values().for_each(|x| collect(x, out)),
+        Value::Object(map) => {
+            let skip = expr_text_keys(map);
+            map.iter()
+                .filter(|(k, _)| !skip.contains(&k.as_str()))
+                .for_each(|(_, x)| collect(x, out));
+        }
         _ => {}
     }
 }
 
-/// Evaluates an arithmetic expression over `params`.
+/// Evaluates an expression over `params`: `+ - * /`, parentheses, numbers,
+/// `$names`, `pi`, the functions of [`crate::calc`] (`sin`, `min`, `clamp`,
+/// ...), comparisons, `&&`, `||`, `!` and `cond ? a : b`.
 pub fn eval(src: &str, params: &Params) -> Result<f64, String> {
-    let mut p = Parser {
-        s: src.as_bytes(),
-        i: 0,
-        params,
-        src,
+    let scope = Scope {
+        vars: &[],
+        consts: &[("pi", std::f64::consts::PI)],
+        params: Some(params),
+        noise: false,
     };
-    let v = p.expr()?;
-    p.ws();
-    if p.i != p.s.len() {
-        return Err(format!("unexpected `{}` in `{src}`", &src[p.i..]));
-    }
-    Ok(v)
-}
-
-struct Parser<'a> {
-    s: &'a [u8],
-    i: usize,
-    params: &'a Params,
-    src: &'a str,
-}
-
-impl Parser<'_> {
-    fn ws(&mut self) {
-        while self.i < self.s.len() && self.s[self.i].is_ascii_whitespace() {
-            self.i += 1;
-        }
-    }
-    fn peek(&mut self) -> Option<u8> {
-        self.ws();
-        self.s.get(self.i).copied()
-    }
-    fn expr(&mut self) -> Result<f64, String> {
-        let mut v = self.term()?;
-        while let Some(c @ (b'+' | b'-')) = self.peek() {
-            self.i += 1;
-            let r = self.term()?;
-            v = if c == b'+' { v + r } else { v - r };
-        }
-        Ok(v)
-    }
-    fn term(&mut self) -> Result<f64, String> {
-        let mut v = self.factor()?;
-        while let Some(c @ (b'*' | b'/')) = self.peek() {
-            self.i += 1;
-            let r = self.factor()?;
-            v = if c == b'*' { v * r } else { v / r };
-        }
-        Ok(v)
-    }
-    fn factor(&mut self) -> Result<f64, String> {
-        match self.peek() {
-            Some(b'-') => {
-                self.i += 1;
-                Ok(-self.factor()?)
-            }
-            Some(b'(') => {
-                self.i += 1;
-                let v = self.expr()?;
-                if self.peek() != Some(b')') {
-                    return Err(format!("missing `)` in `{}`", self.src));
-                }
-                self.i += 1;
-                Ok(v)
-            }
-            Some(b'$') => {
-                self.i += 1;
-                let start = self.i;
-                while self.i < self.s.len()
-                    && (self.s[self.i].is_ascii_alphanumeric() || self.s[self.i] == b'_')
-                {
-                    self.i += 1;
-                }
-                let name = &self.src[start..self.i];
-                self.params.get(name).copied().ok_or_else(|| {
-                    let known: Vec<&str> = self.params.keys().map(String::as_str).collect();
-                    format!(
-                        "unknown parameter `${name}` (known: {})",
-                        if known.is_empty() {
-                            "none - set them with sound_ops params (or inputs)".to_string()
-                        } else {
-                            known.join(", ")
-                        }
-                    )
-                })
-            }
-            Some(c) if c.is_ascii_digit() || c == b'.' => {
-                let start = self.i;
-                while self.i < self.s.len()
-                    && (self.s[self.i].is_ascii_digit()
-                        || self.s[self.i] == b'.'
-                        || self.s[self.i] == b'e')
-                {
-                    self.i += 1;
-                }
-                self.src[start..self.i]
-                    .parse()
-                    .map_err(|_| format!("bad number in `{}`", self.src))
-            }
-            _ => Err(format!("expected a number or `$param` in `{}`", self.src)),
-        }
-    }
+    let prog = calc::compile(src, &scope).map_err(|e| format!("{} in `{src}`", e.at()))?;
+    let mut stack = vec![0.0; prog.depth()];
+    Ok(prog.run(&mut stack, &[], Clock::default()))
 }
 
 #[cfg(test)]
@@ -202,5 +139,35 @@ mod tests {
         assert!(eval("$nope", &p).is_err_and(|e| e.contains("unknown parameter")));
         // Integral results stay integers (for counts).
         assert_eq!(resolve(&json!("=$h * 6"), &p), Ok(json!(12)));
+    }
+
+    #[test]
+    fn expressions_have_functions_comparisons_and_ternary() {
+        let p: Params = [("h".to_string(), 2.0), ("w".to_string(), 0.5)].into();
+        assert_eq!(eval("max($h, 3) + min($h, $w)", &p), Ok(3.5));
+        assert_eq!(eval("$h > 1 ? $h * 10 : 0", &p), Ok(20.0));
+        assert_eq!(eval("clamp($h * 4, 0, 5)", &p), Ok(5.0));
+        assert_eq!(eval("$h > 1 && $w < 1", &p), Ok(1.0));
+        assert_eq!(eval("pow(2, 3) * sqrt(4)", &p), Ok(16.0));
+        assert_eq!(resolve(&json!("=$h >= 2 ? 7 : 8"), &p), Ok(json!(7)));
+        let e = eval("$h + sin(", &p).unwrap_err();
+        assert!(e.contains("at ") && e.contains("$h + sin("), "{e}");
+        assert!(eval("noise(1)", &p).is_err());
+    }
+
+    #[test]
+    fn expr_nodes_keep_their_expression_text() {
+        let p: Params = [("h".to_string(), 2.0)].into();
+        let v = json!({"type": "expr", "name": "e", "inputs": {"a": "src"},
+            "state": {"y1": "=$h"}, "out": "a * 2", "update": {"y1": "$a + y1"}});
+        let r = resolve(&v, &p).unwrap();
+        assert_eq!(r["out"], "a * 2");
+        assert_eq!(r["update"]["y1"], "$a + y1");
+        assert_eq!(r["state"]["y1"], json!(2));
+        assert!(
+            refs(&v).len() == 1 && refs(&v).contains("h"),
+            "{:?}",
+            refs(&v)
+        );
     }
 }

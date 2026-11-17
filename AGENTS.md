@@ -113,6 +113,34 @@ Recipes:
   target; the render warns when it misses by more than 1 LU.
 - **Edges:** the output fades 2 ms in and 5 ms out by default (0 for loops).
 
+## expr: per-sample maths
+
+```json
+{"type": "expr", "name": "smooth", "inputs": {"a": "src"}, "state": {"y1": 0},
+ "out": "y1", "update": {"y1": "y1 + 0.05 * (a - y1)"}}
+```
+
+- `out` is the sample; `update` assigns new `state` after each sample, every
+  update reading the OLD state. `out` / `update` are plain expression text:
+  no leading `=` or `$` (they are not param fields; node refs are only the
+  `inputs` values).
+- Names: `t` (seconds), `sr`, `pi`, the `inputs` (mono, sampled at this
+  sample), the `state`. Functions: `sin cos tan tanh exp log pow sqrt abs min
+  max floor fract clamp mix step noise(seed)`; operators `+ - * /`, `< <=
+  > >= == !=`, `&& || !`, unary `-`, `cond ? a : b` (both sides evaluate).
+  `noise(k)` is deterministic -1..1 hash noise per sample (document seed,
+  node name, the node's `seed`, `k`).
+- Compiled once to bytecode, no parsing per sample. A non-finite result
+  (`log` of a negative, `x / 0`) becomes 0, in `out` and in state. Errors
+  give the field, the expression, the position and the names in scope.
+- The same functions, comparisons and `?:` work in `"=..."` field
+  expressions over `$params` (`"=$hz > 200 ? $hz : 100"`).
+- Wavefolder: `{"inputs": {"a": "tone"}, "out": "sin(a * 3 * pi / 2)"}`.
+  Bouncing ball envelope (hits every `gap` s, each gap and level 0.7x the
+  last): `state {"ph": 0, "gap": 0.3, "amp": 1}`, `out "amp * exp(0 - ph *
+  40)"`, `update {"ph": "ph >= gap ? 0 : ph + 1 / sr", "gap": "ph >= gap ?
+  max(gap * 0.7, 0.01) : gap", "amp": "ph >= gap ? amp * 0.7 : amp"}`.
+
 ## Macros: knobs for the human
 
 You cannot hear, so give the human a front panel: a few knobs that move

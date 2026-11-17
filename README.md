@@ -138,3 +138,12 @@ cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings 
   (`sounder/project`) but only the single-project case is tested; `session.lock`
   liveness uses `kill -0` through the shell tool (no `unsafe`), fine on
   macOS / Linux.
+
+## Phase 3 notes
+
+- **`expr` (lane A).** `src/calc.rs` is the one expression compiler (flat
+  stack bytecode, f64, constant folding) shared by `"=..."` param
+  expressions and the `expr` node (`nodes/expr.rs`: `ExprProg` + `ExprState`
+  with a per-sample `tick` for the future feedback evaluator). `expr`'s
+  `out` / `update` text is exempt from `$` / `=` resolution and from node
+  refs (only `inputs` are refs). See "expr" in `AGENTS.md`.
