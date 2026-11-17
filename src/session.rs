@@ -1390,7 +1390,7 @@ impl Session {
             out += &format!("params: {}\n", p.join(", "));
         }
         if d.macros.is_empty() && !d.nodes.is_empty() {
-            out += "macros: none yet. Add at least one knob (sound_ops macros) on the dimension that gives the human the most useful control within what they asked for (e.g. size, brightness, length, density); the brief's values stay as its default.\n";
+            out += "no knobs yet. Add at least one macro (sound_ops macros) on the dimension that gives the human the most useful control within what they asked for (e.g. size, brightness, length, density); the brief's values stay as its default.\n";
         }
         if !d.macros.is_empty() {
             out += "macros:\n";
