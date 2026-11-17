@@ -562,3 +562,24 @@ fn editing_a_macro_driven_field_warns_that_the_value_is_ignored() {
         .unwrap();
     assert!(!r.text.contains("driven by macro"), "{}", r.text);
 }
+
+#[test]
+fn hostile_names_and_values_are_errors_not_crashes() {
+    let d = std::env::temp_dir().join(format!("sounder_hostile_{}", std::process::id()));
+    std::fs::create_dir_all(&d).unwrap();
+    assert!(sounder::catalog::load(&d, "../x").is_err());
+    let mut doc = sfx_graph::SoundDoc::named("t");
+    doc.duration = Some(0.1);
+    doc.nodes = vec![
+        serde_json::json!({"type": "osc", "name": "o", "freq": 440}),
+        serde_json::json!({"type": "gain", "name": "g", "input": "o", "db": 1000}),
+        serde_json::json!({"type": "output", "name": "out", "input": "g"}),
+    ];
+    let r = doc.render(&sfx_graph::RenderOpts::default()).unwrap();
+    assert!(r.audio.channels[0].iter().all(|x| x.is_finite()));
+    doc.nodes = vec![
+        serde_json::json!({"type": "wander", "name": "w", "range": [200, 800], "rate": 1e15}),
+        serde_json::json!({"type": "output", "name": "out", "input": "w"}),
+    ];
+    assert!(doc.render(&sfx_graph::RenderOpts::default()).is_err());
+}

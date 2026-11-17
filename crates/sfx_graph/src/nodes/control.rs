@@ -90,6 +90,12 @@ impl Eval for Wander {
     }
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let rate = super::positive("rate", self.rate)?;
+        if rate > cx.sr {
+            return Err(format!(
+                "rate: {rate}: a point per sample at most ({} a second): lower it",
+                cx.sr
+            ));
+        }
         let mut rng = cx.rng(self.seed);
         let per = cx.sr / rate;
         let count = (cx.n as f32 / per).ceil() as usize + 4;

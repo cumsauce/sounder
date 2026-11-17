@@ -67,6 +67,15 @@ pub fn save(lib: &Path, doc: &SoundDoc, mut entry: CatalogEntry) -> Result<(), S
 }
 
 pub fn load(lib: &Path, name: &str) -> Result<SoundDoc, String> {
+    if name.is_empty()
+        || !name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    {
+        return Err(format!(
+            "sound name `{name}`: use letters, digits, '_' and '-'"
+        ));
+    }
     let path = sounds_dir(lib).join(format!("{name}.json"));
     let bytes = std::fs::read(&path).map_err(|_| {
         let names: Vec<String> = list(lib).into_iter().map(|e| e.name).collect();

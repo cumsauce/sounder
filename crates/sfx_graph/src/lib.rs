@@ -40,7 +40,8 @@ pub use params::Params;
 /// Converts decibels to a linear gain.
 #[inline]
 pub fn db_to_gain(db: f32) -> f32 {
-    10f32.powf(db / 20.0)
+    // Clamped so absurd values stay finite (inf * 0 would be NaN).
+    10f32.powf(db.clamp(-300.0, 300.0) / 20.0)
 }
 
 /// Converts a linear gain to decibels (floored at -200 dB).
