@@ -12,6 +12,7 @@ use rmcp::{tool, tool_handler, tool_router};
 use serde_json::{Value, json};
 use sfx_analysis::{Column, DiffColumn, View, describe, listen_png_diff, report};
 use sfx_graph::{Audio, DocEdit, Kind, RenderOpts, wav};
+use sounder::player::{PlayRequest, PlayerControl, do_play};
 use sounder::session::{Annotation, Session, Travel};
 use sounder::{catalog, export, feedback};
 use tokio::sync::oneshot;
@@ -72,14 +73,17 @@ fn j_or_none(j: Option<Value>) -> Option<Value> {
 
 pub(crate) struct Tools {
     tx: mpsc::Sender<Cmd>,
+    /// The speakers (`--audio` or the window); None when headless.
+    player: Option<Arc<dyn PlayerControl>>,
     /// Failures of each tool in a row (for the friction log).
     streaks: Arc<Mutex<HashMap<String, u32>>>,
 }
 
 impl Tools {
-    pub(crate) fn new(tx: mpsc::Sender<Cmd>) -> Self {
+    pub(crate) fn new(tx: mpsc::Sender<Cmd>, player: Option<Arc<dyn PlayerControl>>) -> Self {
         Self {
             tx,
+            player,
             streaks: Arc::default(),
         }
     }
@@ -610,16 +614,27 @@ impl Tools {
         .await
     }
 
-    /// Play the sound on the speakers for the human: needs the window build
-    /// (`sounder` without --headless). In headless mode this returns an error:
-    /// use listen instead.
+    /// Play the sound on the speakers for the human (node: just that node;
+    /// seed: re-render with it; loop; stop: true stops). Needs the window or
+    /// `sounder --headless --audio`; otherwise it errors and you use listen.
+    /// You cannot hear it: the human does.
     #[tool]
-    async fn play(
-        &self,
-        Parameters(_a): Parameters<PlayArgs>,
-    ) -> Result<CallToolResult, ErrorData> {
-        self.run(|_| {
-            fail("play needs the window: this server runs --headless, so there is nothing to play on. Use listen (image and numbers) to check the sound; the human plays it in the window")
+    async fn play(&self, Parameters(a): Parameters<PlayArgs>) -> Result<CallToolResult, ErrorData> {
+        let player = self.player.clone();
+        self.run(move |s| {
+            let Some(p) = player else {
+                return fail(
+                    "play needs a speaker: run `sounder` (the window) or `sounder --headless --audio`; use listen to check the sound by numbers",
+                );
+            };
+            let req = PlayRequest {
+                doc: a.doc,
+                node: a.node,
+                seed: a.seed,
+                looped: a.looping,
+                stop: a.stop == Some(true),
+            };
+            plain(do_play(s, &req, p.as_ref())).map(Out::text)
         })
         .await
     }

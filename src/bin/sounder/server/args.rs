@@ -151,10 +151,8 @@ pub(crate) struct ExtractModesArgs {
     pub(crate) count: Option<usize>,
 }
 
-/// `play` only exists in the window build; headless it just errors, so these
-/// fields are read by the schema, not the code.
+/// `play`: needs a speaker (the window, or `--headless --audio`).
 #[derive(serde::Deserialize, schemars::JsonSchema)]
-#[allow(dead_code)]
 pub(crate) struct PlayArgs {
     #[serde(default)]
     pub(crate) node: Option<String>,
