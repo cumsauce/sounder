@@ -856,3 +856,37 @@ fn the_loop_field_docs_state_the_filter_requirement() {
         "water's description says filters after it need crossfade_loop: {text}"
     );
 }
+
+#[test]
+fn a_filter_after_a_looped_source_warns_unless_a_crossfade_follows() {
+    let mk = |with_xfade: bool| {
+        let mut d = SoundDoc::named("w");
+        d.kind = sfx_graph::Kind::Loop;
+        d.duration = Some(2.0);
+        let mut nodes = vec![
+            json!({"type": "water", "name": "w1", "flow": 0.5}),
+            json!({"type": "filter", "name": "hp", "input": "w1", "mode": "hp", "freq": 250}),
+        ];
+        let last = if with_xfade {
+            nodes.push(json!({"type": "crossfade_loop", "name": "x", "input": "hp"}));
+            "x"
+        } else {
+            "hp"
+        };
+        nodes.push(json!({"type": "output", "name": "out", "input": last}));
+        d.nodes = nodes;
+        d.render(&RenderOpts::default()).unwrap().warnings
+    };
+    assert!(
+        mk(false).iter().any(|w| w.contains("crossfade_loop")),
+        "{:?}",
+        mk(false)
+    );
+    assert!(
+        !mk(true)
+            .iter()
+            .any(|w| w.contains("filters the looped source")),
+        "{:?}",
+        mk(true)
+    );
+}

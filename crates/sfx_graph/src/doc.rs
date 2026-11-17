@@ -400,6 +400,9 @@ impl SoundDoc {
                 }
             }
         }
+        if self.kind == Kind::Loop {
+            w.extend(loop_seam_warnings(&ev.nodes));
+        }
         if let Some(out) = ev.nodes.iter().find(|p| p.ty == "output")
             && out.body.get("lufs").is_none()
             && let Some(input) = out.body.get("input").and_then(Value::as_str)
@@ -784,6 +787,78 @@ fn hz_fields(body: &Value) -> Vec<(String, f32)> {
     }
     if let Some(v) = body.get("from").and_then(Value::as_f64) {
         out.push(("from".to_string(), v as f32));
+    }
+    out
+}
+
+/// Filters and other recursive nodes start from zero state, so a node of
+/// this kind reading a periodic looped source (`water`, `fire`, `wind`,
+/// `spark`) breaks the loop seam unless a `crossfade_loop` follows it.
+fn loop_seam_warnings(nodes: &[crate::eval::Parsed]) -> Vec<String> {
+    const SOURCES: &[&str] = &["water", "fire", "wind", "spark"];
+    const RECURSIVE: &[&str] = &[
+        "filter", "onepole", "comb", "allpass", "delay", "reverb", "ladder", "eq", "chorus",
+        "flanger", "phaser",
+    ];
+    use std::collections::{BTreeMap, BTreeSet};
+    let by_name: BTreeMap<&str, &crate::eval::Parsed> =
+        nodes.iter().map(|p| (p.name.as_str(), p)).collect();
+    // Does `name` read (transitively) a looped source, without passing a crossfade_loop?
+    fn reaches_source(
+        name: &str,
+        by_name: &BTreeMap<&str, &crate::eval::Parsed>,
+        seen: &mut BTreeSet<String>,
+    ) -> Option<String> {
+        if !seen.insert(name.to_string()) {
+            return None;
+        }
+        let p = by_name.get(name)?;
+        if p.ty == "crossfade_loop" {
+            return None;
+        }
+        if SOURCES.contains(&p.ty.as_str()) {
+            return Some(p.name.clone());
+        }
+        p.reads
+            .iter()
+            .find_map(|r| reaches_source(r, by_name, seen))
+    }
+    // Is a crossfade_loop downstream of `name`?
+    fn has_crossfade_after(name: &str, nodes: &[crate::eval::Parsed]) -> bool {
+        let mut frontier = vec![name.to_string()];
+        let mut seen = BTreeSet::new();
+        while let Some(n) = frontier.pop() {
+            if !seen.insert(n.clone()) {
+                continue;
+            }
+            for p in nodes {
+                if p.reads.contains(&n) {
+                    if p.ty == "crossfade_loop" {
+                        return true;
+                    }
+                    frontier.push(p.name.clone());
+                }
+            }
+        }
+        false
+    }
+    let mut out = Vec::new();
+    for p in nodes {
+        if !RECURSIVE.contains(&p.ty.as_str()) {
+            continue;
+        }
+        let mut seen = BTreeSet::new();
+        for r in &p.reads {
+            if let Some(src) = reaches_source(r, &by_name, &mut seen)
+                && !has_crossfade_after(&p.name, nodes)
+            {
+                out.push(format!(
+                    "node `{}` ({}) filters the looped source `{src}`: its state starts at zero, so the loop seam may click; add a crossfade_loop after it (or keep the source unfiltered)",
+                    p.name, p.ty
+                ));
+                break;
+            }
+        }
     }
     out
 }
