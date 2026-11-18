@@ -1,7 +1,7 @@
 //! Reference sets: several recordings of one kind of sound
 //! (`<project>/refs/<set>/*.wav`) to aim at. One recording is a poor target:
 //! in Phase 0 a real door slam sat 10.4 dB (STFT distance) from two other
-//! real slams, further than a synthetic one (`docs/plans/phase0-results.md`),
+//! real slams, further than a synthetic one (`docs/history/phase0-results.md`),
 //! so the distance to the nearest recording says little below ~10 dB. A set
 //! gives ranges instead: each feature (energy by role, crest, ring-out,
 //! centroid, voicing, ringing partials) is measured on every recording, and

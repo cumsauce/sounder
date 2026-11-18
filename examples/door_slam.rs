@@ -3,7 +3,7 @@
 //! frame, a noise crack, a wood `modal` struck by a noise burst, band-passed
 //! noise for the body, low-passed brown noise for the weight, and a small
 //! wood knock after. The settings are `slam_b2` from the Phase 0 test
-//! (`docs/plans/phase0-results.md`). Writes `door_slam.wav` and
+//! (`docs/history/phase0-results.md`). Writes `door_slam.wav` and
 //! `door_slam.png`, and checks that the result is dry, mono and atonal.
 //!
 //! cargo run --example door_slam [out_dir]

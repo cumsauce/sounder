@@ -1,8 +1,0 @@
-{"sound": "car_door", "round": 4, "finished": true,
- "calls": 12, "failed_calls": 0,
- "difficulty": 1,
- "self_score": 7,
- "nodes_used": ["click", "gain", "contact", "modal", "filter", "mix", "output"],
- "blockers": [],
- "wishlist": ["a tonal-vs-noisy body measure: the thump reads as a single 128-139 Hz sine-like mode (flatness 0.00), no way to judge 'thud' character from listen", "a macro-friendly way to set modal f0 range check (worked, but no doc says f0 is macro-mappable)"],
- "what_worked": ["click kind latch gave the latch transient in one node (centroid 2.3 kHz, onset at 0)", "contact -> modal with f0 130 put the body at 128-139 Hz measured", "macros with claims centroid(-1) and decay(+1) passed verify at 4 seeds"]}

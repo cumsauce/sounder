@@ -159,7 +159,8 @@ pub trait Describe {
     /// Field names whose string values are words, not node references.
     const WORDS: &'static [&'static str] = &[];
     /// The example body, without `type` / `name`. May only reference the
-    /// stand-in names listed in design/swarm-plan.md.
+    /// stand-in names `every_node_type_renders_its_example` wires up
+    /// (`crates/sfx_graph/tests/graph.rs`).
     fn example() -> serde_json::Value;
 }
 

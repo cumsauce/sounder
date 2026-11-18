@@ -1,9 +1,0 @@
-{"sound": "footstep_grass", "round": 3, "finished": true,
- "calls": 10, "failed_calls": 0,
- "difficulty": 1,
- "self_score": 8,
- "nodes_used": ["footstep", "filter", "output"],
- "blockers": [],
- "wishlist": ["footstep macros could map straight to a post filter-free 'softness' field (a built-in tone/brightness field), instead of adding a filter node", "a listen line saying which brief-style targets (attack window, centroid range) are met"],
- "what_worked": ["footstep surface=grass shoe=sneaker met the brief at once: attack 31 ms, no pitch, centroid ~4 kHz, 0.52 s", "macros on footstep weight/swish plus a lp filter freq all passed their claims", "listen descriptors (swell/attack headline, centroid by tenth) were enough to check the brief without guessing"],
- "notes": "Measured: unfiltered default step centroid 3.96k Hz (start 3.99k), swell/attack 31 ms, pitch none, length 0.52 s, peak -1.5. With the lp tone filter (macro brightness 0.6) centroid 2.1-2.5k Hz, swell 39 ms (close to the 40 ms edge), length 0.53 s. verify defaults + 3 macro claims all PASS. Exported 4 variations (peaks -1.0 to -2.6 dBFS, LUFS -20.0 to -20.3). Peak of seed 3 is 1.6 dB lower than the others; acceptable. Footstep has two onsets (heel+toe) which is by design. I did not need session_log feedback."}
