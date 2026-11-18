@@ -5,7 +5,14 @@
   "rev": 42,
   "doc": "laser",
   "recent": [
-   {"name": "door_latch", "kind": "oneshot", "seconds": 0.31, "lufs": -21.4, "ago": "2 h", "macros": 2}
+   {
+    "name": "door_latch",
+    "kind": "oneshot",
+    "seconds": 0.31,
+    "lufs": -21.4,
+    "ago": "2 h",
+    "macros": 2
+   }
   ],
   "sounds": [
    {
@@ -17,7 +24,8 @@
     "saved": false,
     "open_comments": 1,
     "seconds": 0.404,
-    "lufs": -18.2
+    "lufs": -18.2,
+    "hash": "0000000000000000"
    },
    {
     "name": "ui_click",
@@ -28,7 +36,8 @@
     "saved": true,
     "open_comments": 0,
     "seconds": 0.121,
-    "lufs": -20.1
+    "lufs": -20.1,
+    "hash": "0000000000000000"
    },
    {
     "name": "wind_loop",
@@ -39,7 +48,8 @@
     "saved": true,
     "open_comments": 0,
     "seconds": 4.0,
-    "lufs": -24.0
+    "lufs": -24.0,
+    "hash": "0000000000000000"
    }
   ],
   "agents": [
@@ -516,7 +526,8 @@
       -100
      ]
     ]
-   }
+   },
+   "hash": "0000000000000000"
   },
   "ui_click": {
    "name": "ui_click",
@@ -894,7 +905,8 @@
       -100
      ]
     ]
-   }
+   },
+   "hash": "0000000000000000"
   },
   "wind_loop": {
    "name": "wind_loop",
@@ -1225,7 +1237,8 @@
       -67
      ]
     ]
-   }
+   },
+   "hash": "0000000000000000"
   }
  },
  "catalog": [

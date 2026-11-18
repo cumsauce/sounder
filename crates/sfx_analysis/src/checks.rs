@@ -205,7 +205,7 @@ pub struct Variations {
 pub struct LayersCheck {
     /// "impact" (a hit, a slam, a knock, a blow): weight 15..60 %, body
     /// 30..80 %, crack at least 1.5 %, voiced at most 0.3, at most 1 ringing
-    /// partial, crest at most 23 dB, dry. The Phase 0 door slams: the round-0
+    /// partial, crest at most 21 dB (active frames), dry. The Phase 0 door slams: the round-0
     /// build fails weight, body and crest, the first layered one ringing,
     /// crest and dry; the one the listener approved passes.
     #[serde(default)]
@@ -229,7 +229,8 @@ pub struct LayersCheck {
     /// real slam one).
     #[serde(default)]
     pub ringing_max: Option<usize>,
-    /// Peak over RMS, dB.
+    /// Peak over RMS of the active part (10 ms frames within 40 dB of the
+    /// loudest; silence between and after hits is not counted), dB.
     #[serde(default)]
     pub crest_db: Option<Range>,
     /// Time from the peak to 20 dB under it, ms.
@@ -262,16 +263,43 @@ impl LayersCheck {
                 }),
                 voiced_max: Some(0.3),
                 ringing_max: Some(1),
+                // Over the active frames (`active_crest_db`): slam_a 21.3,
+                // slam_b 23.4, the approved slam_b2 17.8.
                 crest_db: Some(Range {
                     min: None,
-                    max: Some(23.0),
+                    max: Some(21.0),
+                }),
+                tail_ms: None,
+                dry: Some(true),
+            },
+            Some("footstep") => LayersCheck {
+                preset: None,
+                // A board's or a floor's main mode sits under 200 Hz, so a
+                // step's weight runs higher and its body lower than a hit's.
+                weight: Some(Range {
+                    min: Some(20.0),
+                    max: Some(70.0),
+                }),
+                body: Some(Range {
+                    min: Some(10.0),
+                    max: Some(60.0),
+                }),
+                crack: Some(Range {
+                    min: Some(2.0),
+                    max: None,
+                }),
+                voiced_max: Some(0.3),
+                ringing_max: Some(1),
+                crest_db: Some(Range {
+                    min: None,
+                    max: Some(22.0),
                 }),
                 tail_ms: None,
                 dry: Some(true),
             },
             Some(other) => {
                 return Err(format!(
-                    "layers: preset `{other}`: the presets are impact (or leave preset out and give the measures)"
+                    "layers: preset `{other}`: the presets are impact and footstep (or leave preset out and give the measures)"
                 ));
             }
         };
@@ -300,7 +328,14 @@ pub fn ringing_partials(d: &Descriptors) -> Vec<String> {
     let top = d.modes.iter().map(|x| x.level_db).fold(f32::MIN, f32::max);
     d.modes
         .iter()
-        .filter(|x| x.level_db >= top - RING_WITHIN_DB && x.decay_s > RING_S && x.decay_s < 600.0)
+        // A ring estimated longer than 1.5 x the sound is a misread (round 6:
+        // 1.2 s on a 0.25 s step), not a ringing partial.
+        .filter(|x| {
+            x.level_db >= top - RING_WITHIN_DB
+                && x.decay_s > RING_S
+                && x.decay_s < 600.0
+                && x.decay_s <= 1.5 * d.seconds
+        })
         .map(|x| format!("{:.0} Hz ({:.2} s)", x.hz, x.decay_s))
         .collect()
 }
@@ -322,7 +357,32 @@ fn wet_nodes(nodes: &[Value], out: &mut Vec<String>) {
 }
 
 /// The `layers` measures: (name, pass, detail) each.
-fn layers_results(l: &LayersCheck, d: &Descriptors, doc: &SoundDoc) -> Vec<(String, bool, String)> {
+/// Peak over RMS (dB) of the active part of a sound: the RMS counts only
+/// the 10 ms frames within 40 dB of the loudest, so silence between and
+/// after hits does not inflate it (round 6: a knock train read 24-25 dB).
+pub fn active_crest_db(a: &sfx_graph::Audio) -> f32 {
+    let x = a.mix_mono();
+    let w = ((0.01 * a.sample_rate as f32) as usize).max(1);
+    let frames: Vec<f64> = x
+        .chunks(w)
+        .map(|c| c.iter().map(|v| f64::from(*v) * f64::from(*v)).sum::<f64>() / c.len() as f64)
+        .collect();
+    let top = frames.iter().copied().fold(0.0f64, f64::max);
+    let keep: Vec<f64> = frames.into_iter().filter(|e| *e >= top * 1e-4).collect();
+    let rms = (keep.iter().sum::<f64>() / keep.len().max(1) as f64).sqrt();
+    let peak = x.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+    if rms <= 0.0 || peak <= 0.0 {
+        return 0.0;
+    }
+    20.0 * (f64::from(peak) / rms).log10() as f32
+}
+
+fn layers_results(
+    l: &LayersCheck,
+    d: &Descriptors,
+    audio: &sfx_graph::Audio,
+    doc: &SoundDoc,
+) -> Vec<(String, bool, String)> {
     let mut out = Vec::new();
     let [low, mid, hi, air] = d.band_shares;
     let share = |out: &mut Vec<(String, bool, String)>,
@@ -415,7 +475,7 @@ fn layers_results(l: &LayersCheck, d: &Descriptors, doc: &SoundDoc) -> Vec<(Stri
         ));
     }
     if let Some(r) = &l.crest_db {
-        let v = d.crest_db;
+        let v = active_crest_db(audio);
         let ok = range_ok(r, v);
         out.push((
             "layers crest".into(),
@@ -751,6 +811,10 @@ fn seam_spectral(tail: &[f32], head: &[f32], sr: u32) -> f32 {
 }
 
 /// Sweeps one macro that has a claim; (pass, text).
+/// How far one sweep step may go against a macro's claim, as a share of
+/// the end-to-end move.
+const CLAIM_BACKSTEP: f32 = 0.15;
+
 fn macro_check(
     cx: &CheckCx,
     m: &sfx_graph::Macro,
@@ -770,9 +834,14 @@ fn macro_check(
         peaks.push(r.peak_db);
     }
     let d = f32::from(dir);
-    let tol = ((vals[4] - vals[0]).abs() * 0.01).max(1e-6);
+    // A step against the claim may be up to 15 % of the end-to-end move:
+    // noise layers (`modal` `noise`, a noise crack) jitter a measure from
+    // one knob position to the next, and a 1 % tolerance pushed agents to
+    // drop the noise to pass (round 6).
+    let span = (vals[4] - vals[0]).abs();
+    let tol = (span * CLAIM_BACKSTEP).max(1e-6);
     let steady = vals.windows(2).all(|w| (w[1] - w[0]) * d > -tol);
-    let net = (vals[4] - vals[0]) * d > tol;
+    let net = (vals[4] - vals[0]) * d > (span * 0.01).max(1e-6);
     let clip = peaks.iter().position(|p| *p > -0.3);
     // The knob must move the measure by at least 2 % of the largest value it
     // reads: a claim that holds only by a hair is a knob nobody can hear.
@@ -1475,7 +1544,7 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
     }
     if let Some(l) = &e.layers {
         let l = l.resolved()?;
-        for (name, pass, detail) in layers_results(&l, &d(), cx.doc) {
+        for (name, pass, detail) in layers_results(&l, &d(), a, cx.doc) {
             push(&name, pass, detail);
         }
     }

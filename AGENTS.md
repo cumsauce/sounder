@@ -286,6 +286,23 @@ Check a hit with `verify {checks: ["layers"]}` (the `impact` preset: energy
 by role, voiced, ringing partials, crest, no reverb; see "Senses"): every
 FAIL names the layer to add.
 
+**From the round 6 listen (testers' sounds, judged by ear):**
+- **Door slam:** follow the door-slam recipe below (approved by ear); keep
+  its weighty low layer (band-limited noise under 200 Hz) under the detail:
+  detail without it reads light, weight without detail reads like a drum. A
+  brief that names a latch adds a `click` (`noise` about 0.75) as the after
+  layer; the slam is still the layered recipe, not a click over one `modal`.
+- **Footstep:** a step is not an impact. Keep it gentle: `footstep` with
+  `weight` 0.25-0.4, wood `ring` under 1, `noise` about 0.35, little or no
+  crack; check with `layers` `{"preset": "footstep"}`.
+- **Knock:** the approved pattern: a `pattern` into `voices` of a `contact`
+  into a wood `modal` (`noise` 0.6, `noise_width` about 0.15, `tilt` 4,
+  `loss` about 3), plus a short crack and a noise thud per knock, through
+  `finish`. Pitch it slightly low (lowest mode near 200 Hz).
+- **Metal pipe or bar:** start low: a pipe you drop is big, so the lowest
+  mode near 120-200 Hz (`f0`), not 300+ (heard as a very small pipe), with
+  `noise` about 0.3 and `strike_glide` about 35.
+
 **When one node is still right:** ambience and loops (`fire`, `wind`, `water`),
 UI blips, a single texture, or a brief that names one ready-made sound
 (`footstep`, `explosion`): use it as the body layer and add layers only if the
@@ -848,7 +865,10 @@ until it fits; you read their moves in `summary`.
   (macros, in the defaults when a sound has any) sweeps each knob over 0, .25, .5, .75, 1
   with the others where they are and requires the measure to move that way at
   every step and no position to peak over -0.3 dBFS, **and that the knob moves
-  the measure by at least 2 % of its largest value across 0..1** ("the knob
+  the measure by at least 2 % of its largest value across 0..1** (one step
+  may go against the claim by up to 15 % of the end-to-end move, so a knob
+  over a noisy layer, `modal` `noise` or a noise crack, still holds its
+  claim: keep the noise, do not lower it to pass) ("the knob
   barely moves X: widen its map, or rename the macro"). A FAIL says to rename
   the macro to what it really does, or fix what it moves. Pick names that
   match: brightness -> centroid up, weight -> centroid down, length -> decay
@@ -1043,11 +1063,15 @@ until it fits; you read their moves in `summary`.
     `roughness {min, max}` percent; `dc {max}` dB; `reference {file,
     max_distance}`.
   - **`layers`**: is it a designed sound? `{"preset": "impact"}` (or bare in
-    `checks`) for a hit, slam, knock or blow runs seven measures: `weight`
+    `checks`) for a hit, slam, knock or blow, `{"preset": "footstep"}` for a
+    step (weight 20-70 %, body 10-60 %: a floor's mode under 200 Hz counts
+    as weight; crest at most 22), runs seven measures: `weight`
     15-60 % of the energy under 200 Hz, `body` 30-80 % at 200 Hz-2 kHz,
     `crack` at least 1.5 % above 2 kHz, `voiced_max` 0.3 (pitch tracker),
     `ringing_max` 1 (partials within 6 dB of the strongest that take over
-    0.6 s to fall 60 dB), `crest_db` at most 23, and `dry` (no `reverb` or
+    0.6 s to fall 60 dB, and not longer than 1.5 x the sound: a longer estimate
+    is a misread), `crest_db` at most 21 over the active frames (10 ms frames
+    within 40 dB of the loudest: silence between hits is not counted), and `dry` (no `reverb` or
     `convolve` node, patches included). A field given beside the preset
     replaces the preset's (`tail_ms {min, max}`, the time to -20 dB, has no
     preset value). Each FAIL names the role and the layer to add. Measured on
