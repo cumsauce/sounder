@@ -1,7 +1,7 @@
 # Chorus, flanger, phaser, freq_shift
 
 Four modulation effects in `crates/sfx_graph/src/nodes/modfx.rs`, tests in
-`crates/sfx_analysis/tests/modfx.rs`. All four are sample by sample with no
+`crates/sfx_analysis/tests/it/modfx.rs`. All four are sample by sample with no
 lookahead (causal) and read no seed (not random). Delay reads use
 `DelayLine::read_lagrange3`; `freq_shift` uses `dsp::Hilbert`.
 
@@ -134,7 +134,7 @@ with one 37 Hz above it (not measured). A flanger sweep by hand: `ramp` from 0.0
 
 ### Measured
 
-Tests in `crates/sfx_analysis/tests/modfx.rs`, 48 kHz.
+Tests in `crates/sfx_analysis/tests/it/modfx.rs`, 48 kHz.
 
 | What | Measured | Test |
 |---|---|---|

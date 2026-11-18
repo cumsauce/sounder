@@ -1,7 +1,7 @@
 # Engine, motor
 
 Two machine models in `crates/sfx_graph/src/nodes/machines.rs`, tests in
-`crates/sfx_analysis/tests/machines.rs`, a worked render in
+`crates/sfx_analysis/tests/it/machines.rs`, a worked render in
 `examples/engine.rs` (writes `engine.wav/png` and `motor.wav/png`). Both take
 `rpm` as a signal, so a `ramp` or `wander` revs them and every internal
 frequency follows. Both are seeded (`random()` true) and causal.
@@ -184,7 +184,7 @@ lo-fi", "digital". No field was added; defaults changed.
 - Minimum pulse width 4 -> 8 samples; the saturated sum is low-passed at
   0.36 x the sample rate.
 
-Measured (`tests/machines_fix.rs`, 3000 rpm, seed 1, cylinders 2 / 4 / 6):
+Measured (`tests/it/machines.rs`, 3000 rpm, seed 1, cylinders 2 / 4 / 6):
 
 | | before | after |
 |---|---|---|

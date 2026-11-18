@@ -1,7 +1,7 @@
 # Rolling, cloth, footstep
 
 Source file `crates/sfx_graph/src/nodes/surface.rs`, tests
-`crates/sfx_analysis/tests/surface.rs`, example `examples/footstep.rs`. None
+`crates/sfx_analysis/tests/it/surface.rs`, example `examples/footstep.rs`. None
 of these have been heard; every number below is a measurement (48 kHz).
 
 ## `rolling`
@@ -249,7 +249,7 @@ Change (crates/sfx_graph/src/nodes/surface.rs, no new fields):
   motion smoothed over 40 ms; band centres follow that smoothed motion;
 - bands are wider (q 0.6). Motion 0 is still exact silence.
 
-Measured, 2 s, seeds 1-3 (tests/cloth_fix.rs):
+Measured, 2 s, seeds 1-3 (tests/it/surface.rs):
 
 | | before (motion 0.5, weight 0) | after (all motion 0.5..2, weight 0..1) |
 |---|---|---|

@@ -7,7 +7,7 @@ press, then a release or second snick 24 to 72 ms later by `kind`) through
 three or four small body resonances at 1.5 to 8 kHz at `size` 0.5. It is the
 single-node route for a door latch, a light switch, a button, a lock or a
 buckle. Files: `crates/sfx_graph/src/nodes/mechanism.rs`,
-`crates/sfx_analysis/tests/mechanism.rs`.
+`crates/sfx_analysis/tests/it/surface.rs`.
 
 ### Fields
 
@@ -62,7 +62,7 @@ both are plain number fields, so map them with `macros`. A light switch is
 
 ### Measured
 
-Tests in `crates/sfx_analysis/tests/mechanism.rs`, 48 kHz, 0.4 s renders of the
+Tests in `crates/sfx_analysis/tests/it/surface.rs`, 48 kHz, 0.4 s renders of the
 node. "Centroid" is the power-weighted mean frequency of one FFT over the whole
 click (the descriptors' frame centroid reads a 30 ms click through windows
 longer than the click). "Length" is the time to the last sample within 50 dB of

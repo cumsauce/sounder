@@ -3,7 +3,7 @@
 Both nodes live in `crates/sfx_graph/src/nodes/foley.rs`. Every new field is
 optional and off by default: with none of them given (or all at 0) the output
 is bit-identical to what the nodes produced before (nine default renders are
-hash-pinned in `crates/sfx_analysis/tests/m8.rs`, recorded before the change).
+hash-pinned in `crates/sfx_analysis/tests/it/foley.rs`, recorded before the change).
 
 ## `glottis` (source): `roughness`, `subharmonic`, `fry`
 
@@ -71,7 +71,7 @@ Give the human macros on `fry`, `nasal` and `growl`. Macro claims: `fry` and
 
 ### Measured
 
-Tests in `crates/sfx_analysis/tests/m8.rs`, 48 kHz. "S8a roughness" is
+Tests in `crates/sfx_analysis/tests/it/foley.rs`, 48 kHz. "S8a roughness" is
 `sfx_analysis::measure::roughness_pct` (envelope energy 20..150 Hz) of a 1 s render.
 
 | What | Measured | Test |
@@ -146,7 +146,7 @@ output bit for bit (the M8 hash pins now set it).
 - extra seeded damping, 1.15..1.5x foley's decay rate;
 - +-15 % noisy amplitude wobble (~250 Hz smoothing).
 
-### Measured (`crates/sfx_analysis/tests/voice_fix.rs`)
+### Measured (`crates/sfx_analysis/tests/it/foley.rs`)
 
 | what | old | natural |
 |---|---|---|

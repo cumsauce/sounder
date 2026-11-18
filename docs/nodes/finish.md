@@ -49,7 +49,7 @@ layers is chance: leave the claim off on noisy layers), `tail_db`, `weight_db`.
 
 ### Measured
 
-From `crates/sfx_analysis/tests/finish.rs` (`--nocapture`). The test source is
+From `crates/sfx_analysis/tests/it/finish.rs` (`--nocapture`). The test source is
 two pink-noise hits under a 1 ms / 250 ms `trigger_env`.
 
 | What | Measured | Test |

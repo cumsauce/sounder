@@ -1,7 +1,7 @@
 # Transient, gate, sub, exciter
 
 Measured numbers are in the table at the end, from
-`crates/sfx_analysis/tests/dynamics.rs`
+`crates/sfx_analysis/tests/it/dynamics.rs`
 (`cargo test -p sfx_analysis --test dynamics -- --nocapture`).
 
 ## `transient`

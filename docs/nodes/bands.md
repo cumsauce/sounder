@@ -1,7 +1,7 @@
 # Filterbank, vocoder, multiband
 
 Three band-split nodes in `crates/sfx_graph/src/nodes/bands.rs`; tests in
-`crates/sfx_analysis/tests/bands.rs`. All are causal (no lookahead) and not
+`crates/sfx_analysis/tests/it/bands.rs`. All are causal (no lookahead) and not
 random (no seed). Non-finite input samples count as 0.
 
 ## `filterbank`
@@ -47,7 +47,7 @@ every third one kept. Give the human a macro on the `gains` entries
 
 ### Measured
 
-48 kHz, 1 s of white noise (amplitude 0.3), `crates/sfx_analysis/tests/bands.rs`.
+48 kHz, 1 s of white noise (amplitude 0.3), `crates/sfx_analysis/tests/it/bands.rs`.
 
 | What | Measured | Test |
 |---|---|---|
@@ -118,7 +118,7 @@ and `bands`.
 
 ### Measured
 
-48 kHz, `crates/sfx_analysis/tests/bands.rs`.
+48 kHz, `crates/sfx_analysis/tests/it/bands.rs`.
 
 | What | Measured | Test |
 |---|---|---|
@@ -211,7 +211,7 @@ lifted, high band driven. Give the human macros on the low band's `threshold_db`
 
 ### Measured
 
-48 kHz, `crates/sfx_analysis/tests/bands.rs`.
+48 kHz, `crates/sfx_analysis/tests/it/bands.rs`.
 
 | What | Measured | Test |
 |---|---|---|

@@ -2,7 +2,7 @@
 
 Two finished-recipe models (like `thunder`) in `crates/sfx_graph/src/nodes/blast.rs`.
 Both are offline (not causal), seeded (random), mono, and exactly the
-document's length. Tests: `crates/sfx_analysis/tests/blast.rs`. Examples:
+document's length. Tests: `crates/sfx_analysis/tests/it/blast.rs`. Examples:
 `examples/explosion.rs`, `examples/gunshot.rs` (they build with
 `cargo check`; they were not run by the worker, the recipe test renders the
 same nodes through an `output` with `lufs: -14`).
@@ -194,7 +194,7 @@ Changes:
 - `gunshot` air low-pass scale 40 m -> 400 m (14.2 kHz at 50 m, 12.3 kHz at
   120 m, 4.4 kHz at 1 km). `explosion` keeps 40 m.
 
-Measured (`tests/gunshot_fix.rs`, 9 mm, seed 1, shares against the whole):
+Measured (`tests/it/blast.rs`, 9 mm, seed 1, shares against the whole):
 
 | | before | after |
 |---|---|---|
@@ -207,7 +207,7 @@ Measured (`tests/gunshot_fix.rs`, 9 mm, seed 1, shares against the whole):
 | open 4-12 kHz at 50 / 120 m | -11.9 / -20.2 dB | -8.7 / -8.9 dB |
 
 Suppressed peak still 32 dB under the open shot, crest 30.2 dB (open 32.0).
-`tests/blast.rs`: the open-shot centroid step 100 -> 400 m is now 0.81x, so
+`tests/it/blast.rs`: the open-shot centroid step 100 -> 400 m is now 0.81x, so
 that assertion went from 0.8 to 0.85. Not heard: the centroid at 0 m is high
 (the clicks carry much of the energy); if it reads as clicks over a puff,
 lower the click levels (0.15 / 0.1) in `suppressed_dry`.

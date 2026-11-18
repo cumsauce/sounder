@@ -2,7 +2,7 @@
 
 Files: `crates/sfx_graph/src/nodes/events.rs` (`bounce`),
 `crates/sfx_graph/src/nodes/control.rs` (`wander`, `ramp`),
-`crates/sfx_analysis/tests/r2f.rs`.
+`crates/sfx_analysis/tests/it/modulators.rs`.
 
 | Node | New field | Type | Default | What it does |
 |---|---|---|---|---|

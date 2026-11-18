@@ -1,7 +1,7 @@
 # Motion and stereo
 
 Three nodes in `crates/sfx_graph/src/nodes/motion.rs`; tests in
-`crates/sfx_analysis/tests/motion.rs`. All take a mono `input` (`doppler` also
+`crates/sfx_analysis/tests/it/space.rs`. All take a mono `input` (`doppler` also
 takes stereo when `pan` is false) and are causal. Only `decorrelate` is random.
 
 ## `doppler`
@@ -86,7 +86,7 @@ span.
 
 ### Measured
 
-48 kHz. Tests in `crates/sfx_analysis/tests/motion.rs`.
+48 kHz. Tests in `crates/sfx_analysis/tests/it/space.rs`.
 
 | What | Measured | Test |
 |---|---|---|

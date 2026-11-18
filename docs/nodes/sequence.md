@@ -6,7 +6,7 @@ a stream into control signals the rest of the graph can read: an envelope, a
 gate, stepped values and a melody. All four are causal and pre-computed from
 the whole stream; only `seq` in `random` mode reads the seed. Code:
 `crates/sfx_graph/src/nodes/sequence.rs`, tests:
-`crates/sfx_analysis/tests/sequence.rs`.
+`crates/sfx_analysis/tests/it/sequence.rs`.
 
 An event at time `t` first affects sample `ceil(t * sr)`, with 0.001 of a
 sample of slack, so a `pattern every 0.1` event (0.1 stored as f32) lands on
@@ -56,7 +56,7 @@ A tom pattern: hits with random strength, each pitched by `seq` and shaped by
 
 ### Measured
 
-Tests in `crates/sfx_analysis/tests/sequence.rs`, 48 kHz.
+Tests in `crates/sfx_analysis/tests/it/sequence.rs`, 48 kHz.
 
 | What | Measured | Test |
 |---|---|---|

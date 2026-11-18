@@ -1,6 +1,6 @@
 # Filter slope, ladder, eq
 
-Tests: `crates/sfx_analysis/tests/s4.rs`. Code: `crates/sfx_graph/src/nodes/filters.rs`
+Tests: `crates/sfx_analysis/tests/it/filters.rs`. Code: `crates/sfx_graph/src/nodes/filters.rs`
 (the `Filter` arm of `crates/sfx_graph/src/feedback.rs` rejects a slope in a loop).
 
 ## `filter` (new field `slope`)

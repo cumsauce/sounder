@@ -1,7 +1,7 @@
 # `spectral` modes shift / stretch / smear / hps, `pitch_shift.formant`
 
 All five live in `crates/sfx_graph/src/nodes/spectral.rs` (offline family,
-acausal, `causal()` false; not random). Tests: `crates/sfx_analysis/tests/x1.rs`.
+acausal, `causal()` false; not random). Tests: `crates/sfx_analysis/tests/it/spectral.rs`.
 Every output is exactly the document's length. Stereo input runs per channel.
 The existing modes (`freeze blur gate morph`) and `pitch_shift` / `time_stretch`
 without `formant` are bit-identical to before: `existing_modes_are_bit_identical_to_before_x1`

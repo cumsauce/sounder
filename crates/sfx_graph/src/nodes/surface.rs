@@ -1,7 +1,7 @@
 //! Surface sounds (M6): `rolling` (the excitation of something rolling over a
 //! rough surface), `cloth` (rustling fabric, paper, foliage) and `footstep`
 //! (one heel-and-toe step on concrete, gravel, grass or wood). Tests in
-//! `crates/sfx_analysis/tests/surface.rs`.
+//! `crates/sfx_analysis/tests/it/surface.rs`.
 
 use std::f32::consts::PI;
 
@@ -144,7 +144,7 @@ impl Eval for Rolling {
         const SCALE: [f32; 3] = [1.0, 3.7, 13.7];
         let weight = [1.0, rough, rough * rough];
         // Normalized so speed 1 m/s gives about -14 dBFS rms at the
-        // defaults (measured, tests/surface.rs).
+        // defaults (measured, tests/it/surface.rs).
         let gain = 0.235 / (1.0 + 0.8 * rough + 0.6 * rough * rough).sqrt();
         let mut pos = 0.0f64;
         let mut out = vec![0.0f32; cx.n];

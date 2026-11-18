@@ -18,7 +18,7 @@
 
 Exaggeration and liveliness for designed hits (`docs/history/sfx-quality.md`
 Phase 6). None of it has been heard; every number is from
-`crates/sfx_analysis/tests/phase6.rs` (`--nocapture`).
+`crates/sfx_analysis/tests/it/modal.rs` (`--nocapture`).
 
 ## `modal` `strike_glide` and `rattle`
 
@@ -136,7 +136,7 @@ After the listening note above, a third field, off by default (left out or
 | `noise` | number | off | 0..1 | each mode becomes (1 - noise) x its clean ring + noise x a band of white noise at its frequency, following the ring's envelope and decay (round 1-2 used a modulation instead; see below) |
 | `noise_width` | number | 0.25 | 0.05..2 | the noise band's width as a fraction of the mode's frequency |
 
-Measured on a noise-burst strike (`crates/sfx_analysis/tests/tonality.rs`):
+Measured on a noise-burst strike (`crates/sfx_analysis/tests/it/modal.rs`):
 
 | Sound | voiced | occupied flatness | strongest partial over the median |
 |---|---|---|---|
@@ -204,7 +204,7 @@ helper `modal` uses (`add_noise_band`, width 0.25).
 | `click` latch, switch, button, lock, clasp | 0.60, 0.33, 0.60, 0.78, 0.60 / 0.00 each | 0.21-0.41 / 0.51-0.65 |
 | `footstep` wood | 0.84 / 0.00 | 0.15 / 0.36 (strongest partial 19.4 to 8.6 dB over the median) |
 
-(`click_and_wood_footstep_take_noise` in `tests/tonality.rs`.) Listening
+(`click_and_wood_footstep_take_noise` in `tests/it/modal.rs`.) Listening
 pairs `p8_latch_old` / `p8_latch_new`, `p8_step_wood_old` /
 `p8_step_wood_new` (peak -6 dBFS; the noisy ones are about 1.5 LU quieter
 at the same peak).

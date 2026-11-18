@@ -101,7 +101,7 @@ give every grain its own length and pitch.
 
 ### Measured
 
-Tests in `crates/sfx_analysis/tests/x3.rs`, 48 kHz. Grain lengths are read
+Tests in `crates/sfx_analysis/tests/it/grains.rs`, 48 kHz. Grain lengths are read
 from runs of a rect-windowed grain over a constant source; frequencies from
 sign changes of a 1 kHz sine source (about 1 % resolution).
 

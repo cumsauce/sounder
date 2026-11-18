@@ -1,7 +1,7 @@
 # `thunder`: `rumble`, `tail`
 
 Files: `crates/sfx_graph/src/nodes/foley.rs` (`Thunder`),
-`crates/sfx_analysis/tests/r3f.rs`.
+`crates/sfx_analysis/tests/it/foley.rs`.
 
 | Node | New field | Type | Default | What it does |
 |---|---|---|---|---|
@@ -13,7 +13,7 @@ stream, so the foley flash itself is the same at every `rumble`.
 
 Error: `rumble: 1.5: give 0..1 (0 = foley's tail as it is, 1 = a bed as loud as the flash's loudest 0.4 s)`.
 
-Measured (`tests/r3f.rs`, distance 1500 m, 16 s document): the 400 ms rms
+Measured (`tests/it/foley.rs`, distance 1500 m, 16 s document): the 400 ms rms
 between 40 % and 80 % of the audible span spans 18-50 dB with `rumble` 0
 (seeds 1, 3, 5, 8) and 2.2-5.9 dB with `rumble` 0.6. Spectral centroid of the
 whole render 80-82 Hz at `rumble` 0.3-1 (under 100 Hz); 25-90 Hz band

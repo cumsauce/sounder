@@ -923,7 +923,7 @@ fn undo_dead_time(observed: f32, wt: f32) -> f32 {
 ///    envelope gives 1 / period ([`envelope_period_hz`]). It is used when
 ///    it exceeds the result so far by 15 %.
 ///
-/// Limits (measured in `tests/r3b.rs`): the dead times are calibrated on
+/// Limits (measured in `tests/it/onsets.rs`): the dead times are calibrated on
 /// ticks with 3 ms decays; the peaks reading differs by about +-25 % between
 /// a fixed-carrier tick, a random-carrier tick and a band-passed noise burst
 /// at 500/s; longer ticks hide each other more, so read low; above ~600/s

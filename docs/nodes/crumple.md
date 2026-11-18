@@ -7,7 +7,7 @@ band-passed noise bursts whose count follows `density` all the way to 400 per
 second, plus sparse louder snaps. It is the dense counterpart of `cloth`, whose
 burst rate saturates (its fine onset count stops rising from `motion` 1).
 Code: `crates/sfx_graph/src/nodes/crackle.rs`; tests:
-`crates/sfx_analysis/tests/crackle.rs`.
+`crates/sfx_analysis/tests/it/surface.rs`.
 
 ### Fields
 
@@ -62,7 +62,7 @@ second, small and hard. Give the human macros on `hardness` (paper to foil), on
 
 ### Measured
 
-Tests in `crates/sfx_analysis/tests/crackle.rs`, 48 kHz. "Fine onsets" are
+Tests in `crates/sfx_analysis/tests/it/surface.rs`, 48 kHz. "Fine onsets" are
 `measure::fine_onsets(audio, 5.0)`, which is what `expect onsets {spacing_ms: 5}`
 counts.
 

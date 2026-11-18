@@ -6,7 +6,7 @@ A ring modulator (nonlinear family, effect): multiplies the input by an
 internal carrier oscillator, so every input partial at `f` becomes two
 partials at `f - freq` and `f + freq` and the input frequency itself is
 removed. It is also the reference node: `crates/sfx_graph/src/nodes/ringmod.rs`
-and `crates/sfx_analysis/tests/ringmod.rs` are the files to copy.
+and `crates/sfx_analysis/tests/it/nonlinear.rs` are the files to copy.
 
 ### Fields
 
@@ -46,7 +46,7 @@ carrier, cut by a fast decay. Give the human a macro on the carrier ramp's
 
 ### Measured
 
-Tests in `crates/sfx_analysis/tests/ringmod.rs`, 48 kHz, 1 s renders, input a
+Tests in `crates/sfx_analysis/tests/it/nonlinear.rs`, 48 kHz, 1 s renders, input a
 1 kHz sine of amplitude 0.5.
 
 | What | Measured | Test |

@@ -746,7 +746,7 @@ impact strength), or later `voices`; **a crackle** = `poisson` with a
   **`f0`** (Hz, 20..18000, a number, `"$param"` or `"=expr"`, read once) sets
   `size` so the lowest mode of the shape's table sits at `f0` ("lowest mode 2
   kHz" is one field; measured within 0.22 % for a plate, 0.04-0.10 % for the
-  other shapes, in `tests/m7.rs`). It replaces `size`: giving both is an error,
+  other shapes, in `tests/it/modal.rs`). It replaces `size`: giving both is an error,
   giving neither is an error. The seeded mistuning can move the lowest mode by
   up to 1.5 % (plate). A macro that maps `f0` must not also map `size`.
   **`f_min` / `f_max`** (Hz, default none) keep only the modes inside the band,
@@ -1084,7 +1084,7 @@ until it fits; you read their moves in `summary`.
     `convolve` node, patches included). A field given beside the preset
     replaces the preset's (`tail_ms {min, max}`, the time to -20 dB, has no
     preset value). Each FAIL names the role and the layer to add. Measured on
-    the Phase 0 door slams (`tests/layers.rs`, fixtures in
+    the Phase 0 door slams (`tests/it/layers.rs`, fixtures in
     `tests/fixtures/phase0/`): the round-0 build fails weight (86 %), body
     (5.7 %) and crest (24.9 dB); the first layered one, which the listener
     heard as a tuned drum with a reverb tail, fails ringing (75, 329, 457 Hz
@@ -1103,7 +1103,7 @@ until it fits; you read their moves in `summary`.
   line-fit the log envelope and the phase), so decays of fast modes, close
   pairs and the gains are good. A gain is the amplitude the mode has at the
   hit in the recording's own scale: a unit `impulse` into the node reproduces
-  the recording's level. Measured (`tests/reference.rs`): a rebuilt five-mode
+  the recording's level. Measured (`tests/it/reference.rs`): a rebuilt five-mode
   hit with a noise tick sits 0.69 dB (STFT distance) from its original and
   within 0.1 dB in level; a hard case (30 ms and 20 ms modes, a pair 25 Hz
   apart) 1.21 dB; a rebuild with the modes shifted 10 % sits 13 dB away.
@@ -1275,7 +1275,7 @@ pitched thump, and a gunshot's air low-pass is `16 kHz / (1 + d / 400 m)`;
 numbers: `docs/nodes/{elements,surface,water,voice,blast,machines}.md`.
 
 Blocks marked `<!-- recipe -->` are rendered by
-`crates/sfx_analysis/tests/agents_recipes.rs` (an `output` is added when the
+`crates/sfx_analysis/tests/it/recipes.rs` (an `output` is added when the
 block has none), so they stay valid.
 
 ### Sources and oscillators (`docs/nodes/sources.md`, `synth.md`)
@@ -1397,7 +1397,7 @@ no lookahead; `sub` needs the note under ~`lowpass`.
 ]
 ```
 
-Measured (`tests/finish.rs`): crest 22.08 / 23.71 / 24.71 dB at punch 0 / .5 /
+Measured (`tests/it/finish.rs`): crest 22.08 / 23.71 / 24.71 dB at punch 0 / .5 /
 1 and 22.08 / 19.84 / 19.33 dB at glue 0 / .5 / 1; `tail_db` -6 took the tail
 down 3.9 dB (two thirds: noise jitter reads as rising level) and left the
 attack; shelves +5.9 dB where set, 0.01 dB at 1 kHz; width 2 doubled the side
@@ -1415,7 +1415,7 @@ above 150 Hz (+6.0 dB) with the side under 60 Hz 34 dB under the mid.
   `loss` about 1.8 (3 was "a bit too short"); **thin metal** `noise` 0.85,
   `noise_width` 0.5, `tilt` 6 (a lid with less read tonal; at `noise` 1
   and width 1 its flatness went 0.40 to 0.74). Measured in
-  `tests/tonality.rs` and `docs/nodes/exaggerate.md`. Off by default
+  `tests/it/modal.rs` and `docs/nodes/exaggerate.md`. Off by default
   (bit-identical). `tilt` takes down the one dominant partial; `loss` sets
   how long wood rings.
 - `modal` `strike_glide` (cents, 0..1200): every mode starts sharp at the

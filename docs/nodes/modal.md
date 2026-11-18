@@ -109,7 +109,7 @@ of `wood`; a drum skin: `"shape": "membrane"`, `"strike_position": 0.5`.
 
 ### Measured
 
-Tests in `crates/sfx_analysis/tests/m7.rs` (48 kHz) and `modal.rs` unit tests.
+Tests in `crates/sfx_analysis/tests/it/modal.rs` (48 kHz) and `modal.rs` unit tests.
 Ratios are from the spectral peaks of 1.5 s of the node's output (a steel-like
 material with a tenth of its loss, so every mode of the table rings for the
 whole window), nearest peak to f1 x table ratio. The lowest-peak search used
@@ -201,7 +201,7 @@ Give the human macros on `spread` (how fast it all lands) and on `exponent`
 
 ### Measured
 
-Tests in `crates/sfx_analysis/tests/m7.rs`.
+Tests in `crates/sfx_analysis/tests/it/modal.rs`.
 
 | What | Measured | Test |
 |---|---|---|
@@ -253,7 +253,7 @@ poisson, loss, thickness}`) and the range. The lowest mode of a shape sits at
 `a / size^p` Hz (p = 2 for plate, bar, tube, shell; 1 for membrane, string), `a`
 growing with the material's thickness.
 
-### Measured (tests in `crates/sfx_analysis/tests/m7.rs`)
+### Measured (tests in `crates/sfx_analysis/tests/it/modal.rs`)
 
 - `loss` 0.5 / 2 on a one-mode metal plate: 20 dB decay time 0.380 s /
   0.100 s against 0.195 s (ratios 1.95 and 0.51); a `{young, ...}` material at
@@ -291,7 +291,7 @@ before the strongest are chosen.
 |---|---|---|---|---|
 | `thickness` | signal (read once) | the material's own | metres, 0.0001 .. 0.5 | every mode frequency goes linearly with it; the size range in the error and hint uses it; outside the range is an error naming the range |
 
-Giving a custom material's own thickness, or the named material's (wood 0.025, glass 0.01, metal 0.05), changes nothing: renders are bit-identical to leaving the field out, and the pinned hashes in `tests/m7.rs` hold.
+Giving a custom material's own thickness, or the named material's (wood 0.025, glass 0.01, metal 0.05), changes nothing: renders are bit-identical to leaving the field out, and the pinned hashes in `tests/it/modal.rs` hold.
 
 #### Recipe
 
@@ -356,7 +356,7 @@ hold, and a band around the whole table is bit-identical to none).
 - A band whose modes the strike does not excite (a node at `strike_position`)
   errors too and says to widen it or move `strike_position`.
 
-### Measured (`crates/sfx_analysis/tests/m7.rs`, 48 kHz)
+### Measured (`crates/sfx_analysis/tests/it/modal.rs`, 48 kHz)
 
 | What | Measured | Test |
 |---|---|---|

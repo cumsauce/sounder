@@ -3,7 +3,7 @@
 Four nodes built straight from the companion Pure Data patches of Andy
 Farnell's *Designing Sound*, then compared with those patches rendered by
 real Pd. Code: `crates/sfx_graph/src/nodes/farnell.rs`. Tests:
-`crates/sfx_analysis/tests/farnell_nodes.rs`.
+`crates/sfx_analysis/tests/it/farnell.rs`.
 
 ## Method
 

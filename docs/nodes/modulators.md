@@ -1,7 +1,7 @@
 # Chaos, fbm, curve, switch, pitch_follow, centroid_follow
 
 Six control-family nodes in `crates/sfx_graph/src/nodes/modulators.rs`, tested
-in `crates/sfx_analysis/tests/modulators.rs`. `chaos` and `fbm` make control
+in `crates/sfx_analysis/tests/it/modulators.rs`. `chaos` and `fbm` make control
 signals; `curve` reshapes one; `switch` picks between sounds; `pitch_follow`
 and `centroid_follow` turn audio into a Hz control signal.
 
@@ -163,7 +163,7 @@ a signal that is always silent gives 0. Error: `window: 5: give between
 
 ### Measured
 
-Tests in `crates/sfx_analysis/tests/modulators.rs`, 48 kHz.
+Tests in `crates/sfx_analysis/tests/it/modulators.rs`, 48 kHz.
 
 | What | Measured | Test |
 |---|---|---|

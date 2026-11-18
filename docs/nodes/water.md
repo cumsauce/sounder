@@ -2,7 +2,7 @@
 
 Two sources built from a population of Minnaert bubbles summed in one pass
 (`crates/sfx_graph/src/nodes/water.rs`, tests in
-`crates/sfx_analysis/tests/water.rs`, `examples/water.rs`). The bubble maths
+`crates/sfx_analysis/tests/it/water.rs`, `examples/water.rs`). The bubble maths
 is foley's `Bubble` (the `bubble` node): a sine at `3.29 kHz / radius_mm`,
 decaying at `pi f 0.045` a second, rising by `0.1 x` the decay rate a second.
 Each bubble is written straight into one buffer: no per-voice graph, so
@@ -89,7 +89,7 @@ finished one-shot). Errors:
 
 ## Measured
 
-48 kHz; tests in `crates/sfx_analysis/tests/water.rs`. Centroid is the power
+48 kHz; tests in `crates/sfx_analysis/tests/it/water.rs`. Centroid is the power
 centroid over 100 Hz .. 16 kHz. "Rises" counts envelope onsets (3x the level 5 ms
 before) per second.
 
@@ -175,8 +175,8 @@ the crossfade); raise `flow`, or crossfade.
 
 Three new optional fields. Each default leaves the render bit-identical to
 before (`splash_defaults_are_bit_identical`, `thunder_tail_off_is_bit_identical`,
-`water_tone_default_is_bit_identical` in `crates/sfx_analysis/tests/r4d.rs`; the
-older hash-pinned tests are untouched). Tests: `crates/sfx_analysis/tests/r4d.rs`.
+`water_tone_default_is_bit_identical` in `crates/sfx_analysis/tests/it/water.rs`; the
+older hash-pinned tests are untouched). Tests: `crates/sfx_analysis/tests/it/water.rs`.
 
 ### `splash`: `tail`, `burst`
 
@@ -239,7 +239,7 @@ cannot add content the node does not have, and the pops sit mostly at 0.8-4 kHz
 Labels (docs/history/labels/batch2_findings.md): `water` heard as "a stream with wind
 noise" (bubbles fine); `splash` 3/3 bad: "no idea", "drop kick", "weird
 crunchies". Not heard after the fix; these are the measured causes and what
-moved. Tests: `crates/sfx_analysis/tests/water_fix.rs`.
+moved. Tests: `crates/sfx_analysis/tests/it/water.rs`.
 
 ### splash
 

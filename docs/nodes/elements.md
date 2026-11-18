@@ -3,7 +3,7 @@
 Three finished-recipe models of the elements (`crates/sfx_graph/src/nodes/elements.rs`),
 each a few physical fields in, tuned DSP inside. All three are seeded, take a
 `loop` field that makes the render periodic in the document's duration, and
-are checked in `crates/sfx_analysis/tests/m3.rs`. Examples that render a WAV
+are checked in `crates/sfx_analysis/tests/it/elements.rs`. Examples that render a WAV
 and a PNG and print the descriptors: `examples/fire.rs`, `examples/wind.rs`.
 
 ## The `loop` field (all three nodes)
@@ -73,7 +73,7 @@ as an 8 s `kind: loop` document (`examples/fire.rs`).
 
 ### Measured
 
-48 kHz. Tests in `crates/sfx_analysis/tests/m3.rs`; lufs is of the rendered
+48 kHz. Tests in `crates/sfx_analysis/tests/it/elements.rs`; lufs is of the rendered
 output stage with no loudness target.
 
 | What | Measured | Test |
@@ -251,7 +251,7 @@ spark loop: all finite, largest peak 1.77 (`the_elements_are_finite_and_bounded_
 Heard: `fire` 3/3 as "a fire / wind next to a small gurgling liquid";
 `spark` as "cicada / frog", "weird rhythm", "super aggressive". Not heard
 again since the fix; the numbers below are measurements
-(`crates/sfx_analysis/tests/fire_fix.rs`, `m3.rs`).
+(`crates/sfx_analysis/tests/it/elements.rs`, `m3.rs`).
 
 ### fire
 

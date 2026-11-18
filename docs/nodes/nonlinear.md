@@ -1,6 +1,6 @@
 # Shape (oversampling, curves, mix), compress.key
 
-<!-- Measured by crates/sfx_analysis/tests/shape.rs. -->
+<!-- Measured by crates/sfx_analysis/tests/it/nonlinear.rs. -->
 
 ## `shape`
 

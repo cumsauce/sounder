@@ -3,7 +3,7 @@
 //! of bursts follows `density` all the way up (no saturation), and the
 //! arrivals are a jittered grid rather than a Poisson process, so a count of
 //! fine onsets tracks the density instead of merging neighbours. Tests in
-//! `crates/sfx_analysis/tests/crackle.rs`.
+//! `crates/sfx_analysis/tests/it/surface.rs`.
 
 use serde::Deserialize;
 

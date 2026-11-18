@@ -35,7 +35,7 @@ Give the human macros on `detune` (width of the cluster) and `spread`. For hard 
 
 ### Measured
 
-Tests in `crates/sfx_analysis/tests/s1.rs`.
+Tests in `crates/sfx_analysis/tests/it/sources.rs`.
 
 | What | Measured | Test |
 |---|---|---|

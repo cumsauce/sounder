@@ -3,7 +3,7 @@
 Spaces: `reverb` gains `model`, `er_mix` and `width`; `ir` is a new source that
 makes an impulse response for `convolve`. Code: `nodes/time.rs` (the fdn and the
 dispatch), `nodes/space.rs` (room, plate, spring, `ir`). Tests:
-`crates/sfx_analysis/tests/space.rs`.
+`crates/sfx_analysis/tests/it/space.rs`.
 
 ## `reverb`
 

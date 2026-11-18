@@ -1,4 +1,4 @@
-//! The phase 2 check: a driver script (`mcp_driver.py --calls`, throwaway
+//! The server end to end: a driver script (`mcp_driver.py --calls`, throwaway
 //! mode, against `sounder --headless`) runs new_sound -> sound_ops -> listen
 //! -> verify -> undo -> redo -> catalog save -> export, and every line is
 //! `ok` where it should be; the exported WAV exists and its manifest LUFS
@@ -69,8 +69,10 @@ fn the_driver_script_builds_checks_undoes_saves_and_exports() {
     let dir = temp_dir("driver");
     let out_dir = dir.join("exported");
     let mut calls: Value = serde_json::from_slice(
-        &std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/calls/phase2.json"))
-            .unwrap(),
+        &std::fs::read(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/calls/tool_round_trip.json"),
+        )
+        .unwrap(),
     )
     .unwrap();
     for c in calls.as_array_mut().unwrap() {
@@ -202,11 +204,13 @@ fn the_driver_script_builds_checks_undoes_saves_and_exports() {
 }
 
 #[test]
-fn the_phase_3_nodes_work_through_the_driver() {
-    let dir = temp_dir("phase3");
+fn events_voices_and_loops_work_through_the_driver() {
+    let dir = temp_dir("events_voices_loops");
     let calls: Value = serde_json::from_slice(
-        &std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/calls/phase3.json"))
-            .unwrap(),
+        &std::fs::read(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/calls/events_voices_loops.json"),
+        )
+        .unwrap(),
     )
     .unwrap();
     let Some(r) = drive(&calls, &dir) else {

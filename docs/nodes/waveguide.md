@@ -1,7 +1,7 @@
 # `tube`, `string`
 
 Two physical-model nodes in `crates/sfx_graph/src/nodes/waveguide.rs`; tests
-in `crates/sfx_analysis/tests/waveguide.rs`; worked graph in
+in `crates/sfx_analysis/tests/it/waveguide.rs`; worked graph in
 `examples/waveguide.rs`. Both are digital waveguides: delay lines
 (`dsp::DelayLine`, third-order Lagrange read) closed into a loop through a
 lossy reflection filter, with the player's nonlinearity where the loop is

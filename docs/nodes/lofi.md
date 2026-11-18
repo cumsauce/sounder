@@ -1,7 +1,7 @@
 # `crossfade_loop`, resample, tape, stutter
 
 All four live in `crates/sfx_graph/src/nodes/lofi.rs`; the tests are in
-`crates/sfx_analysis/tests/lofi.rs`. A signal field takes a number,
+`crates/sfx_analysis/tests/it/lofi.rs`. A signal field takes a number,
 `"$param"`, `"=expr"` or the name of another node; the fields below that are
 plain numbers (`fade`, `wow`, `flutter`, `drive`, `hiss_db`, `tone`, `slice`,
 `repeats`) take `"$param"` and `"=expr"` but not a node.
@@ -52,7 +52,7 @@ can be a `"$param"` they set too.
 
 ### Measured
 
-Tests in `crates/sfx_analysis/tests/lofi.rs`, 48 kHz, 2 s loops (`kind:
+Tests in `crates/sfx_analysis/tests/it/lofi.rs`, 48 kHz, 2 s loops (`kind:
 "loop"`), `Expect::defaults_for` (so `loop_seam` is in the checks).
 
 | What | Measured | Test |

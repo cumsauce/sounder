@@ -220,7 +220,7 @@ pub enum NoiseColor {
 }
 
 /// Scale of the differentiated pink stream so blue noise has about the
-/// level of violet (measured: tests/s1.rs).
+/// level of violet (measured: tests/it/sources.rs).
 const BLUE_GAIN: f32 = 3.5;
 
 /// Seeded noise.
