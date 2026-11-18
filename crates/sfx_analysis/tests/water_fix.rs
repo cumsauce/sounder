@@ -1,6 +1,6 @@
 //! water_fix: the batch-2 blind labels heard `water`'s hiss as wind and
 //! `splash` as a "drop kick" / "weird crunchies". These tests pin the
-//! measurable causes going away (numbers in docs/nodes/water_fix.md).
+//! measurable causes going away (numbers in docs/nodes/water.md).
 
 #![allow(clippy::unwrap_used)] // helpers outside #[test] fns
 

@@ -1,4 +1,4 @@
-# Phase 2: finish
+# Finish
 
 ## `finish`
 
@@ -6,7 +6,7 @@ The bus a designed sound ends with, as one node (dynamics / tone): punch, tail,
 glue, warmth, weight and air shelves, and width above 150 Hz. It runs existing
 nodes in order (`transient`, `transient`, `compress`, `shape` + `onepole`,
 `eq`, `multiband` + `width`), each only when its field is set. It has no
-reverb: SFX are dry by default (`docs/plans/phase0-results.md`).
+reverb: SFX are dry by default (`docs/history/phase0-results.md`).
 
 ### Fields
 

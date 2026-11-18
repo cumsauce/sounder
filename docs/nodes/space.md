@@ -1,4 +1,4 @@
-# S11: reverb models, ir
+# Reverb models, ir
 
 Spaces: `reverb` gains `model`, `er_mix` and `width`; `ir` is a new source that
 makes an impulse response for `convolve`. Code: `nodes/time.rs` (the fdn and the

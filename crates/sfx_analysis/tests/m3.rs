@@ -1,7 +1,7 @@
 //! M3: `fire`, `wind`, `spark`. Each named field moves its measure the stated
 //! way at three settings; each node renders a seamless loop; bit-identical,
 //! finite at the extremes, one error test per node. The `println!` lines are
-//! the numbers in docs/nodes/m3.md.
+//! the numbers in docs/nodes/elements.md.
 
 #![allow(clippy::unwrap_used)] // helpers outside #[test] fns
 
@@ -706,7 +706,7 @@ fn the_elements_are_registered_and_random() {
 
 // ------------------------------------------------------------------- recipes
 
-/// The recipe in docs/nodes/m3.md: a campfire loop with two knobs.
+/// The recipe in docs/nodes/elements.md: a campfire loop with two knobs.
 fn campfire() -> Vec<Value> {
     vec![
         json!({"type": "fire", "name": "flames", "size": 0.7, "intensity": 0.6, "crackle": 0.6, "seed": 3}),

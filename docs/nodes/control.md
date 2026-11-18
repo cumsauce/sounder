@@ -1,4 +1,4 @@
-# R2-F: small field fixes
+# `bounce` jitter, `wander` min / max, `ramp` duration
 
 Files: `crates/sfx_graph/src/nodes/events.rs` (`bounce`),
 `crates/sfx_graph/src/nodes/control.rs` (`wander`, `ramp`),

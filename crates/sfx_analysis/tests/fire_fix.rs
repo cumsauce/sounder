@@ -1,7 +1,7 @@
 //! fire_fix: the blind listen heard `fire` as "wind next to a gurgling
 //! liquid" and `spark` as "a cicada / a frog". These measure the causes the
 //! fix removes: tonal, ringing crackle pops; a smooth roar envelope; a spark
-//! envelope locked to one strong mains line. Numbers in docs/nodes/fire_fix.md.
+//! envelope locked to one strong mains line. Numbers in docs/nodes/elements.md.
 
 #![allow(clippy::unwrap_used)]
 

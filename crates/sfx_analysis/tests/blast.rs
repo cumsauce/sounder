@@ -1,6 +1,6 @@
 //! M1: `explosion` and `gunshot`. Each card assertion is "field up, measure
 //! moves": measured at three settings, the numbers printed (they go in
-//! docs/nodes/M1.md). Measures are taken on the node's own samples (before
+//! docs/nodes/blast.md). Measures are taken on the node's own samples (before
 //! the output stage), 48 kHz.
 
 #![allow(clippy::unwrap_used)] // helpers outside #[test] fns
@@ -471,7 +471,7 @@ fn blast_nodes_are_registered_non_causal_and_random() {
     );
 }
 
-/// The recipes in docs/nodes/M1.md, as written there.
+/// The recipes in docs/nodes/blast.md, as written there.
 #[test]
 fn blast_recipes_render() {
     let storm = vec![

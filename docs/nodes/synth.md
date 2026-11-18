@@ -1,4 +1,4 @@
-# S2: fm, wavetable
+# `fm`, `wavetable`
 
 ## `fm`
 

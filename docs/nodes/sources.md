@@ -1,4 +1,4 @@
-# S1: `osc` sync / unison / pm, `noise` colours, `impulse` blurb
+# `osc` sync / unison / pm, `noise` colours, `impulse` blurb
 
 ## `osc`
 

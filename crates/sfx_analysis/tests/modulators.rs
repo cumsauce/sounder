@@ -1,5 +1,5 @@
 //! S9: `chaos`, `fbm`, `curve`, `switch`, `pitch_follow`, `centroid_follow`.
-//! Each test measures and prints (these lines go in docs/nodes/S9.md).
+//! Each test measures and prints (these lines go in docs/nodes/modulators.md).
 
 #![allow(clippy::unwrap_used)] // helpers outside #[test] fns
 
@@ -604,7 +604,7 @@ fn modulators_are_registered_with_their_flags() {
 
 // ----------------------------------------------------------------- recipe
 
-/// The recipe in docs/nodes/S9.md, as written there.
+/// The recipe in docs/nodes/modulators.md, as written there.
 fn recipe() -> Vec<Value> {
     vec![
         json!({"type": "fbm", "name": "drift", "rate": 1.5, "octaves": 4, "range": [-1, 1], "seed": 5}),

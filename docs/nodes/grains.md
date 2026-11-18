@@ -1,4 +1,4 @@
-# X3: `grains` per-grain size and pitch, and `cloud`
+# `grains` per-grain size and pitch, and `cloud`
 
 Two granular changes in `crates/sfx_graph/src/nodes/events.rs`. `grains`
 (existing) now takes `size` and `pitch` as a number, a signal or a random

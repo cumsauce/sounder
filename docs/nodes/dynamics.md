@@ -1,4 +1,4 @@
-# S5: transient, gate, sub, exciter
+# Transient, gate, sub, exciter
 
 Measured numbers are in the table at the end, from
 `crates/sfx_analysis/tests/dynamics.rs`

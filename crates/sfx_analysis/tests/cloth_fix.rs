@@ -2,7 +2,7 @@
 //! something hard", "small metal objects falling". The cause measured here:
 //! clicky ticks (high crest, many fine onsets, narrow ringing bands). These
 //! tests pin the swish: low crest, few fine onsets, high flatness, while
-//! motion still raises level and centroid. Numbers go in docs/nodes/cloth_fix.md.
+//! motion still raises level and centroid. Numbers go in docs/nodes/surface.md.
 
 #![allow(clippy::unwrap_used)]
 

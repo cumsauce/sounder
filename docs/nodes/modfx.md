@@ -1,4 +1,4 @@
-# S6: chorus, flanger, phaser, freq_shift
+# Chorus, flanger, phaser, freq_shift
 
 Four modulation effects in `crates/sfx_graph/src/nodes/modfx.rs`, tests in
 `crates/sfx_analysis/tests/modfx.rs`. All four are sample by sample with no

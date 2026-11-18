@@ -1,4 +1,4 @@
-# R1-F: click
+# Click
 
 ## `click`
 

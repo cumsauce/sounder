@@ -1,5 +1,5 @@
 //! `crossfade_loop`, `resample`, `tape` and `stutter`: each test measures
-//! something and prints it (these lines go in docs/nodes/S12.md).
+//! something and prints it (these lines go in docs/nodes/lofi.md).
 
 #![allow(clippy::unwrap_used)] // helpers outside #[test] fns
 
@@ -822,7 +822,7 @@ fn stutter_edges_stereo_bit_identical_and_errors_explain() {
 
 // ------------------------------------------------------------------ recipes
 
-/// The four recipes in docs/nodes/S12.md, as written.
+/// The four recipes in docs/nodes/lofi.md, as written.
 #[test]
 fn lofi_recipes_render() {
     // Seamless wind bed: a loop.

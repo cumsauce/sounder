@@ -2,7 +2,7 @@
 //! an ideal plate struck by an impulse (the Phase 0 and Phase 6 listening
 //! tests: a crate read as a marimba, a lid as a tuned gong). Off by default;
 //! on, the voiced share, the ringing partials and the tonal peaks fall and
-//! the occupied band's flatness rises. Numbers in `docs/nodes/phase6.md`.
+//! the occupied band's flatness rises. Numbers in `docs/nodes/exaggerate.md`.
 
 #![allow(clippy::unwrap_used)]
 

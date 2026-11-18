@@ -1,4 +1,4 @@
-# S12: crossfade_loop, resample, tape, stutter
+# `crossfade_loop`, resample, tape, stutter
 
 All four live in `crates/sfx_graph/src/nodes/lofi.rs`; the tests are in
 `crates/sfx_analysis/tests/lofi.rs`. A signal field takes a number,

@@ -645,7 +645,7 @@ fn cloud_and_grains_are_registered() {
     assert!(buf_left(&r).iter().any(|v| v.abs() > 0.01));
 }
 
-/// The recipe in docs/nodes/X3.md, as written there.
+/// The recipe in docs/nodes/grains.md, as written there.
 fn recipe() -> Vec<Value> {
     vec![
         json!({"type": "osc", "name": "tone", "freq": 330, "amp": 0.5}),

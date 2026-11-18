@@ -1,4 +1,4 @@
-# Phase 6: modal strike_glide and rattle; subdrop, riser
+# Modal strike_glide and rattle; subdrop, riser
 
 **Listening result (the human, 2026-11-17).**
 - `strike_glide`: "adds more detail and does sound like a harder hit"; the
@@ -16,7 +16,7 @@
   tonal for real objects. Wood is heavily damped and noisy; thin metal has
   dense, clashing partials.
 
-Exaggeration and liveliness for designed hits (`docs/plans/sfx-quality.md`
+Exaggeration and liveliness for designed hits (`docs/history/sfx-quality.md`
 Phase 6). None of it has been heard; every number is from
 `crates/sfx_analysis/tests/phase6.rs` (`--nocapture`).
 

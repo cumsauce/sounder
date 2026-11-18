@@ -1,5 +1,5 @@
 //! R4-D: `splash` `tail` / `burst`, `thunder` `tail`, `water` `tone`.
-//! Each test prints its measurement (these lines go in docs/nodes/R4-D.md).
+//! Each test prints its measurement (these lines go in docs/nodes/water.md).
 
 #![allow(clippy::unwrap_used)] // helpers outside #[test] fns
 

@@ -232,7 +232,7 @@ Recipes (the JSON in the sections below renders as written):
 
 A finished game or film SFX is several layers, each owning a band and a time
 slot, through one dry bus. One node (or one chain) gets you a correct sound;
-layers get you a designed one. In the Phase 0 test (`docs/plans/phase0-results.md`)
+layers get you a designed one. In the Phase 0 test (`docs/history/phase0-results.md`)
 the single-chain door slam an agent built in round 0 sat 14.6 dB (STFT
 distance) from real door slams. The layered rebuild sat 9.2 dB, closer than
 one real slam is to the others (10.4), and the listener called it "basically
@@ -713,7 +713,7 @@ impact strength), or later `voices`; **a crackle** = `poisson` with a
   splash and the other not and the spectral half of `loop_seam` fails by chance
   (about 17 % at `splash` 0.5; raise `flow`, or crossfade). `water` alone is
   periodic: 0 of 480 failures at 1 s and 3 s over seeds, flow and density
-  (`docs/nodes/R3-E.md`).
+  (`docs/nodes/water.md`).
 
 ## Physical models: modal, contact, friction
 
@@ -756,7 +756,7 @@ impact strength), or later `voices`; **a crackle** = `poisson` with a
   `thickness`"), and so is a band whose modes the strike does not excite (a
   node at `strike_position`). With neither field the output is bit-identical to
   before. Use them for glass, ice, coins and keys: `f0` where the object rings,
-  `f_max` to keep the top of the table out. Detail: `docs/nodes/R3-C.md`.
+  `f_max` to keep the top of the table out. Detail: `docs/nodes/modal.md`.
   **`modal` normalizes its output**: a unit impulse (1.0 at one sample, or a
   `contact` of mass x speed = 0.1) peaks near 0 dBFS (measured within 0.01 dB
   over 10 materials x 6 shapes x 3 sizes); a stronger strike is louder. It has
@@ -1225,7 +1225,7 @@ follow the document's rate. `describe_op <type>` has the schema.
 | `glottis` | `f0` (signal), `[tension 0.65]`, `[breath 0.05]`, `[vibrato_cents]`, `[vibrato_hz 5.5]`, `[amp]`, `[seed]` | Foley's Liljencrants-Fant flow derivative (`lf_pulse`; tension 1 = pressed Rd 0.3, 0 = breathy Rd 2.7) with seeded breath noise. Pitch reads exactly (YIN). Aliases above ~1.5 kHz. |
 | `tract` | `input`, `[vowel a]`, `[vowel_to]`, `[morph]`, `[formants [[hz, bw]..]]`, `[scale]` | **Not foley's waveguide** (its `Tract` is private): a 4-formant Klatt cascade at Peterson-Barney vowels `a e i o u ae uh schwa`. `vowel_to` + `morph` (signal) glide; `scale` > 1 shortens the tract (child, small creature), < 1 lengthens. Feed it a `glottis`. |
 | `syrinx` | `species` or `pitch`; `[harmonic] [waver]` (whistle); `[rate] [at]` (species); `[amp] [seed]` | `species`: foley's `birdsong2`, any of 57 (`robin`, `cardinal`, `dove`, `crow`, `wood_thrush`, `boreal_owl`...; a bad name lists all), a phrase of its own length placed at `at`, cut/padded to the document; each `seed` is another individual; `rate` resamples (pitch and speed). `pitch`: a whistle from a contour signal (sine + 2nd harmonic + waver, as foley's songbirds). |
-| `thunder` | `[distance 1500]`, `[celsius]`, `[humidity 90]`, `[exposure 1]`, `[brightness 0.5]`, `[length 1]`, `[rumble 0]`, `[tail 0]`, `[at]`, `[amp]`, `[seed]` | Foley's `strike` (Ribner-Roy N-wave over a jagged channel). Silent until `distance / 343` s, then clap and a rumble of several seconds with centroid ~30-50 Hz: set `duration` to fit (a 1.5 km flash: ~14 s). Foley levels every flash to a similar peak, so distance changes timing, brightness and length, not loudness. `exposure` 0 = shut in (low-pass to 200 Hz). `brightness` 0..1 (0.5 = foley's spectrum, bit-identical) is a +-24 dB high shelf at 100 Hz, peak kept: above 0.5 the centroid rises. `length` 0.5..3 (1 = as foley makes it, bit-identical) stretches the rumble after the first 0.1 s clap by overlap-add of 120 ms grains, so the spectrum stays and the rumble lasts `length` times as long (a longer `duration`). `rumble` 0..1 (0 = off, bit-identical) adds a continuous bed of seeded noise band-limited to 25-90 Hz from the first sound to the end of the audible tail, so the tail is not isolated spikes; its rms is `sqrt(rumble)` times the rms of the flash's loudest 0.4 s (0.6 is 2.2 dB under) and falls 3 dB over the tail; it is added before `exposure`, `brightness` and `amp` and the level is not re-normalised, so the flash gets louder with `rumble`. `tail` 0..1 (0 = off, bit-identical) is an exponential fade of the whole output: the gain falls in dB, linearly from the first sound, reaching -40 x `tail` dB at the end of the audible tail (last sample over -60 dB of the peak) and carrying on at that slope; it runs after `length` / `rumble` and before `exposure`, `brightness`, `amp`, and lowers the peak (re-level with `amp` or the output target). Measured at 1500 m, 16 s, audible length (10 ms rms over -45 dBFS) 7.19 / 6.54 / 6.53 / 4.80 / 4.80 s at `tail` 0 / .25 / .5 / .75 / 1: non-increasing, not strict (foley's tail is spikes). `listen`'s `decay -20 dB` is NOT monotone from `tail` 0 to 0.25 (1.84 s to 4.93 s): it counts from the loudest window, which sits in the rumble with no fade and moves to the clap with one; so read the audible length or the loudness curve when tuning a tail (a `decay` claim on a `tail` knob can fail verify's sweep at the 0 to 0.25 step: map `tail` from 0.25 up, or leave the claim off). Measured at 1500 m: the 400 ms rms across the mid-tail spans 18-50 dB at 0, 2.2-5.9 dB at 0.6; centroid stays under 100 Hz (`docs/nodes/r3f.md`). |
+| `thunder` | `[distance 1500]`, `[celsius]`, `[humidity 90]`, `[exposure 1]`, `[brightness 0.5]`, `[length 1]`, `[rumble 0]`, `[tail 0]`, `[at]`, `[amp]`, `[seed]` | Foley's `strike` (Ribner-Roy N-wave over a jagged channel). Silent until `distance / 343` s, then clap and a rumble of several seconds with centroid ~30-50 Hz: set `duration` to fit (a 1.5 km flash: ~14 s). Foley levels every flash to a similar peak, so distance changes timing, brightness and length, not loudness. `exposure` 0 = shut in (low-pass to 200 Hz). `brightness` 0..1 (0.5 = foley's spectrum, bit-identical) is a +-24 dB high shelf at 100 Hz, peak kept: above 0.5 the centroid rises. `length` 0.5..3 (1 = as foley makes it, bit-identical) stretches the rumble after the first 0.1 s clap by overlap-add of 120 ms grains, so the spectrum stays and the rumble lasts `length` times as long (a longer `duration`). `rumble` 0..1 (0 = off, bit-identical) adds a continuous bed of seeded noise band-limited to 25-90 Hz from the first sound to the end of the audible tail, so the tail is not isolated spikes; its rms is `sqrt(rumble)` times the rms of the flash's loudest 0.4 s (0.6 is 2.2 dB under) and falls 3 dB over the tail; it is added before `exposure`, `brightness` and `amp` and the level is not re-normalised, so the flash gets louder with `rumble`. `tail` 0..1 (0 = off, bit-identical) is an exponential fade of the whole output: the gain falls in dB, linearly from the first sound, reaching -40 x `tail` dB at the end of the audible tail (last sample over -60 dB of the peak) and carrying on at that slope; it runs after `length` / `rumble` and before `exposure`, `brightness`, `amp`, and lowers the peak (re-level with `amp` or the output target). Measured at 1500 m, 16 s, audible length (10 ms rms over -45 dBFS) 7.19 / 6.54 / 6.53 / 4.80 / 4.80 s at `tail` 0 / .25 / .5 / .75 / 1: non-increasing, not strict (foley's tail is spikes). `listen`'s `decay -20 dB` is NOT monotone from `tail` 0 to 0.25 (1.84 s to 4.93 s): it counts from the loudest window, which sits in the rumble with no fade and moves to the clap with one; so read the audible length or the loudness curve when tuning a tail (a `decay` claim on a `tail` knob can fail verify's sweep at the 0 to 0.25 step: map `tail` from 0.25 up, or leave the claim off). Measured at 1500 m: the 400 ms rms across the mid-tail spans 18-50 dB at 0, 2.2-5.9 dB at 0.6; centroid stays under 100 Hz (`docs/nodes/thunder.md`). |
 
 `species` / `thunder` are finished one-shots, so they are not causal for a
 live runtime (`summary` says so); the rest are. All seeded nodes are
@@ -1272,13 +1272,13 @@ output); a `suppressed` `gunshot` is a gas puff plus action clacks with no
 pitched thump, and a gunshot's air low-pass is `16 kHz / (1 + d / 400 m)`;
 `engine` fires vary per cycle with combustion noise and a softer exhaust comb,
 `motor` drifts in speed with brush and bearing noise. Details and before/after
-numbers: `docs/nodes/{fire,cloth,water,voice,gunshot,machines}_fix.md`.
+numbers: `docs/nodes/{elements,surface,water,voice,blast,machines}.md`.
 
 Blocks marked `<!-- recipe -->` are rendered by
 `crates/sfx_analysis/tests/agents_recipes.rs` (an `output` is added when the
 block has none), so they stay valid.
 
-### Sources and oscillators (`docs/nodes/S1.md`, `S2.md`)
+### Sources and oscillators (`docs/nodes/sources.md`, `synth.md`)
 
 - `osc` new fields: `sync` (a mono signal; each rising zero crossing resets
   the phase, polyBLEP, crossing placed to a fraction of a sample), `unison`
@@ -1315,7 +1315,7 @@ the grid at 110 Hz and -29.8 dB at 1999 Hz; `fm` and large `pm` are not
 oversampled, so a big index at a high `freq` aliases (not measured); YIN reads
 the slave's rate on a sync sweep far above the master.
 
-### Filters, EQ, ladder (`docs/nodes/s4.md`)
+### Filters, EQ, ladder (`docs/nodes/filters.md`)
 
 - `filter` new `slope` 12 | 24 | 48 dB/oct (`lp` / `hp` only; not in a
   feedback loop). `q` retunes the last section, the default is Butterworth.
@@ -1342,7 +1342,7 @@ Limits: the ladder's `tanh` is not oversampled (high `drive` folds back); at
 the default `q` an `eq` peak is wide (+0.78 dB two octaves away), narrow it
 with `q` 4 or more; a 48 dB filter at a few Hz has an f32 noise floor.
 
-### Dynamics (`docs/nodes/S5.md`, `S3.md`)
+### Dynamics (`docs/nodes/dynamics.md`, `nonlinear.md`)
 
 - `transient` {input, [attack_db 0], [sustain_db 0], [speed 0.02]}: gain on
   rising and on falling level (+-24 dB); a steady plateau is untouched.
@@ -1403,7 +1403,7 @@ down 3.9 dB (two thirds: noise jitter reads as rising level) and left the
 attack; shelves +5.9 dB where set, 0.01 dB at 1 kHz; width 2 doubled the side
 above 150 Hz (+6.0 dB) with the side under 60 Hz 34 dB under the mid.
 
-### Exaggeration and liveliness (`docs/nodes/phase6.md`)
+### Exaggeration and liveliness (`docs/nodes/exaggerate.md`)
 
 - `modal` `noise` (0..1) and `noise_width` (0.05..2, default 0.25): each
   mode becomes (1 - noise) x its clean ring + noise x a band of white noise
@@ -1415,7 +1415,7 @@ above 150 Hz (+6.0 dB) with the side under 60 Hz 34 dB under the mid.
   `loss` about 1.8 (3 was "a bit too short"); **thin metal** `noise` 0.85,
   `noise_width` 0.5, `tilt` 6 (a lid with less read tonal; at `noise` 1
   and width 1 its flatness went 0.40 to 0.74). Measured in
-  `tests/tonality.rs` and `docs/nodes/phase6.md`. Off by default
+  `tests/tonality.rs` and `docs/nodes/exaggerate.md`. Off by default
   (bit-identical). `tilt` takes down the one dominant partial; `loss` sets
   how long wood rings.
 - `modal` `strike_glide` (cents, 0..1200): every mode starts sharp at the
@@ -1456,7 +1456,7 @@ above 150 Hz (+6.0 dB) with the side under 60 Hz 34 dB under the mid.
 ]
 ```
 
-### Shape, oversampling, ring modulation (`docs/nodes/S3.md`, `ringmod.md`)
+### Shape, oversampling, ring modulation (`docs/nodes/nonlinear.md`, `ringmod.md`)
 
 - `shape` {input, [mode tanh|clip|fold|bitcrush|rectify|asym|diode|tube|table],
   [drive 1, signal], [bits 8] (bitcrush), [bias 0.5] (asym), [points [[x, y],
@@ -1483,7 +1483,7 @@ above 0.45 x the sample rate and leaves up to half a sample of offset at `mix`
 1; `bitcrush` and `fold` are meant to alias; a square or saw `ringmod` carrier
 aliases (not measured).
 
-### Modulation effects (`docs/nodes/s6.md`)
+### Modulation effects (`docs/nodes/modfx.md`)
 
 - `chorus` {input (mono if `spread` > 0), [rate 0.8 Hz], [depth 0.003 s],
   [delay 0.02 s], [voices 3, 1..8], [spread 1], [mix 0.5]}.
@@ -1511,7 +1511,7 @@ dry path is not delay-matched for `mix` between 0 and 1; the phaser's notches
 are up to 2 % below the maths at high frequency; with the LFO running a 3 ms
 echo reads 0.880 instead of 1.0 (cause not isolated).
 
-### Space: reverb models and impulse responses (`docs/nodes/S11.md`)
+### Space: reverb models and impulse responses (`docs/nodes/space.md`)
 
 - `reverb` new `model` `fdn` (default, bit-identical to before) | `room` |
   `plate` | `spring`; `er_mix` 0..1 (`room` only: early reflections vs tail;
@@ -1565,7 +1565,7 @@ Limits: a point listener in still air at 343 m/s; no reflections, wind or
 directivity; `decorrelate` does not keep a mono sum (3 dB down for
 uncorrelated channels) and smears a click over ~14 ms.
 
-### Modulators and control (`docs/nodes/S9.md`)
+### Modulators and control (`docs/nodes/modulators.md`)
 
 - `chaos` {[model logistic|lorenz|henon], rate, [param], [range [lo, hi]],
   [seed]}: a chaotic control signal in -1..1 or `range`.
@@ -1629,7 +1629,7 @@ instances); `seq` `glide` is linear in Hz, `notes` glide is linear in
 semitones; `random` can repeat a value; `trigger_env` `restart` with `attack`
 0 steps to the new peak.
 
-### Lo-fi and loops (`docs/nodes/S12.md`)
+### Lo-fi and loops (`docs/nodes/lofi.md`)
 
 - `crossfade_loop` {input, [fade 0.25 s]}: makes the wrap of a loop
   continuous (equal-power crossfade of the end into the start; same length,
@@ -1665,7 +1665,7 @@ Models take a few physical fields and run tuned DSP inside. Most are seeded
 (`seed` mixed with the document seed and node name), bit-identical at any
 thread count, and **not normalized**: set `output.lufs` or `output.peak_db`.
 
-**Blasts** (`docs/nodes/M1.md`): offline one-shots, mono, exactly the
+**Blasts** (`docs/nodes/blast.md`): offline one-shots, mono, exactly the
 document's length (like `thunder`).
 
 - `explosion` {size (fireball radius m, 0.1..100), distance (m, 0..30000),
@@ -1691,7 +1691,7 @@ document's length (like `thunder`).
   every size peaks near 0.8: size and caliber move the sub band and the length,
   not the level. A document shorter than the delay renders silence.
 
-**Elements** (`docs/nodes/m3.md`): `fire`, `wind`, `spark`, all with `loop`
+**Elements** (`docs/nodes/elements.md`): `fire`, `wind`, `spark`, all with `loop`
 (bool; unset follows the document, so a `kind: loop` document renders
 periodic in its duration; `true` forces it, `false` forces a plain render).
 
@@ -1713,7 +1713,7 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
   one is peaky: crest 23.5 dB). Memory: fire holds six buffers of the
   document length.
 
-**Water** (`docs/nodes/M4.md`):
+**Water** (`docs/nodes/water.md`):
 
 - `water` {flow (signal 0..1; 0 is silence), [depth 0.5], [splash 0], [density
   300 bubbles/s, 0..3000], [tone 0.5, 0..1], [loop], [seed]}: a population of
@@ -1794,7 +1794,7 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
   and low pressures (`listen` before trusting one); the pluck and strike are
   fixed 2 ms excitations; `tube` has no toneholes or bell (pitch error up to 1.8 %).
 
-**Surfaces** (`docs/nodes/M6.md`):
+**Surfaces** (`docs/nodes/surface.md`):
 
 - `rolling` {speed (m/s signal, 0..50), [roughness 0.5], [size 0.002 m], [seed]}:
   the force of rolling over a rough surface, an excitation for `modal`; level is
@@ -1812,7 +1812,7 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
   ticks x `1 - 2 (swish - 0.5)`; gravel stone ticks fewer and a swish bed
   fading in above 0.5; concrete and wood ignore it. Both defaults are
   bit-identical to before the fields (pinned hashes); give the human macros on
-  them. Measured (`docs/nodes/R2-G.md`): grass energy above 2 kHz at swish 0 /
+  them. Measured (`docs/nodes/surface.md`): grass energy above 2 kHz at swish 0 /
   .5 / 1 is 0.10 / 0.56 / 0.77; the wood low mode at weight 0.5 goes 78 Hz to
   305 Hz from `body` 0.5 to 2.
 
@@ -1869,7 +1869,7 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
 ```
 
 **From the book, ported straight from the patch** (`nodes/farnell.rs`,
-`docs/nodes/farnell_nodes.md`): each was built from its `.pd` file and then
+`docs/nodes/farnell.md`): each was built from its `.pd` file and then
 compared with that patch rendered by real Pd (2008-era compatibility,
 Pd-extended `pow~`), using exact copies of Pd's `bp~`, pre-0.44 `hip~`,
 `lop~` and `vcf~`. STFT distance to the Pd render: `cricket` 1.9, `bell` 3.6,
@@ -1932,7 +1932,7 @@ patch adds one 64-sample block to the loop, and the ports include it.
   24 ms, x 0.6) summed through old `hip~` 12 and fed back through a 61 ms one
   (x 0.006), clipped at x 4, formants `bp~` 740 / 1400 / 1500 / 1600 Hz Q 12.
 
-**Modal shapes and `shatter`** (`docs/nodes/M7.md`):
+**Modal shapes and `shatter`** (`docs/nodes/modal.md`):
 
 - `modal` `shape` `plate` (default) | `bar` (free-free: 1 : 2.757 : 5.404) |
   `tube` (ring modes of a pipe wall; `size` = diameter) | `membrane` (Bessel
@@ -1961,7 +1961,7 @@ patch adds one 64-sample block to the loop, and the ports include it.
   thickness}` for a thin pipe wall); sizes and times in `shatter` are drawn
   independently (a big piece is as likely late as early).
 
-**Voice upgrades** (`docs/nodes/M8.md`): every new field is off by default
+**Voice upgrades** (`docs/nodes/voice.md`): every new field is off by default
 (the old renders are hash-pinned).
 
 - `glottis` new `roughness` 0..1 (period jitter up to +-4 %, level +-50 %),
@@ -2005,7 +2005,7 @@ a creaky nasal vowel is `glottis` `fry` from a `ramp` into `tract` `vowel: "o"`
 `to`; explosion `size` and `distance`; fire `size` and `intensity`; wind `speed`
 and `gust` (claim `swing`); water `depth` and `splash`.
 
-### Spectral additions (`docs/nodes/X1.md`)
+### Spectral additions (`docs/nodes/spectral.md`)
 
 Offline, acausal, exactly the document's length; the old modes and
 `pitch_shift` / `time_stretch` without `formant` are bit-identical to before.
@@ -2042,7 +2042,7 @@ click and a partial share a bin and frame; `formant` assumes envelope features
 wider than ~500 Hz (a pitch above ~400 Hz partly follows the harmonics, not
 measured); `shift` leaks slightly (-58 dB) on an abrupt start.
 
-### Bands and vocoder (`docs/nodes/X2.md`)
+### Bands and vocoder (`docs/nodes/bands.md`)
 
 - `filterbank` {input, bands (1..64 log-spaced from `low` to `high`), [gains
   (one per band, linear), default all 1], [q], [low 80], [high 12000]}.
@@ -2075,7 +2075,7 @@ harmonic carrier leaves bands without a harmonic quiet; `multiband` settings are
 numbers (no automation), the compressor has no lookahead, `drive` is not
 oversampled; all hold the whole document per band in memory.
 
-### Grains and clouds (`docs/nodes/X3.md`)
+### Grains and clouds (`docs/nodes/grains.md`)
 
 - `grains` {source (a node or a `.wav`), events, size, [position 0..1, signal],
   [pitch 1], [window hann|tri|rect], [pan_spread], [jitter], [seed]}: `size`

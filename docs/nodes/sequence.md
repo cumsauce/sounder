@@ -1,4 +1,4 @@
-# S10: trigger_env, event_gate, seq, notes
+# `trigger_env`, event_gate, seq, notes
 
 Event streams (`pattern`, `poisson`, `bounce`, `burst`, `once`,
 `on_threshold`) used to feed only `grains` and `voices`. These four nodes turn

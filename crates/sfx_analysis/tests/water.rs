@@ -652,7 +652,7 @@ fn registered_with_the_right_flags() {
     assert!(!node.causal(), "a looping water is not causal");
 }
 
-/// The recipe in docs/nodes/M4.md, as written there.
+/// The recipe in docs/nodes/water.md, as written there.
 fn recipe() -> Vec<Value> {
     vec![
         json!({"type": "wander", "name": "level", "rate": 0.4, "range": [0.35, 0.7], "seed": 1}),

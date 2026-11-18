@@ -1,6 +1,6 @@
 //! M6: `rolling`, `cloth`, `footstep`. Each test measures and prints (these
 //! lines go in docs/nodes/surface.md). The footstep presets are tested
-//! against the round-0 briefs' numbers (design/rounds/briefs.json).
+//! against the numbers of the round-0 briefs.
 
 #![allow(clippy::unwrap_used)] // helpers outside #[test] fns
 

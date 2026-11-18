@@ -1,5 +1,5 @@
 //! X2: `filterbank`, `vocoder`, `multiband`. Each test measures something and
-//! prints it (these lines go in docs/nodes/X2.md).
+//! prints it (these lines go in docs/nodes/bands.md).
 
 #![allow(clippy::unwrap_used)] // helpers outside #[test] fns
 
@@ -638,7 +638,7 @@ fn registered_causal_and_not_random() {
     assert!(text.contains("Linkwitz-Riley") && text.contains("Crossover frequencies"));
 }
 
-/// The recipes in docs/nodes/X2.md, as written there.
+/// The recipes in docs/nodes/bands.md, as written there.
 fn recipes() -> Vec<(&'static str, Vec<Value>, &'static str)> {
     vec![
         (

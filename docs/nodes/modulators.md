@@ -1,4 +1,4 @@
-# S9: chaos, fbm, curve, switch, pitch_follow, centroid_follow
+# Chaos, fbm, curve, switch, pitch_follow, centroid_follow
 
 Six control-family nodes in `crates/sfx_graph/src/nodes/modulators.rs`, tested
 in `crates/sfx_analysis/tests/modulators.rs`. `chaos` and `fbm` make control

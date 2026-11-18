@@ -2,7 +2,7 @@
 //! `ball_bounce`, `cricket`, `twang`): what each patch does, measured on the
 //! node. Against the patches rendered by real Pd (2008-era compatibility,
 //! Pd-extended pow~) they sat 3.6 / 6.5 / 1.9 / 4.8 dB of STFT distance away
-//! (docs/nodes/farnell_nodes.md).
+//! (docs/nodes/farnell.md).
 
 #![allow(clippy::unwrap_used)]
 

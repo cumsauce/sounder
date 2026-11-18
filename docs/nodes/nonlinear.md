@@ -1,4 +1,4 @@
-# S3: shape (oversampling, curves, mix), compress.key
+# Shape (oversampling, curves, mix), compress.key
 
 <!-- Measured by crates/sfx_analysis/tests/shape.rs. -->
 

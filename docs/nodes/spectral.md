@@ -1,4 +1,4 @@
-# X1: `spectral` modes shift / stretch / smear / hps, `pitch_shift.formant`
+# `spectral` modes shift / stretch / smear / hps, `pitch_shift.formant`
 
 All five live in `crates/sfx_graph/src/nodes/spectral.rs` (offline family,
 acausal, `causal()` false; not random). Tests: `crates/sfx_analysis/tests/x1.rs`.

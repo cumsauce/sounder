@@ -1,6 +1,6 @@
 //! machines_fix: the blind listen heard `engine` as "digital riser" /
 //! "low resolution" / "trombonish" and `motor` as "artificial / lo-fi". These
-//! tests measure the causes named in docs/nodes/machines_fix.md: too clean a
+//! tests measure the causes named in docs/nodes/machines.md: too clean a
 //! line spectrum (off-grid energy), no cycle-to-cycle variation, a resonant
 //! exhaust comb (third-octave peak over median) and a perfectly steady motor.
 

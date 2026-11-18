@@ -665,7 +665,7 @@ fn ir_is_registered_and_reverb_documents_its_models() {
     assert!(sfx_graph::describe(None).unwrap().contains("- ir:"));
 }
 
-/// The recipe in docs/nodes/S11.md, as written there.
+/// The recipe in docs/nodes/space.md, as written there.
 fn recipe() -> Vec<Value> {
     vec![
         json!({"type": "noise", "name": "n", "color": "white"}),

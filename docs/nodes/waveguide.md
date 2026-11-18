@@ -1,4 +1,4 @@
-# M5: `tube`, `string`
+# `tube`, `string`
 
 Two physical-model nodes in `crates/sfx_graph/src/nodes/waveguide.rs`; tests
 in `crates/sfx_analysis/tests/waveguide.rs`; worked graph in

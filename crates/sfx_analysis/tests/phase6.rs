@@ -1,5 +1,5 @@
 //! Phase 6: `modal` `strike_glide` and `rattle`, and the exaggeration layers
-//! `subdrop` and `riser`. Numbers quoted in `docs/nodes/phase6.md` come from
+//! `subdrop` and `riser`. Numbers quoted in `docs/nodes/exaggerate.md` come from
 //! here (run with `--nocapture`).
 
 #![allow(clippy::unwrap_used)]

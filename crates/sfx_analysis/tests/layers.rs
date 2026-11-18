@@ -1,4 +1,4 @@
-//! The `layers` check on the Phase 0 door slams (`docs/plans/phase0-results.md`),
+//! The `layers` check on the Phase 0 door slams (`docs/history/phase0-results.md`),
 //! kept as fixtures in `tests/fixtures/phase0/`: the round-0 agent build
 //! (`slam_a`), the first layered build the listener heard as a tuned drum
 //! with a reverb tail (`slam_b`, as the listener heard it: after the search), and the rebuild they called "basically

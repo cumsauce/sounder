@@ -1,7 +1,7 @@
 //! Spaces: the room, plate and spring models behind `reverb.model`, and the
 //! `ir` node that makes an impulse response for `convolve`.
 //!
-//! Tests: `crates/sfx_analysis/tests/space.rs`. Docs: `docs/nodes/S11.md`.
+//! Tests: `crates/sfx_analysis/tests/space.rs`. Docs: `docs/nodes/space.md`.
 
 use std::f32::consts::{PI, TAU};
 

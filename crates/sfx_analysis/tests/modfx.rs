@@ -1,5 +1,5 @@
 //! S6: `chorus`, `flanger`, `phaser`, `freq_shift`. Each test measures
-//! something and prints it (these lines go in docs/nodes/s6.md).
+//! something and prints it (these lines go in docs/nodes/modfx.md).
 
 #![allow(clippy::unwrap_used)] // helpers outside #[test] fns
 
@@ -677,7 +677,7 @@ fn modfx_are_registered_causal_and_not_random() {
     }
 }
 
-/// The recipe in docs/nodes/s6.md, as written there.
+/// The recipe in docs/nodes/modfx.md, as written there.
 fn recipe() -> Vec<Value> {
     vec![
         json!({"type": "noise", "name": "wash", "color": "pink", "seed": 3, "amp": 0.4}),

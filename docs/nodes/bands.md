@@ -1,4 +1,4 @@
-# X2: filterbank, vocoder, multiband
+# Filterbank, vocoder, multiband
 
 Three band-split nodes in `crates/sfx_graph/src/nodes/bands.rs`; tests in
 `crates/sfx_analysis/tests/bands.rs`. All are causal (no lookahead) and not

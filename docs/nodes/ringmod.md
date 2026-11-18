@@ -1,4 +1,4 @@
-# T0c: ringmod
+# Ringmod
 
 ## `ringmod`
 

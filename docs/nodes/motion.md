@@ -1,4 +1,4 @@
-# S7: motion and stereo
+# Motion and stereo
 
 Three nodes in `crates/sfx_graph/src/nodes/motion.rs`; tests in
 `crates/sfx_analysis/tests/motion.rs`. All take a mono `input` (`doppler` also
