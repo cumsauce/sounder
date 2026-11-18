@@ -1,4 +1,4 @@
-//! Surface sounds (M6): `rolling` (the excitation of something rolling over a
+//! Surface sounds: `rolling` (the excitation of something rolling over a
 //! rough surface), `cloth` (rustling fabric, paper, foliage) and `footstep`
 //! (one heel-and-toe step on concrete, gravel, grass or wood). Tests in
 //! `crates/sfx_analysis/tests/it/surface.rs`.

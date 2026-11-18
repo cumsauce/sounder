@@ -1,4 +1,4 @@
-//! S9: modulators and control. `chaos` and `fbm` make control signals,
+//! Modulators and control. `chaos` and `fbm` make control signals,
 //! `curve` shapes one, `switch` picks between sounds, and `pitch_follow` /
 //! `centroid_follow` turn audio into a Hz control signal (acausal: they look
 //! at the whole buffer).

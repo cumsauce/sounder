@@ -275,14 +275,14 @@ node_types! {
     "fade" => Fade,
     // output
     "output" => Output,
-    // phase 3: spectral
+    // spectral
     "pitch_shift" => PitchShift,
     "time_stretch" => TimeStretch,
     "spectral" => Spectral,
-    // phase 3: voices
+    // voices
     "voices" => Voices,
     "sound" => SoundNode,
-    // phase 3: events
+    // events
     "once" => Once,
     "pattern" => Pattern,
     "poisson" => Poisson,
@@ -290,13 +290,13 @@ node_types! {
     "burst" => Burst,
     "on_threshold" => OnThreshold,
     "grains" => Grains,
-    // phase 3: expr
+    // expr
     "expr" => Expr,
-    // phase 4: modal
+    // modal
     "modal" => Modal,
     "contact" => Contact,
     "friction" => Friction,
-    // phase 4: foley
+    // foley
     "bubble" => BubbleNode,
     "air" => Air,
     "glottis" => Glottis,
@@ -304,15 +304,12 @@ node_types! {
     "syrinx" => Syrinx,
     "thunder" => Thunder,
 
-    // slot T0c
     "ringmod" => RingMod,
 
-    // slot S1
 
     "fm" => Fm,
     "wavetable" => Wavetable,
 
-    // slot S3
 
     "ladder" => Ladder,
     "eq" => Equalizer,
@@ -323,20 +320,16 @@ node_types! {
     "sub" => Sub,
     "exciter" => Exciter,
 
-    // slot S6
     "chorus" => Chorus,
     "flanger" => Flanger,
     "phaser" => Phaser,
     "freq_shift" => FreqShift,
 
-    // slot S7
     "doppler" => Doppler,
     "haas" => Haas,
     "decorrelate" => Decorrelate,
 
-    // slot S8
 
-    // slot S9
     "chaos" => Chaos,
     "fbm" => Fbm,
     "curve" => CurveLookup,
@@ -344,16 +337,13 @@ node_types! {
     "pitch_follow" => PitchFollow,
     "centroid_follow" => CentroidFollow,
 
-    // slot S10
     "trigger_env" => TriggerEnv,
     "event_gate" => EventGate,
     "seq" => Seq,
     "notes" => Notes,
 
-    // slot S11
     "ir" => Ir,
 
-    // slot S12
     "crossfade_loop" => CrossfadeLoop,
     "resample" => Resample,
     "tape" => Tape,
@@ -362,7 +352,6 @@ node_types! {
     "explosion" => Explosion,
     "gunshot" => Gunshot,
 
-    // slot M2
     "engine" => Engine,
     "motor" => Motor,
     "clock" => Clock,
@@ -376,32 +365,24 @@ node_types! {
     "jet" => Jet,
     "red_alert" => RedAlert,
 
-    // slot M3
     "fire" => Fire,
     "wind" => Wind,
     "spark" => Spark,
 
-    // slot M4
     "water" => Water,
     "splash" => Splash,
 
-    // slot M5
     "tube" => Tube,
     "string" => StringNode,
 
-    // slot M6
     "rolling" => Rolling,
     "cloth" => Cloth,
     "footstep" => Footstep,
 
-    // slot M7
     "shatter" => Shatter,
 
-    // slot M8
 
-    // slot X1
 
-    // slot X2
     "filterbank" => Filterbank,
     "vocoder" => Vocoder,
     "multiband" => Multiband,
@@ -409,13 +390,10 @@ node_types! {
     "subdrop" => Subdrop,
     "riser" => Riser,
 
-    // slot X3
     "cloud" => Cloud,
 
-    // slot R1F
     "click" => Click,
 
-    // slot R2D
     "crumple" => Crumple,
 }
 
@@ -550,13 +528,13 @@ pub fn refs_typed(ty: &str, body: &Value) -> Vec<(String, String)> {
 fn refs_with(own: &[&str], body: &Value) -> Vec<(String, String)> {
     const WORDS: &[&str] = &[
         "type", "name", "op", "mode", "shape", "curve", "color", "file", "window", "sound",
-        // phase 4: modal (a material name is a word, not a node)
+        // modal (a material name is a word, not a node)
         "material", "vowel", "vowel_to", "species",
-        // enum-string fields every node may use (swarm plan, rule 5)
+        // enum-string fields every node may use
         "model", "preset", "style",
     ];
     let mut out = Vec::new();
-    // phase 3: voices. The `patch` is its own graph and `map` is expression
+    // voices. The `patch` is its own graph and `map` is expression
     // text: only `events` reads another node.
     if body.get("patch").is_some_and(Value::is_array) {
         if let Some(e) = body.get("events") {
@@ -564,7 +542,7 @@ fn refs_with(own: &[&str], body: &Value) -> Vec<(String, String)> {
         }
         return out;
     }
-    // phase 3: expr. Its `out` / `update` / `state` are expression text, not
+    // expr. Its `out` / `update` / `state` are expression text, not
     // references: only the `inputs` values read other nodes. (No other node
     // has a string `out` without an `input`; `fade`'s `out` is a number.)
     if body.get("out").is_some_and(Value::is_string) && body.get("input").is_none() {

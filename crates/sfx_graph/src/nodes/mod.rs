@@ -17,77 +17,47 @@ mod spectral;
 mod time;
 mod voices;
 
-// slot T0c
 mod ringmod;
-
-// slot S1
 
 mod synth;
 
-// slot S3
-
-// slot S4
-
 mod dynamics;
 
-// slot S6
 mod modfx;
 
-// slot S7
 mod motion;
 
-// slot S8
-
-// slot S9
 mod modulators;
 
-// slot S10
 mod sequence;
 
-// slot S11
 mod space;
 
-// slot S12
 mod lofi;
 
 mod blast;
 
-// slot M2
 mod farnell;
 mod machines;
 
-// slot M3
 mod elements;
 
-// slot M4
 mod water;
 
-// slot M5
 mod waveguide;
 
-// slot M6
 mod surface;
 
-// slot M7
 mod fracture;
 
-// slot M8
-
-// slot X1
-
-// slot X2
 mod bands;
 
-// slot X3
-
-// slot R1F
 mod mechanism;
 
-// slot R2D
 mod crackle;
-// Phase 2: the finishing bus.
+// the finishing bus.
 mod finish;
-// Phase 6: exaggeration layers.
+// exaggeration layers.
 mod exaggerate;
 
 pub use control::*;
@@ -106,73 +76,43 @@ pub use spectral::*;
 pub use time::*;
 pub use voices::*;
 
-// slot T0c
 pub use ringmod::*;
-
-// slot S1
 
 pub use synth::*;
 
-// slot S3
-
-// slot S4
-
 pub use dynamics::*;
 
-// slot S6
 pub use modfx::*;
 
-// slot S7
 pub use motion::*;
 
-// slot S8
-
-// slot S9
 pub use modulators::*;
 
-// slot S10
 pub use sequence::*;
 
-// slot S11
 pub use space::*;
 
-// slot S12
 pub use lofi::*;
 
 pub use blast::*;
 
-// slot M2
 pub use farnell::*;
 pub use machines::*;
 
-// slot M3
 pub use elements::*;
 
-// slot M4
 pub use water::*;
 
-// slot M5
 pub use waveguide::*;
 
-// slot M6
 pub use surface::*;
 
-// slot M7
 pub use fracture::*;
 
-// slot M8
-
-// slot X1
-
-// slot X2
 pub use bands::*;
 
-// slot X3
-
-// slot R1F
 pub use mechanism::*;
 
-// slot R2D
 pub use crackle::*;
 pub use exaggerate::*;
 pub use finish::*;

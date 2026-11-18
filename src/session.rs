@@ -6,7 +6,7 @@
 //! edits, "what others changed in your doc"), tied to sounds.
 //!
 //! Everything here is plain synchronous code on one thread; the MCP server
-//! reaches it through a channel (`bridge`), so the window (phase 5) can drain
+//! reaches it through a channel (`bridge`), so the window can drain
 //! the same commands on its own loop.
 
 use std::collections::{BTreeMap, HashMap};

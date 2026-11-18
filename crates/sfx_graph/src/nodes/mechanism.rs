@@ -1,4 +1,4 @@
-//! Mechanism sounds (R1-F): `click`, a small mechanical click (a latch, a
+//! Mechanism sounds: `click`, a small mechanical click (a latch, a
 //! switch, a button, a lock, a clasp) as one or two transients through a few
 //! body resonances. Tests in `crates/sfx_analysis/tests/it/surface.rs`.
 

@@ -2,7 +2,7 @@
 //! atomic upsert batch that edits it (modeler's `MatDoc::apply`).
 //!
 //! History (undo / redo), annotations and the catalog live in the `sounder`
-//! crate (phase 2): it wraps [`SoundDoc`] and records a step whenever
+//! crate: it wraps [`SoundDoc`] and records a step whenever
 //! [`ApplyReport::changed`] is true, labelled with [`ApplyReport::label`].
 
 use std::collections::BTreeMap;

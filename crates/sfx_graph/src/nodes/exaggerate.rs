@@ -1,4 +1,4 @@
-//! Exaggeration layers (Phase 6): finished layers a cinematic or game hit
+//! Exaggeration layers: finished layers a cinematic or game hit
 //! adds on top of the real event. `subdrop` is a sine sweeping down under a
 //! hit; `riser` is a swell of noise and a rising tone that peaks at `at`, the
 //! moment of the hit. Both are tonal or synthetic on purpose: a realistic

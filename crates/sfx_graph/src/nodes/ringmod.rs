@@ -1,7 +1,7 @@
 //! `ringmod`: the reference node. Every later node copies this file's shape:
 //! a strict serde struct with a `///` comment per field (unit, default,
-//! range), a [`Describe`] impl, an [`Eval`] impl whose errors follow rule 6
-//! of the swarm plan (field, value, what to do), and tests in
+//! range), a [`Describe`] impl, an [`Eval`] impl whose errors name the field, the value
+//! and what to do, and tests in
 //! `crates/sfx_analysis/tests/it/nonlinear.rs`.
 
 use serde::Deserialize;

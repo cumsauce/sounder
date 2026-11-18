@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-/// One event of an event stream (phase 3 event nodes make these).
+/// One event of an event stream (the event nodes make these).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Event {
     /// Seconds from the start.
@@ -155,7 +155,7 @@ impl Audio {
                 sample_rate,
                 channels: vec![v.iter().map(|s| s[0]).collect(), v.iter().map(|s| s[1]).collect()],
             }),
-            Buf::Events(_) => Err("an event stream is not audio: render it through voices (phase 3) or read an audio node".into()),
+            Buf::Events(_) => Err("an event stream is not audio: render it through voices or grains, or read an audio node".into()),
         }
     }
 

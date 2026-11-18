@@ -1,5 +1,5 @@
 //! Per-sample DSP state: each piece is a small struct with a `tick`, so the
-//! block evaluator loops over it and the phase 3 feedback evaluator (a cycle
+//! block evaluator loops over it and the feedback evaluator (a cycle
 //! through a `delay`, run sample by sample) can reuse the same code.
 
 use std::f32::consts::PI;
@@ -473,8 +473,7 @@ pub fn interp(a: f32, b: f32, x: f32, curve: Curve) -> f32 {
 
 // ============================================================ shared kit
 //
-// Appended by the prep wave (T0b): pieces several nodes share. Everything
-// above is unchanged.
+// Pieces several nodes share.
 
 // ------------------------------------------------------------------ biquad
 

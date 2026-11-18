@@ -1,5 +1,5 @@
-//! `fire`, `wind` and `spark`: three finished-recipe models of the elements
-//! (wave 2, card M3). Each takes a few physical fields and runs tuned DSP
+//! `fire`, `wind` and `spark`: three finished-recipe models of the elements.
+//! Each takes a few physical fields and runs tuned DSP
 //! inside, sample by sample, with no lookahead.
 //!
 //! Every one can render a **periodic** buffer (`loop`), so a `kind: loop`

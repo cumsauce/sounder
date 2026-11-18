@@ -1,4 +1,4 @@
-//! `crumple` (R2-D): paper, foil, plastic or dry leaves being crumpled, as a
+//! `crumple`: paper, foil, plastic or dry leaves being crumpled, as a
 //! population of short band-passed noise bursts. Unlike `cloth` the number
 //! of bursts follows `density` all the way up (no saturation), and the
 //! arrivals are a jittered grid rather than a Poisson process, so a count of

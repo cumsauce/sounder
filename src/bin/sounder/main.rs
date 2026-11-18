@@ -94,7 +94,7 @@ fn main() {
     #[cfg(not(feature = "window"))]
     if !headless {
         eprintln!(
-            "sounder: the window arrives with phase 5; run `sounder --headless` for the MCP server"
+            "sounder: this build has no window (the `window` feature is off); run `sounder --headless` for the MCP server"
         );
         std::process::exit(2);
     }

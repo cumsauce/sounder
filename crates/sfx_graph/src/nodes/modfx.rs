@@ -1,4 +1,4 @@
-//! S6: modulation effects. `chorus`, `flanger` and `phaser` modulate a delay
+//! Modulation effects. `chorus`, `flanger` and `phaser` modulate a delay
 //! or a chain of allpass filters with a sine LFO and add the result to the
 //! dry signal; `freq_shift` moves every partial by a fixed number of Hz
 //! (single sideband, through [`Hilbert`]). Delay reads use

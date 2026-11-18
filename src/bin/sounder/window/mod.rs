@@ -1,4 +1,4 @@
-//! The window (phase 5): a system webview (`wry`) on a `tao` event loop on
+//! The window: a system webview (`wry`) on a `tao` event loop on
 //! the main thread, showing the page embedded from `ui/`.
 //!
 //! Data flow: the page calls `sounder.call(name, args)` -> `window.ipc` ->
