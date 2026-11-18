@@ -1,7 +1,6 @@
 //! Nodes ported from the Pure Data patches of Andy Farnell's *Designing
 //! Sound* (MIT Press), each checked against the patch rendered by real Pd in
-//! 2008-era compatibility mode (see AGENTS.md, "Porting Farnell's Designing
-//! Sound patches"). `bell` is BELL/A4-bell-telephone.pd, `ball_bounce`
+//! 2008-era compatibility mode (see `docs/porting-farnell.md`). `bell` is BELL/A4-bell-telephone.pd, `ball_bounce`
 //! BOUNCINGBALL/bb1.pd, `cricket` INSECTS/cricket2.pd, `twang`
 //! MRBOINGY/twang.pd.
 //!

@@ -15,7 +15,8 @@ cargo test -p sfx_analysis --test it modal::   # one family
 
 - `it/common.rs`: shared helpers (`render`, `node_audio`, `spectrum`,
   `band_db`, `assert_bit_identical`, ...). Use them in new tests.
-- `it/recipes.rs` renders every JSON recipe in `AGENTS.md`.
+- `it/recipes.rs` renders every marked JSON recipe in `AGENTS.md`, `docs/graph.md`
+  and `docs/nodes/README.md`.
 - `fixtures/`: sound documents some tests load.
 - Many tests print the numbers they measure (`-- --nocapture`); the figures
   quoted in `docs/nodes/*.md` come from those lines.

@@ -1029,7 +1029,7 @@ const INSTRUCTIONS: &str = r#"Operating guidance for this sound server:
 - history / undo / redo / jump move a history tree; one sound_ops call is one step.
 - export writes WAVs and a manifest into <project>/assets/sounds/ (variations: N warns when no node reads the seed and the files are identical); catalog saves a sound for later.
 - When a call surprises you, tell the maintainers with session_log(feedback: "...").
-Full details (every node's fields, recipes, measured limits) live in AGENTS.md next to the source, and docs/nodes/*.md."#;
+Full details (every node's fields, recipes, measured limits) live next to the source: AGENTS.md (rules, recipes), docs/nodes/README.md (every node family in short), docs/nodes/<family>.md (in full), docs/graph.md (loops, events, voices, expr)."#;
 
 #[tool_handler]
 impl rmcp::ServerHandler for Tools {
