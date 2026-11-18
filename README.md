@@ -39,6 +39,7 @@ tests/                session, server and driver tests.
 mcp_driver.py         proxy / daemon / shell client for the server.
 docs/nodes/           per-node reference: fields, limits, measurements.
 docs/history/         how it was built: plans, test rounds, listening notes.
+tools/labels/         blind-label batches: generators and the cue graphs.
 design/               the window API contract and mock, the node roadmap.
 ```
 
