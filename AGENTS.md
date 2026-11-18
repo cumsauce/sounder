@@ -76,7 +76,7 @@ modeler's `MODELER_*`.
 | `play` | plays on the speakers for the human (the window, or `--headless --audio`); a plain headless server answers with an error saying so |
 | `new_sound` | opens a sound beside the others (`kind`, `duration` 0..600 s, `seed` can be set at once, so a loop is one call; `template` starts from an approved sound: `door_slam`; a loop with no `duration` is an error naming the field); an open name is refused |
 | `catalog` | `list sources describe save load delete close` (`sources`: the WAVs in the sources folders); the sound is `name` or `doc` (both given and different is an error) |
-| `export` | WAVs + `<name>.sfx.json` manifest |
+| `export` | Ogg Vorbis files (default; `format: "wav"` for WAV) + `<name>.sfx.json` manifest |
 | `undo redo jump history` | the history tree; one `sound_ops` call is one step |
 | `add_annotation` | comment on a node / region, or `resolve` / `reopen` one |
 | `session_log` | recent calls; `feedback` notes; `report` of the friction log |
@@ -441,9 +441,9 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 | a footstep, a walk | `footstep` | `surface` concrete / gravel / grass / wood, `weight`, `pace`, `shoe`, `body` (pitch apart from weight), `swish` (swish against ticks), on wood: `ring` (0.25..2, the board's ring; the default puts 84 % of the energy under 200 Hz and reads slammed, try 0.6 with `weight` 0.25), `noise` about 0.35 (the default board rings pitched, voiced 0.84), `scuff` (the roll between heel and toe) and `creak` (the board under the weight), both sparingly | one heel + toe step with the surface's texture. A walk is several steps: `pattern` + `sound` instances, or a few `footstep` nodes with different `seed` / `at` in a `mix` |
 | fire, a campfire, crackle | `fire` | `size`, `intensity`, `crackle`, `loop` | roar + hiss + Poisson pops; loops by itself in a `kind: loop` document |
 | wind, a gale, howling | `wind` | `speed` (signal), `gust`, `whistle`, `loop` | five moving bands (+ an Aeolian tone); a `ramp` on `speed` is a rising gale |
-| electric arcs, sparks | `spark` | `rate`, `buzz`, `body` | mains-gated crackle into a short resonator |
+| electric arcs, sparks | `spark` | `rate` (snaps/s), `buzz`, `body` | a beating transformer hum, gated arcing chirps and formant snaps (Farnell) |
 | a stream, a brook, rain on water | `water` | `flow` (signal), `density`, `splash`, `depth` | a Minnaert bubble population plus hiss; a loop in a loop document |
-| a splash, something dropped in water | `splash` | `size` (m) | bright, brief impact burst, then a bubble cloud whose pitch falls (the centroid falls through the sound); a transient: use `peak_db` |
+| a splash, something dropped in water | `splash` | `size` (m) | an impact bump, slap and spray, then bubbles whose pitch rises (Farnell, fitted to real splashes); a transient: use `peak_db` |
 | a single drip, a blip of water | `bubble` | `radius_mm`, `jitter`; in `voices` `map` a `$rand` radius | one Minnaert bubble: drips, water_drips example |
 | cloth, foliage rustle | `cloth` | `motion` (signal), `weight` | power-law rustle bursts in four bands; shape `motion` with a `wander` or `ramp` |
 | crumpled paper, foil, plastic, dry leaves | `crumple` | `density` (signal, bursts/s up to 400), `size`, `hardness` | band-passed noise bursts whose count follows `density` (cloth's saturates); hardness 0.2 paper, 0.85 foil; `peak_db` for a sparse one |
@@ -1181,8 +1181,15 @@ channels, peak and centroid. Rules:
   `~/Library/Application Support/friendslop/sounder/`;
   `FRIENDSLOP_DATA_DIR` overrides both (tests).
 - `export` writes into `<project>/assets/sounds/` for relative paths:
-  `<name>.wav` (or `<name>_<i>.wav` for `variations: N`, seeds 1..N) and
-  `<name>.sfx.json`: files with seconds / samples / LUFS / peak, kind, loop
+  `<name>.ogg` (or `<name>_<i>.ogg` for `variations: N`, seeds 1..N) and
+  `<name>.sfx.json`. **Ogg Vorbis is the default** (`quality` 0..1, default
+  0.5, about 160 kbps stereo; a fixed stream serial, so the same sound gives
+  the same bytes; sample-exact, so the loop points hold). `format: "wav"`
+  writes WAV instead (`bits` 16 / 24 / 32; `bits` with ogg or `quality` with
+  wav is an error): use it for a file you will feed back as a `reference`,
+  `sample` or `extract_modes` input, which read WAV only. The manifest has
+  `format`, `bits` or `quality`, and per file `bytes`,
+  seconds / samples / LUFS / peak, kind, loop
   points, game inputs, baked macros, seeds, causal flag, source catalog entry.
   `variations: N` warns when the files are bit-identical (no node reads the
   seed: add a seeded node, a `pattern` with `jitter`, a `wander`, `poisson`).
@@ -1243,6 +1250,21 @@ message, every measured number) is the fragment in `docs/nodes/`; `describe_op
 error that names the range, a **signal** is clamped per sample. Every number
 quoted is a measurement of a test signal; none of it has been heard, and a
 name like "bell" or "engine" says what the node computes, not how it sounds.
+
+**Batch 2 blind-label fixes** (2026-11-18; defaults changed, not yet re-heard):
+`fire` crackle is unpitched noise snaps high-passed at 700 Hz (the old ringing
+pops read as "gurgling liquid"), the roar flutters, the hiss is lower; `spark`
+and `splash` were later rebuilt from Farnell's recipes (book check 1, below in
+their sections); `cloth` is a continuous rubbing bed with slow swells (crest 26 to
+13-16 dB, fine onsets 30/s to under 1/s; it read as metal pellets); `water`'s
+hiss no longer reads as wind; `glottis`, `tract`, `bubble`
+take `natural` (default true: jitter, shimmer, drift, alias-free pulse, breath,
+wider drifting formants, a noise tick on each bubble; `false` is the old
+output); a `suppressed` `gunshot` is a gas puff plus action clacks with no
+pitched thump, and a gunshot's air low-pass is `16 kHz / (1 + d / 400 m)`;
+`engine` fires vary per cycle with combustion noise and a softer exhaust comb,
+`motor` drifts in speed with brush and bearing noise. Details and before/after
+numbers: `docs/nodes/{fire,cloth,water,voice,gunshot,machines}_fix.md`.
 
 Blocks marked `<!-- recipe -->` are rendered by
 `crates/sfx_analysis/tests/agents_recipes.rs` (an `output` is added when the
@@ -1657,13 +1679,21 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
 - `wind` {speed (m/s, signal, 0..60), [gust 0.3], [whistle 0], [diameter
   0.004 m], [seed], [loop]}: five moving resonant bands plus an optional
   Aeolian tone. Speed 0 is exact silence.
-- `spark` {rate (strikes/s, 0.1..200), [buzz 50|60 Hz], [body 3000 Hz], [seed],
-  [loop]}: an arc gated by the mains waveform into a short resonator.
+- `spark` {rate (snaps/s, 0.1..200), [buzz 50|60 Hz], [body 3000 Hz], [seed],
+  [loop]}: Farnell's faulty transformer (Designing Sound ch. 39): a hum of two
+  saws at twice the mains +-0.2 Hz (beating), clipped, under a slow random
+  level; arcing chirps (one per hum cycle) under a random ~3 Hz gate; snaps
+  (noise with a 0.5 s quartic fall plus a 7 kHz -> 20 Hz sweep) through a
+  formant bank (4.6, 7.2, 0.48, 0.72 kHz, then 2.5 kHz; `body` / 3000 scales
+  it); all in a 12 ms comb. The A/B listener preferred it ("SO much better")
+  to the old strike-and-resonator model ("ripping plastic"). The hum's clip
+  and the chirps' edges trip `clicks` (that is the buzz). A loop is periodic
+  in the duration (snaps on a jittered grid), but the random gate can leave
+  the two ends different: `loop_seam` failed 3 of 8 seeds at 3 s, 1 of 8 with
+  `crossfade_loop` `fade` 0.4 after it.
 - Not normalized (a default `fire` is about -30 LUFS, peak -8 dBFS; a pop-heavy
-  one is peaky: crest 23.5 dB). A sparse `spark` (rate under ~10) can still fail
-  the spectral half of `loop_seam` with `loop: false` (7.2 dB at rate 8); the
-  periodic render (jittered strike grid) read 0.9 dB. Memory: fire holds six
-  buffers of the document length.
+  one is peaky: crest 23.5 dB). Memory: fire holds six buffers of the
+  document length.
 
 **Water** (`docs/nodes/M4.md`):
 
@@ -1676,20 +1706,20 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
   buffer in a loop, so put the brightness knob here and not in a `filter`
   after the node (which breaks the seam). The level is not re-normalised.
 - `splash` {size (m, 0.005..1), [tail 1, 0..3], [burst 1, 0..2], [at 0],
-  [seed]}: a bright, brief impact burst
-  (starts 2.5 ms in, so the default fade-in does not cut it), then a cloud of
-  bubbles that grow with time and end in the main cavity bubble, so the
-  centroid **falls** through the sound (round-1 redesign; it used to rise);
-  scaled to a **peak of 0.5 whatever the size**. `lufs -24` is reached by every
-  size and `-20` by 0.1 and 0.5; the 0.17 s pebble (0.02) lands at -21.9 with a
-  missed-target warning: for a short splash use `peak_db`. `tail` scales the
-  length of the bubble cloud after the burst and its bubble count (0 = no
-  cloud; a splash never rings past 2.5 s); `burst` is the opening burst's
-  level against the main bubble (2 makes it the loudest moment, 0 drops it;
-  the splash is re-levelled to peak 0.5, so a louder burst quiets what
-  follows). Measured: last fine onset 0.14 / 0.27 / 0.54 s at `tail` 0.5 / 1 /
-  2; peak in the first 20 ms 0.135 / 0.461 / 0.500 at `burst` 0 / 1 / 2.
-  Defaults are bit-identical to before (`docs/nodes/R4-D.md`).
+  [seed]}: Farnell's raindrop and bubble recipes (Designing Sound ch. 35, 38),
+  fitted to `refs/splash_set`: an impact bump (a 5 ms x k raised-cosine
+  pressure pulse, k = sqrt(size / 0.1)), a slap (noise, 60 ms x k, band-pass
+  3.5 kHz) and spray (the same noise, 350 ms x k x tail, band-pass 3.2 kHz),
+  then 140 x k x tail bubbles over 0.5 s x k x tail, dense early, each a sine
+  whose pitch RISES 1.7x over its life (bigger: lower, longer, louder; 350 Hz
+  to 3 kHz). Starts 2.5 ms in (the default fade-in does not cut it); scaled to
+  a **peak of 0.5 whatever the size**. A peaky one-shot (crest about 32 dB):
+  use `peak_db`. `tail` scales the bubble cloud and the spray (0 = neither);
+  `burst` the impact against the bubbles (0 = bubbles only). Measured at
+  size 0.2: all eight `reference_set` features inside the set on 3 seeds,
+  11.7-12.2 dB from the nearest recording (the set's own spread 12.5). The
+  centroid falls from the slap (4-5 kHz) to the bubbles (about 1 kHz); the
+  A/B listener preferred this to the fixed-band spray model ("diminishing").
 - Measured: `flow` 0.1 / 0.35 / 0.8 at density 60 gave 1.9 / 9.4 / 17.4 onsets
   a second and centroids 3102 / 2607 / 1971 Hz; no energy under 165 Hz (mix in
   a rumble for a river).
@@ -2042,6 +2072,5 @@ no errors, four Plex faces loaded, layout rects equal to the mock's
   fully causal; the loop-capable nodes have a per-sample form already, the rest
   are block-evaluated and would need one). Firewheel and `bevy_seedling` are
   checked out for that later.
-- Compressed export (ogg).
 - A project **sound style** (loudness targets per category); project-level
   macros across several sounds ("grit" on all the footsteps) belong with it.

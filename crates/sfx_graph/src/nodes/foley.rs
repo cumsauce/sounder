@@ -15,7 +15,7 @@ use serde::Deserialize;
 
 use super::{mono, non_negative, one, per_channel, positive};
 use crate::buf::{Buf, Sig};
-use crate::dsp::{Biquad, FilterMode, Rng, Svf};
+use crate::dsp::{Biquad, FilterMode, Oversampler, Rng, Svf};
 use crate::node::{Cx, Describe, Eval, In, Outs};
 
 /// foley takes whole-number sample rates.
@@ -68,6 +68,13 @@ pub struct BubbleNode {
     /// Random +- fraction on the radius, 0..0.9 (default 0: exact).
     #[serde(default)]
     pub jitter: Option<f32>,
+    /// A natural drip (default true): a short high-passed noise tick at the
+    /// birth (the impact, about 3 ms, peak 0.4x the ring's), a seeded extra
+    /// damping of the ring (1.15..1.5x foley's decay rate) and a slight
+    /// noisy amplitude wobble (+-15 %), so the ring is not a lone clean
+    /// sine chirp. false = foley's bubble alone, bit for bit.
+    #[serde(default)]
+    pub natural: Option<bool>,
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
@@ -79,6 +86,15 @@ impl Describe for BubbleNode {
         serde_json::json!({"radius_mm": 2.0, "at": 0.02, "seed": 1})
     }
 }
+
+/// `natural` bubble: the tick's level against the ring and its time
+/// constant (s), the extra damping range (x foley's rate), the wobble.
+const BUBBLE_TICK: f32 = 0.4;
+const BUBBLE_TICK_TAU: f32 = 0.0008;
+const BUBBLE_DAMP_MIN: f32 = 1.15;
+const BUBBLE_DAMP_MAX: f32 = 1.5;
+const BUBBLE_WOBBLE: f32 = 0.15;
+const BUBBLE_WOBBLE_HZ: f32 = 250.0;
 
 impl Eval for BubbleNode {
     fn random(&self) -> bool {
@@ -99,11 +115,34 @@ impl Eval for BubbleNode {
         let mut bubble = Bubble::new_at(radius, loudness, rate(cx)).with_rise(rise);
         let start = cx.at(self.at.unwrap_or(0.0));
         let mut v = vec![0.0f32; cx.n];
+        let natural = self.natural.unwrap_or(true);
+        // Its own generator, so the radius draw above is unchanged.
+        let mut nrng = cx.rng(self.seed.wrapping_add(0xB0BB_1E00_0000_0005));
+        let mm = radius * 1e3;
+        let ring = loudness * mm.powf(1.5);
+        let hz = 3290.0 / mm;
+        let extra = BUBBLE_DAMP_MIN + (BUBBLE_DAMP_MAX - BUBBLE_DAMP_MIN) * nrng.unit();
+        let damp = (-(extra - 1.0) * std::f32::consts::PI * hz * 0.045 / cx.sr).exp();
+        let wob_a = 1.0 - (-TAU * BUBBLE_WOBBLE_HZ / cx.sr).exp();
+        let tick_k = (-1.0 / (BUBBLE_TICK_TAU * cx.sr)).exp();
+        let (mut env, mut wob, mut tick, mut last) = (1.0f32, 0.0f32, 1.0f32, 0.0f32);
         for o in v.iter_mut().skip(start) {
             if bubble.done() {
                 break;
             }
-            *o = bubble.sample();
+            let x = bubble.sample();
+            *o = if natural {
+                env *= damp;
+                wob += (nrng.signed() * 7.0 - wob) * wob_a;
+                let w = nrng.signed();
+                let hp = w - last;
+                last = w;
+                tick *= tick_k;
+                x * env * (1.0 + BUBBLE_WOBBLE * wob.clamp(-1.0, 1.0))
+                    + BUBBLE_TICK * ring * 0.5 * hp * tick
+            } else {
+                x
+            };
         }
         Ok(one(Buf::Audio(v)))
     }
@@ -273,6 +312,14 @@ pub struct Glottis {
     /// (-50 %), and `tension` pushed halfway to pressed.
     #[serde(default)]
     pub fry: Option<In>,
+    /// A natural voice (default true): 1.5 % period jitter and 12 % level
+    /// shimmer per cycle on top of `roughness`, a slow seeded pitch drift
+    /// (+-60 cents, about 0.6 Hz), the pulse rendered 4x oversampled
+    /// (alias-free), and aspiration noise high-passed and gated by the
+    /// glottal flow (pitch-synchronous). `breath` defaults to 0.15 then.
+    /// false = the plain LF pulse train of before, bit for bit.
+    #[serde(default)]
+    pub natural: Option<bool>,
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
@@ -306,6 +353,13 @@ fn unit_at(s: &Sig, i: usize) -> f32 {
     }
 }
 
+/// `natural` per-cycle period jitter and level shimmer (fractions, peak).
+const NATURAL_JITTER: f32 = 0.015;
+const NATURAL_SHIMMER: f32 = 0.12;
+/// `natural` slow pitch drift, cents peak, and its smoothing rate, Hz.
+const NATURAL_DRIFT_CENTS: f32 = 60.0;
+const NATURAL_DRIFT_HZ: f32 = 0.6;
+
 /// What one glottal cycle looks like, drawn when the cycle starts.
 #[derive(Clone, Copy)]
 struct Cycle {
@@ -318,10 +372,15 @@ struct Cycle {
 /// The next cycle: its fields (`roughness`, `subharmonic`, `fry`) read at
 /// sample `i`, two seeded draws (jitter, shimmer). `odd` marks every second
 /// cycle, the long and weak ones under fry and the ones `subharmonic` scales.
-fn draw_cycle(rng: &mut Rng, odd: bool, fields: [&Sig; 3], i: usize) -> Cycle {
+fn draw_cycle(rng: &mut Rng, odd: bool, fields: [&Sig; 3], i: usize, natural: bool) -> Cycle {
     let [r, b, f] = fields.map(|s| unit_at(s, i));
-    let jitter = rng.signed() * (0.04 * r + 0.35 * f);
-    let shimmer = rng.signed() * (0.5 * r + 0.5 * f);
+    let (nj, ns) = if natural {
+        (NATURAL_JITTER, NATURAL_SHIMMER)
+    } else {
+        (0.0, 0.0)
+    };
+    let jitter = rng.signed() * (0.04 * r + 0.35 * f + nj);
+    let shimmer = rng.signed() * (0.5 * r + 0.5 * f + ns);
     // A longer period is a lower pitch rate.
     let alt = if odd { 1.0 - 0.25 * f } else { 1.0 + 0.25 * f };
     let weak = if odd {
@@ -341,8 +400,9 @@ impl Eval for Glottis {
     }
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let f0 = cx.mono("f0", &self.f0)?;
+        let natural = self.natural.unwrap_or(true);
         let tension = cx.mono_or("tension", &self.tension, 0.65)?;
-        let breath = cx.mono_or("breath", &self.breath, 0.05)?;
+        let breath = cx.mono_or("breath", &self.breath, if natural { 0.15 } else { 0.05 })?;
         let amp = cx.mono_or("amp", &self.amp, 1.0)?;
         let cents = self.vibrato_cents.unwrap_or(0.0);
         let vib_hz = non_negative("vibrato_hz", self.vibrato_hz.unwrap_or(5.5))?;
@@ -355,12 +415,14 @@ impl Eval for Glottis {
         for (name, s) in [("roughness", &rough), ("subharmonic", &sub), ("fry", &fry)] {
             unit_range(name, s)?;
         }
-        // The cycle machinery runs only when one of its fields is given, so
-        // the three-field-free node is the one it always was. Its draws come
-        // from their own generator: the breath noise is the same either way.
-        let cycles = self.roughness.is_some() || self.subharmonic.is_some() || self.fry.is_some();
+        // The cycle machinery runs when one of its fields is given or the
+        // voice is natural. Its draws come from their own generator: the
+        // breath noise is the same either way.
+        let cycles =
+            natural || self.roughness.is_some() || self.subharmonic.is_some() || self.fry.is_some();
         let mut rng = cx.rng(self.seed);
         let mut crng = cx.rng(self.seed.wrapping_add(0x6C07_715F_A11E_D001));
+        let mut drng = cx.rng(self.seed.wrapping_add(0xD81F_7000_0000_0003));
         let mut phase = 0.0f32;
         let mut vib = 0.0f32;
         let mut cycle = Cycle {
@@ -368,9 +430,17 @@ impl Eval for Glottis {
             gain: 1.0,
         };
         let mut odd = false;
+        // natural: 4x oversampling (the halfband chain removes what the
+        // sharp LF return puts above 0.45 x sr), a two-pole drift, a
+        // first-difference high-pass on the breath.
+        let mut os = Oversampler::new(if natural { 4 } else { 1 })?;
+        let sub_n = os.factor();
+        let (mut d1, mut d2) = (0.0f32, 0.0f32);
+        let drift_a = 1.0 - (-TAU * NATURAL_DRIFT_HZ / cx.sr).exp();
+        let mut last_noise = 0.0f32;
         Ok(one(mono(cx.n, |i| {
             if cycles && i == 0 {
-                cycle = draw_cycle(&mut crng, odd, [&rough, &sub, &fry], i);
+                cycle = draw_cycle(&mut crng, odd, [&rough, &sub, &fry], i, natural);
             }
             let t = tension.at(i).clamp(0.0, 1.0);
             let t = if cycles {
@@ -385,19 +455,43 @@ impl Eval for Glottis {
                 vib = (vib + vib_hz / cx.sr).fract();
                 (cents / 1200.0 * (TAU * vib).sin()).exp2()
             };
-            let mut hz = (f0.at(i) * bend).clamp(1.0, 0.25 * cx.sr);
+            let drift = if natural {
+                // Smoothed white noise twice: a slow wander about +-1.
+                d1 += (drng.signed() * 120.0 - d1) * drift_a;
+                d2 += (d1 - d2) * drift_a;
+                (NATURAL_DRIFT_CENTS / 1200.0 * d2.clamp(-1.0, 1.0)).exp2()
+            } else {
+                1.0
+            };
+            let mut hz = (f0.at(i) * bend * drift).clamp(1.0, 0.25 * cx.sr);
             if cycles {
                 hz = (hz * cycle.rate).min(0.45 * cx.sr);
             }
-            let before = phase;
-            phase = (phase + hz / cx.sr).fract();
-            if cycles && phase < before {
-                odd = !odd;
-                cycle = draw_cycle(&mut crng, odd, [&rough, &sub, &fry], i);
-            }
-            let (d, flow) = lf_at(rd, phase);
-            let noise = rng.signed() * breath.at(i).clamp(0.0, 1.0) * (0.3 + 0.7 * flow);
-            (0.5 * d * cycle.gain + 0.5 * noise) * amp.at(i)
+            let step = hz / cx.sr / sub_n as f32;
+            let mut flow_sum = 0.0f32;
+            let d = os.process(0.0, |_| {
+                let before = phase;
+                phase = (phase + step).fract();
+                if cycles && phase < before {
+                    odd = !odd;
+                    cycle = draw_cycle(&mut crng, odd, [&rough, &sub, &fry], i, natural);
+                }
+                let (d, flow) = lf_at(rd, phase);
+                flow_sum += flow;
+                d * cycle.gain
+            });
+            let flow = flow_sum / sub_n as f32;
+            let b = breath.at(i).clamp(0.0, 1.0);
+            let noise = if natural {
+                // Pitch-synchronous aspiration: high-passed, open-phase gated.
+                let w = rng.signed();
+                let hp = w - last_noise;
+                last_noise = w;
+                1.2 * hp * b * (0.1 + 0.9 * flow)
+            } else {
+                rng.signed() * b * (0.3 + 0.7 * flow)
+            };
+            (0.5 * d + 0.5 * noise) * amp.at(i)
         })))
     }
 }
@@ -499,8 +593,15 @@ pub struct Tract {
     /// (its rate wanders by +-30 %, seeded), `1 - growl` at the troughs.
     #[serde(default)]
     pub growl: Option<In>,
+    /// A natural tract (default true): every bandwidth 1.6x wider (vowel
+    /// presets and `formants` lists alike; F1 70 -> 98 Hz) and each
+    /// formant drifting on its own by up to +-9 % (seeded, about 0.7 Hz),
+    /// so the vowel never sits perfectly still. false = the fixed cascade
+    /// of before, bit for bit.
+    #[serde(default)]
+    pub natural: Option<bool>,
     /// Mixed with the document seed and the node name (default 0); used by
-    /// `frication` and `growl`.
+    /// `frication`, `growl` and the `natural` drift.
     #[serde(default)]
     pub seed: u64,
 }
@@ -531,12 +632,18 @@ const NASAL_ZERO: (f32, f32) = (1000.0, 2.0);
 /// Growl modulation rate, Hz, and how far it wanders (fraction).
 const GROWL_HZ: f32 = 45.0;
 const GROWL_WANDER: f32 = 0.3;
+/// `natural`: bandwidth factor, drift depth (fraction), its rate (Hz) and
+/// the noise gain that makes the twice-smoothed drift span about +-1.
+const TRACT_BW_WIDEN: f32 = 1.6;
+const TRACT_DRIFT: f32 = 0.09;
+const TRACT_DRIFT_HZ: f32 = 0.7;
+const TRACT_DRIFT_GAIN: f32 = 36.0;
 /// Frication band-pass Q.
 const FRIC_Q: f32 = 2.0;
 
 impl Eval for Tract {
     fn random(&self) -> bool {
-        self.frication.is_some() || self.growl.is_some()
+        self.frication.is_some() || self.growl.is_some() || self.natural.unwrap_or(true)
     }
     fn eval(&self, cx: &Cx) -> Result<Outs, String> {
         let input = cx.mono("input", &self.input)?;
@@ -607,13 +714,25 @@ impl Eval for Tract {
         let mut frng = cx.rng(self.seed.wrapping_add(0xF11C_A710_0000_0002));
         let (mut gphase, mut gwander) = (0.0f32, 0.0f32);
         let mut band = Svf::default();
+        let natural = self.natural.unwrap_or(true);
+        let mut nrng = cx.rng(self.seed.wrapping_add(0x7AC7_D21F_0000_0004));
+        // Two one-pole stages per formant over white noise, once a block.
+        let drift_a = 1.0 - (-TAU * TRACT_DRIFT_HZ * BLOCK as f32 / cx.sr).exp();
+        let mut drift = vec![[0.0f32; 2]; k];
         Ok(one(mono(cx.n, |i| {
             if i % BLOCK == 0 || i == 0 {
                 let m = morph.at(i).clamp(0.0, 1.0);
                 let s = scale.at(i).clamp(0.1, 10.0);
                 for j in 0..k {
-                    let f = from[j][0] * (to[j][0] / from[j][0]).powf(m) * s;
-                    let bw = from[j][1] + (to[j][1] - from[j][1]) * m;
+                    let mut f = from[j][0] * (to[j][0] / from[j][0]).powf(m) * s;
+                    let mut bw = from[j][1] + (to[j][1] - from[j][1]) * m;
+                    if natural {
+                        let d = &mut drift[j];
+                        d[0] += (nrng.signed() * TRACT_DRIFT_GAIN - d[0]) * drift_a;
+                        d[1] += (d[0] - d[1]) * drift_a;
+                        f *= 1.0 + TRACT_DRIFT * d[1].clamp(-1.0, 1.0);
+                        bw *= TRACT_BW_WIDEN;
+                    }
                     // Formants past Nyquist go flat instead of aliasing.
                     coef[j] = if f < 0.45 * cx.sr {
                         reson(f, bw * s.sqrt(), cx.sr)

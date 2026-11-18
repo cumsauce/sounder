@@ -26,14 +26,15 @@ fn hash(x: &[f32]) -> u64 {
 /// (label, nodes, node to hash) for the default-output pins.
 fn pins() -> Vec<(&'static str, Vec<Value>, &'static str)> {
     let g = |extra: Value| {
-        let mut o = json!({"type": "glottis", "name": "g", "f0": 140});
+        // natural: false keeps the pre-voice_fix output these pins hold.
+        let mut o = json!({"type": "glottis", "name": "g", "f0": 140, "natural": false});
         for (k, v) in extra.as_object().unwrap() {
             o[k] = v.clone();
         }
         o
     };
     let t = |extra: Value| {
-        let mut o = json!({"type": "tract", "name": "t", "input": "g"});
+        let mut o = json!({"type": "tract", "name": "t", "input": "g", "natural": false});
         for (k, v) in extra.as_object().unwrap() {
             o[k] = v.clone();
         }
@@ -120,7 +121,7 @@ fn defaults_are_bit_identical_to_before() {
 
 /// A glottis named `g` with `extra` fields merged in.
 fn glottis(f0: f32, extra: Value) -> Value {
-    let mut o = json!({"type": "glottis", "name": "g", "f0": f0, "breath": 0});
+    let mut o = json!({"type": "glottis", "name": "g", "f0": f0, "breath": 0, "natural": false});
     for (k, v) in extra.as_object().unwrap() {
         o[k] = v.clone();
     }
@@ -189,14 +190,14 @@ fn pin(label: &str) -> u64 {
 #[test]
 fn fields_at_zero_equal_the_defaults() {
     // The pins use the default breath (0.05), so no `glottis()` helper here.
-    let plain = json!({"type": "glottis", "name": "g", "f0": 140,
+    let plain = json!({"type": "glottis", "name": "g", "f0": 140, "natural": false,
         "roughness": 0, "subharmonic": 0, "fry": 0});
     let x = node_audio([plain], "g", 0.5);
     assert_eq!(hash(&x), pin("glottis default"), "glottis fields at 0");
     let t = node_audio(
         [
-            json!({"type": "glottis", "name": "g", "f0": 140}),
-            json!({"type": "tract", "name": "t", "input": "g", "nasal": 0, "growl": 0,
+            json!({"type": "glottis", "name": "g", "f0": 140, "natural": false}),
+            json!({"type": "tract", "name": "t", "input": "g", "natural": false, "nasal": 0, "growl": 0,
                 "frication": {"freq": 4000, "level": 0}}),
         ],
         "t",
@@ -490,7 +491,7 @@ fn extremes_stay_finite() {
 fn errors_name_the_field() {
     let g = json!({"type": "glottis", "name": "g", "f0": 150});
     let t = |extra: Value| {
-        let mut o = json!({"type": "tract", "name": "t", "input": "g"});
+        let mut o = json!({"type": "tract", "name": "t", "input": "g", "natural": false});
         for (k, v) in extra.as_object().unwrap() {
             o[k] = v.clone();
         }

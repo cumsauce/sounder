@@ -411,7 +411,7 @@ fn export_writes_wavs_and_a_manifest_with_game_inputs() {
         &export::ExportOpts {
             dir: dir.clone(),
             variations: 2,
-            bits: sfx_graph::wav::Bits::Int24,
+            format: export::Format::Wav(sfx_graph::wav::Bits::Int24),
             sample_rate: Some(44_100),
             base_dir: None,
             sources: Vec::new(),
@@ -433,16 +433,16 @@ fn export_writes_wavs_and_a_manifest_with_game_inputs() {
     assert_eq!(ex.manifest["source"], "boom");
     let wav = sfx_graph::wav::read(&dir.join("boom_1.wav")).unwrap();
     assert_eq!(wav.sample_rate, 44_100);
-    // A loop gets loop points.
+    // A loop gets loop points; the default format is Ogg Vorbis, sample-exact.
     let mut l = doc.clone();
     l.kind = Kind::Loop;
     l.duration = Some(0.5);
     let ex = export::export(
         &l,
         &export::ExportOpts {
-            dir,
+            dir: dir.clone(),
             variations: 1,
-            bits: sfx_graph::wav::Bits::Int16,
+            format: export::Format::default(),
             sample_rate: None,
             base_dir: None,
             sources: Vec::new(),
@@ -452,6 +452,19 @@ fn export_writes_wavs_and_a_manifest_with_game_inputs() {
     )
     .unwrap();
     assert_eq!(ex.manifest["loop"]["end"], 24_000);
+    assert_eq!(ex.manifest["format"], "ogg");
+    let ogg = dir.join("boom.ogg");
+    let bytes = std::fs::read(&ogg).unwrap();
+    assert_eq!(&bytes[..4], b"OggS");
+    let wav_bytes = 24_000 * 2; // mono 16-bit
+    assert!(bytes.len() < wav_bytes / 3, "ogg {} B", bytes.len());
+    let mut dec = vorbis_rs::VorbisDecoder::new(std::fs::File::open(&ogg).unwrap()).unwrap();
+    assert_eq!(dec.sampling_frequency().get(), 48_000);
+    let mut n = 0;
+    while let Some(b) = dec.decode_audio_block().unwrap() {
+        n += b.samples()[0].len();
+    }
+    assert_eq!(n, 24_000, "decoded length is the loop length");
 }
 
 #[test]

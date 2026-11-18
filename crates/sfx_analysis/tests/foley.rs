@@ -124,7 +124,8 @@ fn air_loses_highs_and_level_monotonically() {
 fn glottis_reads_its_f0() {
     for f0 in [120.0f32, 220.0] {
         let x = render(
-            vec![json!({"type": "glottis", "name": "g", "f0": f0})],
+            // The model's accuracy, without the natural drift (+-60 cents).
+            vec![json!({"type": "glottis", "name": "g", "f0": f0, "natural": false})],
             "g",
             0.6,
         );
@@ -141,8 +142,8 @@ fn tract_moves_the_dominant_formant() {
     for v in ["a", "i", "u"] {
         let x = render(
             vec![
-                json!({"type": "glottis", "name": "g", "f0": 110, "breath": 0}),
-                json!({"type": "tract", "name": "t", "input": "g", "vowel": v}),
+                json!({"type": "glottis", "name": "g", "f0": 110, "breath": 0, "natural": false}),
+                json!({"type": "tract", "name": "t", "input": "g", "vowel": v, "natural": false}),
             ],
             "t",
             0.6,

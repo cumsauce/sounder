@@ -92,12 +92,12 @@ fn five_sounds_pass_their_expect_export_and_a_reference_is_matched() {
         assert!(ok(i + 1), "{name} export: {}", t(i + 1));
     }
     for f in [
-        "ui_click.wav",
+        "ui_click.ogg",
         "laser.wav",
-        "door_creak.wav",
-        "rain_loop.wav",
-        "gravel_step_1.wav",
-        "gravel_step_6.wav",
+        "door_creak.ogg",
+        "rain_loop.ogg",
+        "gravel_step_1.ogg",
+        "gravel_step_6.ogg",
     ] {
         assert!(out.join(f).is_file(), "{f} was not exported");
     }

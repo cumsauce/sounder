@@ -358,7 +358,9 @@ fn gunshot_distance_delays_the_blast_and_leads_with_the_crack() {
         );
         assert!(lead > 0.0);
     }
-    assert!(cents[1] < cents[0] * 0.8 && cents[2] < cents[1] * 0.8);
+    // gunshot_fix: the air low-pass now scales with 400 m (was 40 m), so the
+    // darkening per step is gentler (3286 / 2205 / 1778 Hz).
+    assert!(cents[1] < cents[0] * 0.8 && cents[2] < cents[1] * 0.85);
 }
 
 #[test]

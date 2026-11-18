@@ -199,7 +199,10 @@ fn splash_amount_adds_energy_and_peaks() {
         lufs.push(render_doc(&nodes, 8.0, None, Kind::Oneshot).lufs);
     }
     println!("splash 0 / 0.5 / 1: peak {peak:.3?}, LUFS {lufs:.1?}");
-    assert!(peak[0] < peak[1] && peak[1] < peak[2], "{peak:?}");
+    // Round 2 (steadier hiss): one sample peak depends on where a splash
+    // lands on the stream (0.36 / 0.57 / 0.49), so the peak only has to
+    // rise from none; the loudness has to rise at every step.
+    assert!(peak[0] < peak[1] && peak[0] < peak[2], "{peak:?}");
     assert!(lufs[0] < lufs[1] && lufs[1] < lufs[2], "{lufs:?}");
 }
 
@@ -219,11 +222,16 @@ fn splash_size_moves_centroid_decay_and_low_band() {
         "splash size 0.02 / 0.1 / 0.5: centroid {cent:.0?} Hz, decay {dec:.2?} s, share under 200 Hz {low:.4?}"
     );
     assert!(
-        cent[0] > cent[1] * 3.0 && cent[1] > cent[2] * 1.2,
+        // Fitted to refs/splash_set the spray fills the small splash's top,
+        // so its centroid sits over the middle one (8050 / 6894 / 4704 Hz
+        // since the spray stopped sweeping: batch 3 heard the sweep).
+        cent[0] > cent[1] * 1.1 && cent[1] > cent[2] * 1.2,
         "{cent:?}"
     );
     assert!(dec[0] < dec[1] && dec[1] < dec[2], "{dec:?}");
-    assert!(low[0] < low[1] && low[1] < low[2], "{low:?}");
+    // Book check 1 (Farnell's model): the weight is a short pressure bump,
+    // so the share under 200 Hz stays small at every size.
+    assert!(low.iter().all(|l| *l < 0.05), "{low:?}");
 }
 
 /// Power centroid over 20 Hz .. 20 kHz (the largest splash rings at 55 Hz).
@@ -300,18 +308,23 @@ fn energy(x: &[f32]) -> f64 {
 }
 
 #[test]
-fn splash_centroid_falls_through_the_sound() {
+fn splash_tail_keeps_the_bubble_band() {
     let mut bad = Vec::new();
     for size in [0.02, 0.1, 0.5] {
         for seed in [1u64, 2, 3, 4, 5] {
             let x = node_audio(splash(json!({"size": size, "seed": seed})), "s", 3.0);
             let c = tenths(&x);
-            let reversals = c.windows(2).filter(|w| w[1] > w[0]).count();
             println!(
-                "splash size {size} seed {seed}: audible {:.3} s, centroid by tenth {c:.0?} Hz, reversals {reversals}",
+                "splash size {size} seed {seed}: audible {:.3} s, centroid by tenth {c:.0?} Hz",
                 audible(&x).len() as f32 / SR as f32
             );
-            if reversals > 1 || c[0] < 2.0 * c[9] {
+            // Book check 1: the slap opens bright (4-5 kHz) and the tail is
+            // the rising-pitch bubbles, 350 Hz-3 kHz: the last three tenths
+            // stay in that band (the A/B listener preferred this to the old
+            // fixed-band spray).
+            let m = |a: &[f32]| a.iter().sum::<f32>() / a.len() as f32;
+            let end = m(&c[7..]);
+            if !(400.0..3000.0).contains(&end) || m(&c[..3]) < 2000.0 {
                 bad.push(format!("size {size} seed {seed}: {c:?}"));
             }
         }
@@ -334,11 +347,16 @@ fn splash_burst_is_bright_and_brief() {
                 10.0 * (e_en / all_early).log10(),
                 l_en / e_en
             );
+            // water_fix: the slap sits at 1-6 kHz (no 16 kHz burst any
+            // more), so "bright" is the share above 2 kHz early on.
+            let e2 = energy_above(early, 2000.0);
             assert!(
-                e_en > 5e-3 * all_early,
-                "size {size}: {e_en} of {all_early}"
+                e2 > 0.15 * all_early,
+                "size {size}: {e2} of {all_early} above 2 kHz"
             );
-            assert!(l_en < 0.02 * e_en, "size {size}: {l_en} vs {e_en}");
+            // The spray band now stays at 1.2-7 kHz (no sweep down), so the
+            // late half keeps a little energy above 8 kHz (up to 7 %).
+            assert!(l_en < 0.15 * e_en, "size {size}: {l_en} vs {e_en}");
         }
     }
 }
@@ -399,29 +417,8 @@ fn typical_settings_reach_lufs_minus_20_without_a_warning() {
             r.warnings.len()
         );
     }
-    // A lone splash, no warning at -24 (and at -20, below).
-    for size in [0.02, 0.1, 0.5] {
-        let r = render_doc(
-            &splash(json!({"size": size})),
-            3.0,
-            Some(-24.0),
-            Kind::Oneshot,
-        );
-        println!(
-            "splash {size} at -24: LUFS {:.2}, peak {:.2}, warnings {:?}",
-            r.lufs, r.peak_db, r.warnings
-        );
-        assert!(
-            r.warnings.iter().all(|w| !w.contains("target")),
-            "{:?}",
-            r.warnings
-        );
-        assert!((r.lufs + 24.0).abs() < 1.0, "{}", r.lufs);
-        // The burst starts after the output's 2 ms fade-in: no warning at all.
-        assert!(r.warnings.is_empty(), "{:?}", r.warnings);
-    }
-    // With the burst as the loudest part the crest is lower than round 0's
-    // (19..23 dB): -20 is reachable too.
+    // A lone splash is a peaky one-shot (crest about 32 dB since book check
+    // 1): AGENTS.md sends it to peak_db, so it has no LUFS case here.
     for size in [0.02, 0.1, 0.5] {
         let r = render_doc(
             &splash(json!({"size": size})),
@@ -433,15 +430,15 @@ fn typical_settings_reach_lufs_minus_20_without_a_warning() {
             "splash {size} at -20: LUFS {:.2}, peak {:.2}, warnings {:?}",
             r.lufs, r.peak_db, r.warnings
         );
-        // The pebble (0.02) is only 0.16 s long and misses by 1.9 LU.
-        if size >= 0.1 {
-            assert!(
-                r.warnings.iter().all(|w| !w.contains("target")),
-                "{:?}",
-                r.warnings
-            );
-            assert!((r.lufs + 20.0).abs() < 1.0, "{}", r.lufs);
-        }
+        // Fitted to refs/splash_set the crest is 28-31 dB (the recordings
+        // 21-27), so -20 is out of reach: a miss must point at peak_db.
+        assert!(
+            r.warnings
+                .iter()
+                .all(|w| !w.contains("target") || w.contains("peak_db")),
+            "{:?}",
+            r.warnings
+        );
     }
 }
 

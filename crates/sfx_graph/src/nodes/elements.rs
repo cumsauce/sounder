@@ -24,7 +24,7 @@
 use serde::Deserialize;
 
 use super::one;
-use crate::dsp::{Biquad, FilterMode, Resonator, Rng, Svf};
+use crate::dsp::{Biquad, FilterMode, OnePole, Rng, Svf};
 use crate::node::{Cx, Describe, Eval, In, Outs};
 
 /// A finite sample clamped to `lo..=hi`, else `default`.
@@ -151,7 +151,7 @@ pub struct Fire {
 }
 
 impl Describe for Fire {
-    const BLURB: &'static str = "fire: low roar + hiss + crackle pops (power-law sizes) under one shared control; size, intensity, crackle; loop: true wraps without a seam";
+    const BLURB: &'static str = "fire: fluttering low roar + a little hiss + unpitched noise-burst wood snaps (power-law sizes, high-passed) under one shared control; size, intensity, crackle; loop: true wraps without a seam";
     fn example() -> serde_json::Value {
         serde_json::json!({"size": 0.8, "intensity": 0.5, "crackle": 0.5, "seed": 1})
     }
@@ -200,6 +200,11 @@ impl Eval for Fire {
         let hiss_n = white(&mut r_hiss, n);
         let slow = Fbm::new(&mut r_lat, 1.3, n, sr, wrap);
         let fast = Lattice::new(&mut r_lat, 11.0, n, sr, wrap);
+        // Flame flutter: fast random amplitude motion (two octaves, 23 and
+        // 61 cells a second) so the roar flickers instead of sweeping
+        // smoothly like wind.
+        let flut_a = Lattice::new(&mut r_lat, 23.0, n, sr, wrap);
+        let flut_b = Lattice::new(&mut r_lat, 61.0, n, sr, wrap);
 
         // The shared control: intensity and the slow turbulence, per sample.
         let drive: Vec<f32> = (0..n)
@@ -207,10 +212,15 @@ impl Eval for Fire {
             .collect();
         let turb: Vec<f32> = (0..n).map(|i| slow.at(i)).collect();
 
-        // Pops: a Poisson process whose rate follows the drive and the
-        // turbulence, sizes a power law (a Pareto with exponent 1, capped),
-        // each a short two-pole ring at a random frequency. A pop that rings
-        // past the end is written to the start when the buffer wraps.
+        // Crackles: a Poisson process whose rate follows the drive and the
+        // turbulence, sizes a power law (a Pareto with exponent 1, capped).
+        // Each is a wood snap, not a ring: one to four sub-clicks within
+        // 4 ms, each a 0.2..2.5 ms burst of white noise under a fast
+        // exponential fall, so nothing in it has a pitch (the old two-pole
+        // rings at 0.9-5.5 kHz read as a gurgling liquid). The snaps are
+        // high-passed (two one-pole sections, corner 700 Hz x the size
+        // scale) after they are summed. A snap past the end is written to the
+        // start when the buffer wraps.
         let mut pops = vec![0.0f32; n];
         let pitch_scale = (1.0 / self.size).powf(0.15);
         for i in 0..n {
@@ -220,18 +230,52 @@ impl Eval for Fire {
                 continue;
             }
             let h = (0.1 / r_pop.unit().max(1e-4)).min(1.5);
-            let hz = 900.0 * (5500.0f32 / 900.0).powf(r_pop.unit()) * pitch_scale;
+            let level = 0.6 * h * (0.4 + 1.2 * d);
             let sign = if r_pop.unit() < 0.5 { -1.0 } else { 1.0 };
-            let t60 = 0.002 + 0.006 * h;
-            let mut ring = Resonator::new(hz, t60, 0.25 * h * sign * (0.4 + 1.2 * d), sr);
-            let life = (t60 * sr) as usize;
-            for j in 0..life {
-                let y = ring.tick(if j == 0 { 1.0 } else { 0.0 });
-                let at = i + j;
-                if at < n {
-                    pops[at] += y;
-                } else if wrap {
-                    pops[at % n] += y;
+            let subs = 1 + (r_pop.unit() * 4.0 * h.min(1.0).sqrt()) as usize;
+            let mut off = 0usize;
+            for k in 0..subs {
+                let tau = (0.0002 + 0.0023 * r_pop.unit()) / 3.0;
+                let len = ((3.0 * tau * sr) as usize).max(2);
+                let a = level
+                    * if k == 0 {
+                        1.0
+                    } else {
+                        0.3 + 0.5 * r_pop.unit()
+                    };
+                // Round 2: no full-height first sample (heard as "clicky /
+                // underrunny"): a 0.15 ms rise, and each sub-click through its
+                // own one-pole low-pass at 2-7 kHz, so snaps vary in colour.
+                let lp_hz = 2000.0 + 5000.0 * r_pop.unit();
+                let lc = 1.0 - (-std::f32::consts::TAU * lp_hz / sr).exp();
+                let rise = 0.00015 * sr;
+                let mut ly = 0.0f32;
+                let len = len + (0.0004 * sr) as usize;
+                for j in 0..len {
+                    let x = if j == 0 { sign } else { r_pop.signed() };
+                    ly += lc * (x - ly);
+                    let att = 1.0 - (-(j as f32 + 1.0) / rise).exp();
+                    let y = 2.0 * a * ly * att * (-(j as f32) / (tau * sr)).exp();
+                    let at = i + off + j;
+                    if at < n {
+                        pops[at] += y;
+                    } else if wrap {
+                        pops[at % n] += y;
+                    }
+                }
+                off += (r_pop.unit() * 0.0013 * sr) as usize + len;
+            }
+        }
+        {
+            let corner = (700.0 * pitch_scale).min(0.4 * sr);
+            let c = (-std::f32::consts::TAU * corner / sr).exp();
+            for _ in 0..2 {
+                let (mut px, mut py) = (if wrap { pops[n.saturating_sub(1)] } else { 0.0 }, 0.0f32);
+                for v in pops.iter_mut() {
+                    let y = c * (py + *v - px);
+                    px = *v;
+                    py = y;
+                    *v = y;
                 }
             }
         }
@@ -247,14 +291,22 @@ impl Eval for Fire {
         lp2.set(FilterMode::Lp, roar_hz, 0.6, 0.0, sr);
         hp1.set(FilterMode::Hp, HISS_HZ, 0.7, 0.0, sr);
         hp2.set(FilterMode::Hp, HISS_HZ, 0.7, 0.0, sr);
+        let mut lp3 = Biquad::new();
+        lp3.set(FilterMode::Lp, (roar_hz * 3.0).min(0.4 * sr), 0.5, 0.0, sr);
         let mut out = vec![0.0f32; n];
         for _pass in 0..if wrap { 2 } else { 1 } {
             for i in 0..n {
                 let d = drive[i];
-                let am = (1.0 + 0.55 * turb[i]).max(0.05);
+                let flutter = 1.0 + 0.3 * flut_a.at(i) + 0.2 * flut_b.at(i);
+                let am = ((1.0 + 0.5 * turb[i]) * flutter).max(0.05);
                 let roar = lp2.tick(lp1.tick(roar_n[i])) * roar_amp * (0.25 + d) * am;
-                let hiss = hp2.tick(hp1.tick(hiss_n[i])) * 0.08 * d * d * (1.0 + 0.4 * fast.at(i));
-                out[i] = roar + hiss;
+                let hiss = hp2.tick(hp1.tick(hiss_n[i])) * 0.025 * d * d * (1.0 + 0.4 * fast.at(i));
+                // Round 3: halfway back (round 2 read "too dark, a distant
+                // highway"): body 0.15, hiss 0.025. Round 2: a darker bed (the round-1 bed read bright): a
+                // pink-ish low-mid layer, the roar noise through one low-pass
+                // at 3x the roar corner, under the same flutter.
+                let body = lp3.tick(roar_n[i]) * roar_amp * 0.15 * (0.25 + d) * am;
+                out[i] = roar + body + hiss;
             }
         }
         for (o, p) in out.iter_mut().zip(&pops) {
@@ -307,13 +359,32 @@ impl Describe for Wind {
 /// The five bands as (base centre Hz, Q, weight). A band sits at its base
 /// centre times `0.6 + 0.8 * (speed / 20)^0.8`, so at 20 m/s it is 1.4 times
 /// the base.
+///
+/// Fitted to refs/wind_set (four CC0 wind recordings): the recordings hold
+/// 0.01-0.12 % of their energy above 2 kHz and a centroid of 40-520 Hz; the
+/// old bands (Q 2.5-4.5, weights 1 / 0.8 / 0.6 / 0.4 / 0.25) put 13 % above
+/// 2 kHz, a 1.06 kHz centroid and steady lines at 138 / 350 / 740 Hz that the
+/// batch-3 listener heard as "a large truck". The bands are now broad (Q
+/// 0.8-1.4), each drifts on its own (+-35 %), and the upper ones are far
+/// quieter; a turbulent low rumble (below) carries the weight.
 const WIND_BANDS: [(f32, f32, f32); 5] = [
-    (120.0, 2.5, 1.0),
-    (280.0, 3.0, 0.8),
-    (600.0, 3.5, 0.6),
-    (1200.0, 4.0, 0.4),
-    (2400.0, 4.5, 0.25),
+    (120.0, 0.8, 1.0),
+    (280.0, 1.0, 0.55),
+    (600.0, 1.1, 0.25),
+    (1200.0, 1.2, 0.08),
+    (2400.0, 1.4, 0.02),
 ];
+
+/// The rumble: white noise through two one-pole low-passes at
+/// `25 + 3 * speed` Hz, scaled by `WIND_RUMBLE * (speed / 20)^1.2` and by a
+/// turbulence envelope `(0.5 + 0.5 * fast)^2` (a 6 Hz lattice): the buffeting
+/// a real wind recording carries under 100 Hz.
+const WIND_RUMBLE: f32 = 3.0;
+
+/// The band sum goes through two one-pole low-passes at `500 + 40 * speed`
+/// Hz (fitted to refs/wind_set: the broad bands' skirts otherwise leak 10 %
+/// of the energy above 2 kHz).
+const WIND_TOP_HZ: (f32, f32) = (500.0, 40.0);
 
 impl Eval for Wind {
     fn random(&self) -> bool {
@@ -350,6 +421,14 @@ impl Eval for Wind {
         let noise = white(&mut r_noise, n);
         let gusts = Fbm::new(&mut r_lat, 0.4, n, sr, wrap);
         let waver = Lattice::new(&mut r_lat, 3.0, n, sr, wrap);
+        let mut r_fit = split(&mut rng);
+        let rumble_noise = white(&mut r_fit, n);
+        let turb = Lattice::new(&mut r_fit, 6.0, n, sr, wrap);
+        let drift: Vec<Lattice> = (0..WIND_BANDS.len())
+            .map(|k| Lattice::new(&mut r_fit, 0.25 + 0.15 * k as f32, n, sr, wrap))
+            .collect();
+        let mut rum = [OnePole::default(), OnePole::default()];
+        let mut top = [OnePole::default(), OnePole::default()];
 
         // The effective speed: the field, swung by the gusts.
         let vel: Vec<f32> = (0..n)
@@ -370,7 +449,7 @@ impl Eval for Wind {
                 if s > 0.0 {
                     let shift = 0.6 + 0.8 * s.powf(0.8);
                     for (k, (base, q, w)) in WIND_BANDS.iter().enumerate() {
-                        let hz = (base * shift).min(0.45 * sr);
+                        let hz = (base * shift * (1.0 + 0.35 * drift[k].at(i))).min(0.45 * sr);
                         // Peak gain of this bandpass is q: divide it out,
                         // then scale to equal power per band.
                         let norm =
@@ -379,6 +458,15 @@ impl Eval for Wind {
                         y += bands[k].tick(noise[i], FilterMode::Bp, hz, *q, 0.0, sr) * gain;
                     }
                 }
+                let tc = WIND_TOP_HZ.0 + WIND_TOP_HZ.1 * vel[i].min(50.0);
+                let (a, _) = top[0].tick(y, tc, sr);
+                let (y2, _) = top[1].tick(a, tc, sr);
+                let mut y = y2;
+                let fc = 25.0 + 3.0 * vel[i].min(50.0);
+                let (a, _) = rum[0].tick(rumble_noise[i], fc, sr);
+                let (b, _) = rum[1].tick(a, fc, sr);
+                let t = 0.5 + 0.5 * turb.at(i);
+                y += b * WIND_RUMBLE * sg.powf(1.2) * t * t;
                 out[i] = y;
             }
         }
@@ -412,43 +500,46 @@ impl Eval for Wind {
 
 // --------------------------------------------------------------------- spark
 
-/// Spark: a mains-powered arc that keeps re-striking.
+/// Spark: a faulty high-voltage transformer, after Farnell (Designing Sound,
+/// ch. 39): a hum of two saws at twice the mains +-0.2 Hz (beating at
+/// 0.4 Hz), clipped hard, under a slow random level; arcing chirps (one per
+/// hum cycle, a reversed phasor squashed by a random factor 3..12, squared
+/// and cos'd, high-passed at 300 Hz) switched by a random gate (~3 Hz); and
+/// snaps (a noise blast with a quartic 0.5 s fall plus a sine swept 7 kHz to
+/// 20 Hz in 10 ms) through a formant bank (4.6, 7.2, 0.48, 0.72 kHz, then a
+/// wide 2.5 kHz band); all into a 12 ms comb with feedback 0.2. The earlier
+/// model (strikes of impulses into a resonator) was heard as "ripping
+/// plastic"; this one was preferred in an A/B (book check 1).
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Spark {
-    /// Strikes a second, 0.1..200: how often a new arc starts. Each strike
-    /// is a snap, then 20 to 70 ms of dense re-striking impulses that the
-    /// mains envelope gates.
+    /// Snaps a second, 0.1..200 (Poisson): how often a big spark cracks over
+    /// the hum and arcing. Each snap lasts about 0.5 s.
     pub rate: f32,
-    /// Mains frequency, Hz: 50 or 60 (default 50). The arc is gated by a
-    /// rectified-sine envelope, so the modulation is strongest at twice this
-    /// and an unequal half-cycle puts a weaker line at this.
+    /// Mains frequency, Hz: 50 or 60 (default 50). The hum and the arcing
+    /// run at twice this (100 or 120 Hz).
     #[serde(default)]
     pub buzz: Option<f32>,
-    /// The short resonator's centre, Hz, 200..12000 (default 3000); a second
-    /// resonance sits at 1.9 times it (when under 0.45 times the sample
-    /// rate).
+    /// Shifts the snap's formant bank, Hz, 200..12000 (default 3000 = the
+    /// book's bank: 4.6, 7.2, 0.48, 0.72 kHz and a 2.5 kHz band, all times
+    /// body / 3000; bands over 0.45 x the sample rate are dropped).
     #[serde(default)]
     pub body: Option<f32>,
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
-    /// Render a buffer that wraps with no seam. Unset: yes in a `kind: loop`
-    /// document, no otherwise. The mains frequency is retuned to a whole
-    /// number of cycles in the duration (at most 0.5 / duration Hz off).
+    /// Render a buffer that wraps with no seam (the last 0.25 s crossfaded
+    /// into the start). Unset: yes in a `kind: loop` document, no otherwise.
     #[serde(default, rename = "loop")]
     pub looped: Option<bool>,
 }
 
 impl Describe for Spark {
-    const BLURB: &'static str = "electric spark / arc: sparse strikes of re-striking impulses gated at the mains rate (50 or 60 Hz) into a short resonator; loop: true wraps without a seam";
+    const BLURB: &'static str = "electric spark / arc (Farnell's transformer recipe): a beating 100/120 Hz hum, gated arcing chirps, and snaps through a spark formant bank, in a short comb; rate = snaps a second; loop: true wraps without a seam";
     fn example() -> serde_json::Value {
         serde_json::json!({"rate": 6, "buzz": 50, "body": 3000, "seed": 1})
     }
 }
-
-/// Re-striking impulses a second inside one strike.
-const SPARK_DENSITY: f32 = 3000.0;
 
 impl Eval for Spark {
     fn random(&self) -> bool {
@@ -479,75 +570,139 @@ impl Eval for Spark {
         let (n, sr) = (cx.n, cx.sr);
         let wrap = wraps(self.looped, cx);
         let mut rng = cx.rng(self.seed);
-        // A whole number of mains cycles in a wrapping buffer.
+        // A wrapping buffer is made periodic in n (modulators, snaps and the
+        // hum's two tones all repeat every n samples), rendered twice over,
+        // and the second pass kept, so the filters and the comb start from
+        // the end's state.
+        let m = if wrap { 2 * n } else { n };
         let secs = n as f32 / sr;
-        let mains = if wrap {
-            ((buzz * secs).round().max(1.0)) / secs
-        } else {
-            buzz
-        };
-        let gate = |i: usize| -> f32 {
-            let cycles = f64::from(mains) * i as f64 / f64::from(sr);
-            let half = (cycles * 2.0).floor() as i64;
-            let s = (std::f64::consts::TAU * cycles).sin().abs() as f32;
-            s.powf(1.5) * if half % 2 == 1 { 0.75 } else { 1.0 }
-        };
-
-        let mut exc = vec![0.0f32; n];
-        let mut put = |at: usize, v: f32| {
-            if at < n {
-                exc[at] += v;
-            } else if wrap {
-                exc[at % n] += v;
+        let tune = |f: f32| {
+            if wrap {
+                (f * secs).round().max(1.0) / secs
+            } else {
+                f
             }
         };
-        // Poisson strike times; a wrapping buffer takes one strike in each
-        // 1 / rate cell instead (a jittered grid), so a short loop's head and
-        // tail hold about the same number of strikes.
+        let hum_hz = 2.0 * buzz;
+        let (f1, f2) = (tune(hum_hz - 0.2), tune(hum_hz + 0.2));
+        let scale = body / 3000.0;
+
+        // Smooth random modulators (cosine-interpolated random points).
+        let slow = |rng: &mut Rng, rate: f32, lo: f32, hi: f32| -> Vec<f32> {
+            let mut step = (sr / rate).max(1.0);
+            let count = if wrap {
+                let c = (n as f32 / step).round().max(1.0) as usize;
+                step = n as f32 / c as f32;
+                c
+            } else {
+                (m as f32 / step) as usize + 3
+            };
+            let pts: Vec<f32> = (0..count).map(|_| lo + (hi - lo) * rng.unit()).collect();
+            (0..m)
+                .map(|i| {
+                    let x = i as f32 / step;
+                    let j = x as usize;
+                    let f = 0.5 - 0.5 * (std::f32::consts::PI * x.fract()).cos();
+                    let (a, b) = (pts[j % count], pts[(j + 1) % count]);
+                    a + (b - a) * f
+                })
+                .collect()
+        };
+        let hum_level = slow(&mut rng, 2.0, 0.0, 1.0);
+        let squash = slow(&mut rng, 0.1, 3.0, 12.0);
+        let gate_w = slow(&mut rng, 3.0, -1.0, 1.0);
+
+        // Snap excitation: a noise blast with a quartic 0.5 s fall plus a
+        // sine swept 7 kHz -> 20 Hz in 10 ms; Poisson at `rate`.
+        let mut exc = vec![0.0f32; m];
+        // A wrapping buffer takes one snap in each 1 / rate cell (a jittered
+        // grid), so a short loop's two ends hold about as many snaps.
         let mut cell = 0usize;
         let mut next = |rng: &mut Rng, prev: f32| -> f32 {
             if wrap {
-                let t = (cell as f32 + rng.unit()) / self.rate;
                 cell += 1;
-                t
+                (cell as f32 - 1.0 + rng.unit()) / self.rate
             } else {
                 prev + rng.exponential(self.rate)
             }
         };
-        let mut t = if wrap {
-            next(&mut rng, 0.0)
-        } else {
-            rng.exponential(self.rate)
-        };
-        while t < secs {
+        let mut t = next(&mut rng, 0.0);
+        let slen = (0.5 * sr) as usize;
+        while ((t * sr) as usize) < if wrap { n } else { m } {
             let i0 = (t * sr) as usize;
-            let sign = if rng.unit() < 0.5 { -1.0 } else { 1.0 };
-            put(i0, sign);
-            let dur = 0.02 + 0.05 * rng.unit();
-            let count = (dur * SPARK_DENSITY) as usize;
-            for _ in 0..count {
-                let at = i0 + (rng.unit() * dur * sr) as usize;
-                let h = (0.2 + 0.8 * rng.unit()) * if rng.unit() < 0.5 { -1.0 } else { 1.0 };
-                // Gate by the mains envelope at the (unwrapped) time.
-                let g = if at < n { gate(at) } else { gate(at % n) };
-                put(at, h * g);
+            let amp = 0.6 + 0.4 * rng.unit();
+            let mut ph = 0.0f32;
+            let span = if wrap { slen } else { slen.min(m - i0) };
+            for k in 0..span {
+                let u = k as f32 / sr;
+                let l = (1.0 - u / 0.5).max(0.0);
+                let l4 = l * l * l * l;
+                let sweep = 7020.0 - 7000.0 * (u / 0.01).min(1.0);
+                ph = (ph + sweep / sr).fract();
+                let sd = (-u * 1000.0f32.ln() / 0.03).exp();
+                let j = if wrap { (i0 + k) % n } else { i0 + k };
+                exc[j] += amp * (0.5 * l4 * rng.signed() + sd * (std::f32::consts::TAU * ph).sin());
             }
             t = next(&mut rng, t);
         }
+        if wrap {
+            exc.copy_within(0..n, n);
+        }
+        // The spark formant bank, shifted by `body` (3 kHz = the book's).
+        let nyq = 0.45 * sr;
+        let bands = [
+            (4600.0, 5.0, 2.0),
+            (7200.0, 5.0, 1.0),
+            (480.0, 7.0, 1.2),
+            (720.0, 8.0, 2.5),
+        ];
+        let mut fb: Vec<(Biquad, f32)> = bands
+            .iter()
+            .filter(|(f, _, _)| f * scale < nyq)
+            .map(|&(f, q, g)| {
+                let mut b = Biquad::new();
+                b.set(FilterMode::Bp, f * scale, q, 0.0, sr);
+                (b, g)
+            })
+            .collect();
+        let mut post = Biquad::new();
+        post.set(FilterMode::Bp, (2500.0 * scale).min(nyq), 0.5, 0.0, sr);
+        let mut arc_hp = Biquad::new();
+        arc_hp.set(FilterMode::Hp, 300.0, 0.707, 0.0, sr);
+        let mut gate_lp = OnePole::default();
 
-        let mut r1 = Resonator::new(body, 0.003, 1.0, sr);
-        let hi = body * 1.9;
-        let mut r2 = (hi < 0.45 * sr).then(|| Resonator::new(hi, 0.002, 0.5, sr));
-        let mut out = vec![0.0f32; n];
-        for _pass in 0..if wrap { 2 } else { 1 } {
-            for i in 0..n {
-                let x = exc[i];
-                let mut y = r1.tick(x);
-                if let Some(r) = r2.as_mut() {
-                    y += r.tick(x);
-                }
-                out[i] = 0.15 * y + 0.03 * x;
+        // A short comb (the box the spark is in): 12 ms, feedback 0.2.
+        let d = ((0.012 * sr) as usize).max(1);
+        let mut line = vec![0.0f32; d];
+        let mut damp = 0.0f32;
+        let (mut p1, mut p2) = (0.0f32, 0.0f32);
+        let mut out = vec![0.0f32; m];
+        for i in 0..m {
+            p1 = (p1 + f1 / sr).fract();
+            p2 = (p2 + f2 / sr).fract();
+            // Hum: two beating saws, clipped hard, under a slow level.
+            let saws = (p1 + p2) - 1.0;
+            let hum = (4.0 * saws).clamp(-1.0, 1.0) * hum_level[i] * hum_level[i];
+            // Arcing: the reversed phasor squashed by a random factor,
+            // squared and cos'd (a chirp per hum cycle), random-gated ~3 Hz.
+            let x = ((1.0 - p1) * squash[i]).min(1.0) + 0.1;
+            let chirp = arc_hp.tick((std::f32::consts::TAU * 12.0 * x * x).cos());
+            let (g, _) = gate_lp.tick(if gate_w[i] > 0.2 { 1.0 } else { 0.0 }, 30.0, sr);
+            let arc = chirp * g;
+            let mut snap = 0.0;
+            for (b, gain) in &mut fb {
+                snap += *gain * b.tick(exc[i]);
             }
+            let snap = post.tick(snap);
+            let dry = 0.25 * hum + 0.3 * arc + 3.0 * snap;
+            let j = i % d;
+            damp = 0.7 * line[j] + 0.3 * damp;
+            let y = dry + 0.2 * damp;
+            line[j] = y;
+            out[i] = 0.5 * y;
+        }
+        if wrap {
+            out.drain(..n);
         }
         Ok(one(crate::buf::Buf::Audio(out)))
     }

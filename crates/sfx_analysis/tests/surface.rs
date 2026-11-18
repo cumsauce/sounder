@@ -238,15 +238,16 @@ fn cloth_motion_raises_rate_band_and_level() {
         }
         last = Some((c, l, rate));
     }
-    // The events/s measure counts distinct ticks, so it rises while bursts
-    // are sparse (up to motion 1) and then saturates as they overlap.
-    let rate = |m: f32| {
-        desc(&node_audio(vec![cloth(json!({"motion": m}))], "n", 2.0))
-            .density
-            .per_s
-    };
-    let (a, b, c) = (rate(0.25), rate(0.5), rate(1.0));
-    assert!(a < b && b < c, "{a} {b} {c}");
+    // cloth_fix: cloth is a continuous swish with slow bursts, not a tick
+    // train (the batch-2 listen heard the ticks as metal pellets), so the
+    // 1 ms density counter reads noise grain, not bursts. Pin the swish
+    // instead: few distinct fine (5 ms) onsets at any motion.
+    for m in [0.25f32, 1.0, 4.0] {
+        let d = desc(&node_audio(vec![cloth(json!({"motion": m}))], "n", 2.0));
+        let fine = d.fine_onsets.len() as f32 / 2.0;
+        println!("cloth motion {m}: {fine:.1} fine onsets/s");
+        assert!(fine < 12.0, "{fine}");
+    }
 }
 
 #[test]

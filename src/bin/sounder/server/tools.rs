@@ -389,17 +389,35 @@ fn do_export(s: &mut Session, a: ExportArgs) -> R {
     let sources = s.source_dirs();
     let sounds = Some(s.sound_source());
     let sound = plain(s.sound(a.doc.as_deref()))?;
-    let bits = match a.bits.unwrap_or(16) {
-        16 => wav::Bits::Int16,
-        24 => wav::Bits::Int24,
-        32 => wav::Bits::Float32,
-        b => return fail(format!("bits: {b}: use 16, 24 or 32")),
+    let format = match a.format.as_deref().unwrap_or("ogg") {
+        "ogg" => {
+            if a.bits.is_some() {
+                return fail("bits applies to format \"wav\"; ogg takes quality (0..1)");
+            }
+            let quality = a.quality.unwrap_or(sounder::ogg::DEFAULT_QUALITY);
+            if !(0.0..=1.0).contains(&quality) {
+                return fail(format!("quality: {quality}: use 0..1"));
+            }
+            export::Format::Ogg { quality }
+        }
+        "wav" => {
+            if a.quality.is_some() {
+                return fail("quality applies to format \"ogg\"; wav takes bits (16, 24, 32)");
+            }
+            export::Format::Wav(match a.bits.unwrap_or(16) {
+                16 => wav::Bits::Int16,
+                24 => wav::Bits::Int24,
+                32 => wav::Bits::Float32,
+                b => return fail(format!("bits: {b}: use 16, 24 or 32")),
+            })
+        }
+        f => return fail(format!("format: {f:?}: use \"ogg\" (default) or \"wav\"")),
     };
     let doc = sound.doc.clone();
     let opts = export::ExportOpts {
         dir: export::dir_for(project.as_deref(), a.path.as_deref()),
         variations: a.variations.unwrap_or(1),
-        bits,
+        format,
         sample_rate: a.sample_rate,
         base_dir: base,
         sources,
@@ -410,8 +428,9 @@ fn do_export(s: &mut Session, a: ExportArgs) -> R {
     let mut text = format!("exported `{}` to {}\n", doc.name, opts.dir.display());
     for f in ex.manifest["files"].as_array().into_iter().flatten() {
         text += &format!(
-            "- {} (seed {}, {:.3} s, {:.1} LUFS, peak {:.1} dBFS)\n",
+            "- {} ({:.1} KB, seed {}, {:.3} s, {:.1} LUFS, peak {:.1} dBFS)\n",
             f["file"].as_str().unwrap_or(""),
+            f["bytes"].as_f64().unwrap_or(0.0) / 1024.0,
             f["seed"],
             f["seconds"].as_f64().unwrap_or(0.0),
             f["lufs"].as_f64().unwrap_or(0.0),
@@ -844,9 +863,10 @@ impl Tools {
         self.run(move |s| do_catalog(s, a)).await
     }
 
-    /// Write WAV files and a `<name>.sfx.json` manifest (files with length,
+    /// Write Ogg Vorbis files (default; `format: "wav"` for WAV) and a
+    /// `<name>.sfx.json` manifest (files with length,
     /// LUFS and peak, kind, loop points, the game-facing knobs, seeds, source).
-    /// `variations` N writes <name>_1.wav .. <name>_N.wav from seeds 1..N.
+    /// `variations` N writes <name>_1.ogg .. <name>_N.ogg from seeds 1..N.
     /// Relative paths land in <project>/assets/sounds/.
     #[tool]
     async fn export(
@@ -995,7 +1015,7 @@ const INSTRUCTIONS: &str = r#"Operating guidance for this sound server:
 - Node families: sources osc (unison sync pm) noise (blue violet velvet crackle) fm wavetable impulse sample; control lfo wander ramp slew sample_hold chaos fbm curve switch pitch_follow centroid_follow; events once pattern poisson bounce burst shatter on_threshold, turned into control by trigger_env event_gate seq notes, or into sound by grains cloud voices; filters filter (slope 12 / 24 / 48) ladder eq onepole comb allpass resonators filterbank vocoder multiband; time delay reverb (model fdn room plate spring) ir convolve; nonlinear shape (oversample) compress (key) limit transient gate sub exciter ringmod; the bus finish (punch tail_db glue warmth weight_db air_db width); modal noise (0..1: each mode becomes a noise band at its frequency, noise_width x f wide; wood: noise 0.6, tilt 4, loss ~1.8; thin metal: noise 0.85, noise_width 0.5, tilt 6; clean modes read as a marimba or a tuned gong; click and footstep (wood) take the same noise: click ~0.75 (a small plastic or metal part), wood footstep ~0.35 with ring ~0.6 and weight ~0.25 (the default board reads slammed), scuff (the roll) and creak (the board) sparingly) and strike_glide (~35 cents: a harder hit); exaggeration subdrop and riser and modal rattle only when the brief asks (rattle on wood reads as plastic); modulation chorus flanger phaser freq_shift; space doppler haas decorrelate pan width; lo-fi crossfade_loop resample tape stutter; spectral pitch_shift (formant) time_stretch spectral (freeze blur gate morph shift stretch smear hps); physical modal (shape plate bar tube membrane string shell; loss, tilt; output normalized) contact friction click, and the ready-made models in the table below, plus air glottis tract syrinx. Start from a model node rather than rebuilding it by hand; for an impact, hit or mechanism it is the body layer of a layered sound (next bullet).
 - From listening: a door slam starts from new_sound {template: "door_slam"} (the approved layered slam with knobs weight, snap, stick, knock, latch; do not rebuild it as a click over one modal); footsteps are gentle, not impacts (weight 0.25-0.4, wood ring < 1, little crack); a knock is pattern -> voices of contact -> wood modal (noise 0.6, noise_width ~0.15, tilt 4) plus a crack and a thud; a dropped metal pipe starts low (f0 120-200 Hz). Keep noise on: a claimed knob tolerates one step against its claim of up to 15 % of its whole move.
 - Designed sounds are layers on a dry bus (AGENTS.md "Layering a designed sound", with a door slam, sword clash and UI recipe): pre (friction / noise brush 5-50 ms before the hit, 1.5-5 kHz), crack (noise x fast decay, bp or hp 2-6 kHz, first 5-25 ms), body (modal of the right material struck by a noise burst, or the model node), weight (brown noise x decay through lp slope 24, 60-350 Hz), after (a small second hit, debris, the body's ring); mix mono, then finish {punch 0..1, tail_db, glue 0..1, warmth 0..1, weight_db, air_db; width above 150 Hz on a stereo mix; no reverb} (or by hand: transient, shape tube oversample 4 mix ~0.2, onepole hp 30-40 Hz), output; macros on finish: glue (claim crest -1), punch (claim crest 1, off on noisy layers), tail_db, weight_db. Rules the listener set: dry and mono by default (no reverb unless the brief names a space); impacts are atonal (no sine sub drop, excite modal with noise, wood loss >= 1.2; listen's voiced near 0); click and hard crumple read as metal, keep them out of wood; add the detail before the hit. One node is still right for ambience, loops, UI blips and single textures.
-- Ready-made nodes by brief (briefs not listed: build from osc / noise / filter / env / modal, that is fine): footstep {surface concrete|gravel|grass|wood, weight, pace, shoe, body (pitch), swish} one step (chain it with pattern + sound for a walk) | fire, wind, spark {loop} campfire, gusts, arcs | water {flow}, splash {size, tail, burst} (bright burst, then falling bubbles), water also takes tone (shelf at 2 kHz), bubble {radius_mm} drips (voices) | cloth {motion} fabric / foliage rustle, crumple {density to 400/s, size, hardness} paper / foil / plastic, rolling {speed} into modal | shatter into voices of modal: glass, debris | explosion, gunshot {size or caliber, distance} | engine, motor {rpm: ramp} | tube, string {freq} winds, plucks, bows | click {kind latch|switch|button|lock|clasp} mechanism clicks | thunder {distance, brightness, length, rumble, tail (fade: -40 dB x tail at the end)} | modal {shape, size or f0 (lowest mode, Hz), f_min / f_max band, loss, tilt, thickness, gain_db} struck panels, pipes, bells, keys | vocoder, multiband robot voice, band dynamics | cloud grain swarms | glottis into tract vowels, creature calls.
+- Ready-made nodes by brief (briefs not listed: build from osc / noise / filter / env / modal, that is fine): footstep {surface concrete|gravel|grass|wood, weight, pace, shoe, body (pitch), swish} one step (chain it with pattern + sound for a walk) | fire, wind, spark {loop} campfire, gusts, arcs | water {flow}, splash {size, tail, burst} (impact, slap, spray, then rising-pitch bubbles), water also takes tone (shelf at 2 kHz), bubble {radius_mm} drips (voices) | cloth {motion} fabric / foliage rustle, crumple {density to 400/s, size, hardness} paper / foil / plastic, rolling {speed} into modal | shatter into voices of modal: glass, debris | explosion, gunshot {size or caliber, distance} | engine, motor {rpm: ramp} | tube, string {freq} winds, plucks, bows | click {kind latch|switch|button|lock|clasp} mechanism clicks | thunder {distance, brightness, length, rumble, tail (fade: -40 dB x tail at the end)} | modal {shape, size or f0 (lowest mode, Hz), f_min / f_max band, loss, tilt, thickness, gain_db} struck panels, pipes, bells, keys | vocoder, multiband robot voice, band dynamics | cloud grain swarms | glottis into tract vowels, creature calls.
 - Layers: ready-made nodes sit at different levels, so balance a scene (fire + footstep + click) with a gain node (db) per layer before one mix and one peak_db / lufs on the output; contact and modal also take gain_db (-60..60). Variation: a seed changes only what reads it (noise, wander, poisson, voices $rand, grains, the foley / surface / click nodes). An osc chain, a pattern or bubble or bounce without jitter are the same for every seed (export variations: N then warns "bit-identical"): add pattern / bounce jitter, poisson, voices $rand, bubble jitter, then verify expect variations. mix inputs take names or objects {"input", "gain" (number or node), "pan", "at" seconds}: layer a tail with at, balance with gain.
 - A oneshot with no duration renders until it decays; a loop needs a duration. Give sounds a decay envelope.
 - Output stage: lufs normalizes sustained sounds; a short or peaky one (click, hit, splash) cannot reach a high lufs under the -1 dBFS ceiling, so use peak_db (not both). A missed-lufs warning gives the numbers and the cause. lufs / peak_db are met after the edge fades. The default 2 ms fade-in cuts a hit (a click, a bounce, a coin, any first event) that starts at t = 0 (the render warns, unless the target is met): set fade_in 0.0005 (0.5 ms; silent_edges still passes; 0 fails it) or start it at 0.005. The ceiling limiter holds the TRUE peak (4x oversampled), so a noisy hit's delivered sample peak can sit below peak_db; check true_peak_db. The 5 ms fade-out is on by default.

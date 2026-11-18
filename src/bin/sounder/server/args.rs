@@ -296,7 +296,13 @@ pub(crate) struct ExportArgs {
     /// Seeds 1..N, one file each (default 1: the sound's own seed).
     #[serde(default)]
     pub(crate) variations: Option<u32>,
-    /// 16 (default), 24, or 32 (float).
+    /// "ogg" (default: Ogg Vorbis, small) or "wav".
+    #[serde(default)]
+    pub(crate) format: Option<String>,
+    /// Ogg Vorbis VBR quality 0..1 (default 0.5, about 160 kbps stereo).
+    #[serde(default)]
+    pub(crate) quality: Option<f32>,
+    /// WAV only: 16 (default), 24, or 32 (float).
     #[serde(default)]
     pub(crate) bits: Option<u32>,
     #[serde(default)]

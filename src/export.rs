@@ -1,6 +1,7 @@
-//! Export: WAV files plus a JSON manifest the game reads.
+//! Export: Ogg Vorbis (default) or WAV files plus a JSON manifest the game reads.
 //!
-//! `<name>_<i>.wav` per variation (seeds 1..N; `<name>.wav` for one) and
+//! `<name>_<i>.ogg` per variation (seeds 1..N; `<name>.ogg` for one; `.wav`
+//! with `Format::Wav`) and
 //! `<name>.sfx.json`: files with their length / LUFS / peak, kind, loop
 //! points, the game-facing knobs (macros with `game: true`), the seeds, and
 //! the catalog entry it came from.
@@ -14,7 +15,7 @@ pub struct ExportOpts {
     pub dir: PathBuf,
     /// Seeds 1..=variations.
     pub variations: u32,
-    pub bits: wav::Bits,
+    pub format: Format,
     /// Render at this rate instead of the document's.
     pub sample_rate: Option<u32>,
     pub base_dir: Option<PathBuf>,
@@ -23,6 +24,34 @@ pub struct ExportOpts {
     /// How `sound` nodes reach other sounds.
     pub sounds: Option<sfx_graph::SoundSource>,
     pub catalog_name: Option<String>,
+}
+
+/// What the files are written as.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Format {
+    /// Ogg Vorbis at VBR quality 0..1. Sample-exact length (granule
+    /// positions), so the manifest's loop points hold.
+    Ogg {
+        quality: f32,
+    },
+    Wav(wav::Bits),
+}
+
+impl Default for Format {
+    fn default() -> Self {
+        Format::Ogg {
+            quality: crate::ogg::DEFAULT_QUALITY,
+        }
+    }
+}
+
+impl Format {
+    fn ext(self) -> &'static str {
+        match self {
+            Format::Ogg { .. } => "ogg",
+            Format::Wav(_) => "wav",
+        }
+    }
 }
 
 pub struct Exported {
@@ -61,13 +90,18 @@ pub fn export(doc: &SoundDoc, o: &ExportOpts) -> Result<Exported, String> {
             ..RenderOpts::default()
         })?;
         causal &= r.causal;
+        let ext = o.format.ext();
         let file = if o.variations == 1 {
-            format!("{}.wav", doc.name)
+            format!("{}.{ext}", doc.name)
         } else {
-            format!("{}_{i}.wav", doc.name)
+            format!("{}_{i}.{ext}", doc.name)
         };
         let path = o.dir.join(&file);
-        wav::write(&path, &r.audio, o.bits)?;
+        match o.format {
+            Format::Ogg { quality } => crate::ogg::write(&path, &r.audio, quality)?,
+            Format::Wav(bits) => wav::write(&path, &r.audio, bits)?,
+        }
+        let bytes = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
         entries.push(json!({
             "file": file,
             "seed": seed,
@@ -75,6 +109,7 @@ pub fn export(doc: &SoundDoc, o: &ExportOpts) -> Result<Exported, String> {
             "samples": r.audio.len(),
             "lufs": r.lufs,
             "peak_db": r.peak_db,
+            "bytes": bytes,
         }));
         files.push(path);
         if o.variations > 1 {
@@ -99,7 +134,14 @@ pub fn export(doc: &SoundDoc, o: &ExportOpts) -> Result<Exported, String> {
         "name": doc.name,
         "kind": doc.kind,
         "sample_rate": doc.sample_rate,
-        "bits": match o.bits { wav::Bits::Int16 => 16, wav::Bits::Int24 => 24, wav::Bits::Float32 => 32 },
+        "format": o.format.ext(),
+        "bits": match o.format {
+            Format::Wav(wav::Bits::Int16) => json!(16),
+            Format::Wav(wav::Bits::Int24) => json!(24),
+            Format::Wav(wav::Bits::Float32) => json!(32),
+            Format::Ogg { .. } => Value::Null,
+        },
+        "quality": match o.format { Format::Ogg { quality } => json!(quality), Format::Wav(_) => Value::Null },
         "files": entries,
         "loop": (doc.kind == Kind::Loop).then(|| json!({"start": 0, "end": first_samples})),
         "inputs": game,

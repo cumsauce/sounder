@@ -10,6 +10,7 @@ pub mod catalog;
 pub mod export;
 pub mod feedback;
 pub mod history;
+pub mod ogg;
 pub mod player;
 pub mod session;
 pub mod store;

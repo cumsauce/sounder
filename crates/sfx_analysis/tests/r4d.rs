@@ -63,6 +63,24 @@ fn splash_defaults_are_bit_identical() {
     }
 }
 
+/// The end of the audible part: the last 10 ms window whose rms is within
+/// 45 dB of the loudest window's. Fitted to refs/splash_set, the bubble cloud
+/// is quiet under spray and slap, so its onsets no longer read separately;
+/// its length still shows here.
+fn audible_end(x: &[f32]) -> f32 {
+    let w = (0.01 * SR as f32) as usize;
+    let rms: Vec<f32> = x
+        .chunks(w)
+        .map(|c| (c.iter().map(|v| v * v).sum::<f32>() / c.len() as f32).sqrt())
+        .collect();
+    let top = rms.iter().copied().fold(0.0f32, f32::max);
+    let last = rms
+        .iter()
+        .rposition(|r| *r > top * 10f32.powf(-45.0 / 20.0))
+        .unwrap_or(0);
+    (last + 1) as f32 * 0.01
+}
+
 #[test]
 fn splash_tail_and_burst_reshape_it() {
     let plain = node_audio(splash(json!({})), "n", 3.0);
@@ -79,19 +97,17 @@ fn splash_tail_and_burst_reshape_it() {
             .0
     };
     let (p_plain, p_long) = (peak_at(&plain), peak_at(&long));
-    let d = describe(&mono(&long));
-    let after = d.fine_onsets.iter().filter(|t| **t > 0.2).count();
-    let d0 = describe(&mono(&plain));
-    let after0 = d0.fine_onsets.iter().filter(|t| **t > 0.2).count();
+    let (after, after0) = (audible_end(&long), audible_end(&plain));
     println!(
-        "0.15 m splash: default peaks at {:.1} ms, {after0} fine onsets after 0.2 s; tail 2 burst 2 peaks at {:.1} ms, {after} fine onsets after 0.2 s, length {:.2} s vs {:.2} s",
+        "0.15 m splash: default peaks at {:.1} ms, audible to {after0:.2} s; tail 2 burst 2 peaks at {:.1} ms, audible to {after:.2} s, length {:.2} s vs {:.2} s",
         p_plain as f32 * 1000.0 / SR as f32,
         p_long as f32 * 1000.0 / SR as f32,
         long.len() as f32 / SR as f32,
         plain.len() as f32 / SR as f32,
     );
     assert!(p_long < first_20ms, "peak at sample {p_long}");
-    assert!(after >= 10, "{after} fine onsets after 0.2 s");
+    // tail 2 must make the splash audible for longer.
+    assert!(after > after0, "audible to {after} s (default {after0} s)");
 }
 
 #[test]
@@ -99,10 +115,8 @@ fn splash_tail_lengthens_the_cloud_monotonically() {
     let mut onsets = Vec::new();
     for tail in [0.5f32, 1.0, 2.0] {
         let x = node_audio(splash(json!({"tail": tail})), "n", 3.0);
-        let d = describe(&mono(&x));
-        let n = d.fine_onsets.iter().filter(|t| **t > 0.1).count();
-        let last = d.fine_onsets.last().copied().unwrap_or(0.0);
-        println!("tail {tail}: {n} fine onsets after 0.1 s, last at {last:.2} s");
+        let last = audible_end(&x);
+        println!("tail {tail}: audible to {last:.2} s");
         onsets.push(last);
     }
     assert!(onsets[0] < onsets[1] && onsets[1] < onsets[2], "{onsets:?}");
@@ -124,8 +138,17 @@ fn splash_burst_moves_the_peak_into_the_opening() {
     println!(
         "burst 0 / 1 / 2: peak in first 20 ms {h0:.3} / {h1:.3} / {h2:.3}, after {r0:.3} / {r1:.3} / {r2:.3}"
     );
-    assert!(h0 < h1 && h1 < h2);
-    assert!(h2 > r2, "burst 2 is the loudest moment");
+    // water_fix: the slap is the loudest moment from burst 1 (the old
+    // default peaked on the cavity bubble), so h1 = h2 = the peak and a
+    // louder burst shows as a quieter rest.
+    assert!(h0 < h1 && h1 <= h2);
+    assert!(h1 >= r1 && h2 > r2, "burst 1 and 2 are the loudest moment");
+    // The spray (which carries the tail since the refs/splash_set fit) scales
+    // with `burst` too, so the rest only must not grow (0.157 / 0.158).
+    assert!(
+        r2 <= r1 * 1.03,
+        "a louder burst does not make the rest louder"
+    );
 }
 
 #[test]

@@ -26,7 +26,7 @@ use serde::Deserialize;
 
 use super::{non_negative, one, positive};
 use crate::buf::Buf;
-use crate::dsp::{Biquad, FilterMode, Rng};
+use crate::dsp::{Biquad, FilterMode, OnePole, Rng};
 use crate::node::{Cx, Describe, Eval, In, Outs};
 
 /// Total damping constant of a millimetre bubble (foley's `DAMPING`).
@@ -39,31 +39,33 @@ const MAX_DENSITY: f32 = 3000.0;
 const MAX_BUBBLES: f64 = 800_000.0;
 /// Largest stream bubble, mm (165 Hz).
 const MAX_RADIUS_MM: f32 = 20.0;
-/// Largest splash bubble, mm (55 Hz).
-const MAX_SPLASH_RADIUS_MM: f32 = 60.0;
 /// ln-sigma of the stream's log-normal radius spread.
 const SIGMA: f32 = 0.4;
 /// Peak amplitude of a median stream bubble.
 const A0: f32 = 0.1;
 /// RMS of the hiss at flow 1.
 const HISS_RMS: f32 = 0.03;
+/// Share of the hiss that is steady; the rest follows the bubble envelope.
+/// Round 2: 0.45 (0.1 read "crispy, like boiling oil"; the old steady
+/// hiss read as wind).
+const HISS_FLOOR: f32 = 0.45;
+/// Bubble rate (per second) under which the hiss is fully steady, as before.
+const HISS_TRICKLE: f32 = 20.0;
+/// Hiss level of a dense stream against a sparse one (rms 0.03 x this).
+const HISS_DENSE: f32 = 0.8;
+/// Bubble rate (per second) under which the hiss turns back to steady.
+const HISS_SPARSE: f32 = 80.0;
+/// High-pass under the hiss, Hz.
+const HISS_HP: f32 = 400.0;
+/// Extra high-pass (4th order) on a dense stream's hiss, Hz.
+const HISS_DENSE_HP: f32 = 1500.0;
 /// Peak a lone `splash` node is scaled to.
 const SPLASH_PEAK: f32 = 0.5;
 /// Peak of the splashes mixed into a stream by `water.splash`.
 const STREAM_SPLASH_PEAK: f32 = 0.3;
-/// Pitch rise of a splash bubble, in units of its decay rate over a second
-/// (a third of `RISE`).
-const SPLASH_RISE: f32 = -0.03;
-/// Raised-cosine onset of a splash bubble, seconds (a bare phasor start is a
-/// step that shows as broadband clicks).
-const SPLASH_ONSET: f32 = 0.001;
-/// Amplitude of the impact burst, against the main bubble at 1.
-const BURST_AMP: f32 = 1.0;
 /// Silence before the burst, seconds: the output's default 2 ms fade-in would
 /// otherwise cut the loudest part of the sound.
 const LEAD: f32 = 0.0025;
-/// Where in the cloud window the main cavity bubble is born.
-const MAIN_AT: f32 = 1.0;
 /// Longest a splash rings, seconds (cap on its buffer).
 const MAX_SPLASH_SECONDS: f32 = 2.5;
 
@@ -140,90 +142,101 @@ fn ring(out: &mut [f32], b: &Pop, sr: f32, wrap: bool, rise_rate: f32, onset: us
 }
 
 /// One splash of characteristic radius `size` metres as its own buffer
-/// (peak 1): a bright, brief impact burst, then a cloud of bubbles whose size
-/// grows with time (so the pitch falls), ending in the main cavity bubble.
+/// (peak 1), after Farnell's raindrop and bubble recipes (Designing Sound,
+/// ch. 35 and 38), fitted to refs/splash_set. With `k = sqrt(size / 0.1)`:
 ///
-/// - window `W = 0.06 + 0.12 * sqrt(size / 0.05)` s.
-/// - burst: white noise through a low-pass at `16 kHz * (0.05 / size)^0.1`
-///   (13 .. 0.4 sr), decaying with time constant `2 ms + 1.5 ms *
-///   sqrt(size / 0.05)`, amplitude 0.5, born at 0.
-/// - cloud: `10 + 18 * sqrt(size / 0.05)` bubbles (6 .. 80), born at 4 ms + t
-///   with t in 0..W, density falling as `exp(-2.5 t / W)`; radius `r_main *
-///   (0.1 + 0.7 * (t / W)^0.6)` times a ln-sigma 0.15 spread; amplitude `0.5 *
-///   sqrt(r / r_main)` times `exp(-1.0 t / W)`.
-/// - main bubble: radius `0.12 * size` (1 .. 60 mm), born at 4 ms + 0.4 W,
-///   amplitude 1.
+/// - impact: a positive pressure bump, a raised-cosine pulse `5 ms * k`
+///   (3..30 ms) long, high-passed at 40 Hz, level 0.9 * `burst`.
+/// - slap: white noise falling 60 dB in `60 ms * k`, band-passed at 3.5 kHz
+///   Q 0.7, level 1.4 * `burst`.
+/// - spray: the same noise falling 60 dB in `350 ms * k * tail`, band-passed
+///   at 3.2 kHz Q 0.6, level 0.6 * `burst`, from 3 ms.
+/// - bubbles: `140 * k * tail` (at most 400) over `0.5 s * k * tail`, dense
+///   early (time = spread * u^2); each has a size v (0.05..1): a sine whose
+///   pitch RISES from `f = (350 + (1 - v) * 2600 * (0.8..1.2)) / k^0.3` to
+///   1.7 f in `d = (20 + 90 v) ms * k^0.3`, a linear rise over 0.15 d and a
+///   fall of 60 dB in 1.6 d, level `0.1 + v * (0.6..1)`; summed, high-passed
+///   at 60 Hz, level 0.07.
 ///
-/// Every bubble rings with a pitch rise of `SPLASH_RISE` (a third of
-/// `water`'s), so a ring does not climb back into the band the cloud left.
-///
-/// `tail` (1 = as above, bit-identical) scales the cloud: its window `W` and
-/// its bubble count go times `tail` (the main bubble stays at the end of the
-/// window, so it comes later). `burst` (1 = as above) scales the burst's
-/// amplitude against the main bubble.
+/// The earlier model (a slap, a swarm of chirping Minnaert bubbles, spray) was
+/// heard as "diminishing" against this one in an A/B (book check 1).
 fn splash_buffer(size: f32, tail: f32, burst_level: f32, rng: &mut Rng, sr: f32) -> Vec<f32> {
-    let scale = (size / 0.05).max(1e-3);
-    let r_main = (0.12 * size).clamp(1e-3, MAX_SPLASH_RADIUS_MM * 1e-3);
-    let rmin = min_radius(sr);
-    let r_top = r_main.max(rmin);
-    let mut window = 0.06 + 0.12 * scale.sqrt();
-    let mut count = (10.0 + 18.0 * scale.sqrt()).round().clamp(6.0, 80.0) as usize;
-    if tail != 1.0 {
-        window *= tail.max(0.05);
-        count = (count as f32 * tail).round() as usize;
-    }
-    let t0 = LEAD + 0.004;
-    let mut pops = vec![Pop {
-        start: ((t0 + MAIN_AT * window) * sr) as usize,
-        radius: r_top,
-        amp: 1.0,
-    }];
-    let k = 2.5f32;
-    for i in 0..count {
-        // Density falling as exp(-k t / window): inverse CDF of a stratified
-        // draw (one per equal slice of probability, so the cloud is even
-        // enough for its size to read as a trend).
-        let u = (i as f32 + rng.unit()) / count as f32;
-        let t = -window / k * (1.0 - u * (1.0 - (-k).exp())).ln();
-        let frac = (t / window).clamp(0.0, 1.0);
-        let r =
-            (r_top * (0.1 + 0.7 * frac.powf(0.6)) * (0.08 * gauss(rng)).exp()).clamp(rmin, r_top);
-        let fall = (-frac).exp();
-        pops.push(Pop {
-            start: ((t0 + t) * sr) as usize,
-            radius: r,
-            amp: 0.5 * (r / r_top).sqrt() * fall,
-        });
-    }
-    let cap = (MAX_SPLASH_SECONDS * sr) as usize;
-    let len = pops
-        .iter()
-        .map(|p| p.start + (ring_seconds(p.radius) * sr).ceil() as usize)
-        .max()
-        .unwrap_or(1)
-        .min(cap)
+    let k = (size / 0.1).max(1e-3).sqrt();
+    let kp = k.powf(0.3);
+    let at = |t: f32| (t * sr) as usize;
+    let spread = 0.5 * k * tail;
+    let count = (140.0 * k * tail).round().min(400.0) as usize;
+    let spray_t60 = 0.35 * k * tail;
+    let len = (at(LEAD + spread + 0.2 * kp + 0.01))
+        .max(at(LEAD + 0.003 + spray_t60))
+        .min(at(MAX_SPLASH_SECONDS))
         .max(1);
     let mut out = vec![0.0f32; len];
-    for p in &pops {
-        ring(
-            &mut out,
-            p,
-            sr,
-            false,
-            SPLASH_RISE,
-            (SPLASH_ONSET * sr) as usize,
-        );
+    let lead = at(LEAD);
+    let tau = |t60: f32| t60 / 1000.0f32.ln();
+
+    if burst_level > 0.0 {
+        // Impact bump.
+        let blen = at((0.005 * k).clamp(0.003, 0.03)).max(2);
+        let mut hp = OnePole::default();
+        for i in 0..len.saturating_sub(lead) {
+            let x = if i < blen {
+                0.5 - 0.5 * (TAU * i as f32 / blen as f32).cos()
+            } else {
+                0.0
+            };
+            let (_, h) = hp.tick(x, 40.0, sr);
+            out[lead + i] += 0.9 * burst_level * h;
+            if i > blen && h.abs() < 1e-6 {
+                break;
+            }
+        }
+        // Slap and spray from one noise.
+        let mut fs = Biquad::new();
+        fs.set(FilterMode::Bp, 3500.0f32.min(0.4 * sr), 0.7, 0.0, sr);
+        let mut fp = Biquad::new();
+        fp.set(FilterMode::Bp, 3200.0f32.min(0.4 * sr), 0.6, 0.0, sr);
+        let (ts, tp) = (tau(0.06 * k) * sr, tau(spray_t60.max(1e-3)) * sr);
+        let d = at(0.003) as f32;
+        for i in 0..len.saturating_sub(lead) {
+            let n = rng.signed();
+            let x = i as f32;
+            let es = (-x / ts).exp();
+            let ep = if tail > 0.0 && x >= d {
+                (-(x - d) / tp).exp()
+            } else {
+                0.0
+            };
+            out[lead + i] +=
+                1.4 * burst_level * fs.tick(n * es) + 0.6 * burst_level * fp.tick(n * ep);
+        }
     }
-    // The impact burst.
-    let tau = 0.002 + 0.0015 * scale.sqrt();
-    let cut = (16_000.0 * (0.05 / size.max(1e-4)).powf(0.1)).clamp(400.0, 0.4 * sr);
-    let mut lp = Biquad::new();
-    lp.set(FilterMode::Lp, cut, 0.707, 0.0, sr);
-    let burst = ((8.0 * tau * sr) as usize).min(len);
-    let lead = (LEAD * sr) as usize;
-    for (i, o) in out.iter_mut().enumerate().skip(lead).take(burst) {
-        let e = (-((i - lead) as f32) / (tau * sr)).exp();
-        *o += BURST_AMP * burst_level * e * lp.tick(rng.signed());
+
+    // Bubbles with a rising pitch.
+    let mut bub = vec![0.0f32; len];
+    for j in 0..count {
+        let u = (j as f32 + rng.unit()) / count as f32;
+        let t0 = LEAD + 0.005 + spread * u * u;
+        let v = 0.05 + 0.95 * rng.unit();
+        let s = v * (0.6 + 0.4 * rng.unit());
+        let f = (350.0 + (1.0 - v) * 2600.0 * (0.8 + 0.4 * rng.unit())) / kp;
+        let dur = (0.02 + 0.09 * v) * kp;
+        let (att, t60) = (0.15 * dur, 1.6 * dur);
+        let g = 0.1 + s;
+        let mut ph = 0.0f32;
+        let i0 = at(t0);
+        for i in 0..at(t60) {
+            let Some(o) = bub.get_mut(i0 + i) else { break };
+            let t = i as f32 / sr;
+            let hz = f * 1.7f32.powf((t / dur).min(1.0));
+            ph = (ph + hz / sr).fract();
+            let e = (t / att).min(1.0) * (-t / tau(t60)).exp();
+            *o += g * e * (TAU * ph).sin();
+        }
+    }
+    let mut hp = OnePole::default();
+    for (o, b) in out.iter_mut().zip(&bub) {
+        *o += 0.07 * hp.tick(*b, 60.0, sr).1;
     }
     let peak = out.iter().fold(0.0f32, |m, v| m.max(v.abs()));
     if peak > 0.0 {
@@ -246,8 +259,9 @@ fn splash_buffer(size: f32, tail: f32, burst_level: f32, rng: &mut Rng, sr: f32)
 /// 4.1 kHz; flow 1: 4 mm, 820 Hz; depth 0 halves it, depth 1 doubles it),
 /// each bubble `median * exp(0.4 * N(0, 1))` clamped to 0.7 .. 20 mm. Bubble
 /// peak amplitude is `0.1 * sqrt(r / median)`: see the level law in the
-/// module comment. The hiss is white noise through a 400 Hz high-pass and a
-/// low-pass at `10 kHz * 0.25^depth`, scaled to rms `0.03 * flow`. Flow 0
+/// module comment. The hiss is white noise through a 1.5 kHz high-pass and a
+/// low-pass at `10 kHz * 0.25^depth`, at rms `0.02 * flow` times a gain that
+/// follows the bubbles' envelope (10 % steady, 90 % riding the pops). Flow 0
 /// is silence. Not causal when it loops (the last bubbles ring over the
 /// seam).
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
@@ -429,7 +443,7 @@ impl Eval for Water {
         let mut hrng = cx.rng(self.seed ^ 0x4849_5353_0000_0001);
         let noise: Vec<f32> = (0..n).map(|_| hrng.signed()).collect();
         let mut hp = Biquad::new();
-        hp.set(FilterMode::Hp, 400.0, 0.707, 0.0, sr);
+        hp.set(FilterMode::Hp, HISS_HP, 0.707, 0.0, sr);
         let mut lp = Biquad::new();
         lp.set(
             FilterMode::Lp,
@@ -447,14 +461,91 @@ impl Eval for Water {
             }
         }
         let shaped: Vec<f32> = noise.iter().map(|&x| run(x)).collect();
-        let ms = shaped.iter().map(|v| f64::from(*v).powi(2)).sum::<f64>() / n.max(1) as f64;
-        let norm = if ms > 0.0 {
-            (1.0 / ms.sqrt()) as f32
-        } else {
-            0.0
+        let unit_rms = |x: &[f32]| {
+            let ms = x.iter().map(|v| f64::from(*v).powi(2)).sum::<f64>() / n.max(1) as f64;
+            if ms > 0.0 {
+                (1.0 / ms.sqrt()) as f32
+            } else {
+                0.0
+            }
+        };
+        let norm = unit_rms(&shaped);
+        // A dense stream's hiss has its 400 Hz-1.5 kHz part taken out too:
+        // a steady noise bed there is the wind-like band.
+        let (mut ha, mut hb) = (Biquad::new(), Biquad::new());
+        ha.set(FilterMode::Hp, HISS_DENSE_HP.min(0.4 * sr), 0.707, 0.0, sr);
+        hb.set(FilterMode::Hp, HISS_DENSE_HP.min(0.4 * sr), 0.707, 0.0, sr);
+        let mut run2 = |x: f32| hb.tick(ha.tick(x));
+        if looped {
+            let pre = n.min((0.25 * sr) as usize);
+            for &x in &shaped[n - pre..] {
+                run2(x);
+            }
+        }
+        let thin: Vec<f32> = shaped.iter().map(|&x| run2(x)).collect();
+        let norm_thin = unit_rms(&thin);
+        // The hiss rides the bubbles: its gain follows their envelope (2 ms
+        // up, 25 ms down, normalised to mean 1), over a small steady floor.
+        // A steady broadband bed is what the batch-2 listener heard as wind.
+        let (up, down) = ((-1.0 / (0.002 * sr)).exp(), (-1.0 / (0.025 * sr)).exp());
+        let mut e = 0.0f32;
+        let mut follow = |x: f32| {
+            let a = x.abs();
+            let c = if a > e { up } else { down };
+            e = c * e + (1.0 - c) * a;
+            e
+        };
+        if looped {
+            let pre = n.min((0.25 * sr) as usize);
+            for &x in &out[n - pre..] {
+                follow(x);
+            }
+        }
+        let env: Vec<f32> = out.iter().map(|&x| follow(x)).collect();
+        let mean = env.iter().map(|v| f64::from(*v)).sum::<f64>() / n.max(1) as f64;
+        // Normalise by the envelope's local mean (0.4 s centred, wrapped in a
+        // loop) so the hiss follows each pop while its level over a few
+        // hundred ms stays even: a loop's two ends then match.
+        let mut pre = vec![0.0f64; n + 1];
+        for (i, v) in env.iter().enumerate() {
+            pre[i + 1] = pre[i] + f64::from(*v);
+        }
+        let h = ((0.2 * sr) as usize).min(n / 2);
+        let local = |i: usize| -> f64 {
+            if n == 0 {
+                return 0.0;
+            }
+            let (a, b) = (i as i64 - h as i64, i as i64 + h as i64 + 1);
+            let sum = |a: i64, b: i64| pre[b as usize] - pre[a as usize];
+            let n_i = n as i64;
+            let total = if looped {
+                let mut t = sum(a.max(0), b.min(n_i));
+                if a < 0 {
+                    t += sum((n_i + a).max(0), n_i);
+                }
+                if b > n_i {
+                    t += sum(0, (b - n_i).min(n_i));
+                }
+                t / (b - a) as f64
+            } else {
+                let (a, b) = (a.max(0), b.min(n_i));
+                sum(a, b) / (b - a).max(1) as f64
+            };
+            total.max(0.25 * mean)
         };
         for (i, o) in out.iter_mut().enumerate() {
-            *o += shaped[i] * norm * HISS_RMS * clamp_flow(flow.at(i));
+            let m = local(i);
+            let inv = if m > 0.0 { (1.0 / m) as f32 } else { 0.0 };
+            // A sparse trickle (under HISS_SPARSE bubbles a second) keeps a
+            // steadier hiss: with a few pops a second a bubble-gated hiss is
+            // mostly silence, and a loop's two ends would differ by chance.
+            let f = clamp_flow(flow.at(i));
+            let sparse = ((HISS_SPARSE - density * f * f.sqrt()) / (HISS_SPARSE - HISS_TRICKLE))
+                .clamp(0.0, 1.0);
+            let floor = HISS_FLOOR + (1.0 - HISS_FLOOR) * sparse;
+            let g = floor + (1.0 - floor) * (env[i] * inv).min(4.0);
+            let h = sparse * shaped[i] * norm + (1.0 - sparse) * thin[i] * norm_thin;
+            *o += h * HISS_RMS * (HISS_DENSE + (1.0 - HISS_DENSE) * sparse) * g * f;
         }
         if tone != 0.5 {
             // A 2 kHz high shelf, +-12 dB. In a loop the filter is primed
@@ -484,12 +575,12 @@ impl Eval for Water {
 
 // ---------------------------------------------------------------- splash
 
-/// A single splash (source, one-shot): a bright, brief impact burst, then a
-/// cloud of bubbles that grow with time (so the pitch falls) and end in the
-/// main cavity bubble, built from the same bubble maths as `water`. `size` is
-/// the splash's radius in metres: 0.02 (a pebble) to 1 (a person jumping in).
-/// Bigger: the main bubble's radius goes as `0.12 * size` (a lower, longer
-/// ring), the cloud is larger and lasts longer, the burst is longer. The
+/// A single splash (source, one-shot), after Farnell's raindrop and bubble
+/// recipes: an impact bump, a slap and spray, then a cloud of short bubbles
+/// whose pitch rises (see `splash_buffer`). `size` is the splash's radius in
+/// metres: 0.02 (a pebble) to 1 (a person jumping in). Bigger: a longer
+/// bump, slap and spray, more bubbles over a longer time, lower and longer
+/// bubbles. The
 /// output is scaled to a peak of 0.5 (-6 dBFS) whatever the size, as
 /// `thunder` is: set loudness with `gain` or the output's `lufs`. Not causal
 /// (a finished one-shot).
@@ -502,17 +593,14 @@ pub struct Splash {
     /// Seconds into the sound the splash happens (default 0).
     #[serde(default)]
     pub at: Option<f32>,
-    /// 0..3, the bubble cloud after the burst (default 1, as before, bit-
-    /// identical): its length and its bubble count are times `tail`, so 2 is
-    /// a cloud twice as long with twice as many bubbles (and the main cavity
-    /// bubble, which ends the cloud, comes later); 0 is no cloud. A splash
-    /// never rings past 2.5 s.
+    /// 0..3, the bubble cloud and spray after the impact (default 1): their
+    /// length and the bubble count are times `tail`; 0 is no cloud and no
+    /// spray. A splash never rings past 2.5 s.
     #[serde(default)]
     pub tail: Option<f32>,
-    /// 0..2, the level of the opening burst against the main cavity bubble
-    /// (default 1, as before, bit-identical). 2 makes the burst the loudest
-    /// moment; 0 drops it. The splash is then levelled to its usual peak, so
-    /// a louder burst makes everything after it quieter.
+    /// 0..2, the level of the impact (bump, slap, spray) against the bubbles
+    /// (default 1); 0 leaves only the bubbles. The splash is then levelled to
+    /// its usual peak, so a louder burst makes the bubbles quieter.
     #[serde(default)]
     pub burst: Option<f32>,
     /// Mixed with the document seed and the node name (default 0: another
@@ -522,7 +610,7 @@ pub struct Splash {
 }
 
 impl Describe for Splash {
-    const BLURB: &'static str = "one splash: a bright brief burst, then bubbles growing in size (the centroid falls) ending in the main cavity bubble (Minnaert); size in metres; peak levelled to -6 dBFS";
+    const BLURB: &'static str = "one splash (Farnell's raindrop and bubble recipes): an impact bump, a slap and spray, then a cloud of bubbles whose pitch rises; size in metres; peak levelled to -6 dBFS";
     fn example() -> serde_json::Value {
         serde_json::json!({"size": 0.08, "at": 0.05, "tail": 1.5, "burst": 1.5, "seed": 1})
     }

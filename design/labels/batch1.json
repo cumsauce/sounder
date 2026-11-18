@@ -1,0 +1,1979 @@
+[
+ {
+  "id": "s01",
+  "family": "crumple",
+  "doc": {
+   "sound": "s01",
+   "ops": [
+    {
+     "type": "crumple",
+     "name": "c",
+     "density": 104,
+     "size": 0.17,
+     "hardness": 0.21,
+     "seed": 23
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "c",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 124,
+   "duration": 1.4
+  }
+ },
+ {
+  "id": "s02",
+  "family": "scrape",
+  "doc": {
+   "sound": "s02",
+   "ops": [
+    {
+     "type": "env",
+     "name": "sp",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.05,
+       1.9980826683445385
+      ],
+      [
+       0.477393962663448,
+       1.1896906027144893
+      ],
+      [
+       1.0,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "friction",
+     "name": "fr",
+     "speed": "sp",
+     "pressure": 0.42,
+     "roughness": 0.36,
+     "grain": 118
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "fr",
+     "material": "stone",
+     "f0": 595,
+     "loss": 3.95,
+     "noise": 0.48,
+     "gain_db": -12
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 355,
+   "duration": 1.4
+  }
+ },
+ {
+  "id": "s03",
+  "family": "layered hit",
+  "doc": {
+   "sound": "s03",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 95
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.010779112034980777,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "wood",
+     "shape": "bar",
+     "f0": 290.1,
+     "loss": 1.24,
+     "noise": 0.43,
+     "tilt": 3.3
+    },
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white",
+     "seed": 1
+    },
+    {
+     "type": "decay",
+     "name": "ce",
+     "time": 0.01162103870445023,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "craw",
+     "op": "mul",
+     "a": "wn",
+     "b": "ce"
+    },
+    {
+     "type": "filter",
+     "name": "crack",
+     "input": "craw",
+     "mode": "bp",
+     "freq": 2486,
+     "q": 0.6
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown",
+     "seed": 90
+    },
+    {
+     "type": "decay",
+     "name": "te",
+     "time": 0.5139163496386632,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "traw",
+     "op": "mul",
+     "a": "bn",
+     "b": "te"
+    },
+    {
+     "type": "filter",
+     "name": "thud",
+     "input": "traw",
+     "mode": "lp",
+     "freq": 199,
+     "slope": 24
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "body",
+      {
+       "input": "crack",
+       "gain": 0.52
+      },
+      {
+       "input": "thud",
+       "gain": 0.91
+      }
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "finish",
+     "name": "fin",
+     "input": "dry",
+     "punch": 0.49,
+     "warmth": 0.07
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "fin",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 265
+  }
+ },
+ {
+  "id": "s04",
+  "family": "crumple",
+  "doc": {
+   "sound": "s04",
+   "ops": [
+    {
+     "type": "crumple",
+     "name": "c",
+     "density": 129,
+     "size": 0.24,
+     "hardness": 0.18,
+     "seed": 96
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "c",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 738,
+   "duration": 1.4
+  }
+ },
+ {
+  "id": "s05",
+  "family": "scrape",
+  "doc": {
+   "sound": "s05",
+   "ops": [
+    {
+     "type": "env",
+     "name": "sp",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.05,
+       0.48361482845869175
+      ],
+      [
+       0.49024642328440193,
+       0.6617477019859048
+      ],
+      [
+       1.0,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "friction",
+     "name": "fr",
+     "speed": "sp",
+     "pressure": 0.33,
+     "roughness": 0.44,
+     "grain": 545
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "fr",
+     "material": "stone",
+     "f0": 650,
+     "loss": 2.85,
+     "noise": 0.41,
+     "gain_db": -12
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 872,
+   "duration": 1.4
+  }
+ },
+ {
+  "id": "s06",
+  "family": "crumple",
+  "doc": {
+   "sound": "s06",
+   "ops": [
+    {
+     "type": "crumple",
+     "name": "c",
+     "density": 131,
+     "size": 0.58,
+     "hardness": 0.93,
+     "seed": 12
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "c",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 482,
+   "duration": 1.4
+  }
+ },
+ {
+  "id": "s07",
+  "family": "knocks",
+  "doc": {
+   "sound": "s07",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 60
+    },
+    {
+     "type": "pattern",
+     "name": "p",
+     "times": [
+      0.01,
+      0.119,
+      0.279,
+      0.42
+     ]
+    },
+    {
+     "type": "trigger_env",
+     "name": "e",
+     "events": "p",
+     "attack": 0.0005,
+     "decay": 0.017410812266072842
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "wood",
+     "shape": "bar",
+     "f0": 312.3,
+     "loss": 2.3,
+     "noise": 0.72,
+     "tilt": 4.7
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 877
+  }
+ },
+ {
+  "id": "s08",
+  "family": "footstep",
+  "doc": {
+   "sound": "s08",
+   "ops": [
+    {
+     "type": "footstep",
+     "name": "f",
+     "surface": "concrete",
+     "weight": 0.38,
+     "pace": "walk",
+     "shoe": "bare",
+     "at": 0.01
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "f",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 386
+  }
+ },
+ {
+  "id": "s09",
+  "family": "metal hit",
+  "doc": {
+   "sound": "s09",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 78
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.007397427003288042,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "metal",
+     "shape": "plate",
+     "f0": 708.2,
+     "loss": 0.68,
+     "noise": 0.66,
+     "tilt": 3.3
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 32
+  }
+ },
+ {
+  "id": "s10",
+  "family": "stone hit",
+  "doc": {
+   "sound": "s10",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 16
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.019360839052669367,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "stone",
+     "shape": "bar",
+     "f0": 733.8,
+     "loss": 3.3,
+     "noise": 0.6,
+     "tilt": 2.9
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 984
+  }
+ },
+ {
+  "id": "s11",
+  "family": "wood hit",
+  "doc": {
+   "sound": "s11",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 79
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.01959608842582585,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "wood",
+     "shape": "bar",
+     "f0": 176.8,
+     "loss": 1.81,
+     "noise": 0.39,
+     "tilt": -1.5
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 921
+  }
+ },
+ {
+  "id": "s12",
+  "family": "scrape",
+  "doc": {
+   "sound": "s12",
+   "ops": [
+    {
+     "type": "env",
+     "name": "sp",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.05,
+       1.317223655558792
+      ],
+      [
+       0.8460687388671218,
+       0.7547022809916104
+      ],
+      [
+       1.0,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "friction",
+     "name": "fr",
+     "speed": "sp",
+     "pressure": 0.9,
+     "roughness": 0.43,
+     "grain": 181
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "fr",
+     "material": "wood",
+     "f0": 275,
+     "loss": 3.88,
+     "noise": 0.47,
+     "gain_db": -12
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 375,
+   "duration": 1.4
+  }
+ },
+ {
+  "id": "s13",
+  "family": "rolling",
+  "doc": {
+   "sound": "s13",
+   "ops": [
+    {
+     "type": "env",
+     "name": "sp",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.1,
+       1.1463727402382253
+      ],
+      [
+       1.1,
+       0.9820199112015093
+      ],
+      [
+       1.3,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "rolling",
+     "name": "r",
+     "speed": "sp",
+     "roughness": 0.57,
+     "size": 0.0039
+    },
+    {
+     "type": "gain",
+     "name": "rg",
+     "input": "r",
+     "db": -18
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "rg",
+     "material": "metal",
+     "f0": 730,
+     "loss": 2.82,
+     "noise": 0.46
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 936,
+   "duration": 1.4
+  }
+ },
+ {
+  "id": "s14",
+  "family": "rolling",
+  "doc": {
+   "sound": "s14",
+   "ops": [
+    {
+     "type": "env",
+     "name": "sp",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.1,
+       1.197055576221068
+      ],
+      [
+       1.1,
+       1.0669451138689219
+      ],
+      [
+       1.3,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "rolling",
+     "name": "r",
+     "speed": "sp",
+     "roughness": 0.65,
+     "size": 0.0081
+    },
+    {
+     "type": "gain",
+     "name": "rg",
+     "input": "r",
+     "db": -18
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "rg",
+     "material": "wood",
+     "f0": 432,
+     "loss": 2.55,
+     "noise": 0.31
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 519,
+   "duration": 1.4
+  }
+ },
+ {
+  "id": "s15",
+  "family": "layered hit",
+  "doc": {
+   "sound": "s15",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 68
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.017737400548377327,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "wood",
+     "shape": "bar",
+     "f0": 290.4,
+     "loss": 1.86,
+     "noise": 0.39,
+     "tilt": 5.1
+    },
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white",
+     "seed": 14
+    },
+    {
+     "type": "decay",
+     "name": "ce",
+     "time": 0.006176665291319775,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "craw",
+     "op": "mul",
+     "a": "wn",
+     "b": "ce"
+    },
+    {
+     "type": "filter",
+     "name": "crack",
+     "input": "craw",
+     "mode": "bp",
+     "freq": 4971,
+     "q": 0.6
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown",
+     "seed": 51
+    },
+    {
+     "type": "decay",
+     "name": "te",
+     "time": 0.18677971336952098,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "traw",
+     "op": "mul",
+     "a": "bn",
+     "b": "te"
+    },
+    {
+     "type": "filter",
+     "name": "thud",
+     "input": "traw",
+     "mode": "lp",
+     "freq": 241,
+     "slope": 24
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "body",
+      {
+       "input": "crack",
+       "gain": 0.28
+      },
+      {
+       "input": "thud",
+       "gain": 0.6
+      }
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "finish",
+     "name": "fin",
+     "input": "dry",
+     "punch": 0.55,
+     "warmth": 0.33
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "fin",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 508
+  }
+ },
+ {
+  "id": "s16",
+  "family": "stone hit",
+  "doc": {
+   "sound": "s16",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 72
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.00835009337044988,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "stone",
+     "shape": "plate",
+     "f0": 693.3,
+     "loss": 2.82,
+     "noise": 0.54,
+     "tilt": 5.6
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 814
+  }
+ },
+ {
+  "id": "s17",
+  "family": "footstep",
+  "doc": {
+   "sound": "s17",
+   "ops": [
+    {
+     "type": "footstep",
+     "name": "f",
+     "surface": "gravel",
+     "weight": 0.27,
+     "pace": "run",
+     "shoe": "hard",
+     "at": 0.01
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "f",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 295
+  }
+ },
+ {
+  "id": "s18",
+  "family": "click",
+  "doc": {
+   "sound": "s18",
+   "ops": [
+    {
+     "type": "click",
+     "name": "c",
+     "kind": "clasp",
+     "size": 0.46,
+     "hardness": 0.38,
+     "at": 0.01,
+     "noise": 0.82
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "c",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 282
+  }
+ },
+ {
+  "id": "s19",
+  "family": "click",
+  "doc": {
+   "sound": "s19",
+   "ops": [
+    {
+     "type": "click",
+     "name": "c",
+     "kind": "switch",
+     "size": 0.38,
+     "hardness": 0.36,
+     "at": 0.01,
+     "noise": 0.56
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "c",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 4
+  }
+ },
+ {
+  "id": "s20",
+  "family": "glass hit",
+  "doc": {
+   "sound": "s20",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 79
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.015530310947825197,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "glass",
+     "shape": "plate",
+     "f0": 723.8,
+     "loss": 1.05,
+     "noise": 0.14,
+     "tilt": 3.2
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 241
+  }
+ },
+ {
+  "id": "s21",
+  "family": "click",
+  "doc": {
+   "sound": "s21",
+   "ops": [
+    {
+     "type": "click",
+     "name": "c",
+     "kind": "lock",
+     "size": 0.42,
+     "hardness": 0.71,
+     "at": 0.01,
+     "noise": 0.84
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "c",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 94
+  }
+ },
+ {
+  "id": "s22",
+  "family": "glass hit",
+  "doc": {
+   "sound": "s22",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 56
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.016838027007341563,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "glass",
+     "shape": "shell",
+     "f0": 1277.1,
+     "loss": 0.83,
+     "noise": 0.2,
+     "tilt": 1.7
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 506
+  }
+ },
+ {
+  "id": "s23",
+  "family": "knocks",
+  "doc": {
+   "sound": "s23",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 97
+    },
+    {
+     "type": "pattern",
+     "name": "p",
+     "times": [
+      0.01,
+      0.133
+     ]
+    },
+    {
+     "type": "trigger_env",
+     "name": "e",
+     "events": "p",
+     "attack": 0.0005,
+     "decay": 0.006836824013847961
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "stone",
+     "shape": "plate",
+     "f0": 264.9,
+     "loss": 3.06,
+     "noise": 0.87,
+     "tilt": -1.2
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 666
+  }
+ },
+ {
+  "id": "s24",
+  "family": "footstep",
+  "doc": {
+   "sound": "s24",
+   "ops": [
+    {
+     "type": "footstep",
+     "name": "f",
+     "surface": "gravel",
+     "weight": 0.39,
+     "pace": "sneak",
+     "shoe": "hard",
+     "at": 0.01
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "f",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 58
+  }
+ },
+ {
+  "id": "s25",
+  "family": "glass hit",
+  "doc": {
+   "sound": "s25",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 13
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.014642049447674157,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "glass",
+     "shape": "shell",
+     "f0": 1161.4,
+     "loss": 1.33,
+     "noise": 0.37,
+     "tilt": 5.8
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 714
+  }
+ },
+ {
+  "id": "s26",
+  "family": "crumple",
+  "doc": {
+   "sound": "s26",
+   "ops": [
+    {
+     "type": "crumple",
+     "name": "c",
+     "density": 147,
+     "size": 0.16,
+     "hardness": 0.63,
+     "seed": 35
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "c",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 444,
+   "duration": 1.4
+  }
+ },
+ {
+  "id": "s27",
+  "family": "wood hit",
+  "doc": {
+   "sound": "s27",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 42
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.005582124787437817,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "wood",
+     "shape": "plate",
+     "f0": 458.5,
+     "loss": 3.83,
+     "noise": 0.74,
+     "tilt": -0.9
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 696
+  }
+ },
+ {
+  "id": "s28",
+  "family": "metal hit",
+  "doc": {
+   "sound": "s28",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 12
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.018516716245300775,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "metal",
+     "shape": "tube",
+     "f0": 350.4,
+     "loss": 0.86,
+     "noise": 0.54,
+     "tilt": 1.6
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 947
+  }
+ },
+ {
+  "id": "s29",
+  "family": "wood hit",
+  "doc": {
+   "sound": "s29",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 27
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.006614542488643487,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "wood",
+     "shape": "bar",
+     "f0": 463.4,
+     "loss": 1.74,
+     "noise": 0.72,
+     "tilt": 4.7
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 758
+  }
+ },
+ {
+  "id": "s30",
+  "family": "click",
+  "doc": {
+   "sound": "s30",
+   "ops": [
+    {
+     "type": "click",
+     "name": "c",
+     "kind": "button",
+     "size": 0.42,
+     "hardness": 0.52,
+     "at": 0.01,
+     "noise": 0.61
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "c",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 445
+  }
+ },
+ {
+  "id": "s31",
+  "family": "footstep",
+  "doc": {
+   "sound": "s31",
+   "ops": [
+    {
+     "type": "footstep",
+     "name": "f",
+     "surface": "wood",
+     "weight": 0.52,
+     "pace": "run",
+     "shoe": "boot",
+     "at": 0.01,
+     "noise": 0.43,
+     "ring": 0.75
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "f",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 932
+  }
+ },
+ {
+  "id": "s32",
+  "family": "wood hit",
+  "doc": {
+   "sound": "s32",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 54
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.007361646317565258,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "wood",
+     "shape": "plate",
+     "f0": 276.0,
+     "loss": 2.6,
+     "noise": 0.44,
+     "tilt": 4.3
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 30
+  }
+ },
+ {
+  "id": "s33",
+  "family": "stone hit",
+  "doc": {
+   "sound": "s33",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 59
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.01049940434935287,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "stone",
+     "shape": "plate",
+     "f0": 269.9,
+     "loss": 2.01,
+     "noise": 0.82,
+     "tilt": 1.7
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 288
+  }
+ },
+ {
+  "id": "s34",
+  "family": "rolling",
+  "doc": {
+   "sound": "s34",
+   "ops": [
+    {
+     "type": "env",
+     "name": "sp",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.1,
+       1.8907031875784746
+      ],
+      [
+       1.1,
+       0.7294100077579153
+      ],
+      [
+       1.3,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "rolling",
+     "name": "r",
+     "speed": "sp",
+     "roughness": 0.51,
+     "size": 0.0063
+    },
+    {
+     "type": "gain",
+     "name": "rg",
+     "input": "r",
+     "db": -18
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "rg",
+     "material": "wood",
+     "f0": 721,
+     "loss": 2.18,
+     "noise": 0.36
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 309,
+   "duration": 1.4
+  }
+ },
+ {
+  "id": "s35",
+  "family": "layered hit",
+  "doc": {
+   "sound": "s35",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 99
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.014000910905818382,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "stone",
+     "shape": "plate",
+     "f0": 791.9,
+     "loss": 4.93,
+     "noise": 0.83,
+     "tilt": 4.2
+    },
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white",
+     "seed": 97
+    },
+    {
+     "type": "decay",
+     "name": "ce",
+     "time": 0.016328459489048583,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "craw",
+     "op": "mul",
+     "a": "wn",
+     "b": "ce"
+    },
+    {
+     "type": "filter",
+     "name": "crack",
+     "input": "craw",
+     "mode": "bp",
+     "freq": 3090,
+     "q": 0.6
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown",
+     "seed": 92
+    },
+    {
+     "type": "decay",
+     "name": "te",
+     "time": 0.16844770122309627,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "traw",
+     "op": "mul",
+     "a": "bn",
+     "b": "te"
+    },
+    {
+     "type": "filter",
+     "name": "thud",
+     "input": "traw",
+     "mode": "lp",
+     "freq": 236,
+     "slope": 24
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "body",
+      {
+       "input": "crack",
+       "gain": 0.11
+      },
+      {
+       "input": "thud",
+       "gain": 0.81
+      }
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "finish",
+     "name": "fin",
+     "input": "dry",
+     "punch": 0.26,
+     "warmth": 0.57
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "fin",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 378
+  }
+ },
+ {
+  "id": "s36",
+  "family": "stone hit",
+  "doc": {
+   "sound": "s36",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 89
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.012865882675230915,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "stone",
+     "shape": "plate",
+     "f0": 379.1,
+     "loss": 3.83,
+     "noise": 0.78,
+     "tilt": 1.1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 682
+  }
+ },
+ {
+  "id": "s37",
+  "family": "metal hit",
+  "doc": {
+   "sound": "s37",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 7
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.0066478081837582845,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "metal",
+     "shape": "shell",
+     "f0": 454.3,
+     "loss": 1.5,
+     "noise": 0.61,
+     "tilt": -0.3
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 693
+  }
+ },
+ {
+  "id": "s38",
+  "family": "glass hit",
+  "doc": {
+   "sound": "s38",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 66
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.017985390963493494,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "glass",
+     "shape": "shell",
+     "f0": 503.6,
+     "loss": 0.75,
+     "noise": 0.37,
+     "tilt": 4.5
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 767
+  }
+ },
+ {
+  "id": "s39",
+  "family": "metal hit",
+  "doc": {
+   "sound": "s39",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 27
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.018185209900456183,
+     "at": 0.01
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "metal",
+     "shape": "plate",
+     "f0": 888.7,
+     "loss": 0.63,
+     "noise": 0.4,
+     "tilt": 4.6,
+     "strike_glide": 27
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 908
+  }
+ },
+ {
+  "id": "s40",
+  "family": "knocks",
+  "doc": {
+   "sound": "s40",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "pink",
+     "seed": 53
+    },
+    {
+     "type": "pattern",
+     "name": "p",
+     "times": [
+      0.01,
+      0.229,
+      0.543,
+      0.703
+     ]
+    },
+    {
+     "type": "trigger_env",
+     "name": "e",
+     "events": "p",
+     "attack": 0.0005,
+     "decay": 0.010843337838459813
+    },
+    {
+     "type": "math",
+     "name": "burst",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "modal",
+     "name": "body",
+     "excite": "burst",
+     "material": "wood",
+     "shape": "bar",
+     "f0": 206.6,
+     "loss": 1.67,
+     "noise": 0.53,
+     "tilt": -0.0
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "body",
+     "lufs": -26,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 543
+  }
+ }
+]

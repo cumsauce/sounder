@@ -177,7 +177,8 @@
   "name": "export",
   "args": {
    "doc": "laser",
-   "path": "@OUT@"
+   "path": "@OUT@",
+   "format": "wav"
   }
  },
  {

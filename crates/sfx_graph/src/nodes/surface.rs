@@ -243,9 +243,17 @@ impl Describe for Cloth {
 
 struct Burst {
     band: usize,
-    level: f32,
-    decay: f32,
+    /// Two exponentials whose difference is the burst's envelope: a rise
+    /// of `attack` seconds and a fall of `decay` (tens of ms each), so a
+    /// burst swells and fades like a fold of fabric rubbing, not a tick.
+    slow: f32,
+    fast: f32,
+    k_slow: f32,
+    k_fast: f32,
 }
+
+/// Level of the continuous rubbing bed against the bursts, at motion 1.
+const CLOTH_BED: f32 = 0.5;
 
 impl Eval for Cloth {
     fn random(&self) -> bool {
@@ -272,43 +280,60 @@ impl Eval for Cloth {
         let tone = 2f32.powf(-1.2 * (weight - 0.5));
         let mut active: Vec<Burst> = Vec::new();
         let mut filters: [Svf; 4] = Default::default();
-        let mut gain = [0.0f32; 4];
-        let smooth = 1.0 - (-1.0 / (0.0008 * sr)).exp();
+        // Bed level follows motion smoothed over 40 ms (friction of the
+        // whole garment), so the sound is continuous while it moves.
+        let k_motion = 1.0 - (-1.0 / (0.04 * sr)).exp();
+        let mut m_smooth = 0.0f32;
         let mut out = vec![0.0f32; cx.n];
         for (i, o) in out.iter_mut().enumerate() {
             let m = safe(motion.at(i), 0.0, CLOTH_MAX_MOTION, 0.0);
+            m_smooth += k_motion * (m - m_smooth);
+            if m == 0.0 && m_smooth < 1e-6 {
+                m_smooth = 0.0;
+            }
             // Thinned Poisson arrivals at the current rate.
             let rate = CLOTH_RATE * m * rate_scale;
             if rate > 0.0 && rng.unit() < rate / sr && active.len() < CLOTH_MAX_ACTIVE {
                 let size = cloth_size(rng.unit());
                 let r = rng.unit();
                 // Big bursts fall in the low bands.
-                let score = 3.0 * r - 1.6 * size.ln() / CLOTH_MAX_SIZE.ln() * 1.0;
+                let score = 3.0 * r - 1.6 * size.ln() / CLOTH_MAX_SIZE.ln();
                 let band = score.round().clamp(0.0, 3.0) as usize;
-                let tau = 0.003 * size.sqrt() * tau_scale;
-                let level = 0.18 * size.powf(0.6) * amp_scale * (0.4 + 0.6 * m.min(2.0));
+                let decay = (0.025 * size.sqrt() * tau_scale).min(0.25);
+                let attack = (0.35 * decay).max(0.006);
+                let level = 0.05 * size.powf(0.35) * amp_scale * (0.4 + 0.6 * m.min(2.0));
+                let (ks, kf) = ((-1.0 / (decay * sr)).exp(), (-1.0 / (attack * sr)).exp());
                 active.push(Burst {
                     band,
-                    level,
-                    decay: (-1.0 / (tau * sr)).exp(),
+                    slow: level,
+                    fast: level,
+                    k_slow: ks,
+                    k_fast: kf,
                 });
             }
             let mut target = [0.0f32; 4];
             for b in &mut active {
-                target[b.band] += b.level;
-                b.level *= b.decay;
+                target[b.band] += b.slow - b.fast;
+                b.slow *= b.k_slow;
+                b.fast *= b.k_fast;
             }
-            active.retain(|b| b.level > 1e-4);
+            active.retain(|b| b.slow > 1e-5);
+            let bed = CLOTH_BED * 0.05 * amp_scale * m_smooth.min(CLOTH_MAX_MOTION).powf(0.75);
             // Band centres follow motion (octaves per unit) and weight.
-            let shift = m.max(0.05).sqrt() * tone;
+            let shift = m_smooth.max(0.05).sqrt() * tone;
             let mut sum = 0.0;
             for k in 0..4 {
-                gain[k] += smooth * (target[k] - gain[k]);
                 let n = rng.signed();
                 let hz = (CLOTH_BANDS[k] * shift).clamp(40.0, max_hz(sr));
-                sum += filters[k].tick(n, FilterMode::Bp, hz, 1.1, 0.0, sr) * gain[k];
+                // Wide bands (q 0.6): rustle is broadband, a narrow band
+                // rings as a pitched tick.
+                sum += filters[k].tick(n, FilterMode::Bp, hz, 0.6, 0.0, sr) * (target[k] + bed);
             }
-            *o = sum;
+            *o = if m_smooth == 0.0 && active.is_empty() {
+                0.0
+            } else {
+                sum
+            };
         }
         Ok(one(Buf::Audio(out)))
     }

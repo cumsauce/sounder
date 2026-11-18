@@ -61,7 +61,8 @@ pub struct Engine {
     pub exhaust_length: Option<f32>,
     /// Mixed with the document seed and the node name (default 0): the
     /// cylinder level errors, and the cycle-to-cycle jitter (timing of up to
-    /// 2 % of a firing period, level) and the intake noise.
+    /// 4 % of a firing period, level of 10-25 %), the per-firing combustion
+    /// noise, the intake noise and the valve-train clatter.
     #[serde(default)]
     pub seed: u64,
 }
@@ -141,8 +142,11 @@ impl Eval for Engine {
             phase -= 1.0;
             let l = clean(load.at(i), 0.0, 1.0);
             let period = (1.0 / inc) as f32;
-            let at = i as f32 + ((1.0 - before) / inc) as f32 + 0.02 * period * rng.signed();
-            let wobble = 0.04 + 0.12 * (1.0 - l);
+            // Timing jitter of up to 5.5 % (fitted to refs/engine_set) of a firing period and a level
+            // spread of 10-25 % (more at low load): combustion is never the
+            // same twice, and a pulse train without it reads as a synth.
+            let at = i as f32 + ((1.0 - before) / inc) as f32 + 0.055 * period * rng.signed();
+            let wobble = 0.10 + 0.15 * (1.0 - l);
             let amp = level_error[count % cylinders as usize]
                 * (1.0 + wobble * rng.signed())
                 * (0.25 + 0.75 * l);
@@ -152,7 +156,7 @@ impl Eval for Engine {
             let width = (period * rev_per_fire * (0.30 - 0.18 * l))
                 .min(period)
                 .min(0.25 * cx.sr)
-                .max(4.0);
+                .max(8.0);
             pulses.push(Pulse {
                 start: at.max(0.0),
                 width,
@@ -161,8 +165,13 @@ impl Eval for Engine {
             count += 1;
         }
 
-        // Pass 2: sum the pulses.
+        // Pass 2: sum the pulses, and give each firing its own combustion
+        // noise: a burst of white noise that starts with the pulse and falls
+        // with a time constant of a quarter of its width (at least 0.6 ms),
+        // its level drawn per firing.
         let mut drive = vec![0.0f32; cx.n];
+        let mut bursts = vec![0.0f32; cx.n];
+        let mut grit = cx.rng(self.seed ^ 0xB0A5_7000_0000_0002);
         for p in &pulses {
             let from = p.start.ceil() as usize;
             let to = ((p.start + p.width).ceil() as usize).min(cx.n);
@@ -170,29 +179,100 @@ impl Eval for Engine {
                 let x = ((j as f32 - p.start) / p.width).clamp(0.0, 1.0);
                 *d += p.amp * 0.5 * (1.0 - (TAU * x.powf(0.6)).cos());
             }
+            let tau = (0.25 * p.width).max(0.0006 * cx.sr);
+            let level = p.amp * (0.6 + 0.4 * grit.unit());
+            let end = ((p.start + 5.0 * tau).ceil() as usize).min(cx.n);
+            for (j, b) in bursts.iter_mut().enumerate().take(end).skip(from) {
+                *b += level * (-(j as f32 - p.start) / tau).exp() * grit.signed();
+            }
         }
 
         // Pass 3: the exhaust pipe (an inverting, low-passed comb: a pipe
-        // open at one end) and the intake.
+        // open at one end; a lossy one, feedback 0.4 through a 1.5 kHz
+        // low-pass, so its resonances colour the pulses without ringing like
+        // a brass tube), the combustion bursts, the intake, and a mechanical
+        // clatter (valve train: high-passed noise ticking at the firing rate).
+        // The sum is saturated and then low-passed at 0.36 x the sample rate,
+        // so the tanh's harmonics do not fold back.
         let delay_samples = 2.0 * length / SOUND * cx.sr;
         let mut line = DelayLine::new(delay_samples.ceil() as usize + 4);
         let mut loop_lp = OnePole::default();
         let mut dc = OnePole::default();
+        let mut dc_out = OnePole::default();
         let mut intake_lp = Svf::default();
+        let mut burst_bp = Svf::default();
+        let mut clatter_hp = Svf::default();
+        let mut out_lp = Svf::default();
+        let mut out_lp2 = Svf::default();
+        let (mut wlp1, mut wlp2, mut whp) = (Svf::default(), Svf::default(), Svf::default());
         let mut noise = cx.rng(self.seed ^ 0x1A7A_CE00_D15C_0001);
+        let mut tick = cx.rng(self.seed ^ 0x7A1F_0000_0000_0003);
+        let top = 0.36 * cx.sr;
         Ok(one(mono(cx.n, |i| {
             let l = clean(load.at(i), 0.0, 1.0);
             let r = clean(rpm.at(i), 0.0, MAX_RPM);
             let x = dc.tick(drive[i], 20.0, cx.sr).1;
-            let tail = loop_lp.tick(line.read(delay_samples), 2500.0, cx.sr).0;
-            let y = x - 0.6 * tail;
+            let tail = loop_lp.tick(line.read(delay_samples), 1500.0, cx.sr).0;
+            let blast = burst_bp.tick(
+                bursts[i],
+                FilterMode::Bp,
+                250.0 + 500.0 * l,
+                0.6,
+                0.0,
+                cx.sr,
+            );
+            // Fitted to refs/engine_set (2.7 % under 200 Hz against 32-84 %):
+            // weight, the pulse train low-passed (24 dB an octave) at 1.5x the
+            // firing rate (at least 180 Hz, so the fundamental stays above
+            // the half-orders), added after the pipe (fed into it, it rang the
+            // quarter-wave resonance and moved the pitch track).
+            let y = x + 0.25 * blast - 0.4 * tail;
             line.write(y);
+            let fire_hz = r / 60.0 / rev_per_fire;
+            let wc = (1.5 * fire_hz).clamp(180.0, 0.4 * cx.sr);
+            let w1 = wlp1.tick(x, FilterMode::Lp, wc, 0.7, 0.0, cx.sr);
+            let w2 = wlp2.tick(w1, FilterMode::Lp, wc, 0.7, 0.0, cx.sr);
+            // and high-passed at 0.7x the firing rate, so the half-orders
+            // under it are not lifted over the fundamental.
+            let weight = whp.tick(
+                w2,
+                FilterMode::Hp,
+                (0.7 * fire_hz).max(15.0),
+                0.7,
+                0.0,
+                cx.sr,
+            );
             let hiss = noise.signed();
+            let speed = r / (r + 1500.0);
             let intake = intake_lp.tick(hiss, FilterMode::Lp, 300.0 + 2500.0 * l, 0.7, 0.0, cx.sr)
-                * (0.01 + 0.12 * l)
-                * (r / (r + 1500.0))
+                * (0.02 + 0.12 * l)
+                * speed
                 * (0.6 + 0.4 * drive[i].clamp(0.0, 1.0));
-            (0.5 * y + intake).tanh()
+            let clatter = clatter_hp.tick(tick.signed(), FilterMode::Hp, 3000.0, 0.7, 0.0, cx.sr)
+                * 0.008
+                * speed
+                * (0.2 + drive[i].clamp(0.0, 1.0));
+            // Round 2: grit (a 6-cylinder read "not all that different, needs
+            // nonlinear stuff"): an asymmetric cubic before the tanh, drive 1
+            // to 3x with load, so the exhaust pressure gets 2nd and 3rd
+            // harmonics (low order, so little folds back); its DC is
+            // high-passed at 20 Hz.
+            // Round 3: parallel grit (round 2's cubic barely bit; saturating
+            // the whole exhaust squashed the per-cycle variation and raised
+            // the pipe resonance): an asymmetric tanh copy, drive 3 to 9x
+            // with load, high-passed at 300 Hz (the grit lives in the mids),
+            // mixed at 0.6 over the clean path.
+            let clean = 0.5 * y + 0.35 * blast;
+            let k = 3.0 + 6.0 * l;
+            let d = ((clean * k + 0.4).tanh() - 0.4f32.tanh()) / k.sqrt();
+            let grit = dc_out.tick(d, 300.0, cx.sr).1;
+            let wet = (clean + 0.6 * grit + (0.5 + 3.0 * l) * weight + intake + clatter).tanh();
+            // Fitted to refs/engine_set (crack 41 % against 0.1-3.9 %,
+            // centroid 2.1 kHz against 200-500 Hz): the output low-passed at
+            // 0.7-2.7 kHz by load, 24 dB an octave.
+            let tone = (700.0 + 2000.0 * l).min(top);
+            let a = out_lp.tick(wet, FilterMode::Lp, tone, 0.6, 0.0, cx.sr);
+            out_lp2.tick(a, FilterMode::Lp, tone, 0.6, 0.0, cx.sr)
         })))
     }
 }
@@ -231,7 +311,7 @@ pub struct Motor {
     #[serde(default)]
     pub carrier: Option<f32>,
     /// Mixed with the document seed and the node name (default 0): the
-    /// brush noise.
+    /// brush hiss and spark crackle, the bearing noise and the speed drift.
     #[serde(default)]
     pub seed: u64,
 }
@@ -285,19 +365,41 @@ impl Eval for Motor {
         let (mut rotor, mut elec, mut mesh, mut pwm) = (0.0f64, 0.0f64, 0.0f64, 0.0f64);
         let mut noise = cx.rng(self.seed);
         let mut brush_hp = Svf::default();
+        // Speed wobble: white noise low-passed twice at 2 Hz and scaled so
+        // the shaft speed drifts by about +-0.4 %, plus a 0.15 % once-a-turn
+        // eccentricity. Every line follows it, so none is a perfect sine.
+        let mut drift_rng = cx.rng(self.seed ^ 0xD81F_7000_0000_0004);
+        let (mut drift_a, mut drift_b) = (OnePole::default(), OnePole::default());
+        let mut bearing_rng = cx.rng(self.seed ^ 0xBEA2_1000_0000_0005);
+        let mut bearing_bp = Svf::default();
+        let mut spark_rng = cx.rng(self.seed ^ 0x5BA2_C000_0000_0006);
+        let mut commutate = 0.0f64;
+        let mut spark = 0.0f32;
         let carrier_hz = carrier;
         let tone = |ph: f64, k: f32| (TAU * (ph * f64::from(k)).fract() as f32).sin();
         Ok(one(mono(cx.n, |i| {
             let r = clean(rpm.at(i), 0.0, MAX_RPM);
             let l = clean(load.at(i), 0.0, 1.0);
             let w = clean(whine.at(i), 0.0, 1.0);
-            let shaft = r / 60.0;
+            let d = drift_a.tick(drift_rng.signed(), 2.0, cx.sr).0;
+            let d = drift_b.tick(d, 2.0, cx.sr).0;
+            let wob = 1.0 + 0.004 * (d * 60.0).clamp(-1.5, 1.5) + 0.0015 * tone(rotor, 1.0);
+            let shaft = r / 60.0 * wob;
             let f_elec = shaft * poles as f32 / 2.0;
             let f_mesh = shaft * teeth as f32;
             rotor = (rotor + f64::from(shaft) / sr).fract();
             elec = (elec + f64::from(f_elec) / sr).fract();
             mesh = (mesh + f64::from(f_mesh) / sr).fract();
             pwm = (pwm + f64::from(carrier_hz) / sr).fract();
+            // Brush sparks: one per commutator segment pass (twice the
+            // electrical rate), each a click of random height that decays in
+            // about 0.3 ms.
+            commutate += f64::from(2.0 * f_elec) / sr;
+            if commutate >= 1.0 {
+                commutate = commutate.fract();
+                spark += spark_rng.unit() * spark_rng.unit();
+            }
+            spark *= (-1.0 / (0.0003 * cx.sr)).exp();
             let speed = r / (r + 500.0);
             let hum = 0.7 + 0.3 * l;
             let torque = 0.3 + 0.7 * l;
@@ -322,9 +424,21 @@ impl Eval for Motor {
                 + 0.8 * below_nyquist(2.0 * f_elec, cx.sr) * tone(elec, 2.0)
                 + 0.4 * below_nyquist(4.0 * f_elec, cx.sr) * tone(elec, 4.0);
             s += 0.12 * w * torque * ripple * tone(pwm, 1.0);
-            // Brush noise.
-            let hiss = brush_hp.tick(noise.signed(), FilterMode::Hp, 1500.0, 0.7, 0.0, cx.sr);
-            s += 0.05 * (0.3 + 0.7 * l) * hiss;
+            // Brush noise: a steady hiss and the sparks' crackle, high-passed.
+            let raw = noise.signed() * (0.5 + 1.5 * spark);
+            let hiss = brush_hp.tick(raw, FilterMode::Hp, 1500.0, 0.7, 0.0, cx.sr);
+            s += 0.10 * (0.3 + 0.7 * l) * hiss;
+            // Bearing noise: band-passed noise at 2.5 kHz, rising and falling
+            // once a turn.
+            let rumble = bearing_bp.tick(
+                bearing_rng.signed(),
+                FilterMode::Bp,
+                2500.0,
+                0.8,
+                0.0,
+                cx.sr,
+            );
+            s += 0.08 * (0.7 + 0.3 * tone(rotor, 1.0)) * rumble;
             0.5 * speed * s
         })))
     }

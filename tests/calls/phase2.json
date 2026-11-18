@@ -285,7 +285,8 @@
   "name": "export",
   "args": {
    "path": "@OUT@",
-   "variations": 3
+   "variations": 3,
+   "format": "wav"
   }
  },
  {
