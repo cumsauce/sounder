@@ -1661,7 +1661,13 @@ thread count, and **not normalized**: set `output.lufs` or `output.peak_db`.
 document's length (like `thunder`).
 
 - `explosion` {size (fireball radius m, 0.1..100), distance (m, 0..30000),
-  [debris] (an event node: a tick per event, value = level), [seed]}.
+  [debris] (an event node: a tick per event, value = level), [seed]}. Since
+  book check 2 it carries Farnell's fireball rumble (Designing Sound ch. 54):
+  noise band-passed at 70 Hz, low-passed at 40 -> 140 Hz and slowly back,
+  rising over 100 ms and falling as a quartic over 5 s x size^0.35 (size 2:
+  -20 dB at 2.3 s, -60 dB at 4.7 s). The listener preferred the book's long
+  rumble but not its crackly opening, so the opening is unchanged; set a
+  `duration` that fits.
 - `gunshot` {caliber (mm, 2..60), [barrel 0.4 m], [suppressed false], [distance
   0], [seed]}: blast plus an N-wave crack when the bullet is supersonic; the
   crack leads the blast by the travel-time difference (135 ms at 100 m).
@@ -1728,9 +1734,17 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
 `wander` revs them; set a `duration` (the ramps hold their last value).
 
 - `engine` {rpm (0..20000), [cylinders 4, 1..16], [load 0.5, signal], [stroke
-  4|2], [exhaust_length 1.2 m], [seed]}: pitch is the firing rate rpm / 60 x
-  cylinders / (stroke / 2) Hz; an open-pipe exhaust comb resonates at odd
-  multiples of 343 / (4 L).
+  4|2], [exhaust_length 1.2 m], [seed]}: Farnell's car engine (Designing
+  Sound ch. 45), preferred in an A/B (book check 2): one 1 / (1 + k x^2)
+  pulse per cylinder on the crank phase, each with its own timing and level
+  jitter (uneven firing), transmission overtones at 1, 2 and 4 x the firing
+  rate, combustion noise riding the pulses (more with `load`), then a
+  warping exhaust: two feedback delays at 0.87 and 1.33 x 2 L / 343 s whose
+  times the engine signal modulates, high-passed at 45 Hz, saturated (drive
+  with load), low-passed at 2-6 kHz by load. Pitch is the firing rate rpm /
+  60 x cylinders / (stroke / 2) Hz. Measured on a 1200 -> 4800 rpm rev: all
+  eight `refs/engine_set` features inside, 9.7-10.4 dB from the nearest
+  recording (the set's own spread 10.2).
 - `motor` {rpm, [poles 4, even], [gear_teeth 0..400], [load 0.3], [whine 0.3],
   [carrier 4000 Hz], [seed]}: hum at the pole-pair rate, a PWM whine with
   sidebands, a gear-mesh tone at rpm / 60 x teeth, brush noise; scaled by

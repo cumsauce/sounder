@@ -29,7 +29,7 @@ use serde::Deserialize;
 
 use super::one;
 use crate::buf::{Buf, Event};
-use crate::dsp::{Biquad, FilterMode, flush, max_hz};
+use crate::dsp::{Biquad, FilterMode, Svf, flush, max_hz};
 use crate::node::{Cx, Describe, Eval, In, Outs};
 
 /// Speed of sound the delays use, m/s.
@@ -157,8 +157,9 @@ fn add_debris(dry: &mut [f32], events: &[Event], rng: &mut crate::dsp::Rng, sr: 
 
 // ---------------------------------------------------------------- explosion
 
-/// An explosion: a Friedlander pulse, a falling sub thump, a noise body and a
-/// dense decaying tail, delayed and darkened by distance.
+/// An explosion: a Friedlander pulse, a falling sub thump, a noise body, a
+/// dense decaying tail and a long fireball rumble (`add_fireball`), delayed
+/// and darkened by distance.
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Explosion {
@@ -182,7 +183,7 @@ pub struct Explosion {
 }
 
 impl Describe for Explosion {
-    const BLURB: &'static str = "an explosion from its size and distance: pressure pulse, falling sub thump, noise body, long tail, optional debris ticks from an event stream";
+    const BLURB: &'static str = "an explosion from its size and distance: pressure pulse, falling sub thump, noise body, tail, a long fireball rumble (Farnell), optional debris ticks from an event stream";
     fn example() -> serde_json::Value {
         serde_json::json!({"size": 5, "distance": 100, "debris": "ev", "seed": 1})
     }
@@ -259,8 +260,42 @@ fn explosion_dry(cx: &Cx, size: f32, len: usize, debris: &[Event], seed: u64) ->
         let tail = 0.3 * et * lp_tail.tick(tail_rng.signed(), fc_tail * (0.3 + 0.7 * et), sr);
         *y = pulse + thump + body + tail;
     }
+    add_fireball(&mut dry, size, cx.rng(seed.wrapping_add(0x6A09_E667)), sr);
     add_debris(&mut dry, debris, &mut debris_rng, sr);
     dry
+}
+
+/// The fireball rumble, after Farnell (Designing Sound ch. 54), added in book
+/// check 2 (the listener preferred its long rumble): noise band-passed at
+/// 70 Hz and low-passed (24 dB an octave) at a cutoff that rises from 40 to
+/// 140 Hz over 0.5 s and slowly falls back, under an envelope that rises over
+/// 100 ms (from 100 ms in) and falls as a quartic over `5 s * size^0.35`
+/// (size 2: 6.4 s; 10: 11.2 s), level 1.2 (the dry sum is later soft-clipped).
+fn add_fireball(dry: &mut [f32], size: f32, mut rng: crate::dsp::Rng, sr: f32) {
+    let len = 5.0 * size.powf(0.35);
+    let (mut bp, mut l1, mut l2) = (Svf::default(), Svf::default(), Svf::default());
+    for (i, y) in dry.iter_mut().enumerate() {
+        let t = i as f32 / sr;
+        if t > 0.2 + len {
+            break;
+        }
+        let e = if t < 0.1 {
+            0.0
+        } else if t < 0.2 {
+            (t - 0.1) / 0.1
+        } else {
+            (1.0 - (t - 0.2) / len).max(0.0).powi(4)
+        };
+        let fc = if t < 0.6 {
+            40.0 + 100.0 * (t / 0.6)
+        } else {
+            40.0 + 100.0 * (1.0 - (t - 0.6) / len).max(0.0)
+        };
+        let x = bp.tick(rng.signed(), FilterMode::Bp, 70.0, 1.0, 0.0, sr);
+        let x = l1.tick(x, FilterMode::Lp, fc, 0.7, 0.0, sr);
+        let x = l2.tick(x, FilterMode::Lp, fc, 0.7, 0.0, sr);
+        *y += 1.2 * 10.0 * e * x;
+    }
 }
 
 // ------------------------------------------------------------------ gunshot

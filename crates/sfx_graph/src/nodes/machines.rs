@@ -29,9 +29,10 @@ fn below_nyquist(hz: f32, sr: f32) -> f32 {
 
 // ------------------------------------------------------------------ engine
 
-/// A piston engine: combustion pulses at the firing rate, an exhaust pipe
-/// and an intake path, all following `rpm`. The pitch (the firing
-/// frequency) is `rpm / 60 * cylinders / (stroke / 2)` Hz.
+/// A piston engine after Farnell (Designing Sound ch. 45): unevenly firing
+/// cylinder pulses, transmission overtones, combustion noise and a warping
+/// two-delay exhaust, all following `rpm`. The pitch (the firing frequency)
+/// is `rpm / 60 * cylinders / (stroke / 2)` Hz.
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Engine {
@@ -44,42 +45,32 @@ pub struct Engine {
     /// own seeded level error of up to 6 %.
     #[serde(default)]
     pub cylinders: Option<u32>,
-    /// Throttle load, 0 to 1 (default 0.5). Up: each combustion pulse is
-    /// stronger and shorter (more high frequencies), the intake noise opens
-    /// and gets louder, the cycle-to-cycle level variation shrinks. A
-    /// number outside 0..1 is an error; a signal is clamped per sample.
+    /// Throttle load, 0 to 1 (default 0.5). Up: each pulse is louder and
+    /// narrower, the combustion noise louder, the saturation harder and the
+    /// output low-pass higher (2 to 6 kHz). A number outside 0..1 is an
+    /// error; a signal is clamped per sample.
     #[serde(default)]
     pub load: Option<In>,
     /// Strokes a cycle, 2 or 4 (default 4). A two-stroke fires every
     /// revolution, so for the same cylinders and rpm it is twice the pitch.
     #[serde(default)]
     pub stroke: Option<u32>,
-    /// Exhaust pipe length, metres (0.05 to 10, default 1.2). The pipe is
-    /// open at one end, so it resonates at odd multiples of 343 / (4 length)
-    /// Hz (1.2 m: 71, 214, 357 Hz ...): longer is lower.
+    /// Exhaust pipe length, metres (0.05 to 10, default 1.2): the two
+    /// exhaust delays sit at 0.87 and 1.33 x the round trip 2 length / 343 s
+    /// (their times then wobble with the engine signal): longer is lower.
     #[serde(default)]
     pub exhaust_length: Option<f32>,
-    /// Mixed with the document seed and the node name (default 0): the
-    /// cylinder level errors, and the cycle-to-cycle jitter (timing of up to
-    /// 4 % of a firing period, level of 10-25 %), the per-firing combustion
-    /// noise, the intake noise and the valve-train clatter.
+    /// Mixed with the document seed and the node name (default 0): each
+    /// cylinder's level error and timing and level jitter, and the noise.
     #[serde(default)]
     pub seed: u64,
 }
 
 impl Describe for Engine {
-    const BLURB: &'static str = "piston engine from rpm: firing pulses at rpm/60 x cylinders/(stroke/2) Hz, exhaust pipe resonator, intake noise; rpm and load are signals";
+    const BLURB: &'static str = "piston engine from rpm (Farnell's car engine): uneven cylinder pulses at rpm/60 x cylinders/(stroke/2) Hz, transmission overtones, combustion noise, a warping two-delay exhaust, saturated; rpm and load are signals";
     fn example() -> serde_json::Value {
         serde_json::json!({"rpm": 3000, "cylinders": 4, "load": 0.5, "stroke": 4, "exhaust_length": 1.2, "seed": 1})
     }
-}
-
-/// One combustion pulse: a raised cosine on a skewed time axis (fast rise,
-/// slower fall) from `start` samples, `width` long, scaled by `amp`.
-struct Pulse {
-    start: f32,
-    width: f32,
-    amp: f32,
 }
 
 impl Eval for Engine {
@@ -118,161 +109,74 @@ impl Eval for Engine {
             return Err(format!("load: {l}: give a number from 0 to 1"));
         }
 
-        // Pass 1: when each cylinder fires. A firing is `stroke / 2 /
-        // cylinders` revolutions after the last, so the phase advances by
-        // rpm / 60 / that a second. At most a quarter of a firing a sample
-        // (the cap is never reached with 16 cylinders at 20000 rpm).
-        let rev_per_fire = stroke as f32 / 2.0 / cylinders as f32;
+        // After Farnell (Designing Sound ch. 45), preferred in an A/B (book
+        // check 2): each cylinder is a 1 / (1 + k x^2) pulse on the crank
+        // phase at its own offset, jittered by slow noise (uneven firing);
+        // transmission overtones at 4, 8 and 16 x the cycle; combustion
+        // noise riding the pulses; then a "warping" exhaust: two feedback
+        // delays (the pipe and its return) whose times the engine signal
+        // modulates, high-passed, saturated and low-passed.
+        let cyc_per_rev = 2.0 / stroke as f32;
+        let ncyl = cylinders as f32;
         let mut rng = cx.rng(self.seed);
         let level_error: Vec<f32> = (0..cylinders).map(|_| 1.0 + 0.06 * rng.signed()).collect();
-        let mut phase = 0.5f64;
-        let mut count = 0usize;
-        let mut pulses: Vec<Pulse> = Vec::new();
-        for i in 0..cx.n {
-            let hz = clean(rpm.at(i), 0.0, MAX_RPM) / 60.0 / rev_per_fire;
-            let inc = f64::from(hz / cx.sr).min(0.25);
-            if inc <= 0.0 {
-                continue;
-            }
-            let before = phase;
-            phase += inc;
-            if phase < 1.0 {
-                continue;
-            }
-            phase -= 1.0;
-            let l = clean(load.at(i), 0.0, 1.0);
-            let period = (1.0 / inc) as f32;
-            // Timing jitter of up to 5.5 % (fitted to refs/engine_set) of a firing period and a level
-            // spread of 10-25 % (more at low load): combustion is never the
-            // same twice, and a pulse train without it reads as a synth.
-            let at = i as f32 + ((1.0 - before) / inc) as f32 + 0.055 * period * rng.signed();
-            let wobble = 0.10 + 0.15 * (1.0 - l);
-            let amp = level_error[count % cylinders as usize]
-                * (1.0 + wobble * rng.signed())
-                * (0.25 + 0.75 * l);
-            // The valve is open for a fixed part of a revolution (0.30 rev at
-            // no load down to 0.12 rev at full load), never longer than one
-            // firing period or a quarter second.
-            let width = (period * rev_per_fire * (0.30 - 0.18 * l))
-                .min(period)
-                .min(0.25 * cx.sr)
-                .max(8.0);
-            pulses.push(Pulse {
-                start: at.max(0.0),
-                width,
-                amp,
-            });
-            count += 1;
-        }
-
-        // Pass 2: sum the pulses, and give each firing its own combustion
-        // noise: a burst of white noise that starts with the pulse and falls
-        // with a time constant of a quarter of its width (at least 0.6 ms),
-        // its level drawn per firing.
-        let mut drive = vec![0.0f32; cx.n];
-        let mut bursts = vec![0.0f32; cx.n];
-        let mut grit = cx.rng(self.seed ^ 0xB0A5_7000_0000_0002);
-        for p in &pulses {
-            let from = p.start.ceil() as usize;
-            let to = ((p.start + p.width).ceil() as usize).min(cx.n);
-            for (j, d) in drive.iter_mut().enumerate().take(to).skip(from) {
-                let x = ((j as f32 - p.start) / p.width).clamp(0.0, 1.0);
-                *d += p.amp * 0.5 * (1.0 - (TAU * x.powf(0.6)).cos());
-            }
-            let tau = (0.25 * p.width).max(0.0006 * cx.sr);
-            let level = p.amp * (0.6 + 0.4 * grit.unit());
-            let end = ((p.start + 5.0 * tau).ceil() as usize).min(cx.n);
-            for (j, b) in bursts.iter_mut().enumerate().take(end).skip(from) {
-                *b += level * (-(j as f32 - p.start) / tau).exp() * grit.signed();
-            }
-        }
-
-        // Pass 3: the exhaust pipe (an inverting, low-passed comb: a pipe
-        // open at one end; a lossy one, feedback 0.4 through a 1.5 kHz
-        // low-pass, so its resonances colour the pulses without ringing like
-        // a brass tube), the combustion bursts, the intake, and a mechanical
-        // clatter (valve train: high-passed noise ticking at the firing rate).
-        // The sum is saturated and then low-passed at 0.36 x the sample rate,
-        // so the tanh's harmonics do not fold back.
-        let delay_samples = 2.0 * length / SOUND * cx.sr;
-        let mut line = DelayLine::new(delay_samples.ceil() as usize + 4);
-        let mut loop_lp = OnePole::default();
+        let jit_gain: Vec<f32> = (0..cylinders).map(|_| 0.02 * rng.signed()).collect();
+        let lvl_gain: Vec<f32> = (0..cylinders).map(|_| 0.35 * rng.signed()).collect();
+        let base = 2.0 * length / SOUND;
+        let (d1, d2) = (0.87 * base, 1.33 * base);
+        let mut l1 = DelayLine::new(((d1 * 1.3 + 0.002) * cx.sr).ceil() as usize + 4);
+        let mut l2 = DelayLine::new(((d2 * 1.3 + 0.002) * cx.sr).ceil() as usize + 4);
+        let (mut j1, mut j2) = (OnePole::default(), OnePole::default());
         let mut dc = OnePole::default();
-        let mut dc_out = OnePole::default();
-        let mut intake_lp = Svf::default();
-        let mut burst_bp = Svf::default();
-        let mut clatter_hp = Svf::default();
-        let mut out_lp = Svf::default();
-        let mut out_lp2 = Svf::default();
-        let (mut wlp1, mut wlp2, mut whp) = (Svf::default(), Svf::default(), Svf::default());
+        let mut cn = Svf::default();
+        let (mut h1, mut h2) = (Svf::default(), Svf::default());
+        let (mut o1, mut o2) = (Svf::default(), Svf::default());
         let mut noise = cx.rng(self.seed ^ 0x1A7A_CE00_D15C_0001);
-        let mut tick = cx.rng(self.seed ^ 0x7A1F_0000_0000_0003);
+        let mut phase = 0.0f64;
         let top = 0.36 * cx.sr;
         Ok(one(mono(cx.n, |i| {
             let l = clean(load.at(i), 0.0, 1.0);
             let r = clean(rpm.at(i), 0.0, MAX_RPM);
-            let x = dc.tick(drive[i], 20.0, cx.sr).1;
-            let tail = loop_lp.tick(line.read(delay_samples), 1500.0, cx.sr).0;
-            let blast = burst_bp.tick(
-                bursts[i],
-                FilterMode::Bp,
-                250.0 + 500.0 * l,
-                0.6,
-                0.0,
-                cx.sr,
-            );
-            // Fitted to refs/engine_set (2.7 % under 200 Hz against 32-84 %):
-            // weight, the pulse train low-passed (24 dB an octave) at 1.5x the
-            // firing rate (at least 180 Hz, so the fundamental stays above
-            // the half-orders), added after the pipe (fed into it, it rang the
-            // quarter-wave resonance and moved the pitch track).
-            let y = x + 0.25 * blast - 0.4 * tail;
-            line.write(y);
-            let fire_hz = r / 60.0 / rev_per_fire;
-            let wc = (1.5 * fire_hz).clamp(180.0, 0.4 * cx.sr);
-            let w1 = wlp1.tick(x, FilterMode::Lp, wc, 0.7, 0.0, cx.sr);
-            let w2 = wlp2.tick(w1, FilterMode::Lp, wc, 0.7, 0.0, cx.sr);
-            // and high-passed at 0.7x the firing rate, so the half-orders
-            // under it are not lifted over the fundamental.
-            let weight = whp.tick(
-                w2,
+            phase = (phase + f64::from(r / 60.0 * cyc_per_rev / cx.sr)).fract();
+            let p = phase as f32;
+            let w = noise.signed();
+            let j = 12.0 * j2.tick(j1.tick(w, 40.0, cx.sr).0, 40.0, cx.sr).0;
+            let k = (150.0 + 300.0 * l) * (ncyl / 4.0).powi(2);
+            let mut cyl = 0.0f32;
+            for c in 0..cylinders as usize {
+                let x = (p + c as f32 / ncyl + jit_gain[c] * j).rem_euclid(1.0) - 0.5;
+                cyl += level_error[c] * (1.0 + lvl_gain[c] * j).max(0.2) / (1.0 + k * x * x);
+            }
+            let cyl = cyl * (0.25 + 0.75 * l) * 2.0 / ncyl - 0.1;
+            let pulse4 = 1.0 / (1.0 + 40.0 * ((p * ncyl + 0.1).fract() - 0.5).powi(2));
+            // Transmission overtones at 1, 2 and 4 x the firing rate.
+            let ot = 0.05 * (TAU * (p * 4.0 * ncyl + 0.3).fract()).cos()
+                + 0.2 * pulse4
+                + 0.03 * (TAU * (p * 2.0 * ncyl + 0.7).fract()).cos();
+            let comb = cn.tick(w, FilterMode::Bp, 1800.0, 0.7, 0.0, cx.sr) * cyl;
+            let src = dc
+                .tick(cyl + 0.6 * ot + (0.3 + 0.4 * l) * comb, 30.0, cx.sr)
+                .1;
+            let t1 = (d1 + 0.0015 * src).max(0.0005) * cx.sr;
+            let t2 = (d2 - 0.0012 * src).max(0.0005) * cx.sr;
+            let e1 = l1.read(t1);
+            let e2 = l2.read(t2);
+            l1.write(src + 0.55 * e1);
+            l2.write(src + 0.5 * e2);
+            let pipe = src + 0.8 * e1 + 0.8 * e2;
+            let hp = h2.tick(
+                h1.tick(pipe, FilterMode::Hp, 45.0, 0.7, 0.0, cx.sr),
                 FilterMode::Hp,
-                (0.7 * fire_hz).max(15.0),
+                45.0,
                 0.7,
                 0.0,
                 cx.sr,
             );
-            let hiss = noise.signed();
-            let speed = r / (r + 1500.0);
-            let intake = intake_lp.tick(hiss, FilterMode::Lp, 300.0 + 2500.0 * l, 0.7, 0.0, cx.sr)
-                * (0.02 + 0.12 * l)
-                * speed
-                * (0.6 + 0.4 * drive[i].clamp(0.0, 1.0));
-            let clatter = clatter_hp.tick(tick.signed(), FilterMode::Hp, 3000.0, 0.7, 0.0, cx.sr)
-                * 0.008
-                * speed
-                * (0.2 + drive[i].clamp(0.0, 1.0));
-            // Round 2: grit (a 6-cylinder read "not all that different, needs
-            // nonlinear stuff"): an asymmetric cubic before the tanh, drive 1
-            // to 3x with load, so the exhaust pressure gets 2nd and 3rd
-            // harmonics (low order, so little folds back); its DC is
-            // high-passed at 20 Hz.
-            // Round 3: parallel grit (round 2's cubic barely bit; saturating
-            // the whole exhaust squashed the per-cycle variation and raised
-            // the pipe resonance): an asymmetric tanh copy, drive 3 to 9x
-            // with load, high-passed at 300 Hz (the grit lives in the mids),
-            // mixed at 0.6 over the clean path.
-            let clean = 0.5 * y + 0.35 * blast;
-            let k = 3.0 + 6.0 * l;
-            let d = ((clean * k + 0.4).tanh() - 0.4f32.tanh()) / k.sqrt();
-            let grit = dc_out.tick(d, 300.0, cx.sr).1;
-            let wet = (clean + 0.6 * grit + (0.5 + 3.0 * l) * weight + intake + clatter).tanh();
-            // Fitted to refs/engine_set (crack 41 % against 0.1-3.9 %,
-            // centroid 2.1 kHz against 200-500 Hz): the output low-passed at
-            // 0.7-2.7 kHz by load, 24 dB an octave.
-            let tone = (700.0 + 2000.0 * l).min(top);
-            let a = out_lp.tick(wet, FilterMode::Lp, tone, 0.6, 0.0, cx.sr);
-            out_lp2.tick(a, FilterMode::Lp, tone, 0.6, 0.0, cx.sr)
+            let sat = (hp * (1.5 + 2.0 * l)).tanh();
+            let tone = (2000.0 + 4000.0 * l).min(top);
+            let a = o1.tick(sat, FilterMode::Lp, tone, 0.6, 0.0, cx.sr);
+            // rpm 0 is silence; the level follows speed near standstill.
+            0.6 * (r / 60.0).min(1.0) * o2.tick(a, FilterMode::Lp, tone, 0.6, 0.0, cx.sr)
         })))
     }
 }
