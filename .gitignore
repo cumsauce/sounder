@@ -1,5 +1,12 @@
 /target*
+.DS_Store
+
+# audio and images are build products; docs may carry pictures
 *.wav
 *.png
 !/docs/**/*.png
-refs/
+
+# local state: the sound library, exports, reference recordings
+/.sounder/
+/assets/
+/refs/
