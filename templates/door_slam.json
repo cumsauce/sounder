@@ -1,0 +1,396 @@
+{
+ "name": "door_slam",
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "duration": 0.8,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "env",
+   "name": "scr_env",
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     0.008,
+     0
+    ],
+    [
+     0.02,
+     1
+    ],
+    [
+     0.042,
+     0.7
+    ],
+    [
+     0.05,
+     0
+    ]
+   ],
+   "curve": "smooth"
+  },
+  {
+   "type": "math",
+   "name": "scr_speed",
+   "op": "mul",
+   "a": "scr_env",
+   "b": 1.4
+  },
+  {
+   "type": "friction",
+   "name": "scr_f",
+   "speed": "scr_speed",
+   "pressure": "scr_env",
+   "roughness": 0.85,
+   "grain": 800
+  },
+  {
+   "type": "noise",
+   "name": "scr_n",
+   "color": "pink"
+  },
+  {
+   "type": "math",
+   "name": "scr_nb",
+   "op": "mul",
+   "a": "scr_n",
+   "b": "scr_env"
+  },
+  {
+   "type": "mix",
+   "name": "scr_m",
+   "inputs": [
+    {
+     "input": "scr_f",
+     "gain": 0.6
+    },
+    {
+     "input": "scr_nb",
+     "gain": 0.5
+    }
+   ]
+  },
+  {
+   "type": "filter",
+   "name": "scr",
+   "input": "scr_m",
+   "mode": "bp",
+   "freq": 1955.8837,
+   "q": 0.6
+  },
+  {
+   "type": "gain",
+   "name": "scr_g",
+   "input": "scr",
+   "db": -10
+  },
+  {
+   "type": "noise",
+   "name": "crk_n",
+   "color": "white"
+  },
+  {
+   "type": "decay",
+   "name": "crk_e",
+   "time": 0.008,
+   "at": 0.05
+  },
+  {
+   "type": "math",
+   "name": "crk_raw",
+   "op": "mul",
+   "a": "crk_n",
+   "b": "crk_e"
+  },
+  {
+   "type": "filter",
+   "name": "crk",
+   "input": "crk_raw",
+   "mode": "bp",
+   "freq": 1927.6515,
+   "q": 0.5
+  },
+  {
+   "type": "gain",
+   "name": "crk_g",
+   "input": "crk",
+   "db": -2.9976
+  },
+  {
+   "type": "noise",
+   "name": "hit_n",
+   "color": "pink"
+  },
+  {
+   "type": "decay",
+   "name": "hit_e",
+   "time": 0.012,
+   "at": 0.05
+  },
+  {
+   "type": "math",
+   "name": "hit_burst",
+   "op": "mul",
+   "a": "hit_n",
+   "b": "hit_e"
+  },
+  {
+   "type": "modal",
+   "name": "panel",
+   "excite": "hit_burst",
+   "material": "wood",
+   "size": 0.5,
+   "loss": 1.6929,
+   "modes": 96,
+   "strike_position": 0.31,
+   "gain_db": -10.6896
+  },
+  {
+   "type": "decay",
+   "name": "body_e",
+   "time": 0.5881,
+   "at": 0.05
+  },
+  {
+   "type": "math",
+   "name": "body_raw",
+   "op": "mul",
+   "a": "hit_n",
+   "b": "body_e"
+  },
+  {
+   "type": "filter",
+   "name": "body_bp",
+   "input": "body_raw",
+   "mode": "bp",
+   "freq": 344.4499,
+   "q": 0.5
+  },
+  {
+   "type": "gain",
+   "name": "body_g",
+   "input": "body_bp",
+   "db": 6.3509
+  },
+  {
+   "type": "noise",
+   "name": "thd_n",
+   "color": "brown"
+  },
+  {
+   "type": "decay",
+   "name": "thd_e",
+   "time": 0.4366,
+   "at": 0.05
+  },
+  {
+   "type": "math",
+   "name": "thd_raw",
+   "op": "mul",
+   "a": "thd_n",
+   "b": "thd_e"
+  },
+  {
+   "type": "filter",
+   "name": "thd",
+   "input": "thd_raw",
+   "mode": "lp",
+   "freq": 192.3732,
+   "slope": 24
+  },
+  {
+   "type": "gain",
+   "name": "thd_g",
+   "input": "thd",
+   "db": -6.5934
+  },
+  {
+   "type": "contact",
+   "name": "knock_c",
+   "speed": 1,
+   "mass": 0.3,
+   "material": "wood",
+   "hardness": 0.6,
+   "at": 0.078
+  },
+  {
+   "type": "modal",
+   "name": "knock_m",
+   "excite": "knock_c",
+   "material": "wood",
+   "size": 0.5389,
+   "loss": 3,
+   "gain_db": 0
+  },
+  {
+   "type": "filter",
+   "name": "knock",
+   "input": "knock_m",
+   "mode": "lp",
+   "freq": 3500
+  },
+  {
+   "type": "gain",
+   "name": "knock_g",
+   "input": "knock",
+   "db": -7.3671
+  },
+  {
+   "type": "click",
+   "name": "latch",
+   "kind": "latch",
+   "size": 0.6,
+   "hardness": 0.8,
+   "at": 0.07,
+   "noise": 0.75
+  },
+  {
+   "type": "gain",
+   "name": "latch_g",
+   "input": "latch",
+   "db": -40
+  },
+  {
+   "type": "mix",
+   "name": "dry",
+   "inputs": [
+    "scr_g",
+    "crk_g",
+    "panel",
+    "body_g",
+    "thd_g",
+    "knock_g",
+    "latch_g"
+   ],
+   "to": "mono"
+  },
+  {
+   "type": "transient",
+   "name": "punch",
+   "input": "dry",
+   "attack_db": 3.1317,
+   "sustain_db": -6
+  },
+  {
+   "type": "shape",
+   "name": "warm",
+   "input": "punch",
+   "mode": "tube",
+   "drive": 1.5,
+   "oversample": 4,
+   "mix": 0.25
+  },
+  {
+   "type": "onepole",
+   "name": "dc",
+   "input": "warm",
+   "mode": "hp",
+   "freq": 30
+  },
+  {
+   "type": "eq",
+   "name": "tone",
+   "input": "dc",
+   "bands": [
+    {
+     "mode": "peak",
+     "freq": 200,
+     "gain_db": 5.6018,
+     "q": 0.8
+    },
+    {
+     "mode": "lp",
+     "freq": 10000
+    }
+   ]
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "tone",
+   "lufs": -28
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "stick",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how loud the door brushes the frame before the hit",
+   "game": false,
+   "map": [
+    {
+     "node": "scr_g",
+     "field": "db",
+     "from": -22.0,
+     "to": 2.0
+    }
+   ]
+  },
+  {
+   "name": "weight",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "low thump level under the hit",
+   "game": false,
+   "map": [
+    {
+     "node": "thd_g",
+     "field": "db",
+     "from": -16.0,
+     "to": 3.0
+    }
+   ]
+  },
+  {
+   "name": "snap",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "level of the bright crack at the impact",
+   "game": false,
+   "map": [
+    {
+     "node": "crk_g",
+     "field": "db",
+     "from": -13.0,
+     "to": 7.0
+    }
+   ]
+  },
+  {
+   "name": "knock",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "level of the second wood-on-wood knock",
+   "game": false,
+   "map": [
+    {
+     "node": "knock_g",
+     "field": "db",
+     "from": -20.0,
+     "to": 5.0
+    }
+   ]
+  },
+  {
+   "name": "latch",
+   "value": 0,
+   "default": 0,
+   "doc": "a latch bolt clicking into the strike plate after the hit (off at 0)",
+   "claim": null,
+   "game": false,
+   "map": [
+    {
+     "node": "latch_g",
+     "field": "db",
+     "from": -40,
+     "to": -4
+    }
+   ]
+  }
+ ]
+}

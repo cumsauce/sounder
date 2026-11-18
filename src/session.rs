@@ -22,6 +22,11 @@ use sfx_graph::{
 };
 
 use crate::history::{History, Step};
+
+/// Approved sounds a new sound can start from (`new_sound` `template`):
+/// whole documents, embedded at build time from `templates/`.
+pub const TEMPLATES: &[(&str, &str)] =
+    &[("door_slam", include_str!("../templates/door_slam.json"))];
 use crate::store;
 
 mod window_state;
@@ -630,6 +635,65 @@ impl Session {
         duration: Option<f32>,
         seed: Option<u64>,
     ) -> Result<String, String> {
+        self.new_sound_from(name, kind, duration, seed, None)
+    }
+
+    /// `new_sound`, optionally starting from a template (`TEMPLATES`): an
+    /// approved sound copied in whole (nodes, macros, params, length).
+    pub fn new_sound_from(
+        &mut self,
+        name: &str,
+        kind: Kind,
+        duration: Option<f32>,
+        seed: Option<u64>,
+        template: Option<&str>,
+    ) -> Result<String, String> {
+        if let Some(t) = template {
+            let Some((_, body)) = TEMPLATES.iter().find(|(n, _)| *n == t) else {
+                return Err(format!(
+                    "template `{t}`: the templates are {}",
+                    TEMPLATES
+                        .iter()
+                        .map(|(n, _)| *n)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ));
+            };
+            let mut doc: SoundDoc = serde_json::from_str(body)
+                .map_err(|e| format!("template `{t}` does not parse (a bug: report it): {e}"))?;
+            valid_sound_name(name)?;
+            if self.sounds.contains_key(name) {
+                return Err(format!(
+                    "`{name}` is already open: pick another name, or work on it with doc: \"{name}\""
+                ));
+            }
+            doc.name = name.to_string();
+            if let Some(d) = duration.filter(|d| *d > 0.0) {
+                doc.duration = Some(d);
+            }
+            if let Some(sd) = seed {
+                doc.seed = sd;
+            }
+            let by = self.current.clone();
+            let mut sound = Sound::new(name, doc.kind, by.as_deref());
+            sound.doc = doc;
+            sound.history = History::default();
+            sound.history.record(
+                Step(sound.doc.clone()),
+                format!("new sound from template {t}"),
+            );
+            if let Some(n) = sound.history.nodes.last_mut() {
+                n.author = by.clone();
+            }
+            self.sounds.insert(name.to_string(), sound);
+            self.order.push(name.to_string());
+            self.set_active(name);
+            self.touch(name);
+            self.mark_dirty();
+            return Ok(format!(
+                "new sound `{name}` from template `{t}`: the approved recipe with its knobs; listen, then tune with the macros (summary lists them)"
+            ));
+        }
         valid_sound_name(name)?;
         let duration = match duration {
             Some(d) if !d.is_finite() || d > 600.0 => {

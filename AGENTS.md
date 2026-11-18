@@ -74,7 +74,7 @@ modeler's `MODELER_*`.
 | `describe_op` | node types, one line each; or one type's example + schema (`kind`, aliases `type` / `node`) |
 | `extract_modes` | strongest partials of a WAV as a ready `resonators` node; `residual: "x.wav"` also writes what they miss and returns a rebuild |
 | `play` | plays on the speakers for the human (the window, or `--headless --audio`); a plain headless server answers with an error saying so |
-| `new_sound` | opens a sound beside the others (`kind`, `duration` 0..600 s, `seed` can be set at once, so a loop is one call; a loop with no `duration` is an error naming the field); an open name is refused |
+| `new_sound` | opens a sound beside the others (`kind`, `duration` 0..600 s, `seed` can be set at once, so a loop is one call; `template` starts from an approved sound: `door_slam`; a loop with no `duration` is an error naming the field); an open name is refused |
 | `catalog` | `list sources describe save load delete close` (`sources`: the WAVs in the sources folders); the sound is `name` or `doc` (both given and different is an error) |
 | `export` | WAVs + `<name>.sfx.json` manifest |
 | `undo redo jump history` | the history tree; one `sound_ops` call is one step |
@@ -287,7 +287,7 @@ by role, voiced, ringing partials, crest, no reverb; see "Senses"): every
 FAIL names the layer to add.
 
 **From the round 6 listen (testers' sounds, judged by ear):**
-- **Door slam:** follow the door-slam recipe below (approved by ear); keep
+- **Door slam:** `new_sound` with `template: "door_slam"` (the recipe below, approved by ear, ready to tune); keep
   its weighty low layer (band-limited noise under 200 Hz) under the detail:
   detail without it reads light, weight without detail reads like a drum. A
   brief that names a latch adds a `click` (`noise` about 0.75) as the after
@@ -437,6 +437,7 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 
 | Brief | Node | Start with | Fits |
 |---|---|---|---|
+| **a door slam** | `new_sound` `template: "door_slam"` | knobs `weight`, `snap`, `stick`, `knock`, `latch` (a click latch, off at 0) | the layered slam the listener approved (brush, crack, noise-struck wood body, noise weight, knock, dry bus), copied whole and editable. Two rounds of testers given only the recipe built a click over one `modal` instead, heard as weak: **start from the template**, then tune the knobs |
 | a footstep, a walk | `footstep` | `surface` concrete / gravel / grass / wood, `weight`, `pace`, `shoe`, `body` (pitch apart from weight), `swish` (swish against ticks), on wood: `ring` (0.25..2, the board's ring; the default puts 84 % of the energy under 200 Hz and reads slammed, try 0.6 with `weight` 0.25), `noise` about 0.35 (the default board rings pitched, voiced 0.84), `scuff` (the roll between heel and toe) and `creak` (the board under the weight), both sparingly | one heel + toe step with the surface's texture. A walk is several steps: `pattern` + `sound` instances, or a few `footstep` nodes with different `seed` / `at` in a `mix` |
 | fire, a campfire, crackle | `fire` | `size`, `intensity`, `crackle`, `loop` | roar + hiss + Poisson pops; loops by itself in a `kind: loop` document |
 | wind, a gale, howling | `wind` | `speed` (signal), `gust`, `whistle`, `loop` | five moving bands (+ an Aeolian tone); a `ramp` on `speed` is a rising gale |

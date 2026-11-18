@@ -256,6 +256,11 @@ pub(crate) struct NewSoundArgs {
     /// The sound's randomness (default 1).
     #[serde(default)]
     pub(crate) seed: Option<u64>,
+    /// Start from an approved sound instead of an empty one: "door_slam"
+    /// (the layered slam the listener approved, with knobs stick, weight,
+    /// snap, knock and latch). The whole graph is copied and stays editable.
+    #[serde(default)]
+    pub(crate) template: Option<String>,
 }
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
