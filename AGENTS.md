@@ -49,7 +49,7 @@ modeler's `MODELER_*`.
    a hit or a mechanism, read "Layering a designed sound": the node is the
    body layer, and a designed sound adds the pre, crack, weight and after
    layers on a dry bus.
-   `describe_op` lists the 112 node types; `describe_op {kind: "filter"}` gives
+   `describe_op` lists the 118 node types; `describe_op {kind: "filter"}` gives
    one's example and schema (`type` and `node` are aliases of `kind`). To
    remove a node put `{"type": "delete", "name": "x"}` in `ops` (one item per
    node; a top-level `delete` is not a field and errors).
@@ -181,7 +181,7 @@ expression exactly as if it began with `=`, so a `voices` patch needs no leading
 a node. The error for an unknown node name shows the hint (`write expressions
 with a leading `=`, e.g. "=1.5 * $value"`).
 
-Families (112 types; groups marked * have a section under "More nodes, by
+Families (118 types; groups marked * have a section under "More nodes, by
 group" below):
 
 - sources: `osc noise impulse sample` and `fm wavetable`*; control `lfo wander
@@ -203,7 +203,7 @@ group" below):
   mechanism clicks `click`*, the foley ones
   `bubble air glottis tract syrinx thunder` (voice upgrades)*, waveguides
   `tube string`*, surfaces `rolling cloth crumple footstep`*, water `water splash`*,
-  elements `fire wind spark`*, machines `engine motor`*, blasts `explosion
+  elements `fire wind spark`*, machines `engine motor clock fan`*, from the book `bell ball_bounce cricket twang`*, blasts `explosion
   gunshot`*; `output`.
 
 Recipes (the JSON in the sections below renders as written):
@@ -453,6 +453,10 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 | engine, motor, vehicle | `engine`, `motor` | `rpm` (a `ramp` or `wander`), `cylinders` / `poles`, `load` | rpm-driven pitch; set a `duration` (ramps hold) |
 | a pipe, a flute, a string, a bow | `tube`, `string` | `length` / `freq`, `excite`, `pressure` | waveguides: winds, plucks, strikes, bowed notes |
 | a latch, a switch, a button, a lock, a buckle | `click` | `kind` latch / switch / button / lock / clasp, `size`, `hardness`, `noise` about 0.75 for a small plastic or metal part (the listener's setting; the default rings pitched, voiced 0.33-0.78) | one or two transients through small resonators; a hit at t = 0: `fade_in` 0.0005 |
+| a telephone bell, a ringing bell | `bell` | `freq` (750), `at` (strike time or list), `ring` | Farnell's telephone bell: partial groups, a strike and the bell body; 3.6 dB from the patch played by Pd |
+| a bouncing ball | `ball_bounce` | `length` (to rest), `gap` (first interval), `pitch` | Farnell's ball: sine thumps that come faster, shorter and quieter |
+| a cricket, night insects | `cricket` | `tick`, `pulses`, `period`, `pitch`, `ring` (0.3; lower is more cicada) | Farnell's cricket: chirps of rising pulses ringing narrow bands at 4.5 / 9 kHz |
+| a ruler twang, a sprung tongue, "boing" | `twang` | `freq` (overhang pitch), `vibrato`, `ring` | Farnell's twanged ruler: a phasor-driven clamped bar exciting free modes |
 | thunder, a distant storm | `thunder` | `distance`, `brightness`, `length`, `duration` | foley's N-wave and rumble; `brightness` tilts above 100 Hz, `length` stretches the rumble; a `duration` that fits |
 | a struck object: panel, bell, pipe, keys, a door's thud | `modal` fed by `contact`, `impulse` or a noise burst | `shape` plate / bar / tube / membrane / string / shell, `material`, `size`, `thickness`, `loss`, `tilt`; **`noise` for real wood (0.6, `tilt` 4) and metal (0.85, `noise_width` 0.5, `tilt` 6)** (clean modes read as a tuned instrument) | normalized; `size` and `thickness` are pitch knobs (small thin objects: `thickness` 0.0015 instead of a custom material); `loss` 0.5 rings twice as long; `tilt` flattens a one-mode plate |
 | a larger-than-life hit (cinematic, trailer, a game's heavy impact) | `subdrop` under it, `riser` into it | `from` / `to` / `decay`, `drive`; `at` (the hit), `length`, `shape` | tonal on purpose: add them to a layered hit only when the brief asks for exaggeration (a realistic slam with a sine sub read as a tuned drum) |
@@ -1662,15 +1666,22 @@ document's length (like `thunder`).
 
 - `explosion` {size (fireball radius m, 0.1..100), distance (m, 0..30000),
   [debris] (an event node: a tick per event, value = level), [seed]}. Since
-  book check 2 it carries Farnell's fireball rumble (Designing Sound ch. 54):
-  noise band-passed at 70 Hz, low-passed at 40 -> 140 Hz and slowly back,
-  rising over 100 ms and falling as a quartic over 5 s x size^0.35 (size 2:
-  -20 dB at 2.3 s, -60 dB at 4.7 s). The listener preferred the book's long
-  rumble but not its crackly opening, so the opening is unchanged; set a
+  book check 2 it carries Farnell's fireball rumble (`explosion-factory1.pd`):
+  noise through a band-pass and two one-pole low-passes, all at 40 + 100 x a
+  line that rises in 100 ms and falls over 8 s x (size / 2)^0.35, level the
+  line^4 smoothed at 5 Hz. The listener preferred the book's long rumble but
+  not its crackly opening, so the opening is unchanged; set a
   `duration` that fits.
 - `gunshot` {caliber (mm, 2..60), [barrel 0.4 m], [suppressed false], [distance
-  0], [seed]}: blast plus an N-wave crack when the bullet is supersonic; the
-  crack leads the blast by the travel-time difference (135 ms at 100 m).
+  0], [seed]}: Farnell's fig. 53.9 (Designing Sound ch. 53), dry: a cartridge
+  chirp ((1.05 x)^64, about 15 kHz falling, 93 ms), a four-cycle barrel wave
+  and a 115 ms noise burst 12 ms later (x barrel / 0.4), all through an 8-band
+  weapon body (Q 4.56), tanh; caliber stretches the times and lowers the
+  bands as (caliber / 9)^0.3, a short barrel drives the body harder (louder).
+  Plus an N-wave crack when the bullet is supersonic; the crack leads the
+  blast by the travel-time difference (135 ms at 100 m). A ten-shot burst 80
+  ms apart was heard as "perfectly like an smg" with a room reverb added for
+  preview: keep the shot dry, let the game add the space (or author a tail).
 - Both start 2.5 ms in (so the default fade-in does not cut them), delay by
   `distance / 343` s, darken and quieten with distance, and end in `tanh`, so
   every size peaks near 0.8: size and caliber move the sub band and the length,
@@ -1686,17 +1697,14 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
   0.004 m], [seed], [loop]}: five moving resonant bands plus an optional
   Aeolian tone. Speed 0 is exact silence.
 - `spark` {rate (snaps/s, 0.1..200), [buzz 50|60 Hz], [body 3000 Hz], [seed],
-  [loop]}: Farnell's faulty transformer (Designing Sound ch. 39): a hum of two
-  saws at twice the mains +-0.2 Hz (beating), clipped, under a slow random
-  level; arcing chirps (one per hum cycle) under a random ~3 Hz gate; snaps
-  (noise with a 0.5 s quartic fall plus a 7 kHz -> 20 Hz sweep) through a
-  formant bank (4.6, 7.2, 0.48, 0.72 kHz, then 2.5 kHz; `body` / 3000 scales
-  it); all in a 12 ms comb. The A/B listener preferred it ("SO much better")
-  to the old strike-and-resonator model ("ripping plastic"). The hum's clip
-  and the chirps' edges trip `clicks` (that is the buzz). A loop is periodic
-  in the duration (snaps on a jittered grid), but the random gate can leave
-  the two ends different: `loop_seam` failed 3 of 8 seeds at 3 s, 1 of 8 with
-  `crossfade_loop` `fade` 0.4 after it.
+  [loop]}: adapted from Farnell's faulty transformer (Designing Sound ch. 39):
+  a hum of two saws at twice the mains +-0.2 Hz (beating), clipped to -0.9..0.1
+  under a slow random level; arcing chirps under a random ~3 Hz gate, only
+  while the hum is loud; Poisson snaps (noise with a 0.5 s quartic fall plus a
+  7 kHz -> 20 Hz sweep) through a formant bank (4.6, 7.2, 0.48, 0.72 kHz,
+  then 2.5 kHz; `body` / 3000 scales it); all in a 20 ms comb. Rated "SO much
+  better" than the old model; a closer port of humandsparks.pd was rated
+  worse (see "Porting Farnell's Designing Sound patches").
 - Not normalized (a default `fire` is about -30 LUFS, peak -8 dBFS; a pop-heavy
   one is peaky: crest 23.5 dB). Memory: fire holds six buffers of the
   document length.
@@ -1746,10 +1754,30 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
   eight `refs/engine_set` features inside, 9.7-10.4 dB from the nearest
   recording (the set's own spread 10.2).
 - `motor` {rpm, [poles 4, even], [gear_teeth 0..400], [load 0.3], [whine 0.3],
-  [carrier 4000 Hz], [seed]}: hum at the pole-pair rate, a PWM whine with
-  sidebands, a gear-mesh tone at rpm / 60 x teeth, brush noise; scaled by
-  rpm / (rpm + 500), so a spin-up fades in. Partials above 0.47 x the sample
-  rate fade out instead of aliasing.
+  [carrier 4000 Hz], [seed]}: Farnell's motor (Designing Sound ch. 44),
+  preferred in an A/B: rotor clicks (brush noise band-passed at 4 kHz plus
+  DC, shaped by the quartic decay of each turn), the stator pulse
+  `1 / (cos^2(2 pi 2 p) + 1) - 0.5` on the electrical phase (its strongest
+  line is 4x the pole-pair rate), and the housing as Farnell's FM body
+  (`cos~(0.5 osc~ 178 + drive)`, high-passed at 180 Hz); plus a gear-mesh tone
+  at rpm / 60 x teeth and the PWM whine. Scaled by rpm / (rpm + 500), so a
+  spin-up fades in.
+- `clock` {[rate 8 beats/s], [size 1], [escapement 1], [distance 0 m], [at], [seed]}:
+  Farnell's clock (`clock-all1.pd`): per beat a 3 ms step burst; the tick
+  (four clicks, 6543 / 3245 / 1356 Hz at Q 30) on beats 1 and 5 of 8, the tock
+  (five clicks, 7543 / 3988 / 2765 Hz) on 3 and 7, eight 10 / 8 kHz
+  escapement pings a beat, the hand (300 / 3245 / 5356 Hz) on beat 1, and the
+  case (two delay loops at 900 and 1100 Hz / size, Q 3). Heard as "very close
+  up to a clock or car blinker", rated good, and as "a mechanical thing":
+  a real clock heard across a room is `distance` about 3 with `rate` 4 (a
+  tick each second, faint tocks between; the escapement and the hand fade
+  out, the whole is low-passed at 12 kHz / (1 + d / 3)).
+- `fan` {speed (signal 0..1), [rate 30], [air 1500 Hz], [duct 0.5], [seed]}:
+  adapted from Farnell's fan (ch. 46): blade pulses `1 / (1 + (4 cos)^2)` at
+  2 x rate x speed, air noise band-passed at `air` and chopped by the
+  blades, a small motor hum, a duct (9 and 23 ms echoes). 24 passes a second
+  read as a big propeller, so the default is 30 (60 a second). A closer port
+  of fan5.pd was rated worse.
 
 **Waveguides** (`docs/nodes/waveguide.md`): causal, mono.
 
@@ -1836,6 +1864,43 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
 ]
 ```
 
+**From the book, ported straight from the patch** (`nodes/farnell.rs`,
+`docs/nodes/farnell_nodes.md`): each was built from its `.pd` file and then
+compared with that patch rendered by real Pd (2008-era compatibility,
+Pd-extended `pow~`), using exact copies of Pd's `bp~`, pre-0.44 `hip~`,
+`lop~` and `vcf~`. STFT distance to the Pd render: `cricket` 1.9, `bell` 3.6,
+`twang` 4.8, `ball_bounce` 6.5 dB. Not yet heard.
+
+- `bell` {[freq 750 Hz, 50..3000], [at 0.05 s or a list], [ring 1, 0.1..10],
+  [seed]}: BELL/A4-bell-telephone.pd. Partials at 0.5001 / 1 (720 ms), 2.002 /
+  3 / 9.6 (540 ms), 2.5 / 2.571 / 11 (300 ms, x^4), 3 / 6.242 / 12.483 (86
+  ms, x^2) x `freq`, a strike (16 and 24 x `freq` plus noise, 67 ms, x^4),
+  the strike through a 59 ms body loop (band-passes 287 / 431 / 1243 Hz, Q
+  12, clipped -0.2..0.5), the sum clipped at +-0.9, an old `hip~` at 10 Hz.
+  Every strike in `at` restarts all envelopes.
+- `ball_bounce` {[length 3 s], [gap 0.3 s], [pitch 80 Hz], [at 0.01]}:
+  BOUNCINGBALL/bb1.pd. A line L falls 1 -> 0 over `length`; a bounce every
+  `gap` x L, each a sine of `pitch` + 130 L v^e Hz (v falls over 2/3 of the
+  gap, after a 1 ms rise) wobbled +-70 L Hz at 120 Hz, level 0.2 L v^2.
+- `cricket` {[tick 0.017 s], [pulses 7], [period 41], [pitch 4500 Hz], [ring 0.3, 0.05..1]}:
+  INSECTS/cricket2.pd. Ticks every `tick`; the first `pulses` of each
+  `period` fire a 0.1 ms pulse of height (k + 2) / 9, `lop~` 1 kHz, into
+  `bp~` 4500 / 4550 / 4600 Hz Q 1200 (x 100) and 9000 Hz Q 500 (x 42), all x
+  `pitch` / 4500, old `hip~` 4 kHz, x 0.5. `ring` scales both Qs (band
+  levels kept): at 1 each pulse rings ~85 ms, longer than the gap, so the
+  close bands blur into a tone beating at 50 Hz, which the listener heard as
+  metallic. Shorter rings make the ~59 pulses a second stand out instead
+  (roughness 17.7 / 36.7 / 51.5 % at 1 / 0.3 / 0.12). The listener picked
+  0.3 (the default); 0.12 read as more like a cicada.
+- `twang` {[freq 426 Hz, 20..800], [vibrato 6 Hz], [at 0.01 s], [ring 1],
+  [seed]}: MRBOINGY/twang.pd. A falling phasor at `freq` / 4 + 6 e^15 (e
+  the 7 s envelope ^4) drives clamped modes cos(m p), m 1 / 6.267 / 17.55 /
+  34.39 (gains 1/2 .. 1/16) under a 1.5 s envelope ^4; times p^2 and noise,
+  `lop~` 4 kHz, it excites six `vcf~` modes (Q 80) at 1 / 2.7565 / 5.404 /
+  8.933 / 13.34 / 18.64 x (`freq` + `vibrato` at 5 Hz), plus 0.2 x the
+  clamped modes, old `hip~` 90 Hz, x 4. Its strongest line is the phasor at
+  `freq` / 4.
+
 **Modal shapes and `shatter`** (`docs/nodes/M7.md`):
 
 - `modal` `shape` `plate` (default) | `bar` (free-free: 1 : 2.757 : 5.404) |
@@ -1853,6 +1918,13 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
   [seed]}: an event stream, a crack at `at` (value 1) then fragments whose
   sizes follow a power law (value 0.01..1) and whose times crowd after the
   break. Feed `voices` (a small `modal` per fragment) or `grains`.
+  The first event is the break itself, not a fragment: silence it in the
+  `voices` map (`"lvl": "$index < 1 ? 0 : ..."`), or the whole pane's tone
+  rings on after it has broken (a listener heard exactly that). The pane's
+  own ring belongs before the break: strike a glass `modal` at the impact and
+  choke it with an `env` to 0 over ~12 ms where `shatter` starts (60 ms on). Shards whose
+  pitch is all above 2 kHz read as one clink: keep the big pieces near
+  0.6-1.5 kHz and give `modal` a negative `tilt`.
 - Limits: `size` is a pitch knob; `bar` / `tube` use the material's
   `thickness` (metal is a 5 cm plate: pass `{young, density, poisson, loss,
   thickness}` for a thin pipe wall); sizes and times in `shatter` are drawn
@@ -1998,6 +2070,44 @@ Limits: size and pitch signals are read once at a grain's start; a grain that
 reaches the end of the source stops there (no wrap); `pitch_spread` is uniform
 in semitones, a `grains` `pitch` range with `curve: "linear"` is uniform in
 ratio.
+
+## Porting Farnell's Designing Sound patches
+
+Several nodes (`spark`, `splash`, `engine`, `motor`, `fan`, `clock`, `gunshot`,
+the `explosion` fireball) started from Andy Farnell's *Designing Sound* (MIT
+Press). Its companion Pure Data patches are the ground truth, not photos of
+the book's diagrams: every photo-based port had a misreading. Lessons:
+
+- **Read the `.pd` file, then play it.** A patch is plain text; dump it as a
+  netlist (each box with its inputs) rather than reading the diagram. Then
+  render it in real Pd and compare: `pd -nogui -batch -noaudio -r 48000
+  -compatibility 0.41 -open patch.pd`, with the top-level `dac~` swapped for
+  `writesf~ 2`, a `loadbang` sending `; pd dsp 1` and `open file.wav, start`,
+  and a delayed `stop` then `; pd quit` (quitting at once loses the file).
+  Patches that wait for a button or slider need a message sent to that box;
+  sliders saved with init send their values on load. Compare with `listen
+  reference` (STFT distance and the biggest band x time differences).
+- **The book's Pd is not today's.** The patches date from 2008-2010
+  (Pd-extended, Pd 0.39-0.43):
+  - `pow~` did not exist in vanilla before 0.42 (2009); the patches used
+    Pd-extended's cyclone `pow~`, which is Max-style: **right inlet ^ left
+    inlet** (motorenv.pd: `sig~ 6` on the left and the text says
+    "complement^6"). Vanilla 0.42+ is left ^ right. So guns1.pd's chirp is
+    64^(1.05 x) in the book's Pd. The listener heard that as "a raygun"
+    and preferred (1.05 x)^64, so `gunshot` keeps the latter on purpose.
+  - `wrap~` before 0.48 output 1 instead of 0 at whole numbers; `osc~`,
+    `cos~`, `vcf~` used a 512-point table before 0.55 (`-compatibility`
+    restores both).
+- **Other gotchas:** `cos~` takes cycles, not radians; `lop~` / `hip~` are
+  one-pole; `bp~` takes centre and Q; a `vline~` message `1 1 0, 0 $1 1`
+  is a 1 ms rise then a $1 ms fall; fan-in to a signal inlet sums;
+  abstractions take creation arguments as `$1` (spark6formant 1.8 scales
+  every band by 1.8).
+- **Faithful is not always better by ear.** The listener rated the closer
+  ports of `spark` (humandsparks.pd) and `fan` (fan5.pd) worse than the
+  adaptations, so those nodes keep the adaptations; the engine, motor,
+  clock, gunshot noise and fireball follow their patches. A port is a
+  starting point; the listener decides.
 
 ## Playback
 

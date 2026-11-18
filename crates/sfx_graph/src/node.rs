@@ -364,6 +364,12 @@ node_types! {
     // slot M2
     "engine" => Engine,
     "motor" => Motor,
+    "clock" => Clock,
+    "fan" => Fan,
+    "bell" => Bell,
+    "ball_bounce" => BallBounce,
+    "cricket" => Cricket,
+    "twang" => Twang,
 
     // slot M3
     "fire" => Fire,

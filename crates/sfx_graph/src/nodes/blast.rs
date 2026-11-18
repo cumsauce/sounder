@@ -266,54 +266,62 @@ fn explosion_dry(cx: &Cx, size: f32, len: usize, debris: &[Event], seed: u64) ->
 }
 
 /// The fireball rumble, after Farnell (Designing Sound ch. 54), added in book
-/// check 2 (the listener preferred its long rumble): noise band-passed at
-/// 70 Hz and low-passed (24 dB an octave) at a cutoff that rises from 40 to
-/// 140 Hz over 0.5 s and slowly falls back, under an envelope that rises over
-/// 100 ms (from 100 ms in) and falls as a quartic over `5 s * size^0.35`
-/// (size 2: 6.4 s; 10: 11.2 s), level 1.2 (the dry sum is later soft-clipped).
+/// check 2 (the listener preferred its long rumble); see the body comment
+/// for the patch. Level 1.2 (the dry sum is later soft-clipped).
 fn add_fireball(dry: &mut [f32], size: f32, mut rng: crate::dsp::Rng, sr: f32) {
-    let len = 5.0 * size.powf(0.35);
-    let (mut bp, mut l1, mut l2) = (Svf::default(), Svf::default(), Svf::default());
+    // explosion-factory1.pd `fireball`: a line rises 0 -> 1 in 100 ms, then
+    // falls to 0 over 8 s (here 8 s x (size / 2)^0.35); noise goes through a
+    // band-pass (Q 1) and two one-pole low-passes, ALL at 40 + 100 x line
+    // Hz, x 10, a 5 Hz high-pass; the level is line^4 smoothed by a 5 Hz
+    // one-pole.
+    let fall = 8.0 * (size / 2.0).powf(0.35);
+    let mut bp = Svf::default();
+    let (mut l1, mut l2) = (
+        super::super::dsp::OnePole::default(),
+        super::super::dsp::OnePole::default(),
+    );
+    let (mut hp, mut env_lp) = (
+        super::super::dsp::OnePole::default(),
+        super::super::dsp::OnePole::default(),
+    );
     for (i, y) in dry.iter_mut().enumerate() {
         let t = i as f32 / sr;
-        if t > 0.2 + len {
+        if t > 0.1 + fall + 0.5 {
             break;
         }
-        let e = if t < 0.1 {
-            0.0
-        } else if t < 0.2 {
-            (t - 0.1) / 0.1
+        let line = if t < 0.1 {
+            t / 0.1
         } else {
-            (1.0 - (t - 0.2) / len).max(0.0).powi(4)
+            (1.0 - (t - 0.1) / fall).max(0.0)
         };
-        let fc = if t < 0.6 {
-            40.0 + 100.0 * (t / 0.6)
-        } else {
-            40.0 + 100.0 * (1.0 - (t - 0.6) / len).max(0.0)
-        };
-        let x = bp.tick(rng.signed(), FilterMode::Bp, 70.0, 1.0, 0.0, sr);
-        let x = l1.tick(x, FilterMode::Lp, fc, 0.7, 0.0, sr);
-        let x = l2.tick(x, FilterMode::Lp, fc, 0.7, 0.0, sr);
-        *y += 1.2 * 10.0 * e * x;
+        let fc = 40.0 + 100.0 * line;
+        let x = bp.tick(rng.signed(), FilterMode::Bp, fc, 1.0, 0.0, sr);
+        let x = l1.tick(x, fc, sr).0;
+        let x = l2.tick(x, fc, sr).0;
+        let x = hp.tick(10.0 * x, 5.0, sr).1;
+        let e = env_lp.tick(line.powi(4), 5.0, sr).0;
+        *y += 1.2 * e * x;
     }
 }
 
 // ------------------------------------------------------------------ gunshot
 
-/// A gunshot: a muzzle blast (pressure pulse, thump, noise body, tail) and,
-/// for a supersonic round, an N-wave crack that arrives ahead of it.
+/// A gunshot: the open shot after Farnell (cartridge chirp, barrel wave and
+/// noise through an 8-band weapon body, `blast_dry`), dry, and for a
+/// supersonic round an N-wave crack that arrives ahead of it.
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Gunshot {
     /// Bore diameter, millimetres, 2 ..= 60 (9 for a pistol, 5.56 a rifle,
-    /// 12.7 a heavy machine gun). Larger is longer and lower: the pressure
-    /// pulse lasts `0.15 ms * caliber`, the tail `0.1 s * sqrt(caliber/9)`.
+    /// 12.7 a heavy machine gun). Larger is longer: the cartridge chirp,
+    /// barrel wave and noise burst last `(caliber / 9)^0.3` times 93, 20 and
+    /// 115 ms.
     pub caliber: f32,
     /// Barrel length, metres, 0.05 ..= 1.5 (default 0.4). Longer gives a
     /// faster bullet (`300 + 600 * (1 - exp(-barrel / 0.35))` m/s: 380 at
-    /// 5 cm, 708 at 40 cm) and a darker, weaker blast body (cutoff and
-    /// level go as `(0.4 / barrel)^0.3` and `^0.45`); the crack exists when
-    /// 0.9 times that exceeds 343 m/s.
+    /// 5 cm, 708 at 40 cm) and a later barrel wave and noise burst (`12 ms *
+    /// barrel / 0.4` after the chirp, 4..30 ms); the crack exists when 0.9
+    /// times that speed exceeds 343 m/s.
     #[serde(default)]
     pub barrel: Option<f32>,
     /// A suppressor on subsonic ammunition (default false): no crack and no
@@ -333,7 +341,7 @@ pub struct Gunshot {
 }
 
 impl Describe for Gunshot {
-    const BLURB: &'static str = "a gunshot from caliber, barrel, suppressor and distance: muzzle blast plus, for a supersonic round, an N-wave crack that leads the blast";
+    const BLURB: &'static str = "a gunshot (Farnell): cartridge chirp, barrel wave and noise through an 8-band weapon body, dry; caliber, barrel, suppressor, distance; a supersonic round adds an N-wave crack that leads the blast";
     fn example() -> serde_json::Value {
         serde_json::json!({"caliber": 9, "barrel": 0.1, "suppressed": false, "distance": 50, "seed": 1})
     }
@@ -369,7 +377,9 @@ impl Eval for Gunshot {
         let vm = mean_velocity(barrel, supp);
         if vm > SOUND_SPEED
             && !supp
-            && let Some(at) = shift(LEAD + distance / vm, cx)
+            // guns1.pd adds the N-wave 44 ms after the trigger ("shockwave"),
+            // so at the gun it never lands on top of the blast.
+            && let Some(at) = shift(LEAD + (distance / vm).max(0.044), cx)
         {
             let mut dry = crack_dry(cx, caliber, vm / SOUND_SPEED, cx.n - at);
             arrive(&mut out, &mut dry, at, distance, cx.sr, GUNSHOT_AIR_M);
@@ -379,47 +389,70 @@ impl Eval for Gunshot {
     }
 }
 
+/// The open shot, after Farnell's fig. 53.9 (Designing Sound ch. 53),
+/// preferred in an A/B as "perfectly like an smg" in a burst. With
+/// `s = caliber / 9`: the cartridge chirp `cos(2 pi ((1.05 x)^64 - 0.25))`,
+/// x falling 1 -> 0 over `93 ms * s^0.3` (about 15 kHz down to a few hundred
+/// Hz at constant level; Pd's pow~ is left ^ right); the barrel wave, four
+/// cycles of `x cos(2 pi ((2 x)^2 - 0.25))` over `20 ms * s^0.3`, both
+/// `12 ms * barrel / 0.4` (4..30 ms) after the chirp, and the noise burst 7
+/// ms after that: `(1 - t / T)^8` over `115 ms * s^0.3` of guns1.pd's
+/// `nwavenoise` (a triangle FM'd by band-passed noise); all three through the weapon body, eight
+/// parallel band-passes (2225, 647, 1278, 1329, 2615, 500, 1682, 2243 Hz,
+/// Q 4.56; all divided by `s^0.3`: a bigger gun is longer and lower), then x0.9 x `(0.4 / barrel)^0.5` (a short barrel is louder,
+/// so it saturates harder), tanh, x0.8.
 fn blast_dry(cx: &Cx, caliber: f32, barrel: f32, supp: bool, len: usize, seed: u64) -> Vec<f32> {
     if supp {
         return suppressed_dry(cx, caliber, len, seed);
     }
     let sr = cx.sr;
-    let mut body_rng = cx.rng(seed);
-    let mut tail_rng = cx.rng(seed.wrapping_add(0x9E37_79B9));
-    let s = caliber / 9.0;
-    // A shorter barrel leaves more unburnt powder: a louder, brighter blast.
-    let bf = (0.4 / barrel).powf(0.3).clamp(0.5, 2.0);
-    let (w_pulse, w_body, w_tail) = (0.5, 0.3, 0.2);
-    let tp = 1.5e-4 * caliber;
-    let f0 = (350.0 * s.powf(-0.6)).clamp(60.0, 700.0);
-    let f1 = 0.25 * f0;
-    let tau_pitch = 0.012 * s.sqrt();
-    let tau_thump = 0.012 * s.powf(0.7);
-    let tau_body = 0.008 * s.powf(0.7) * bf.sqrt();
-    let fc_body = 9000.0 * s.powf(-0.35) * bf;
-    let tau_tail = 0.1 * s.sqrt();
-    let fc_tail = 2500.0 * s.powf(-0.3);
-    let mut phase = 0.0f32;
-    let (mut lp_body, mut lp_tail) = (Lp3::default(), Lp3::default());
+    let mut rng = cx.rng(seed);
+    let k = (caliber / 9.0).powf(0.3);
+    let (chirp, bt, nt) = (0.093 * k, 0.02 * k, 0.115 * k);
+    let gap = (0.012 * barrel / 0.4).clamp(0.004, 0.03);
+    // "Shorter barrels produce a louder sound for the same calibre": the
+    // body is driven `(0.4 / barrel)^0.5` harder into the tanh (0.5..3).
+    let loud = (0.4 / barrel).sqrt().clamp(0.5, 3.0);
+    let mut bank: Vec<Biquad> = [
+        2225.0f32, 647.0, 1278.0, 1329.0, 2615.0, 500.0, 1682.0, 2243.0,
+    ]
+    .iter()
+    .map(|&f| {
+        let mut q = Biquad::new();
+        q.set(FilterMode::Bp, (f / k).min(0.45 * sr), 4.56, 0.0, sr);
+        q
+    })
+    .collect();
+    let wave = |ph: f32| (TAU * (ph.fract() - 0.25)).cos();
+    let mut nbp = Biquad::new();
+    nbp.set(FilterMode::Bp, 3000.0f32.min(0.45 * sr), 2.0, 0.0, sr);
+    let mut nhp = crate::dsp::OnePole::default();
+    let mut tri_ph = 0.0f32;
     let mut dry = vec![0.0f32; len];
     for (i, y) in dry.iter_mut().enumerate() {
         let t = i as f32 / sr;
-        let pulse = if t < 20.0 * tp {
-            w_pulse * friedlander(t, tp)
-        } else {
-            0.0
-        };
-        let fq = f1 + (f0 - f1) * (-t / tau_pitch).exp();
-        phase = (phase + TAU * fq / sr).fract();
-        let thump = 0.4 * (-t / tau_thump).exp() * (TAU * phase).sin();
-        let eb = (-t / tau_body).exp();
-        let body = w_body
-            * bf.powf(1.5)
-            * eb
-            * lp_body.tick(body_rng.signed(), (fc_body * eb).max(400.0), sr);
-        let et = (-t / tau_tail).exp() * (1.0 - (-t / 0.005).exp());
-        let tail = w_tail * et * lp_tail.tick(tail_rng.signed(), fc_tail * (0.3 + 0.7 * et), sr);
-        *y = pulse + thump + body + tail;
+        let mut e = 0.0;
+        if t < chirp {
+            e += wave((1.05 * (1.0 - t / chirp)).powi(64));
+        }
+        let u = t - gap;
+        if (0.0..bt).contains(&u) {
+            let x = 1.0 - u / bt;
+            e += x * wave((2.0 * x).powi(2));
+        }
+        // guns1.pd `noiseburst`: the envelope jumps to 1 7 ms after its
+        // trigger and falls as (1 - t / T)^8; the source is `nwavenoise`, a
+        // triangle whose frequency is 100 Hz + 5000 x (noise band-passed at
+        // 3 kHz, Q 2, high-passed at 40 Hz): a buzz, not a hiss.
+        let fm = nhp.tick(nbp.tick(rng.signed()), 40.0, sr).1;
+        tri_ph = (tri_ph + (100.0 + 5000.0 * fm) / sr).rem_euclid(1.0);
+        let tri = 2.0 * (tri_ph - 1.0).max(-tri_ph) + 0.5;
+        let un = u - 0.007;
+        if (0.0..nt).contains(&un) {
+            e += (1.0 - un / nt).powi(8) * tri;
+        }
+        let body: f32 = bank.iter_mut().map(|q| q.tick(e)).sum();
+        *y = 0.8 * (0.9 * loud * body).tanh();
     }
     dry
 }

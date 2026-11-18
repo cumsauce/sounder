@@ -514,7 +514,8 @@ impl Eval for Wind {
 #[serde(deny_unknown_fields)]
 pub struct Spark {
     /// Snaps a second, 0.1..200 (Poisson): how often a big spark cracks over
-    /// the hum and arcing. Each snap lasts about 0.5 s.
+    /// the hum and arcing. Each snap lasts about 0.5 s. (The book fires its
+    /// snaps from the hum instead; that version was rated worse by ear.)
     pub rate: f32,
     /// Mains frequency, Hz: 50 or 60 (default 50). The hum and the arcing
     /// run at twice this (100 or 120 Hz).
@@ -671,8 +672,11 @@ impl Eval for Spark {
         arc_hp.set(FilterMode::Hp, 300.0, 0.707, 0.0, sr);
         let mut gate_lp = OnePole::default();
 
-        // A short comb (the box the spark is in): 12 ms, feedback 0.2.
-        let d = ((0.012 * sr) as usize).max(1);
+        // Fig. 39.8: comb1 with a ~20 ms loop, feedback 0.2.
+        let d = ((0.02 * sr) as usize).max(1);
+        let (mut lv1, mut lv2) = (OnePole::default(), OnePole::default());
+        let mut on_lp = OnePole::default();
+        let mut dc_block = OnePole::default();
         let mut line = vec![0.0f32; d];
         let mut damp = 0.0f32;
         let (mut p1, mut p2) = (0.0f32, 0.0f32);
@@ -680,15 +684,20 @@ impl Eval for Spark {
         for i in 0..m {
             p1 = (p1 + f1 / sr).fract();
             p2 = (p2 + f2 / sr).fract();
-            // Hum: two beating saws, clipped hard, under a slow level.
             let saws = (p1 + p2) - 1.0;
-            let hum = (4.0 * saws).clamp(-1.0, 1.0) * hum_level[i] * hum_level[i];
+            // Fig. 39.8: the beating saws, gained by the slow noise and
+            // clipped asymmetrically to -0.9 .. 0.1.
+            let hum = (saws * (2.0 + 20.0 * hum_level[i] * hum_level[i])).clamp(-0.9, 0.1);
+            // The hum's level (two 15 Hz one-poles of |hum|): arcing only
+            // switches on while the buzz is loud.
+            let lvl = lv2.tick(lv1.tick(hum.abs(), 15.0, sr).0, 15.0, sr).0;
+            let (loud, _) = on_lp.tick(if lvl > 0.12 { 1.0 } else { 0.0 }, 80.0, sr);
             // Arcing: the reversed phasor squashed by a random factor,
             // squared and cos'd (a chirp per hum cycle), random-gated ~3 Hz.
             let x = ((1.0 - p1) * squash[i]).min(1.0) + 0.1;
             let chirp = arc_hp.tick((std::f32::consts::TAU * 12.0 * x * x).cos());
             let (g, _) = gate_lp.tick(if gate_w[i] > 0.2 { 1.0 } else { 0.0 }, 30.0, sr);
-            let arc = chirp * g;
+            let arc = chirp * g * loud;
             let mut snap = 0.0;
             for (b, gain) in &mut fb {
                 snap += *gain * b.tick(exc[i]);
@@ -699,7 +708,7 @@ impl Eval for Spark {
             damp = 0.7 * line[j] + 0.3 * damp;
             let y = dry + 0.2 * damp;
             line[j] = y;
-            out[i] = 0.5 * y;
+            out[i] = 0.5 * dc_block.tick(y, 20.0, sr).1;
         }
         if wrap {
             out.drain(..n);

@@ -91,8 +91,9 @@ fn engine_is_less_clean_and_less_resonant() {
         assert!(off > -20.0, "off-grid {off}");
         assert!(cv > 3.0, "cv {cv}");
         assert!(res < 26.0, "resonance {res}");
-        // 2 cylinders: -13.3 dB (wide pulses); 4 and 6: -23 dB.
-        assert!(hi < -12.0, "2-8 kHz share {hi}");
+        // four-stroke-engine.pd's noise-driven pulse widths add sharp
+        // firings: -16.6 / -14.1 / -11.4 dB for 2 / 4 / 6 cylinders.
+        assert!(hi < -10.0, "2-8 kHz share {hi}");
     }
 }
 

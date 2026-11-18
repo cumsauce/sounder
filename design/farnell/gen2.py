@@ -48,35 +48,37 @@ def engine_book():
     ]
 
 
-def gunshot_book():
-    """Shell chirp (64^x wrapped cos, 10 kHz -> a few hundred Hz in 60 ms),
-    barrel wave (4 cycles, 100-200 Hz) 1.5 ms later, a noise burst (three
-    squarings, 200 ms), through an 8-band body (Q 1) and tanh; an N-wave
-    crack with its ground reflection."""
+def gunshot_book(chirp=0.06, gap=0.012, noise_t=0.1, q=4.56, drive=0.9, shock_at=0.044):
+    """Fig. 53.9 as printed: the shell chirp ((1.05 x)^64 wrapped cos: Pd pow~ is left ^ right, x 1 -> 0
+    over `chirp` s: ~6 kHz down to ~70 Hz), the barrel wave ((2x)^2: 4
+    cycles, 100-200 Hz, enveloped) and the noise burst (three squarings,
+    `noise_t` s) both `gap` s later; ALL through the 8-band body (parallel
+    band-passes, resonance `q`), x drive, tanh, x0.8; the N-wave shock
+    `shock_at` s after the trigger, with its ground reflection."""
     bands = [2225, 647, 1278, 1329, 2615, 500, 1682, 2243]
+    g = gap
     nodes = [
         {"type": "expr", "name": "shell", "inputs": {},
-         "out": "t < 0.003 ? 0 : (t > 0.063 ? 0 : cos(2 * pi * (fract(pow(64, 1.05 * (1 - (t - 0.003) / 0.06))) - 0.25)))"},
+         "out": f"t < 0.002 ? 0 : (t > {0.002 + chirp} ? 0 : cos(2 * pi * (fract(pow(1.05 * (1 - (t - 0.002) / {chirp}), 64)) - 0.25)))"},
         {"type": "expr", "name": "barrel", "inputs": {},
-         "out": "t < 0.0045 ? 0 : (t > 0.0345 ? 0 : (1 - (t - 0.0045) / 0.03) * cos(2 * pi * (fract(pow(2, 2 * (1 - (t - 0.0045) / 0.03))) - 0.25)))"},
+         "out": f"t < {0.002 + g} ? 0 : (t > {0.022 + g} ? 0 : (1 - (t - {0.002 + g}) / 0.02) * cos(2 * pi * (fract(pow(2 * (1 - (t - {0.002 + g}) / 0.02), 2)) - 0.25)))"},
         {"type": "noise", "name": "n", "color": "white"},
         {"type": "expr", "name": "ne", "inputs": {},
-         "out": "t < 0.003 ? 0 : pow(max(1 - (t - 0.003) / 0.2, 0), 8)"},
+         "out": f"t < {0.002 + g} ? 0 : pow(max(1 - (t - {0.002 + g}) / {noise_t}, 0), 8)"},
         {"type": "math", "name": "nb", "op": "mul", "a": "n", "b": "ne"},
-        {"type": "mix", "name": "exc", "inputs": [{"input": "shell", "gain": 0.6}, {"input": "barrel", "gain": 1.0}, {"input": "nb", "gain": 0.8}]},
+        {"type": "mix", "name": "exc", "inputs": ["shell", "barrel", "nb"]},
     ]
     for i, f in enumerate(bands):
-        nodes.append({"type": "filter", "name": f"b{i}", "input": "exc", "mode": "bp", "freq": f, "q": 1})
+        nodes.append({"type": "filter", "name": f"b{i}", "input": "exc", "mode": "bp", "freq": f, "q": q})
     nodes += [
         {"type": "mix", "name": "body", "inputs": [f"b{i}" for i in range(len(bands))]},
-        {"type": "gain", "name": "drv", "input": "body", "gain": 2.5},
+        {"type": "gain", "name": "drv", "input": "body", "gain": drive},
         {"type": "shape", "name": "sat", "input": "drv", "mode": "tanh", "oversample": 4},
-        # N-wave crack (+1 in 1 ms, -1 1 ms later) and its ground reflection
-        {"type": "env", "name": "nw", "points": [[0, 0], [0.002, 0], [0.0025, 1], [0.0035, -1], [0.004, 0]]},
-        {"type": "delay", "name": "nwr", "input": "nw", "time": 0.0025},
+        {"type": "env", "name": "nw", "points": [[0, 0], [shock_at, 0], [shock_at + 0.001, 1], [shock_at + 0.002, -1], [shock_at + 0.003, 0]]},
+        {"type": "delay", "name": "nwr", "input": "nw", "time": 0.002},
         {"type": "onepole", "name": "nwl", "input": "nwr", "mode": "lp", "freq": 100},
-        {"type": "mix", "name": "shock", "inputs": ["nw", {"input": "nwl", "gain": 8}]},
-        {"type": "mix", "name": "all", "inputs": [{"input": "sat", "gain": 0.8}, {"input": "shock", "gain": 0.35}]},
+        {"type": "mix", "name": "shock", "inputs": ["nw", {"input": "nwl", "gain": 6}]},
+        {"type": "mix", "name": "all", "inputs": [{"input": "sat", "gain": 0.8}, {"input": "shock", "gain": 0.2}]},
         {"type": "onepole", "name": "dc", "input": "all", "mode": "hp", "freq": 20},
         {"type": "output", "name": "out", "input": "dc", "peak_db": -1, "fade_in": 0.0005},
     ]
