@@ -370,6 +370,10 @@ node_types! {
     "ball_bounce" => BallBounce,
     "cricket" => Cricket,
     "twang" => Twang,
+    "siren" => Siren,
+    "door_creak" => DoorCreak,
+    "jet" => Jet,
+    "red_alert" => RedAlert,
 
     // slot M3
     "fire" => Fire,

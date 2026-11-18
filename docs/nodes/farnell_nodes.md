@@ -48,3 +48,20 @@ them has been heard yet.
 - **Twang**: the `pow~` has 15 on the left, so the push is envelope^15. The
   phasor runs backwards at freq / 4 and is reset at the pluck; its line is
   the loudest (107 Hz at 426).
+
+## Round 2: `siren`, `door_creak`, `jet`, `red_alert`
+
+Rendered in Pd with the siren's speed message (3), the door's force slider
+at 0.6, the jet's speed slider at 0.8 and the alert's button pressed.
+
+| Node | Distance | Patch |
+|---|---|---|
+| `red_alert` | 4.24 dB | REDALERT/TOS_redalert.pd |
+| `siren` (echo 1) | 6.06 dB | POLICE/police3.pd + logosc~, plastichorn~, environment |
+| `jet` | 6.31 dB | JETENGINE/jetengine1.pd |
+| `door_creak` | 7.99 dB | CREAKING/doorcreaker.pd + dfbef (random tick timing in both) |
+
+Feedback loops written with `s~` / `r~` (dfbe, dfbef, the alert's 61 ms
+loop, the siren's echoes) run one 64-sample block late in Pd; the ports add
+that block. `police00.pd`, `police01.pd` and `police1.pd` are waveform
+studies with no output; `police3.pd` is the siren.

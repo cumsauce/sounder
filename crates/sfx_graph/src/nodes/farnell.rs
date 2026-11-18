@@ -15,7 +15,7 @@ use std::f32::consts::TAU;
 use serde::Deserialize;
 
 use super::{mono, non_negative, one};
-use crate::node::{Cx, Describe, Eval, Outs};
+use crate::node::{Cx, Describe, Eval, In, Outs};
 
 /// Pd's `bp~` (centre Hz, Q).
 #[derive(Default, Clone)]
@@ -584,5 +584,369 @@ mod tests {
         // bp~ 1000 10 at 44.1 kHz: omega 0.14248, 1 - r 0.014248.
         let b = PdBp::new(1000.0, 10.0, 44100.0);
         assert!((b.c2 + (1.0f32 - 0.014248).powi(2)).abs() < 1e-5);
+    }
+}
+
+/// A Pd feedback delay built from `delread~` / `s~` / `r~` / `delwrite~`
+/// (dfbe.pd, dfbef.pd): the output is the delayed signal; the feedback goes
+/// round through `s~` / `r~`, which adds one 64-sample block, so the loop is
+/// `d` + 64 samples long.
+struct PdFbDelay {
+    buf: Vec<f32>,
+    pos: usize,
+    d: usize,
+    fb: f32,
+}
+
+impl PdFbDelay {
+    fn new(ms: f32, fb: f32, sr: f32) -> PdFbDelay {
+        let d = ((ms * 0.001 * sr) as usize).max(1);
+        PdFbDelay {
+            buf: vec![0.0; d + 66],
+            pos: 0,
+            d,
+            fb,
+        }
+    }
+    fn read(&self, back: usize) -> f32 {
+        let n = self.buf.len();
+        self.buf[(self.pos + n - back % n) % n]
+    }
+    fn tick(&mut self, x: f32) -> f32 {
+        let out = self.read(self.d);
+        let fbv = self.read(self.d + 64);
+        self.buf[self.pos] = x + self.fb * fbv;
+        self.pos = (self.pos + 1) % self.buf.len();
+        out
+    }
+}
+
+// ------------------------------------------------------------------- siren
+
+/// A police siren (POLICE/police3.pd): `logosc~`, a phasor bent into a rise
+/// `1 - (1 - 2p)^e` and a fall `(2 - 2p)^(e / 2)` (Pd-extended `pow~`), at
+/// `rate` sweeps a second copy between `low` and `high` Hz; that waveform
+/// goes through the "plastic horn" (clip +-0.2, `bp~` 1500 Hz Q 4) and,
+/// with `echo`, the patch's street (three echoes, 33 / 121 / 165 ms,
+/// cross-fed at 0.1).
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Siren {
+    /// Sweeps a second, 0.05 to 20 (default 3: the book's "yelp"; 0.1 is a
+    /// slow wail).
+    #[serde(default)]
+    pub rate: Option<f32>,
+    /// Bottom of the sweep, Hz, 50 to 4000 (default 300).
+    #[serde(default)]
+    pub low: Option<f32>,
+    /// Top of the sweep, Hz, 50 to 8000 (default 1100).
+    #[serde(default)]
+    pub high: Option<f32>,
+    /// The patch's street echoes, 0 to 1 (default 0: dry, the game adds
+    /// the space; 1 is the book's environment.pd).
+    #[serde(default)]
+    pub echo: Option<f32>,
+}
+
+impl Describe for Siren {
+    const BLURB: &'static str = "a police siren (Farnell): a log-shaped oscillator swept between low and high Hz rate times a second, through a clipped plastic horn; echo adds the patch's street";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"rate": 3, "low": 300, "high": 1100, "echo": 0})
+    }
+}
+
+/// `logosc~`'s shape of a phase p in 0..1 (with Pd-extended's pow~).
+fn logosc(p: f32) -> f32 {
+    if p < 0.5 {
+        1.0 - (1.0 - 2.0 * p).max(0.0).powf(std::f32::consts::E)
+    } else {
+        (2.0 - 2.0 * p).max(0.0).powf(std::f32::consts::E * 0.5)
+    }
+}
+
+impl Eval for Siren {
+    fn eval(&self, cx: &Cx) -> Result<Outs, String> {
+        let rate = self.rate.unwrap_or(3.0);
+        if !(rate.is_finite() && (0.05..=20.0).contains(&rate)) {
+            return Err(format!(
+                "rate: {rate}: give sweeps a second from 0.05 to 20"
+            ));
+        }
+        let low = self.low.unwrap_or(300.0);
+        let high = self.high.unwrap_or(1100.0);
+        if !(low.is_finite() && (50.0..=4000.0).contains(&low)) {
+            return Err(format!("low: {low}: give Hz from 50 to 4000"));
+        }
+        if !(high.is_finite() && (50.0..=8000.0).contains(&high) && high > low) {
+            return Err(format!("high: {high}: give Hz from 50 to 8000, above low"));
+        }
+        let echo = self.echo.unwrap_or(0.0);
+        if !(echo.is_finite() && (0.0..=1.0).contains(&echo)) {
+            return Err(format!("echo: {echo}: give 0 to 1"));
+        }
+        let sr = cx.sr;
+        let (mut ps, mut pf) = (0.0f64, 0.0f64);
+        let mut horn = PdBp::new(1500.0, 4.0, sr);
+        let taps = [165.0f32, 121.0, 33.0].map(|ms| ((ms * 0.001 * sr) as usize).max(1));
+        let len = taps[0] + 70;
+        let mut bufs = vec![vec![0.0f32; len]; 3];
+        let mut pos = 0usize;
+        Ok(one(mono(cx.n, |_| {
+            ps = (ps + f64::from(rate / sr)).fract();
+            let f = low + (high - low) * logosc(ps as f32);
+            pf = (pf + f64::from(f / sr)).fract();
+            let x = horn.tick(logosc(pf as f32).clamp(-0.2, 0.2));
+            if echo <= 0.0 {
+                return x;
+            }
+            // environment.pd: each echo line is fed the direct sound plus
+            // 0.1 x the sum of the three echoes (through s~ / r~, one block
+            // later); out = 0.7 direct + 0.5 x that echo sum.
+            let rd = |b: &Vec<f32>, back: usize| b[(pos + len - back % len) % len];
+            let e: f32 = (0..3).map(|k| rd(&bufs[k], taps[k])).sum::<f32>() * 0.1;
+            let el: f32 = (0..3).map(|k| rd(&bufs[k], taps[k] + 64)).sum::<f32>() * 0.1;
+            for b in bufs.iter_mut() {
+                b[pos] = x + el;
+            }
+            pos = (pos + 1) % len;
+            (1.0 - 0.3 * echo) * x + 0.5 * echo * e
+        })))
+    }
+}
+
+// -------------------------------------------------------------- door_creak
+
+/// A creaking door (CREAKING/doorcreaker.pd): while `force` is over 0.3
+/// the hinge sticks and slips: a tick every `3 + 60 (1 - f)` ms plus up to
+/// `6 (1 - f)` ms of jitter, each a sharp pulse whose height and length grow
+/// with the time since the last; through the wood (`bp~` 62.5 / 125 / 250 /
+/// 395 / 560 / 790 Hz) and a square panel (eight feedback delays of 4.5 to
+/// 16 ms), high-passed at 125 Hz.
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DoorCreak {
+    /// How hard the door is pushed, 0 to 1 (a node to swing it). Over 0.3
+    /// it creaks; higher is a faster, denser creak.
+    pub force: In,
+    /// Mixed with the document seed and the node name (default 0).
+    #[serde(default)]
+    pub seed: u64,
+}
+
+impl Describe for DoorCreak {
+    const BLURB: &'static str = "a creaking door hinge (Farnell): stick-slip ticks whose rate follows force (over 0.3), through wood resonances and a square panel; force is a 0..1 signal";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"force": 0.6, "seed": 1})
+    }
+}
+
+impl Eval for DoorCreak {
+    fn random(&self) -> bool {
+        true
+    }
+    fn eval(&self, cx: &Cx) -> Result<Outs, String> {
+        let force = cx.mono("force", &self.force)?;
+        let sr = cx.sr;
+        let mut rng = cx.rng(self.seed);
+        let mut wood = [
+            PdBp::new(250.0, 2.0, sr),
+            PdBp::new(395.0, 2.0, sr),
+            PdBp::new(125.0, 1.0, sr),
+            PdBp::new(62.5, 1.0, sr),
+            PdBp::new(560.0, 3.0, sr),
+            PdBp::new(790.0, 3.0, sr),
+        ];
+        let mut panel: Vec<PdFbDelay> = [16.0f32, 10.12, 7.14, 5.48, 8.0, 6.27, 5.06, 4.52]
+            .iter()
+            .map(|ms| PdFbDelay::new(*ms, 0.05, sr))
+            .collect();
+        let mut hip = PdHip::new(125.0, sr);
+        // line $1 100: the force glides to each new value over 100 ms.
+        let mut f = 0.0f32;
+        let (mut next, mut last) = (0.0f32, f32::NEG_INFINITY);
+        let (mut a, mut fall, mut age) = (0.0f32, 1.0f32, f32::INFINITY);
+        Ok(one(mono(cx.n, |i| {
+            let target = force.at(i).clamp(0.0, 1.0);
+            f += (target - f).clamp(-1.0 / (0.1 * sr), 1.0 / (0.1 * sr));
+            let t = i as f32 / sr * 1000.0;
+            if f > 0.3 && t >= next {
+                // timer: ms since the last tick, capped at 100.
+                let e = ((t - last).min(100.0) / 100.0).max(0.0);
+                last = t;
+                a = (e.sqrt() + 0.1).sqrt();
+                fall = e.sqrt() * 0.001 * sr;
+                age = 0.0;
+                next = t + 3.0 + 60.0 * (1.0 - f) + rng.unit() * 6.0 * (1.0 - f);
+            } else if f <= 0.3 {
+                next = t;
+            }
+            // vline~ $1, 0 $2 then squared.
+            let v = if fall > 0.0 && age < fall {
+                a * (1.0 - age / fall)
+            } else {
+                0.0
+            };
+            age += 1.0;
+            let p = v * v;
+            let w = 0.2 * p + wood.iter_mut().map(|b| b.tick(p)).sum::<f32>();
+            let s: f32 = panel.iter_mut().map(|d| d.tick(w)).sum();
+            0.2 * hip.tick(s)
+        })))
+    }
+}
+
+// --------------------------------------------------------------------- jet
+
+/// A jet engine (JETENGINE/jetengine1.pd): `speed` through a 0.2 Hz
+/// `lop~` (spool-up), five turbine tones at 3097 / 4495 / 5588 / 7471 /
+/// 11000 Hz x speed (clipped at 0.9), and the burner: noise band-passed at 8
+/// kHz into a `vcf~` at 150 speed^2 Hz, x 120, clipped, into a `vcf~` at
+/// 12000 speed Hz; burner + 0.5 turbine, `lop~` 11 kHz, x 0.1.
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Jet {
+    /// Throttle, 0.1 to 1 (a node for a spool-up / down; the engine follows
+    /// it through a 0.2 Hz low-pass, as the book's does).
+    pub speed: In,
+    /// Mixed with the document seed and the node name (default 0).
+    #[serde(default)]
+    pub seed: u64,
+}
+
+impl Describe for Jet {
+    const BLURB: &'static str = "a jet engine (Farnell): turbine tones and a clipped, swept burner roar following speed (0.1..1) through a slow spool-up";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"speed": 0.8, "seed": 1})
+    }
+}
+
+impl Eval for Jet {
+    fn random(&self) -> bool {
+        true
+    }
+    fn eval(&self, cx: &Cx) -> Result<Outs, String> {
+        let speed = cx.mono("speed", &self.speed)?;
+        let sr = cx.sr;
+        let mut rng = cx.rng(self.seed);
+        let mut spool = PdLop::new(0.2, sr);
+        let mut bp = PdBp::new(8000.0, 0.5, sr);
+        let (mut v1, mut v2) = (PdVcf::default(), PdVcf::default());
+        let mut hip = PdHip::new(120.0, sr);
+        let mut out_lp = PdLop::new(11000.0, sr);
+        let tones = [3097.0f32, 4495.0, 5588.0, 7471.0, 11000.0];
+        let gains = [0.25f32, 0.25, 1.0, 0.4, 0.4];
+        let mut ph = [0.0f64; 5];
+        let nyq = 0.5 * sr;
+        Ok(one(mono(cx.n, |i| {
+            let s = spool.tick(speed.at(i).clamp(0.1, 1.0));
+            let mut t = 0.0f32;
+            for k in 0..5 {
+                let hz = tones[k] * s;
+                ph[k] = (ph[k] + f64::from(hz / sr)).fract();
+                if hz < nyq {
+                    t += gains[k] * (TAU * ph[k] as f32).cos();
+                }
+            }
+            let turbine = t.clamp(-0.9, 0.9);
+            let n = bp.tick(rng.signed());
+            let a = hip.tick(v1.tick(n, 150.0 * s * s, 1.0, sr));
+            let burn = v2.tick((120.0 * a).clamp(-1.0, 1.0), 12000.0 * s, 0.6, sr);
+            0.1 * out_lp.tick(burn + 0.5 * turbine)
+        })))
+    }
+}
+
+// --------------------------------------------------------------- red_alert
+
+/// A starship red-alert klaxon (REDALERT/TOS_redalert.pd): over 900 ms a
+/// phasor rises from 360 to 847 Hz (as the square root of a line), shaped
+/// `p - 0.5 + 0.3 cos(4 pi p)`, gated for 890 ms; through five feedback
+/// delays (11 to 35 ms, x 0.6) summed and fed back through a 61 ms one,
+/// clipped at x 4, then formants at 740 / 1400 / 1500 / 1600 Hz (`bp~` Q
+/// 12). One whoop per time in `at`.
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RedAlert {
+    /// Whoop time(s), seconds: a number or a list (default 0.01).
+    #[serde(default)]
+    pub at: Option<Times>,
+    /// Start and end pitch scale, 0.25 to 4 (default 1: 360 -> 847 Hz).
+    #[serde(default)]
+    pub pitch: Option<f32>,
+}
+
+impl Describe for RedAlert {
+    const BLURB: &'static str = "a sci-fi red-alert klaxon (Farnell): a rising buzzy whoop through feedback delays and a clipped formant horn; at = whoop time(s)";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"at": [0.01, 1.3], "pitch": 1})
+    }
+}
+
+impl Eval for RedAlert {
+    fn eval(&self, cx: &Cx) -> Result<Outs, String> {
+        let pitch = self.pitch.unwrap_or(1.0);
+        if !(pitch.is_finite() && (0.25..=4.0).contains(&pitch)) {
+            return Err(format!("pitch: {pitch}: give 0.25 to 4"));
+        }
+        let mut hits: Vec<usize> = times(&self.at, 0.01, "at")?
+            .iter()
+            .map(|t| (t * cx.sr) as usize)
+            .collect();
+        hits.sort_unstable();
+        let sr = cx.sr;
+        let mut taps: Vec<PdFbDelay> = [15.0f32, 35.0, 11.0, 22.0, 24.0]
+            .iter()
+            .map(|ms| PdFbDelay::new(*ms, 0.6, sr))
+            .collect();
+        let mut loop61 = PdFbDelay::new(61.0, 0.6, sr);
+        // s~ fbsd / r~ fbsd: the 61 ms output comes back a block later.
+        let mut fb_line = vec![0.0f32; 64];
+        let mut hip1 = PdHip::new(1.0, sr);
+        let mut hip12 = PdHip::new(12.0, sr);
+        let mut forms = [
+            PdBp::new(1400.0, 12.0, sr),
+            PdBp::new(1500.0, 12.0, sr),
+            PdBp::new(1600.0, 12.0, sr),
+            PdBp::new(740.0, 12.0, sr),
+        ];
+        let (mut age, mut next) = (f32::INFINITY, 0usize);
+        let mut ph = 0.0f64;
+        Ok(one(mono(cx.n, |i| {
+            while next < hits.len() && hits[next] <= i {
+                age = 0.0;
+                next += 1;
+            }
+            let ms = age / sr * 1000.0;
+            age += 1.0;
+            // vline~ 0, 1 900 0, 0 0 1200: rise over 900 ms, cut at 1200.
+            let rise = if ms < 900.0 {
+                ms / 900.0
+            } else if ms < 1200.0 {
+                1.0
+            } else {
+                0.0
+            };
+            // vline~ 0, 1 10 0, 0 10 890: on in 10 ms, off over 10 ms at 890.
+            let gate = if ms < 10.0 {
+                ms / 10.0
+            } else if ms < 890.0 {
+                1.0
+            } else if ms < 900.0 {
+                1.0 - (ms - 890.0) / 10.0
+            } else {
+                0.0
+            };
+            let hz = (360.0 + 487.0 * rise.sqrt()) * pitch;
+            ph = (ph + f64::from(hz / sr)).fract();
+            let p = ph as f32;
+            let wave = hip1.tick(p - 0.5 + 0.3 * (TAU * (2.0 * p).fract()).cos());
+            let fbv = fb_line[i % 64];
+            let x = 0.2 * (wave * gate + 0.006 * fbv);
+            let y = hip12.tick(taps.iter_mut().map(|d| d.tick(x)).sum());
+            fb_line[i % 64] = loop61.tick(y);
+            let c = (4.0 * y).clamp(-1.0, 1.0);
+            let f: f32 = forms.iter_mut().map(|b| b.tick(c)).sum();
+            0.2 * (f + 0.5 * c)
+        })))
     }
 }

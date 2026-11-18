@@ -49,7 +49,7 @@ modeler's `MODELER_*`.
    a hit or a mechanism, read "Layering a designed sound": the node is the
    body layer, and a designed sound adds the pre, crack, weight and after
    layers on a dry bus.
-   `describe_op` lists the 118 node types; `describe_op {kind: "filter"}` gives
+   `describe_op` lists the 122 node types; `describe_op {kind: "filter"}` gives
    one's example and schema (`type` and `node` are aliases of `kind`). To
    remove a node put `{"type": "delete", "name": "x"}` in `ops` (one item per
    node; a top-level `delete` is not a field and errors).
@@ -181,7 +181,7 @@ expression exactly as if it began with `=`, so a `voices` patch needs no leading
 a node. The error for an unknown node name shows the hint (`write expressions
 with a leading `=`, e.g. "=1.5 * $value"`).
 
-Families (118 types; groups marked * have a section under "More nodes, by
+Families (122 types; groups marked * have a section under "More nodes, by
 group" below):
 
 - sources: `osc noise impulse sample` and `fm wavetable`*; control `lfo wander
@@ -203,7 +203,7 @@ group" below):
   mechanism clicks `click`*, the foley ones
   `bubble air glottis tract syrinx thunder` (voice upgrades)*, waveguides
   `tube string`*, surfaces `rolling cloth crumple footstep`*, water `water splash`*,
-  elements `fire wind spark`*, machines `engine motor clock fan`*, from the book `bell ball_bounce cricket twang`*, blasts `explosion
+  elements `fire wind spark`*, machines `engine motor clock fan`*, from the book `bell ball_bounce cricket twang siren door_creak jet red_alert`*, blasts `explosion
   gunshot`*; `output`.
 
 Recipes (the JSON in the sections below renders as written):
@@ -457,6 +457,10 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 | a bouncing ball | `ball_bounce` | `length` (to rest), `gap` (first interval), `pitch` | Farnell's ball: sine thumps that come faster, shorter and quieter |
 | a cricket, night insects | `cricket` | `tick`, `pulses`, `period`, `pitch`, `ring` (0.3; lower is more cicada) | Farnell's cricket: chirps of rising pulses ringing narrow bands at 4.5 / 9 kHz |
 | a ruler twang, a sprung tongue, "boing" | `twang` | `freq` (overhang pitch), `vibrato`, `ring` | Farnell's twanged ruler: a phasor-driven clamped bar exciting free modes |
+| a police siren, an emergency vehicle | `siren` | `rate` (3 = yelp, 0.1 = wail), `low` / `high` Hz, `echo` (the patch's street; 0 dry) | Farnell's siren: a log-shaped oscillator swept through a clipped plastic horn |
+| a creaking door, a hinge | `door_creak` | `force` (signal; creaks over 0.3) | Farnell's stick-slip hinge through wood resonances and a square panel |
+| a jet engine, a turbine | `jet` | `speed` (signal 0.1..1, spools up through a 0.2 Hz low-pass) | Farnell's jet: turbine tones and a clipped, swept burner roar |
+| a sci-fi alarm, red alert | `red_alert` | `at` (whoop times), `pitch` | Farnell's klaxon: a rising buzz through feedback delays and a formant horn |
 | thunder, a distant storm | `thunder` | `distance`, `brightness`, `length`, `duration` | foley's N-wave and rumble; `brightness` tilts above 100 Hz, `length` stretches the rumble; a `duration` that fits |
 | a struck object: panel, bell, pipe, keys, a door's thud | `modal` fed by `contact`, `impulse` or a noise burst | `shape` plate / bar / tube / membrane / string / shell, `material`, `size`, `thickness`, `loss`, `tilt`; **`noise` for real wood (0.6, `tilt` 4) and metal (0.85, `noise_width` 0.5, `tilt` 6)** (clean modes read as a tuned instrument) | normalized; `size` and `thickness` are pitch knobs (small thin objects: `thickness` 0.0015 instead of a custom material); `loss` 0.5 rings twice as long; `tilt` flattens a one-mode plate |
 | a larger-than-life hit (cinematic, trailer, a game's heavy impact) | `subdrop` under it, `riser` into it | `from` / `to` / `decay`, `drive`; `at` (the hit), `length`, `shape` | tonal on purpose: add them to a layered hit only when the brief asks for exaggeration (a realistic slam with a sine sub read as a tuned drum) |
@@ -1900,6 +1904,33 @@ Pd-extended `pow~`), using exact copies of Pd's `bp~`, pre-0.44 `hip~`,
   8.933 / 13.34 / 18.64 x (`freq` + `vibrato` at 5 Hz), plus 0.2 x the
   clamped modes, old `hip~` 90 Hz, x 4. Its strongest line is the phasor at
   `freq` / 4.
+
+Round 2 (STFT distance to the Pd render: `red_alert` 4.2, `siren` 6.1, `jet`
+6.3, `door_creak` 8.0 dB; not yet heard). Feedback through `s~` / `r~` in a
+patch adds one 64-sample block to the loop, and the ports include it.
+
+- `siren` {[rate 3], [low 300], [high 1100], [echo 0]}: POLICE/police3.pd.
+  `logosc~` is `1 - (1 - 2p)^e` then `(2 - 2p)^(e/2)` (Pd-extended pow~); one
+  at `rate` sweeps another between `low` and `high`, clipped +-0.2 into `bp~`
+  1500 Hz Q 4. `echo` 1 is environment.pd (33 / 121 / 165 ms cross-fed
+  echoes); the default 0 is dry.
+- `door_creak` {force (signal), [seed]}: CREAKING/doorcreaker.pd. Over 0.3, a
+  tick every `3 + 60 (1 - f)` ms + up to `6 (1 - f)` ms; height `sqrt(sqrt(e)
+  + 0.1)` and fall `sqrt(e)` ms (e = ms since the last / 100), squared;
+  wood `bp~` 62.5 / 125 / 250 / 395 / 560 / 790 Hz plus 0.2 dry; eight panel
+  delays 4.5-16 ms (feedback 0.05); old `hip~` 125, x 0.2. Density 239 / 588
+  events a second at force 0.4 / 0.9.
+- `jet` {speed (signal 0.1..1), [seed]}: JETENGINE/jetengine1.pd. `lop~` 0.2
+  Hz on speed; turbine sines 3097 / 4495 / 5588 / 7471 / 11000 x s (gains
+  0.25 / 0.25 / 1 / 0.4 / 0.4, clip 0.9); burner noise `bp~` 8 kHz Q 0.5 ->
+  `vcf~` 150 s^2 Hz Q 1 -> old `hip~` 120 -> x 120 clip -> `vcf~` 12000 s Hz Q
+  0.6; burner + 0.5 turbine, `lop~` 11 kHz, x 0.1. Centroid 744 / 2507 Hz at
+  speed 0.3 / 0.9.
+- `red_alert` {[at 0.01 or a list], [pitch 1]}: REDALERT/TOS_redalert.pd. A
+  phasor at `360 + 487 sqrt(line)` Hz (900 ms rise), shaped `p - 0.5 + 0.3
+  cos(4 pi p)`, gated 890 ms, into five feedback delays (15 / 35 / 11 / 22 /
+  24 ms, x 0.6) summed through old `hip~` 12 and fed back through a 61 ms one
+  (x 0.006), clipped at x 4, formants `bp~` 740 / 1400 / 1500 / 1600 Hz Q 12.
 
 **Modal shapes and `shatter`** (`docs/nodes/M7.md`):
 

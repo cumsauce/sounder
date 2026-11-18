@@ -159,3 +159,77 @@ fn the_ported_nodes_are_deterministic_and_reject_bad_fields() {
         assert!(e.contains("give"), "{e}");
     }
 }
+
+// Round 2: siren, door_creak, jet, red_alert (5 kHz-scale STFT distance to
+// the Pd renders: 6.1 / 8.0 / 6.3 / 4.2 dB).
+
+#[test]
+fn siren_sweeps_between_low_and_high() {
+    let x = node_audio(one("siren", json!({"rate": 0.5})), "n", 2.0);
+    assert_finite(&x, "siren");
+    // The horn's band-pass sits at 1.5 kHz; the sweep moves the fundamental
+    // between 300 and 1100 Hz, so the first and last quarters of a slow
+    // sweep differ in pitch.
+    let d = describe(&mono(&x));
+    let p: Vec<f32> = d.pitch_tenths.iter().flatten().copied().collect();
+    println!("siren pitch by tenth {:?}", d.pitch_tenths);
+    let (lo, hi) = (
+        p.iter().cloned().fold(f32::MAX, f32::min),
+        p.iter().cloned().fold(0.0, f32::max),
+    );
+    assert!(lo > 250.0 && hi < 1300.0 && hi > 1.8 * lo, "{lo} {hi}");
+}
+
+#[test]
+fn door_creaks_only_when_pushed() {
+    let still = node_audio(one("door_creak", json!({"force": 0.2})), "n", 1.0);
+    assert!(rms_db(&still) < -100.0, "{}", rms_db(&still));
+    let slow = describe(&mono(&node_audio(
+        one("door_creak", json!({"force": 0.4, "seed": 2})),
+        "n",
+        2.0,
+    )));
+    let fast = describe(&mono(&node_audio(
+        one("door_creak", json!({"force": 0.9, "seed": 2})),
+        "n",
+        2.0,
+    )));
+    println!(
+        "door creak density {:.1} / {:.1} events a second",
+        slow.density.per_s, fast.density.per_s
+    );
+    assert!(fast.density.per_s > slow.density.per_s * 1.3);
+}
+
+#[test]
+fn jet_rises_in_pitch_and_level_with_speed() {
+    let lo = node_audio(one("jet", json!({"speed": 0.3})), "n", 8.0);
+    let hi = node_audio(one("jet", json!({"speed": 0.9})), "n", 8.0);
+    assert_finite(&hi, "jet");
+    let tail = |x: &[f32]| x[(6.0 * SR as f32) as usize..].to_vec();
+    let c = |x: Vec<f32>| describe(&mono(&x)).centroid_all_hz;
+    let (cl, ch) = (c(tail(&lo)), c(tail(&hi)));
+    println!("jet centroid at speed 0.3 / 0.9: {cl:.0} / {ch:.0} Hz");
+    assert!(ch > cl * 1.5);
+    // The 0.2 Hz spool: the first half second is quieter than later.
+    assert!(rms_db(&hi[..SR as usize / 2]) < rms_db(&tail(&hi)) - 3.0);
+}
+
+#[test]
+fn red_alert_whoops_where_asked_and_rises() {
+    let x = node_audio(one("red_alert", json!({"at": [0.01, 1.3]})), "n", 2.6);
+    assert_finite(&x, "red_alert");
+    let d = describe(&mono(&x));
+    let t: Vec<f32> = d.onsets.iter().map(|o| o.t).collect();
+    println!("red alert onsets {t:?}");
+    assert!(t.iter().any(|v| (v - 0.01).abs() < 0.03));
+    assert!(t.iter().any(|v| (v - 1.3).abs() < 0.03));
+    for e in [
+        render_error(one("red_alert", json!({"pitch": 9}))),
+        render_error(one("siren", json!({"low": 900, "high": 500}))),
+    ] {
+        assert!(e.contains("give"), "{e}");
+    }
+    assert_bit_identical(one("door_creak", json!({"force": 0.7, "seed": 1})), 1.0);
+    assert_bit_identical(one("jet", json!({"speed": 0.5})), 1.0);
+}
