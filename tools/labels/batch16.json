@@ -1,0 +1,902 @@
+[
+ {
+  "id": "s01",
+  "family": "gaps",
+  "group": "footstep_snow",
+  "design": "snow_1.4",
+  "dressed": false,
+  "doc": {
+   "sound": "s01",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "snow",
+     "speed": 1.4,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s02",
+  "family": "gaps",
+  "group": "footstep_wood",
+  "design": "wood_1.4",
+  "dressed": true,
+  "doc": {
+   "sound": "s02",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "wood",
+     "speed": 1.4,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s03",
+  "family": "gaps",
+  "group": "footstep_ice",
+  "design": "ice_0.8",
+  "dressed": false,
+  "doc": {
+   "sound": "s03",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "ice",
+     "speed": 0.8,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s04",
+  "family": "gaps",
+  "group": "footstep_wood",
+  "design": "wood_0.8",
+  "dressed": false,
+  "doc": {
+   "sound": "s04",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "wood",
+     "speed": 0.8,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s05",
+  "family": "gaps",
+  "group": "footstep_metal",
+  "design": "metal_1.4",
+  "dressed": true,
+  "doc": {
+   "sound": "s05",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "metal",
+     "speed": 1.4,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s06",
+  "family": "gaps",
+  "group": "footstep_snow",
+  "design": "snow_0.8",
+  "dressed": false,
+  "doc": {
+   "sound": "s06",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "snow",
+     "speed": 0.8,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s07",
+  "family": "gaps",
+  "group": "footstep_carpet",
+  "design": "carpet_1.4",
+  "dressed": false,
+  "doc": {
+   "sound": "s07",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "carpet",
+     "speed": 1.4,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s08",
+  "family": "gaps",
+  "group": "footstep_metal",
+  "design": "metal_1.4",
+  "dressed": false,
+  "doc": {
+   "sound": "s08",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "metal",
+     "speed": 1.4,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s09",
+  "family": "gaps",
+  "group": "footstep_ice",
+  "design": "ice_0.8",
+  "dressed": true,
+  "doc": {
+   "sound": "s09",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "ice",
+     "speed": 0.8,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s10",
+  "family": "gaps",
+  "group": "footstep_dirt",
+  "design": "dirt_1.4",
+  "dressed": false,
+  "doc": {
+   "sound": "s10",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "dirt",
+     "speed": 1.4,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s11",
+  "family": "gaps",
+  "group": "footstep_snow",
+  "design": "snow_1.4",
+  "dressed": true,
+  "doc": {
+   "sound": "s11",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "snow",
+     "speed": 1.4,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s12",
+  "family": "gaps",
+  "group": "footstep_ice",
+  "design": "ice_1.4",
+  "dressed": false,
+  "doc": {
+   "sound": "s12",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "ice",
+     "speed": 1.4,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s13",
+  "family": "gaps",
+  "group": "footstep_carpet",
+  "design": "carpet_1.4",
+  "dressed": true,
+  "doc": {
+   "sound": "s13",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "carpet",
+     "speed": 1.4,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s14",
+  "family": "gaps",
+  "group": "footstep_wood",
+  "design": "wood_1.4",
+  "dressed": false,
+  "doc": {
+   "sound": "s14",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "wood",
+     "speed": 1.4,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s15",
+  "family": "gaps",
+  "group": "footstep_dirt",
+  "design": "dirt_1.4",
+  "dressed": true,
+  "doc": {
+   "sound": "s15",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "dirt",
+     "speed": 1.4,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s16",
+  "family": "gaps",
+  "group": "footstep_ice",
+  "design": "ice_1.4",
+  "dressed": true,
+  "doc": {
+   "sound": "s16",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "ice",
+     "speed": 1.4,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s17",
+  "family": "gaps",
+  "group": "footstep_carpet",
+  "design": "carpet_0.8",
+  "dressed": false,
+  "doc": {
+   "sound": "s17",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "carpet",
+     "speed": 0.8,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s18",
+  "family": "gaps",
+  "group": "footstep_metal",
+  "design": "metal_0.8",
+  "dressed": false,
+  "doc": {
+   "sound": "s18",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "metal",
+     "speed": 0.8,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s19",
+  "family": "gaps",
+  "group": "footstep_dirt",
+  "design": "dirt_0.8",
+  "dressed": true,
+  "doc": {
+   "sound": "s19",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "dirt",
+     "speed": 0.8,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s20",
+  "family": "gaps",
+  "group": "footstep_snow",
+  "design": "snow_0.8",
+  "dressed": true,
+  "doc": {
+   "sound": "s20",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "snow",
+     "speed": 0.8,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s21",
+  "family": "gaps",
+  "group": "footstep_wood",
+  "design": "wood_0.8",
+  "dressed": true,
+  "doc": {
+   "sound": "s21",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "wood",
+     "speed": 0.8,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s22",
+  "family": "gaps",
+  "group": "footstep_carpet",
+  "design": "carpet_0.8",
+  "dressed": true,
+  "doc": {
+   "sound": "s22",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "carpet",
+     "speed": 0.8,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s23",
+  "family": "gaps",
+  "group": "footstep_metal",
+  "design": "metal_0.8",
+  "dressed": true,
+  "doc": {
+   "sound": "s23",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "metal",
+     "speed": 0.8,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s24",
+  "family": "gaps",
+  "group": "footstep_dirt",
+  "design": "dirt_0.8",
+  "dressed": false,
+  "doc": {
+   "sound": "s24",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "dirt",
+     "speed": 0.8,
+     "grit": 1.0,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ }
+]

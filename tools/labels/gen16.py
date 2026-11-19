@@ -21,7 +21,6 @@ for surf in ("dirt", "snow", "wood", "metal", "ice", "carpet"):
     for speed in (0.8, 1.4):
         DESIGNS.append((f"{surf}_{speed}", "footstep_" + surf, two(surf, speed, 1.0), 1.4, {"peak_db": -3}))
 
-DESIGNS.append(("gravel_body_plus_other_texture", "footstep_layered", lay, 1.4, {"peak_db": -3}))
 
 
 def main(project):
