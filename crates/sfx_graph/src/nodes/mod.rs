@@ -45,6 +45,7 @@ mod farnell_scifi;
 mod farnell_vehicles;
 mod machines;
 mod rain;
+mod surf;
 
 mod elements;
 
@@ -110,6 +111,7 @@ pub use farnell_scifi::*;
 pub use farnell_vehicles::*;
 pub use machines::*;
 pub use rain::*;
+pub use surf::*;
 
 pub use elements::*;
 
