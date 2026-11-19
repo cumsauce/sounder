@@ -11,11 +11,14 @@
 //! `syrinx` node already wraps (`birdsong2`, 57 species), so a `birdsong` node
 //! would be a second name for it.
 
-use foley_synth::frog;
+use std::f32::consts::PI;
+
+use foley_dsp::BandPass;
 use serde::Deserialize;
 
 use super::{one, positive};
 use crate::buf::Buf;
+use crate::dsp::Rng;
 use crate::node::{Cx, Describe, Eval, Outs};
 
 const MAX_CHORUS: u32 = 24;
@@ -98,7 +101,7 @@ impl Eval for Frog {
             };
             let mut t = if k == 0 { 0.0 } else { rng.unit() / pace };
             while t < cx.n as f32 / cx.sr {
-                let mut call = frog(own, rng.next_u64(), sr);
+                let mut call = croak(own, &mut rng, sr);
                 let peak = call.iter().fold(0f32, |m, x| m.max(x.abs()));
                 if peak > 0.0 {
                     let scale = CALL_PEAK * level * distance / peak;
@@ -113,4 +116,80 @@ impl Eval for Frog {
         }
         Ok(one(Buf::Audio(out)))
     }
+}
+
+/// One call. foley's `frog` with what a listener missed put back: every call
+/// at its own pitch (a frog never croaks twice alike: +-12 % a call, +-6 % a
+/// note, falling through the note), pulses that are rasping clicks of noise
+/// rather than smooth half-sines, and a broad sac (Q 3, not 8) that rings
+/// less like a sung vowel. The sac's pitch law is foley's.
+fn croak(size_cm: f32, rng: &mut Rng, sample_rate: u32) -> Vec<f32> {
+    let rate = sample_rate as f32;
+    let sac = 2500.0 * (3.0 / size_cm.clamp(2.0, 20.0)) * (1.0 + 0.12 * rng.signed());
+    let trill = size_cm < 8.0 && rng.unit() < 0.35;
+    let pulse_rate = if trill {
+        180.0 + 80.0 * rng.unit()
+    } else {
+        60.0 + 90.0 * rng.unit()
+    };
+    let notes = if trill {
+        1
+    } else {
+        1 + (rng.unit() * 3.0) as usize
+    };
+    let mut out = Vec::new();
+    let mut resonance = [
+        BandPass::new_at(sac, 3.0, sample_rate),
+        BandPass::new_at(2.3 * sac, 2.5, sample_rate),
+    ];
+    let mut breath = BandPass::new_at(sac * 0.5, 1.0, sample_rate);
+    let width = ((0.0015 * rate) as usize).max(2);
+    for _ in 0..notes {
+        let note = sac * (1.0 + 0.06 * rng.signed());
+        // Pitch falls 4-15 % through a croak; a trill holds it.
+        let fall = if trill {
+            0.02
+        } else {
+            0.04 + 0.11 * rng.unit()
+        };
+        let seconds = if trill {
+            0.6 + 0.8 * rng.unit()
+        } else {
+            0.1 + 0.4 * rng.unit()
+        };
+        let samples = (seconds * rate) as usize;
+        let mut next = 0usize;
+        let mut pulse_at = usize::MAX;
+        let mut strength = 1.0;
+        for i in 0..samples {
+            let t = i as f32 / samples as f32;
+            if i >= next {
+                pulse_at = i;
+                strength = 0.6 + 0.8 * rng.unit();
+                // Pulses come quicker in the middle of a note.
+                let speed = 1.0 + 0.15 * (PI * t).sin();
+                let period = rate / (pulse_rate * speed) * (1.0 + 0.08 * rng.signed());
+                next = i + period as usize;
+                let f = note * (1.0 + 0.04 - fall * t);
+                resonance[0].tune_at(f, 3.0, sample_rate);
+                resonance[1].tune_at(2.3 * f, 2.5, sample_rate);
+            }
+            let envelope = (t * 10.0).min(1.0) * ((1.0 - t) * 6.0).min(1.0);
+            let phase = i.wrapping_sub(pulse_at);
+            let pulse = if phase < width {
+                let k = 1.0 - phase as f32 / width as f32;
+                strength * k * k * (0.6 * rng.signed() + if phase == 0 { 1.0 } else { 0.0 })
+            } else {
+                0.0
+            };
+            let x = envelope * pulse;
+            out.push(3.0 * resonance[0].process(x) + 0.6 * resonance[1].process(x) + 0.04 * x);
+        }
+        let gap = ((0.05 + 0.15 * rng.unit()) * rate) as usize;
+        for i in 0..gap {
+            let t = i as f32 / gap as f32;
+            out.push(0.04 * (PI * t).sin() * breath.process(rng.signed()));
+        }
+    }
+    out
 }

@@ -1,0 +1,441 @@
+[
+ {
+  "id": "s01",
+  "family": "foley",
+  "group": "frog",
+  "design": "frog_small",
+  "dressed": false,
+  "doc": {
+   "sound": "s01",
+   "ops": [
+    {
+     "type": "frog",
+     "size": 3,
+     "rate": 1,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s02",
+  "family": "foley",
+  "group": "frog",
+  "design": "frog_mid",
+  "dressed": false,
+  "doc": {
+   "sound": "s02",
+   "ops": [
+    {
+     "type": "frog",
+     "size": 7,
+     "rate": 0.7,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s03",
+  "family": "foley",
+  "group": "cave",
+  "design": "cave_default",
+  "dressed": false,
+  "doc": {
+   "sound": "s03",
+   "ops": [
+    {
+     "type": "cave",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 10,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s04",
+  "family": "foley",
+  "group": "frog",
+  "design": "frog_bull",
+  "dressed": true,
+  "doc": {
+   "sound": "s04",
+   "ops": [
+    {
+     "type": "frog",
+     "size": 15,
+     "rate": 0.4,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 8,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s05",
+  "family": "foley",
+  "group": "cave",
+  "design": "cave_deep_sparse",
+  "dressed": true,
+  "doc": {
+   "sound": "s05",
+   "ops": [
+    {
+     "type": "cave",
+     "drips": 0.2,
+     "depth": 1,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 12,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s06",
+  "family": "foley",
+  "group": "cave",
+  "design": "cave_shallow_wet",
+  "dressed": true,
+  "doc": {
+   "sound": "s06",
+   "ops": [
+    {
+     "type": "cave",
+     "drips": 1,
+     "depth": 0.2,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 8,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s07",
+  "family": "foley",
+  "group": "cave",
+  "design": "cave_deep_sparse",
+  "dressed": false,
+  "doc": {
+   "sound": "s07",
+   "ops": [
+    {
+     "type": "cave",
+     "drips": 0.2,
+     "depth": 1,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 12,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s08",
+  "family": "foley",
+  "group": "cave",
+  "design": "cave_default",
+  "dressed": true,
+  "doc": {
+   "sound": "s08",
+   "ops": [
+    {
+     "type": "cave",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 10,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s09",
+  "family": "foley",
+  "group": "frog",
+  "design": "frog_chorus",
+  "dressed": true,
+  "doc": {
+   "sound": "s09",
+   "ops": [
+    {
+     "type": "frog",
+     "size": 6,
+     "rate": 0.6,
+     "chorus": 6,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 10,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s10",
+  "family": "foley",
+  "group": "cave",
+  "design": "cave_shallow_wet",
+  "dressed": false,
+  "doc": {
+   "sound": "s10",
+   "ops": [
+    {
+     "type": "cave",
+     "drips": 1,
+     "depth": 0.2,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 8,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s11",
+  "family": "foley",
+  "group": "frog",
+  "design": "frog_small",
+  "dressed": true,
+  "doc": {
+   "sound": "s11",
+   "ops": [
+    {
+     "type": "frog",
+     "size": 3,
+     "rate": 1,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s12",
+  "family": "foley",
+  "group": "frog",
+  "design": "frog_bull",
+  "dressed": false,
+  "doc": {
+   "sound": "s12",
+   "ops": [
+    {
+     "type": "frog",
+     "size": 15,
+     "rate": 0.4,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 8,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s13",
+  "family": "foley",
+  "group": "frog",
+  "design": "frog_mid",
+  "dressed": true,
+  "doc": {
+   "sound": "s13",
+   "ops": [
+    {
+     "type": "frog",
+     "size": 7,
+     "rate": 0.7,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s14",
+  "family": "foley",
+  "group": "frog",
+  "design": "frog_chorus",
+  "dressed": false,
+  "doc": {
+   "sound": "s14",
+   "ops": [
+    {
+     "type": "frog",
+     "size": 6,
+     "rate": 0.6,
+     "chorus": 6,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 10,
+   "seed": 1
+  }
+ }
+]

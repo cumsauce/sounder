@@ -11,7 +11,7 @@
 
 use std::f32::consts::{PI, TAU};
 
-use foley_dsp::{LowPass, Wobble, helmholtz};
+use foley_dsp::{BandPass, Bubble, LowPass, Wobble, helmholtz};
 use serde::Deserialize;
 
 use super::one;
@@ -226,7 +226,7 @@ pub struct Cave {
 }
 
 impl Describe for Cave {
-    const BLURB: &'static str = "cave bed (after the foley project): five ceiling voices dripping 0.8-1.4 kHz on a Poisson clock, a sub-bass rumble from depth x mass, rare settling stones; depth, mass, drips, openness (fades the bed); loop: true wraps without a seam";
+    const BLURB: &'static str = "cave bed: drips (0.4-4 a second) into pools (Minnaert bubbles 0.7-2.2 kHz, rising) and on wet rock, in a long dark echo sized by depth (1.5-4 s), a sub-bass rumble from depth x mass, rare settling stones; depth, mass, drips, openness (fades the bed); loop: true wraps without a seam";
     const WORDS: &'static [&'static str] = &["cave", "drip", "drips"];
     fn example() -> serde_json::Value {
         serde_json::json!({"depth": 1, "mass": 1, "drips": 0.5, "seed": 1})
@@ -261,25 +261,19 @@ impl Eval for Cave {
     }
 }
 
-/// Drip band, Hz: the radial mode of an in-falling drop's cavity.
-const DRIP_HZ_LO: f32 = 800.0;
-const DRIP_HZ_HI: f32 = 1400.0;
-const DRIP_MS: f32 = 30.0;
-const VOICES: usize = 5;
+/// Drips a second at `drips` 0 and 1 (a Poisson process): a few, not a buzz.
+const DRIP_RATE: [f32; 2] = [0.4, 4.0];
+/// Pool drops ring as Minnaert bubbles 1.5 to 5 mm across (2.2 kHz to 660 Hz).
+const DROP_MM: [f32; 2] = [1.5, 5.0];
+/// Share of drips that land in a pool; the rest tick on wet rock.
+const POOL: f32 = 0.7;
 const RUMBLE_HZ: f32 = 55.0;
-/// Settling stones a second when the cave is wet and deep.
+/// Settling stones, a second, in a deep wet cave.
 const STONE_RATE: f32 = 0.04;
 const STONE_GAIN: f32 = 0.05;
 const STONE_MS: f32 = 80.0;
-
-struct Drip {
-    hz: f32,
-    pan: f32,
-    until: f32,
-    envelope: f32,
-    phase: f32,
-    firing: bool,
-}
+/// Seconds rendered before sample 0, so the cave's echo is already full.
+const PRE_ROLL: f32 = 2.0;
 
 struct Stone {
     envelope: f32,
@@ -287,61 +281,57 @@ struct Stone {
     hz: f32,
 }
 
-fn render_cave(rng: &mut Rng, n: usize, sr: f32, scene: [f32; 4], looped: bool) -> Vec<f32> {
-    let [depth, mass, drips, openness] = scene;
-    let total = n + if looped { (WRAP_TAIL * sr) as usize } else { 0 };
+/// The dry cave: drips into pools and on rock, the rumble and the stones.
+fn cave_dry(rng: &mut Rng, total: usize, sr: f32, depth: f32, mass: f32, drips: f32) -> Vec<f32> {
     let dt = 1.0 / sr;
-    let attack = 1.0 - (-1.0 / (0.001 * sr)).exp();
-    let decay = (-1.0 / (DRIP_MS * 0.001 * sr * 0.3)).exp();
-    let mut voices: [Drip; VOICES] = [(); VOICES].map(|()| Drip {
-        hz: DRIP_HZ_LO + (DRIP_HZ_HI - DRIP_HZ_LO) * rng.unit(),
-        pan: 2.0 * rng.unit() - 1.0,
-        until: 0.2 * rng.unit(),
-        envelope: 0.0,
-        phase: 0.0,
-        firing: false,
-    });
-    let mut rumble = LowPass::new_at(RUMBLE_HZ, sr as u32);
-    let mut lfo = Wobble::new_at(0.3, 0.6, 0.5, 1.5, sr as u32);
+    let sri = sr as u32;
+    let mut rumble = LowPass::new_at(RUMBLE_HZ, sri);
+    let mut lfo = Wobble::new_at(0.3, 0.6, 0.5, 1.5, sri);
     let rumble_level = 0.15 * depth * mass;
-    let drip_rate = 5.0 * drips * VOICES as f32;
+    let drip_rate = if drips > 0.0 {
+        DRIP_RATE[0] + (DRIP_RATE[1] - DRIP_RATE[0]) * drips
+    } else {
+        0.0
+    };
     let stones_active = drips > 0.0 && drips + depth > 0.5;
-    let fade = (1.0 - openness).clamp(0.0, 1.0);
     let stone_attack = 1.0 - (-1.0 / (0.005 * sr)).exp();
     let stone_decay = (-1.0 / (STONE_MS * 0.001 * sr * 0.3)).exp();
+    let tick_decay = (-1.0 / (0.0015 * sr)).exp();
+    let mut tick_bp = BandPass::new_at(3200.0, 1.2, sri);
+    let mut tick = 0.0f32;
+    let mut pools: Vec<(Bubble, f32)> = Vec::new();
+    let mut until = if drip_rate > 0.0 {
+        rng.exponential(drip_rate)
+    } else {
+        f32::MAX
+    };
     let mut stone: Option<Stone> = None;
-    let mut stone_wait = 0.0f32;
+    let mut stone_wait = rng.exponential(STONE_RATE);
     let mut out = vec![0.0f32; total];
-    // Foley warms the filters and the slow wobble for 4096 samples at 48 kHz.
-    let warm = (4096.0 * sr / 48000.0) as usize;
-    for i in 0..warm + total {
-        let noise = rng.signed();
-        let w = lfo.next(rng.signed());
-        let rum = rumble_level * w * rumble.process(noise);
-        let mut sum = 0.0f32;
-        for v in &mut voices {
-            v.until -= dt;
-            if v.until <= 0.0 {
-                if drip_rate > 0.0 {
-                    v.until = rng.exponential(drip_rate);
-                    v.envelope = 0.0;
-                    v.phase = 0.0;
-                    v.firing = true;
-                } else {
-                    v.until = 1.0;
-                    v.firing = false;
-                }
-            }
-            if v.firing {
-                v.envelope += attack * (1.0 - v.envelope);
-                v.phase = (v.phase + TAU * v.hz / sr) % TAU;
-                sum += 0.4 * v.envelope * v.phase.sin() * (0.5 + 0.5 * v.pan);
-                v.envelope *= decay;
-                if v.envelope < 1e-3 {
-                    v.firing = false;
-                }
+    for o in out.iter_mut() {
+        until -= dt;
+        while until <= 0.0 {
+            until += rng.exponential(drip_rate);
+            // Near drops are loud, far ones soft: the cave's depth of field.
+            let level = 0.25 + 0.75 * rng.unit() * rng.unit();
+            if rng.unit() < POOL {
+                let mm = DROP_MM[0] * (DROP_MM[1] / DROP_MM[0]).powf(rng.unit());
+                let rise = 0.05 + 0.25 * rng.unit();
+                pools.push((Bubble::new_at(mm * 1e-3, 0.3, sri).with_rise(rise), level));
+                tick += 0.3 * level;
+            } else {
+                tick += level;
             }
         }
+        let noise = rng.signed();
+        let rum = rumble_level * lfo.next(rng.signed()) * rumble.process(noise);
+        let mut sum = 0.0f32;
+        for (b, g) in &mut pools {
+            sum += *g * b.sample();
+        }
+        pools.retain(|(b, _)| !b.done());
+        sum += 0.5 * tick_bp.process(tick * noise);
+        tick *= tick_decay;
         let mut stone_mix = 0.0;
         if stones_active {
             stone_wait -= dt;
@@ -356,7 +346,6 @@ fn render_cave(rng: &mut Rng, n: usize, sr: f32, scene: [f32; 4], looped: bool) 
             if let Some(s) = &mut stone {
                 s.envelope += stone_attack * (1.0 - s.envelope);
                 s.phase = (s.phase + TAU * s.hz / sr) % TAU;
-                // A half-rectified low sine: a rock click.
                 stone_mix = STONE_GAIN * s.envelope * s.phase.sin().abs();
                 s.envelope *= stone_decay;
                 if s.envelope < 1e-4 {
@@ -364,10 +353,30 @@ fn render_cave(rng: &mut Rng, n: usize, sr: f32, scene: [f32; 4], looped: bool) 
                 }
             }
         }
-        if i >= warm {
-            out[i - warm] = ((rum + sum + stone_mix) * fade).tanh();
-        }
+        *o = rum + sum + stone_mix;
     }
+    out
+}
+
+/// A cave is its echo: the drips go through a long, dark feedback delay
+/// network sized by the depth (1.5 s of ring near the surface, 4 s deep).
+fn render_cave(rng: &mut Rng, n: usize, sr: f32, scene: [f32; 4], looped: bool) -> Vec<f32> {
+    let [depth, mass, drips, openness] = scene;
+    let pre = (PRE_ROLL * sr) as usize;
+    let total = pre + n + if looped { (WRAP_TAIL * sr) as usize } else { 0 };
+    let dry = cave_dry(rng, total, sr, depth, mass, drips);
+    let size = 0.5 + 0.5 * depth;
+    let rt = 1.5 + 2.5 * depth;
+    let wet = crate::nodes::time::fdn_tail(&dry, 0, size, rt, 0.55, sr);
+    let fade = (1.0 - openness).clamp(0.0, 1.0);
+    // An opening lets the echo out first.
+    let wet_gain = 0.9 * fade;
+    let mut out: Vec<f32> = dry
+        .iter()
+        .zip(&wet)
+        .skip(pre)
+        .map(|(d, w)| ((d * fade + wet_gain * 0.5 * (w[0] + w[1])) * fade).tanh())
+        .collect();
     if looped {
         wrap(&mut out, n);
     }
