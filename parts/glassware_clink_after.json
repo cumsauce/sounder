@@ -1,0 +1,144 @@
+{
+ "role": "after",
+ "material": "glass",
+ "description": "heard as \"common glassware clink\" in a blind listen; built as: a ringing metal tail after a hit: two metal bars a non-integer ratio apart (about 1 : 1.52), a few hundred ms of ring; strikes at 5 ms",
+ "tags": [
+  "clink",
+  "common",
+  "glassware",
+  "inharmonic",
+  "metal",
+  "ring",
+  "tail"
+ ],
+ "origin": "candidate batch 1 (built as metal_ring_tail); the listener rated it good blind on 2026-11-18. new, not heard; two modal bars as the sword clash recipe in AGENTS.md, lower",
+ "doc": {
+  "name": "glassware_clink_after",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "hit_n",
+    "color": "white",
+    "seed": 91
+   },
+   {
+    "type": "decay",
+    "name": "hit_e",
+    "time": 0.004,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "hit_n",
+    "b": "hit_e"
+   },
+   {
+    "type": "modal",
+    "name": "bar_a",
+    "excite": "hit_burst",
+    "material": "metal",
+    "shape": "bar",
+    "f0": 900,
+    "loss": 0.7,
+    "noise": 0.2,
+    "tilt": 3
+   },
+   {
+    "type": "modal",
+    "name": "bar_b",
+    "excite": "hit_burst",
+    "material": "metal",
+    "shape": "bar",
+    "f0": 1368,
+    "loss": 0.9,
+    "noise": 0.2,
+    "tilt": 3,
+    "gain_db": -4
+   },
+   {
+    "type": "mix",
+    "name": "bars",
+    "inputs": [
+     "bar_a",
+     "bar_b"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "bars",
+    "db": -18.6
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "ring",
+    "value": 0.5528419686577808,
+    "default": 0.5528419686577808,
+    "doc": "how long the ring lasts",
+    "game": false,
+    "map": [
+     {
+      "node": "bar_a",
+      "field": "loss",
+      "from": 2.5,
+      "to": 0.25,
+      "curve": "exp"
+     },
+     {
+      "node": "bar_b",
+      "field": "loss",
+      "from": 3.2,
+      "to": 0.32,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "decay",
+     1
+    ]
+   },
+   {
+    "name": "pitch",
+    "value": 0.4588735530601037,
+    "default": 0.4588735530601037,
+    "doc": "pitch of both bars",
+    "game": false,
+    "map": [
+     {
+      "node": "bar_a",
+      "field": "f0",
+      "from": 500,
+      "to": 1800,
+      "curve": "exp"
+     },
+     {
+      "node": "bar_b",
+      "field": "f0",
+      "from": 760,
+      "to": 2736,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   }
+  ]
+ }
+}

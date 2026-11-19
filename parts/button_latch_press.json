@@ -1,0 +1,114 @@
+{
+ "role": "whole",
+ "material": "plastic",
+ "description": "heard as \"a button or latch lock\" in a blind listen; built as: a keyboard key press: a down tap and an up tap 109 ms later, noise-struck wood bar, no pitch; first tap at 5 ms",
+ "tags": [
+  "button",
+  "key",
+  "keyboard",
+  "latch",
+  "lock",
+  "mechanical",
+  "press"
+ ],
+ "origin": "candidate batch 1 (built as key_press); the listener rated it good blind on 2026-11-18. built from batch-1 cue s07, rated good (heard as 'mechanical keyboard keys'): same pink burst 0.0174 s, wood bar f0 312.3, loss 2.3, noise 0.72, tilt 4.7, 2 of its 4 knocks (0.01 and 0.119 s there; 5 ms and 114 ms here)",
+ "doc": {
+  "name": "button_latch_press",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "n",
+    "color": "pink",
+    "seed": 60
+   },
+   {
+    "type": "pattern",
+    "name": "p",
+    "times": [
+     0.005,
+     0.114
+    ]
+   },
+   {
+    "type": "trigger_env",
+    "name": "e",
+    "events": "p",
+    "attack": 0.0005,
+    "decay": 0.0174
+   },
+   {
+    "type": "math",
+    "name": "burst",
+    "op": "mul",
+    "a": "n",
+    "b": "e"
+   },
+   {
+    "type": "modal",
+    "name": "body",
+    "excite": "burst",
+    "material": "wood",
+    "shape": "bar",
+    "f0": 312.3,
+    "loss": 2.3,
+    "noise": 0.72,
+    "tilt": 4.7
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "body",
+    "db": -5.0
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.40564528754841356,
+    "default": 0.40564528754841356,
+    "doc": "size of the key: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "body",
+      "field": "f0",
+      "from": 200,
+      "to": 600,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   },
+   {
+    "name": "travel",
+    "value": 0.2842105263157895,
+    "default": 0.2842105263157895,
+    "doc": "time between the down and up tap",
+    "game": false,
+    "map": [
+     {
+      "node": "p",
+      "field": "times",
+      "index": 1,
+      "from": 0.06,
+      "to": 0.25
+     }
+    ]
+   }
+  ]
+ }
+}

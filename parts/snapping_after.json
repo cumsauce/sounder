@@ -1,0 +1,132 @@
+{
+ "role": "after",
+ "material": "any",
+ "description": "heard as \"progressive snapping of a small object\" in a blind listen; built as: a loose rattle after a hit: a dozen small dry ticks over 0.25 s thinning out; first at 5 ms",
+ "tags": [
+  "after",
+  "loose",
+  "object",
+  "progressive",
+  "rattle",
+  "small",
+  "snapping",
+  "ticks"
+ ],
+ "origin": "candidate batch 1 (built as loose_rattle_after); the listener rated it good blind on 2026-11-18. new, not heard; burst events -> voices of a tiny noise-struck wood bar (no click, no hard crumple)",
+ "doc": {
+  "name": "snapping_after",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "burst",
+    "name": "ev",
+    "count": 12,
+    "spread": 0.25,
+    "curve": "exp",
+    "at": 0.005,
+    "values": {
+     "min": 0.3,
+     "max": 1.0
+    },
+    "seed": 8
+   },
+   {
+    "type": "voices",
+    "name": "rattle",
+    "events": "ev",
+    "length": 0.06,
+    "max": 32,
+    "map": {
+     "pitch": "$base + $rand * 2400"
+    },
+    "patch": [
+     {
+      "type": "noise",
+      "name": "pn",
+      "color": "pink"
+     },
+     {
+      "type": "decay",
+      "name": "pe",
+      "time": 0.003,
+      "at": 0.0
+     },
+     {
+      "type": "math",
+      "name": "pburst",
+      "op": "mul",
+      "a": "pn",
+      "b": "pe"
+     },
+     {
+      "type": "gain",
+      "name": "strike",
+      "input": "pburst",
+      "gain": "$value"
+     },
+     {
+      "type": "modal",
+      "name": "piece",
+      "excite": "strike",
+      "material": "wood",
+      "shape": "bar",
+      "f0": "$pitch",
+      "loss": 3,
+      "noise": 0.5,
+      "tilt": 2
+     }
+    ]
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "rattle",
+    "db": 0.1
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {
+   "base": 1200
+  },
+  "macros": [
+   {
+    "name": "length",
+    "value": 0.37499999999999994,
+    "default": 0.37499999999999994,
+    "doc": "how long it rattles",
+    "game": false,
+    "map": [
+     {
+      "node": "ev",
+      "field": "spread",
+      "from": 0.1,
+      "to": 0.5
+     }
+    ]
+   },
+   {
+    "name": "pitch",
+    "value": 0.4374461427803859,
+    "default": 0.4374461427803859,
+    "doc": "size of the loose parts: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "param": "base",
+      "from": 700,
+      "to": 2400,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

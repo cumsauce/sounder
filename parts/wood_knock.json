@@ -8,7 +8,7 @@
   "settle",
   "second hit"
  ],
- "origin": "a layer of the door_slam template, which the listener approved as a whole",
+ "origin": "a layer of the approved door_slam template; the listener also approved it alone on 2026-11-18",
  "doc": {
   "name": "wood_knock",
   "kind": "oneshot",

@@ -1,0 +1,84 @@
+{
+ "role": "whole",
+ "material": "plastic",
+ "description": "heard as \"snap\" in a blind listen; built as: a small switch click: a press and a release 24 ms later; strikes at 5 ms",
+ "tags": [
+  "click",
+  "mechanism",
+  "snap",
+  "switch"
+ ],
+ "origin": "candidate batch 1 (built as switch_click); the listener rated it good blind on 2026-11-18. built from batch-1 cue s19, rated good (heard as snapped fingers): same click switch, size 0.38, hardness 0.36, noise 0.56 (at 5 ms instead of 10 ms)",
+ "doc": {
+  "name": "switch_click",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "click",
+    "name": "sw",
+    "kind": "switch",
+    "size": 0.38,
+    "hardness": 0.36,
+    "noise": 0.56,
+    "at": 0.005,
+    "seed": 1
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "sw",
+    "db": -6.0
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "size",
+    "value": 0.38,
+    "default": 0.38,
+    "doc": "size of the switch: bigger is lower",
+    "game": false,
+    "map": [
+     {
+      "node": "sw",
+      "field": "size",
+      "from": 0,
+      "to": 1
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ]
+   },
+   {
+    "name": "hardness",
+    "value": 0.36,
+    "default": 0.36,
+    "doc": "sharpness of the switch",
+    "game": false,
+    "map": [
+     {
+      "node": "sw",
+      "field": "hardness",
+      "from": 0,
+      "to": 1
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   }
+  ]
+ }
+}

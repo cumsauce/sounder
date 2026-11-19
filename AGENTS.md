@@ -296,9 +296,14 @@ after bed texture whole`), with a material, tags and one to three knobs.
 Before building a layer from nodes, look for one:
 
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`,
-  `approved`): the library's parts and saved sounds plus the built-in parts
-  in `parts/` (`wood_brush`, `noise_crack`, `wood_panel_body`, `low_thump`,
-  `wood_knock`: the layers of the approved door slam). Approved ones come
+  `approved`): the library's parts and saved sounds plus the 31 built-in
+  parts in `parts/`: the five layers of the approved door slam (`wood_brush`,
+  `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock`) and 26 the
+  listener rated good in a blind batch (bodies in wood, metal and glass,
+  cracks, two weights, lead-ins, tails and debris, small plastic and UI
+  sounds). Each of those is named and described by what the listener heard
+  (`heard as "..."`), which is often not what it was built as: search by the
+  sound you need, not by the node that might make it. Approved ones come
   first. `catalog describe` shows a part's nodes and knobs.
 - Use it with a `sound` node: `{"type": "sound", "name": "body", "sound":
   "wood_panel_body", "at": 0.045, "gain_db": 0, "macros": {"size": 0.6}}`. A
@@ -315,8 +320,9 @@ Before building a layer from nodes, look for one:
   changed document clears it and the result says so. A part that is not
   approved is a draft: say so when you use one.
 
-The five built-in parts were approved as one sound, not each alone.
-Reassembled with the bus above they pass `layers` (`tests/parts.rs`).
+The five built-in parts are the layers of the approved door slam, and the
+listener approved each one alone as well (2026-11-18). Reassembled with the
+bus above they pass `layers` (`tests/parts.rs`).
 
 **From the round 6 listen (testers' sounds, judged by ear):**
 - **Door slam:** `new_sound` with `template: "door_slam"` (the recipe below, approved by ear, ready to tune); keep

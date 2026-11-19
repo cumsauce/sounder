@@ -1,0 +1,113 @@
+{
+ "role": "crack",
+ "material": "any",
+ "description": "heard as \"high pitched/small click\" in a blind listen; built as: a bright short transient for a metal hit: white noise in a 4-8 kHz band; strikes at 5 ms",
+ "tags": [
+  "bright",
+  "click",
+  "crack",
+  "high",
+  "metal",
+  "pitched/small",
+  "transient"
+ ],
+ "origin": "candidate batch 1 (built as bright_metal_crack); the listener rated it good blind on 2026-11-18. new, not heard; the sword-clash crack recipe in AGENTS.md raised to a band-pass at 5.5 kHz",
+ "doc": {
+  "name": "small_bright_click_crack",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "c_n",
+    "color": "white",
+    "seed": 61
+   },
+   {
+    "type": "decay",
+    "name": "c_e",
+    "time": 0.007,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "c_burst",
+    "op": "mul",
+    "a": "c_n",
+    "b": "c_e"
+   },
+   {
+    "type": "filter",
+    "name": "band",
+    "input": "c_burst",
+    "mode": "bp",
+    "freq": 5500,
+    "q": 0.5
+   },
+   {
+    "type": "filter",
+    "name": "hp",
+    "input": "band",
+    "mode": "hp",
+    "freq": 3000
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "hp",
+    "db": -2.2
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "brightness",
+    "value": 0.5467483232351779,
+    "default": 0.5467483232351779,
+    "doc": "centre of the crack",
+    "game": false,
+    "map": [
+     {
+      "node": "band",
+      "field": "freq",
+      "from": 3500,
+      "to": 8000,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   },
+   {
+    "name": "length",
+    "value": 0.4466232326566167,
+    "default": 0.4466232326566167,
+    "doc": "length of the crack",
+    "game": false,
+    "map": [
+     {
+      "node": "c_e",
+      "field": "time",
+      "from": 0.003,
+      "to": 0.02,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "decay",
+     1
+    ]
+   }
+  ]
+ }
+}

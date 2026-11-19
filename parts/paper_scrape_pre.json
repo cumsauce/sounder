@@ -1,0 +1,120 @@
+{
+ "role": "pre",
+ "material": "wood",
+ "description": "heard as \"scraping paper or wood\" in a blind listen; built as: a soft cloth swish before a hit: noise in a 500 Hz to 3.5 kHz band with a slow swell, 0.18 s long; the hit goes at at: 0.175",
+ "tags": [
+  "cloth",
+  "paper",
+  "pre",
+  "scraping",
+  "sleeve",
+  "swish",
+  "wood"
+ ],
+ "origin": "candidate batch 1 (built as cloth_swish_pre); the listener rated it good blind on 2026-11-18. new, not heard; pink noise band with a slow wander on the band centre (no crumple)",
+ "doc": {
+  "name": "paper_scrape_pre",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "n",
+    "color": "pink",
+    "seed": 83
+   },
+   {
+    "type": "wander",
+    "name": "fw",
+    "rate": 6,
+    "range": [
+     900,
+     1800
+    ],
+    "seed": 4
+   },
+   {
+    "type": "filter",
+    "name": "band",
+    "input": "n",
+    "mode": "bp",
+    "freq": "fw",
+    "q": 0.6
+   },
+   {
+    "type": "filter",
+    "name": "soft",
+    "input": "band",
+    "mode": "lp",
+    "freq": 3500
+   },
+   {
+    "type": "env",
+    "name": "swell",
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      0.07,
+      0.6
+     ],
+     [
+      0.14,
+      1
+     ],
+     [
+      0.18,
+      0
+     ]
+    ],
+    "curve": "smooth"
+   },
+   {
+    "type": "math",
+    "name": "swish",
+    "op": "mul",
+    "a": "soft",
+    "b": "swell"
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "swish",
+    "db": 4.4
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "softness",
+    "value": 0.49384122536338787,
+    "default": 0.49384122536338787,
+    "doc": "how much the highs are cut",
+    "game": false,
+    "map": [
+     {
+      "node": "soft",
+      "field": "freq",
+      "from": 8000,
+      "to": 1500,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ]
+   }
+  ]
+ }
+}

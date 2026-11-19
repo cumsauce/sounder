@@ -1,0 +1,151 @@
+{
+ "role": "pre",
+ "material": "cloth",
+ "description": "heard as \"accelerating sweep against fabric\" in a blind listen; built as: a blade or bar sliding before a metal hit: friction + noise in a 4 kHz band, 0.12 s long; the hit goes at at: 0.115 (this part's own end is 0.12 s)",
+ "tags": [
+  "accelerating",
+  "against",
+  "blade",
+  "fabric",
+  "friction",
+  "metal",
+  "pre",
+  "slide",
+  "sweep"
+ ],
+ "origin": "candidate batch 1 (built as metal_slide_pre); the listener rated it good blind on 2026-11-18. new, not heard; the door slam brush layer (friction + pink noise under an env) moved to 4 kHz and 120 ms",
+ "doc": {
+  "name": "fabric_sweep_pre",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "env",
+    "name": "env",
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      0.01,
+      0.2
+     ],
+     [
+      0.1,
+      1
+     ],
+     [
+      0.12,
+      0
+     ]
+    ],
+    "curve": "smooth"
+   },
+   {
+    "type": "math",
+    "name": "speed",
+    "op": "mul",
+    "a": "env",
+    "b": 1.6
+   },
+   {
+    "type": "friction",
+    "name": "fr",
+    "speed": "speed",
+    "pressure": "env",
+    "roughness": 0.8,
+    "grain": 1200,
+    "seed": 5
+   },
+   {
+    "type": "noise",
+    "name": "n",
+    "color": "pink",
+    "seed": 81
+   },
+   {
+    "type": "math",
+    "name": "nb",
+    "op": "mul",
+    "a": "n",
+    "b": "env"
+   },
+   {
+    "type": "mix",
+    "name": "m",
+    "inputs": [
+     {
+      "input": "fr",
+      "gain": 0.6
+     },
+     {
+      "input": "nb",
+      "gain": 0.5
+     }
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "filter",
+    "name": "band",
+    "input": "m",
+    "mode": "bp",
+    "freq": 4000,
+    "q": 0.8
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "band",
+    "db": -8.6
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "brightness",
+    "value": 0.4918869697392692,
+    "default": 0.4918869697392692,
+    "doc": "centre of the slide",
+    "game": false,
+    "map": [
+     {
+      "node": "band",
+      "field": "freq",
+      "from": 2500,
+      "to": 6500,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   },
+   {
+    "name": "grit",
+    "value": 0.8,
+    "default": 0.8,
+    "doc": "how rough the slide is",
+    "game": false,
+    "map": [
+     {
+      "node": "fr",
+      "field": "roughness",
+      "from": 0.2,
+      "to": 1.0
+     }
+    ]
+   }
+  ]
+ }
+}

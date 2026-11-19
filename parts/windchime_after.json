@@ -1,0 +1,126 @@
+{
+ "role": "after",
+ "material": "glass",
+ "description": "heard as \"windchime\" in a blind listen; built as: glass shards falling after a break: 30 small glass pieces over 0.45 s, the break event itself silenced; first piece at 5 ms",
+ "tags": [
+  "after",
+  "debris",
+  "glass",
+  "shards",
+  "windchime"
+ ],
+ "origin": "candidate batch 1 (built as glass_debris_after); the listener rated it good blind on 2026-11-18. new, not heard; shatter -> voices of a small glass modal, as the AGENTS.md shatter recipe with the first event silenced",
+ "doc": {
+  "name": "windchime_after",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "shatter",
+    "name": "bits",
+    "pieces": 30,
+    "spread": 0.45,
+    "at": 0.005,
+    "exponent": 2,
+    "seed": 4
+   },
+   {
+    "type": "voices",
+    "name": "shards",
+    "events": "bits",
+    "length": 0.3,
+    "max": 64,
+    "map": {
+     "lvl": "$index < 1 ? 0 : $value",
+     "pitch": "$base + $rand * 1800"
+    },
+    "patch": [
+     {
+      "type": "noise",
+      "name": "pn",
+      "color": "pink"
+     },
+     {
+      "type": "decay",
+      "name": "pe",
+      "time": 0.004,
+      "at": 0.0
+     },
+     {
+      "type": "math",
+      "name": "pburst",
+      "op": "mul",
+      "a": "pn",
+      "b": "pe"
+     },
+     {
+      "type": "gain",
+      "name": "strike",
+      "input": "pburst",
+      "gain": "$lvl"
+     },
+     {
+      "type": "modal",
+      "name": "piece",
+      "excite": "strike",
+      "material": "glass",
+      "f0": "$pitch",
+      "modes": 12,
+      "loss": 1.8,
+      "tilt": -2,
+      "noise": 0.15
+     }
+    ]
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "shards",
+    "db": 15.1
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {
+   "base": 700
+  },
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.44670524433488773,
+    "default": 0.44670524433488773,
+    "doc": "size of the shards: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "param": "base",
+      "from": 400,
+      "to": 1400,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "spread",
+    "value": 0.41666666666666663,
+    "default": 0.41666666666666663,
+    "doc": "how long the shards keep falling",
+    "game": false,
+    "map": [
+     {
+      "node": "bits",
+      "field": "spread",
+      "from": 0.2,
+      "to": 0.8
+     }
+    ]
+   }
+  ]
+ }
+}

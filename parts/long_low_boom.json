@@ -1,0 +1,105 @@
+{
+ "role": "weight",
+ "material": "any",
+ "description": "heard as \"large bassy hit\" in a blind listen; built as: a long low boom of band-limited noise, about 0.8 s, no tone; strikes at 5 ms",
+ "tags": [
+  "bassy",
+  "boom",
+  "large",
+  "long",
+  "low",
+  "weight"
+ ],
+ "origin": "candidate batch 1 (built as long_low_boom); the listener rated it good blind on 2026-11-18. new, not heard; brown noise x decay through two lp stages, as the door slam thd layer, longer and lower",
+ "doc": {
+  "name": "long_low_boom",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "w_n",
+    "color": "brown",
+    "seed": 72
+   },
+   {
+    "type": "decay",
+    "name": "w_e",
+    "time": 0.55,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "w_burst",
+    "op": "mul",
+    "a": "w_n",
+    "b": "w_e"
+   },
+   {
+    "type": "filter",
+    "name": "lp",
+    "input": "w_burst",
+    "mode": "lp",
+    "freq": 110,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "lp",
+    "db": 0.4
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "depth",
+    "value": 0.4965535754691143,
+    "default": 0.4965535754691143,
+    "doc": "how low the boom is",
+    "game": false,
+    "map": [
+     {
+      "node": "lp",
+      "field": "freq",
+      "from": 200,
+      "to": 60,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ]
+   },
+   {
+    "name": "length",
+    "value": 0.5687517618749675,
+    "default": 0.5687517618749675,
+    "doc": "length of the boom",
+    "game": false,
+    "map": [
+     {
+      "node": "w_e",
+      "field": "time",
+      "from": 0.25,
+      "to": 1.0,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "decay",
+     1
+    ]
+   }
+  ]
+ }
+}

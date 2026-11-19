@@ -1,0 +1,102 @@
+{
+ "role": "body",
+ "material": "any",
+ "description": "heard as \"basic medium click\" in a blind listen; built as: a small dowel hitting a desk, or a metronome tick: a short bright wooden tick; strikes at 5 ms",
+ "tags": [
+  "basic",
+  "click",
+  "desk",
+  "dowel",
+  "medium",
+  "metronome",
+  "tick",
+  "wood"
+ ],
+ "origin": "candidate batch 1 (built as small_wood_tick_body); the listener rated it good blind on 2026-11-18. built from batch-1 cue s29, rated good (heard as 'a small dowel hitting a desk or a metronome'): same burst 0.0066 s, wood bar f0 463.4, loss 1.74, noise 0.72, tilt 4.7",
+ "doc": {
+  "name": "medium_click_body",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "hit_n",
+    "color": "pink",
+    "seed": 27
+   },
+   {
+    "type": "decay",
+    "name": "hit_e",
+    "time": 0.0066,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "hit_n",
+    "b": "hit_e"
+   },
+   {
+    "type": "modal",
+    "name": "tick",
+    "excite": "hit_burst",
+    "material": "wood",
+    "shape": "bar",
+    "f0": 463.4,
+    "loss": 1.74,
+    "noise": 0.72,
+    "tilt": 4.7
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "tick",
+    "db": -2.4
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.4798917807810604,
+    "default": 0.4798917807810604,
+    "doc": "size of the piece: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "tick",
+      "field": "f0",
+      "from": 280,
+      "to": 800,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "ring",
+    "value": 0.5172049455666943,
+    "default": 0.5172049455666943,
+    "doc": "how long it rings",
+    "game": false,
+    "map": [
+     {
+      "node": "tick",
+      "field": "loss",
+      "from": 4,
+      "to": 0.8,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

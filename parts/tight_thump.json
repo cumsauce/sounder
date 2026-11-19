@@ -1,0 +1,104 @@
+{
+ "role": "weight",
+ "material": "any",
+ "description": "heard as \"bassy low hit\" in a blind listen; built as: a short low thump of band-limited noise, about 0.15 s, no tone; strikes at 5 ms",
+ "tags": [
+  "bassy",
+  "low",
+  "short",
+  "thump",
+  "weight"
+ ],
+ "origin": "candidate batch 1 (built as tight_thump); the listener rated it good blind on 2026-11-18. new, not heard; brown noise x decay through a 24 dB lp, as the door slam thd layer, shorter",
+ "doc": {
+  "name": "tight_thump",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "w_n",
+    "color": "brown",
+    "seed": 71
+   },
+   {
+    "type": "decay",
+    "name": "w_e",
+    "time": 0.1,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "w_burst",
+    "op": "mul",
+    "a": "w_n",
+    "b": "w_e"
+   },
+   {
+    "type": "filter",
+    "name": "lp",
+    "input": "w_burst",
+    "mode": "lp",
+    "freq": 180,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "lp",
+    "db": 0.3
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "depth",
+    "value": 0.45357430663327086,
+    "default": 0.45357430663327086,
+    "doc": "how low the thump is",
+    "game": false,
+    "map": [
+     {
+      "node": "lp",
+      "field": "freq",
+      "from": 320,
+      "to": 90,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ]
+   },
+   {
+    "name": "length",
+    "value": 0.4306765580733931,
+    "default": 0.4306765580733931,
+    "doc": "length of the thump",
+    "game": false,
+    "map": [
+     {
+      "node": "w_e",
+      "field": "time",
+      "from": 0.05,
+      "to": 0.25,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "decay",
+     1
+    ]
+   }
+  ]
+ }
+}

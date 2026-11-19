@@ -1,0 +1,115 @@
+{
+ "role": "body",
+ "material": "any",
+ "description": "heard as \"low bassy hit on wood or another solid without resonance\" in a blind listen; built as: a soft body blow: a short low-passed dull thud on a soft material, no pitch; strikes at 5 ms",
+ "tags": [
+  "another",
+  "bassy",
+  "flesh",
+  "punch",
+  "resonance",
+  "soft",
+  "solid",
+  "thud",
+  "without",
+  "wood"
+ ],
+ "origin": "candidate batch 1 (built as flesh_thud_body); the listener rated it good blind on 2026-11-18. new, not heard; soft-material modal with noise 0.8, low-passed",
+ "doc": {
+  "name": "dead_low_hit_body",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "hit_n",
+    "color": "pink",
+    "seed": 41
+   },
+   {
+    "type": "decay",
+    "name": "hit_e",
+    "time": 0.02,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "hit_n",
+    "b": "hit_e"
+   },
+   {
+    "type": "modal",
+    "name": "meat",
+    "excite": "hit_burst",
+    "material": "soft",
+    "shape": "plate",
+    "f0": 140,
+    "loss": 4,
+    "noise": 0.8,
+    "tilt": 0
+   },
+   {
+    "type": "filter",
+    "name": "dull",
+    "input": "meat",
+    "mode": "lp",
+    "freq": 900
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "dull",
+    "db": 11.2
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "size",
+    "value": 0.52520814854866,
+    "default": 0.52520814854866,
+    "doc": "size of the body part: larger is lower",
+    "game": false,
+    "map": [
+     {
+      "node": "meat",
+      "field": "f0",
+      "from": 260,
+      "to": 80,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "dullness",
+    "value": 0.5574929506502398,
+    "default": 0.5574929506502398,
+    "doc": "how much the highs are cut",
+    "game": false,
+    "map": [
+     {
+      "node": "dull",
+      "field": "freq",
+      "from": 2500,
+      "to": 400,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ]
+   }
+  ]
+ }
+}

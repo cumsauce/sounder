@@ -1,0 +1,101 @@
+{
+ "role": "body",
+ "material": "wood",
+ "description": "heard as \"medium hollow wood hit\" in a blind listen; built as: a medium plastic bin set down: a low hollow thump, no pitch; strikes at 5 ms",
+ "tags": [
+  "bin",
+  "hollow",
+  "medium",
+  "plastic",
+  "set down",
+  "thump",
+  "wood"
+ ],
+ "origin": "candidate batch 1 (built as plastic_bin_body); the listener rated it good blind on 2026-11-18. built from batch-1 cue s11, rated good (heard as 'placing down a medium plastic bin'): same burst 0.0196 s, wood bar f0 176.8, loss 1.81, noise 0.39, tilt -1.5",
+ "doc": {
+  "name": "hollow_wood_hit_body",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "hit_n",
+    "color": "pink",
+    "seed": 79
+   },
+   {
+    "type": "decay",
+    "name": "hit_e",
+    "time": 0.0196,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "hit_n",
+    "b": "hit_e"
+   },
+   {
+    "type": "modal",
+    "name": "bin",
+    "excite": "hit_burst",
+    "material": "wood",
+    "shape": "bar",
+    "f0": 176.8,
+    "loss": 1.81,
+    "noise": 0.39,
+    "tilt": -1.5
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "bin",
+    "db": -17.4
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "size",
+    "value": 0.5270230370107265,
+    "default": 0.5270230370107265,
+    "doc": "size of the bin: larger is lower",
+    "game": false,
+    "map": [
+     {
+      "node": "bin",
+      "field": "f0",
+      "from": 300,
+      "to": 110,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "ring",
+    "value": 0.4926984195636841,
+    "default": 0.4926984195636841,
+    "doc": "how long it rings",
+    "game": false,
+    "map": [
+     {
+      "node": "bin",
+      "field": "loss",
+      "from": 4,
+      "to": 0.8,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,99 @@
+{
+ "role": "body",
+ "material": "glass",
+ "description": "heard as \"glass clink\" in a blind listen; built as: a glass bowl tapped with a utensil: one dominant ring over a short noise strike; strikes at 5 ms",
+ "tags": [
+  "bowl",
+  "clink",
+  "glass",
+  "tap",
+  "utensil"
+ ],
+ "origin": "candidate batch 1 (built as glass_bowl_body); the listener rated it good blind on 2026-11-18. built from batch-1 cue s20, rated good (same noise burst 0.0155 s, plate f0 723.8, loss 1.05, noise 0.14, tilt 3.2; strike at 5 ms instead of 10 ms)",
+ "doc": {
+  "name": "glass_bowl_body",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "hit_n",
+    "color": "pink",
+    "seed": 79
+   },
+   {
+    "type": "decay",
+    "name": "hit_e",
+    "time": 0.0155,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "hit_n",
+    "b": "hit_e"
+   },
+   {
+    "type": "modal",
+    "name": "bowl",
+    "excite": "hit_burst",
+    "material": "glass",
+    "shape": "plate",
+    "f0": 723.8,
+    "loss": 1.05,
+    "noise": 0.14,
+    "tilt": 3.2
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "bowl",
+    "db": -5.2
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5317274817554974,
+    "default": 0.5317274817554974,
+    "doc": "size of the bowl: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "bowl",
+      "field": "f0",
+      "from": 450,
+      "to": 1100,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "ring",
+    "value": 0.5210286121940213,
+    "default": 0.5210286121940213,
+    "doc": "how long the bowl rings",
+    "game": false,
+    "map": [
+     {
+      "node": "bowl",
+      "field": "loss",
+      "from": 3,
+      "to": 0.4,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

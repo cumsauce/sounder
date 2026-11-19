@@ -1,0 +1,100 @@
+{
+ "role": "body",
+ "material": "glass",
+ "description": "heard as \"glass or glass metal clink\" in a blind listen; built as: a glass pane or window struck: higher, shorter-ringing plate with a lifted top; strikes at 5 ms",
+ "tags": [
+  "clink",
+  "glass",
+  "metal",
+  "pane",
+  "tap",
+  "window"
+ ],
+ "origin": "candidate batch 1 (built as glass_pane_body); the listener rated it good blind on 2026-11-18. new, not heard; sibling of the s20 glass bowl with f0 1500, shorter strike, more noise and tilt",
+ "doc": {
+  "name": "glass_pane_body",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "hit_n",
+    "color": "pink",
+    "seed": 21
+   },
+   {
+    "type": "decay",
+    "name": "hit_e",
+    "time": 0.008,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "hit_n",
+    "b": "hit_e"
+   },
+   {
+    "type": "modal",
+    "name": "pane",
+    "excite": "hit_burst",
+    "material": "glass",
+    "shape": "plate",
+    "f0": 1500,
+    "loss": 1.6,
+    "noise": 0.3,
+    "tilt": 4
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "pane",
+    "db": -1.0
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5208099393420961,
+    "default": 0.5208099393420961,
+    "doc": "size of the pane: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "pane",
+      "field": "f0",
+      "from": 900,
+      "to": 2400,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "ring",
+    "value": 0.4406426982957874,
+    "default": 0.4406426982957874,
+    "doc": "how long the pane rings",
+    "game": false,
+    "map": [
+     {
+      "node": "pane",
+      "field": "loss",
+      "from": 4,
+      "to": 0.5,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

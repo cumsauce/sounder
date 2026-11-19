@@ -1,0 +1,130 @@
+{
+ "role": "pre",
+ "material": "air",
+ "description": "heard as \"the leadup to a sneeze\" in a blind listen; built as: a wooden creak rising before a hit: friction through a wood body, 0.16 s long; the hit goes at at: 0.155",
+ "tags": [
+  "creak",
+  "friction",
+  "leadup",
+  "pre",
+  "sneeze",
+  "wood"
+ ],
+ "origin": "candidate batch 1 (built as wood_creak_pre); the listener rated it good blind on 2026-11-18. new, not heard; door_creak recipe (ramp -> friction -> wood modal) shortened; friction as a pre layer only",
+ "doc": {
+  "name": "breath_swell_pre",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "ramp",
+    "name": "spd",
+    "from": 0.3,
+    "to": 1.3,
+    "time": 0.16,
+    "curve": "linear"
+   },
+   {
+    "type": "env",
+    "name": "env",
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      0.02,
+      0.4
+     ],
+     [
+      0.14,
+      1
+     ],
+     [
+      0.16,
+      0
+     ]
+    ],
+    "curve": "smooth"
+   },
+   {
+    "type": "friction",
+    "name": "fr",
+    "speed": "spd",
+    "pressure": "env",
+    "roughness": 0.6,
+    "grain": 150,
+    "seed": 6
+   },
+   {
+    "type": "modal",
+    "name": "wood",
+    "excite": "fr",
+    "material": "wood",
+    "size": 0.45,
+    "loss": 1.2,
+    "noise": 0.4,
+    "tilt": 2
+   },
+   {
+    "type": "math",
+    "name": "creak",
+    "op": "mul",
+    "a": "wood",
+    "b": "env"
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "creak",
+    "db": -20.3
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "rate",
+    "value": 0.4829903955332975,
+    "default": 0.4829903955332975,
+    "doc": "speed of the creak",
+    "game": false,
+    "map": [
+     {
+      "node": "fr",
+      "field": "grain",
+      "from": 60,
+      "to": 400,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "size",
+    "value": 0.44444444444444453,
+    "default": 0.44444444444444453,
+    "doc": "size of the wood: larger is lower",
+    "game": false,
+    "map": [
+     {
+      "node": "wood",
+      "field": "size",
+      "from": 0.25,
+      "to": 0.7
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ]
+   }
+  ]
+ }
+}

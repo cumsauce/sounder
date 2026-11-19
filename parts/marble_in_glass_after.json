@@ -1,0 +1,162 @@
+{
+ "role": "after",
+ "material": "glass",
+ "description": "heard as \"marble dropped into a glass\" in a blind listen; built as: a coin dropping and ringing: a few diminishing small strikes then a thin inharmonic ring; first strike at 5 ms",
+ "tags": [
+  "after",
+  "coin",
+  "drop",
+  "dropped",
+  "glass",
+  "into",
+  "marble",
+  "metal",
+  "ring"
+ ],
+ "origin": "candidate batch 1 (built as coin_ring_after); the listener rated it good blind on 2026-11-18. new, not heard; two thin metal plates (f0 2900 and 4210 Hz) struck by decaying noise bursts at 5, 60, 100, 128 ms",
+ "doc": {
+  "name": "marble_in_glass_after",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "n",
+    "color": "white",
+    "seed": 92
+   },
+   {
+    "type": "pattern",
+    "name": "ev",
+    "times": [
+     0.005,
+     0.06,
+     0.1,
+     0.128
+    ],
+    "values": {
+     "min": 0.25,
+     "max": 0.25
+    }
+   },
+   {
+    "type": "trigger_env",
+    "name": "te",
+    "events": "ev",
+    "attack": 0.0004,
+    "decay": 0.004,
+    "scale_by_value": false
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "n",
+    "b": "te"
+   },
+   {
+    "type": "modal",
+    "name": "coin_a",
+    "excite": "hit_burst",
+    "material": "metal",
+    "shape": "plate",
+    "f0": 2900,
+    "thickness": 0.0015,
+    "loss": 0.7,
+    "noise": 0.15,
+    "tilt": 3,
+    "modes": 12
+   },
+   {
+    "type": "modal",
+    "name": "coin_b",
+    "excite": "hit_burst",
+    "material": "metal",
+    "shape": "plate",
+    "f0": 4210,
+    "thickness": 0.0015,
+    "loss": 0.9,
+    "noise": 0.15,
+    "tilt": 3,
+    "modes": 12,
+    "gain_db": -4
+   },
+   {
+    "type": "mix",
+    "name": "coin",
+    "inputs": [
+     "coin_a",
+     "coin_b"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "coin",
+    "db": -22.1
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5204942661755644,
+    "default": 0.5204942661755644,
+    "doc": "size of the coin: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "coin_a",
+      "field": "f0",
+      "from": 1800,
+      "to": 4500,
+      "curve": "exp"
+     },
+     {
+      "node": "coin_b",
+      "field": "f0",
+      "from": 2614,
+      "to": 6525,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "ring",
+    "value": 0.5528419686577808,
+    "default": 0.5528419686577808,
+    "doc": "how long the coin rings",
+    "game": false,
+    "map": [
+     {
+      "node": "coin_a",
+      "field": "loss",
+      "from": 2.5,
+      "to": 0.25,
+      "curve": "exp"
+     },
+     {
+      "node": "coin_b",
+      "field": "loss",
+      "from": 3.2,
+      "to": 0.32,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "decay",
+     1
+    ]
+   }
+  ]
+ }
+}

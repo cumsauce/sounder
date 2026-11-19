@@ -1,0 +1,87 @@
+{
+ "role": "after",
+ "material": "plastic",
+ "description": "heard as \"switch or button press\" in a blind listen; built as: a small latch click after a hit: a press then a release 45 ms later, noisy; strikes at 5 ms",
+ "tags": [
+  "after",
+  "button",
+  "click",
+  "latch",
+  "mechanism",
+  "press",
+  "switch"
+ ],
+ "origin": "candidate batch 1 (built as latch_click_after); the listener rated it good blind on 2026-11-18. new, not heard; click latch size 0.6, hardness 0.8, noise 0.75 per AGENTS.md",
+ "doc": {
+  "name": "latch_click_after",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "click",
+    "name": "latch",
+    "kind": "latch",
+    "size": 0.6,
+    "hardness": 0.8,
+    "noise": 0.75,
+    "at": 0.005,
+    "seed": 1
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "latch",
+    "db": -6.0
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "size",
+    "value": 0.625,
+    "default": 0.625,
+    "doc": "size of the latch: bigger is lower",
+    "game": false,
+    "map": [
+     {
+      "node": "latch",
+      "field": "size",
+      "from": 0.1,
+      "to": 0.9
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ]
+   },
+   {
+    "name": "hardness",
+    "value": 0.75,
+    "default": 0.75,
+    "doc": "sharpness of the latch",
+    "game": false,
+    "map": [
+     {
+      "node": "latch",
+      "field": "hardness",
+      "from": 0.2,
+      "to": 1.0
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   }
+  ]
+ }
+}

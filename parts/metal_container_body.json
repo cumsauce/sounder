@@ -1,0 +1,103 @@
+{
+ "role": "body",
+ "material": "metal",
+ "description": "heard as \"medium size metal container hit\" in a blind listen; built as: a struck metal bar or pipe: low, inharmonic ring (modes 1 : 2.76 : 5.4), noise-struck; strikes at 5 ms",
+ "tags": [
+  "bar",
+  "container",
+  "medium",
+  "metal",
+  "pipe",
+  "ring",
+  "size"
+ ],
+ "origin": "candidate batch 1 (built as metal_bar_body); the listener rated it good blind on 2026-11-18. new, not heard; lowest mode 160-500 Hz and strike_glide 35 follow the AGENTS.md metal pipe advice",
+ "doc": {
+  "name": "metal_container_body",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "hit_n",
+    "color": "white",
+    "seed": 11
+   },
+   {
+    "type": "decay",
+    "name": "hit_e",
+    "time": 0.004,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "hit_n",
+    "b": "hit_e"
+   },
+   {
+    "type": "modal",
+    "name": "bar",
+    "excite": "hit_burst",
+    "material": "metal",
+    "shape": "bar",
+    "f0": 282.8427,
+    "loss": 1.0,
+    "noise": 0.3,
+    "noise_width": 0.3,
+    "tilt": 3,
+    "strike_glide": 35
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "bar",
+    "db": -17.5
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "pitch of the bar: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "bar",
+      "field": "f0",
+      "from": 160,
+      "to": 500,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "ring",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "how long the bar rings",
+    "game": false,
+    "map": [
+     {
+      "node": "bar",
+      "field": "loss",
+      "from": 2.5,
+      "to": 0.4,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

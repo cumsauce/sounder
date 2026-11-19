@@ -1,0 +1,132 @@
+{
+ "role": "after",
+ "material": "any",
+ "description": "heard as \"crunching something in the mouth\" in a blind listen; built as: stone rubble settling after a hit: about 40 small dead pieces over 0.5 s; first at 5 ms",
+ "tags": [
+  "after",
+  "crunching",
+  "debris",
+  "mouth",
+  "rubble",
+  "something",
+  "stone"
+ ],
+ "origin": "candidate batch 1 (built as stone_rubble_after); the listener rated it good blind on 2026-11-18. new, not heard; shatter -> voices with the s27-style dead modal (heard as wall/rock) per piece, first event silenced",
+ "doc": {
+  "name": "crunch_after",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "shatter",
+    "name": "bits",
+    "pieces": 40,
+    "spread": 0.5,
+    "at": 0.005,
+    "exponent": 2.5,
+    "seed": 5
+   },
+   {
+    "type": "voices",
+    "name": "rubble",
+    "events": "bits",
+    "length": 0.15,
+    "max": 64,
+    "map": {
+     "lvl": "$index < 1 ? 0 : $value",
+     "pitch": "$base * (0.6 + $rand * 2.0)"
+    },
+    "patch": [
+     {
+      "type": "noise",
+      "name": "pn",
+      "color": "pink"
+     },
+     {
+      "type": "decay",
+      "name": "pe",
+      "time": 0.005,
+      "at": 0.0
+     },
+     {
+      "type": "math",
+      "name": "pburst",
+      "op": "mul",
+      "a": "pn",
+      "b": "pe"
+     },
+     {
+      "type": "gain",
+      "name": "strike",
+      "input": "pburst",
+      "gain": "$lvl"
+     },
+     {
+      "type": "modal",
+      "name": "piece",
+      "excite": "strike",
+      "material": "wood",
+      "shape": "plate",
+      "f0": "$pitch",
+      "loss": 4,
+      "noise": 0.74,
+      "tilt": -0.9
+     }
+    ]
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "rubble",
+    "db": 24.8
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {
+   "base": 450
+  },
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.4588735530601037,
+    "default": 0.4588735530601037,
+    "doc": "size of the pieces: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "param": "base",
+      "from": 250,
+      "to": 900,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   },
+   {
+    "name": "spread",
+    "value": 0.3846153846153846,
+    "default": 0.3846153846153846,
+    "doc": "how long the pieces keep falling",
+    "game": false,
+    "map": [
+     {
+      "node": "bits",
+      "field": "spread",
+      "from": 0.25,
+      "to": 0.9
+     }
+    ]
+   }
+  ]
+ }
+}

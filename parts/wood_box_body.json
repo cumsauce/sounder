@@ -1,0 +1,98 @@
+{
+ "role": "body",
+ "material": "wood",
+ "description": "heard as \"wood hit\" in a blind listen; built as: a hollow wooden box or crate hit: low, boxy, noise-struck; strikes at 5 ms",
+ "tags": [
+  "box",
+  "crate",
+  "hollow",
+  "wood"
+ ],
+ "origin": "candidate batch 1 (built as hollow_wood_box_body); the listener rated it good blind on 2026-11-18. new, not heard; wood noise 0.6, tilt 4 per AGENTS.md on a tube shape",
+ "doc": {
+  "name": "wood_box_body",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "hit_n",
+    "color": "pink",
+    "seed": 31
+   },
+   {
+    "type": "decay",
+    "name": "hit_e",
+    "time": 0.012,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "hit_n",
+    "b": "hit_e"
+   },
+   {
+    "type": "modal",
+    "name": "box",
+    "excite": "hit_burst",
+    "material": "wood",
+    "shape": "tube",
+    "f0": 190,
+    "loss": 1.8,
+    "noise": 0.6,
+    "tilt": 4
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "box",
+    "db": 2.3
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "size",
+    "value": 0.5314859054545894,
+    "default": 0.5314859054545894,
+    "doc": "size of the box: larger is lower",
+    "game": false,
+    "map": [
+     {
+      "node": "box",
+      "field": "f0",
+      "from": 320,
+      "to": 120,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "ring",
+    "value": 0.4961407271748155,
+    "default": 0.4961407271748155,
+    "doc": "how long it rings",
+    "game": false,
+    "map": [
+     {
+      "node": "box",
+      "field": "loss",
+      "from": 4,
+      "to": 0.8,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

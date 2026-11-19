@@ -1,0 +1,105 @@
+{
+ "role": "whole",
+ "material": "plastic",
+ "description": "heard as \"small plastic hit\" in a blind listen; built as: a short UI tick: a 4 ms band of noise around 5 kHz; strikes at 5 ms",
+ "tags": [
+  "click",
+  "plastic",
+  "short",
+  "small",
+  "tick",
+  "ui"
+ ],
+ "origin": "candidate batch 1 (built as ui_tick); the listener rated it good blind on 2026-11-18. new, not heard; the UI confirm recipe tick in AGENTS.md as a part of its own",
+ "doc": {
+  "name": "small_plastic_tick",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "t_n",
+    "color": "white",
+    "seed": 93
+   },
+   {
+    "type": "decay",
+    "name": "t_e",
+    "time": 0.004,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "t_burst",
+    "op": "mul",
+    "a": "t_n",
+    "b": "t_e"
+   },
+   {
+    "type": "filter",
+    "name": "band",
+    "input": "t_burst",
+    "mode": "bp",
+    "freq": 5000,
+    "q": 0.9
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "band",
+    "db": -4.8
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.595922020357571,
+    "default": 0.595922020357571,
+    "doc": "centre of the tick",
+    "game": false,
+    "map": [
+     {
+      "node": "band",
+      "field": "freq",
+      "from": 2500,
+      "to": 8000,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   },
+   {
+    "name": "length",
+    "value": 0.38685280723454174,
+    "default": 0.38685280723454174,
+    "doc": "length of the tick",
+    "game": false,
+    "map": [
+     {
+      "node": "t_e",
+      "field": "time",
+      "from": 0.002,
+      "to": 0.012,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "decay",
+     1
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,138 @@
+{
+ "role": "after",
+ "material": "any",
+ "description": "heard as \"small slaps or pats in fast succession\" in a blind listen; built as: a few small wooden knocks scattered after a hit: five small pieces over about 0.3 s; first at 5 ms",
+ "tags": [
+  "after",
+  "debris",
+  "fast",
+  "knocks",
+  "pats",
+  "slaps",
+  "small",
+  "succession",
+  "wood"
+ ],
+ "origin": "candidate batch 1 (built as wood_debris_after); the listener rated it good blind on 2026-11-18. new, not heard; the approved knock pattern (noise-struck wood modal, noise 0.6, tilt 4, loss 3) as small pieces",
+ "doc": {
+  "name": "fast_pats_after",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "pattern",
+    "name": "ev",
+    "times": [
+     0.005,
+     0.07,
+     0.135,
+     0.2,
+     0.29
+    ],
+    "jitter": 0.012,
+    "values": {
+     "min": 0.35,
+     "max": 1.0
+    },
+    "seed": 7
+   },
+   {
+    "type": "voices",
+    "name": "pieces",
+    "events": "ev",
+    "length": 0.25,
+    "max": 16,
+    "map": {
+     "pitch": "$base * (0.7 + $rand * 0.9)"
+    },
+    "patch": [
+     {
+      "type": "noise",
+      "name": "pn",
+      "color": "pink"
+     },
+     {
+      "type": "decay",
+      "name": "pe",
+      "time": 0.006,
+      "at": 0.0
+     },
+     {
+      "type": "math",
+      "name": "pburst",
+      "op": "mul",
+      "a": "pn",
+      "b": "pe"
+     },
+     {
+      "type": "gain",
+      "name": "strike",
+      "input": "pburst",
+      "gain": "$value"
+     },
+     {
+      "type": "modal",
+      "name": "piece",
+      "excite": "strike",
+      "material": "wood",
+      "shape": "bar",
+      "f0": "$pitch",
+      "loss": 3,
+      "noise": 0.6,
+      "noise_width": 0.15,
+      "tilt": 4
+     }
+    ]
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "pieces",
+    "db": -0.8
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {
+   "base": 500
+  },
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.46497352071792686,
+    "default": 0.46497352071792686,
+    "doc": "size of the pieces: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "param": "base",
+      "from": 300,
+      "to": 900,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "scatter",
+    "value": 0.4,
+    "default": 0.4,
+    "doc": "timing looseness",
+    "game": false,
+    "map": [
+     {
+      "node": "ev",
+      "field": "jitter",
+      "from": 0,
+      "to": 0.03
+     }
+    ]
+   }
+  ]
+ }
+}

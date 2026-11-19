@@ -40,7 +40,7 @@ fn failing(doc: &SoundDoc, expect: serde_json::Value) -> Vec<String> {
 #[test]
 fn every_part_parses_renders_and_its_knob_holds() {
     let all = parts::builtin();
-    assert_eq!(all.len(), 5, "a file in parts/ does not parse");
+    assert_eq!(all.len(), 31, "a file in parts/ does not parse");
     for p in &all {
         let name = &p.doc.name;
         assert!(parts::ROLES.contains(&p.role.as_str()), "{name}: role");
@@ -95,26 +95,26 @@ fn search_filters_by_text_role_material_and_approval() {
             .map(|e| e.name)
             .collect()
     };
-    assert_eq!(names(Query::default()).len(), 5);
+    assert_eq!(names(Query::default()).len(), 31);
     assert_eq!(
         names(Query {
             role: Some("body".into()),
+            material: Some("wood".into()),
+            text: Some("panel".into()),
             ..Query::default()
         }),
         ["wood_panel_body"]
     );
     // `any` material parts fit a wood query too.
+    let wood = names(Query {
+        material: Some("wood".into()),
+        ..Query::default()
+    });
+    assert!(wood.contains(&"low_thump".to_string()) && wood.contains(&"wood_knock".to_string()));
+    assert!(!wood.contains(&"glass_bowl_body".to_string()));
     assert_eq!(
         names(Query {
-            material: Some("wood".into()),
-            ..Query::default()
-        })
-        .len(),
-        5
-    );
-    assert_eq!(
-        names(Query {
-            text: Some("WOOD knock".into()),
+            text: Some("DOOR settling".into()),
             ..Query::default()
         }),
         ["wood_knock"]
@@ -128,7 +128,7 @@ fn search_filters_by_text_role_material_and_approval() {
     );
     assert!(
         names(Query {
-            text: Some("glass".into()),
+            text: Some("zeppelin".into()),
             ..Query::default()
         })
         .is_empty()
