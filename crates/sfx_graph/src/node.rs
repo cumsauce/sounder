@@ -364,6 +364,8 @@ node_types! {
     "door_creak" => DoorCreak,
     "jet" => Jet,
     "red_alert" => RedAlert,
+    "helicopter" => Helicopter,
+    "rocket" => Rocket,
 
     "fire" => Fire,
     "wind" => Wind,
