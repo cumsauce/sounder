@@ -103,7 +103,7 @@ every call.
 
 - Time is seconds, frequency Hz, `*_db` fields dB, other gains linear.
 - `kind` `oneshot` with no `duration` renders until the output stays under
-  -80 dBFS for 50 ms (doubling 2 s up to 30 s; then a warning that it never
+  -80 dBFS or 60 dB under its own peak (the higher) for 50 ms (doubling 2 s up to 30 s; then a warning that it never
   decays), then trims the trailing silence. A `loop` needs a `duration`.
 - `duration` in `sound_ops`: a number fixes the length; **`null` (or `0`)
   returns to automatic length** (leaving it out changes nothing). Nodes that
