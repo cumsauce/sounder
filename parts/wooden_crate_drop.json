@@ -130,7 +130,7 @@
    {
     "type": "contact",
     "name": "bounce_c",
-    "speed": 0.4,
+    "speed": 1.0,
     "mass": 0.3,
     "material": "wood",
     "hardness": 0.6,
@@ -229,16 +229,18 @@
    },
    {
     "name": "bounce",
-    "value": 0.5,
-    "doc": "level of the second bounce",
+    "value": 0.0,
+    "doc": "the small second bounce at 120 ms: off at 0 (as rated), clearly heard from 0.5, as loud as the hit at 1",
     "map": [
      {
       "node": "bounce_g",
       "field": "db",
-      "from": -30,
-      "to": -4
+      "from": -16,
+      "to": 10
      }
-    ]
+    ],
+    "claim": null,
+    "default": 0.0
    },
    {
     "name": "size",
