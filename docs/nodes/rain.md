@@ -18,13 +18,13 @@ band. Under a `roof`, 85 % of the near drops land on it.
 
 | surface | modes | heard (batch 8) |
 |---|---|---|
-| water | bubbles ~14 kHz + soft splash | - |
-| stone | 3-7 kHz, fast | - |
-| leaf | 0.5-1.8 kHz | - |
-| wood | 280-900 Hz | - |
-| soft (grass, dirt; `ground`) | 250-1200 Hz, very quiet | - |
-| glass (`window`) | 2-6 kHz, ringing | - |
-| metal | 0.7-3.2 kHz, long ring | - |
+| water | bubbles ~14 kHz + soft splash | white noise (ok / bad) |
+| stone | 3-7 kHz, fast | a stream, good; "too low, oil fry" |
+| leaf | 0.5-1.8 kHz | a stream, good |
+| wood | 280-900 Hz | rain, good |
+| soft (grass, dirt; `ground`) | 250-1200 Hz, very quiet | rain, good |
+| glass (`window`) | 2-6 kHz, ringing | chimes, bad |
+| metal | 0.7-3.2 kHz, long ring | chimes, bad |
 
 Measured, 4 s at rate 10: stone centroid 4.9 kHz, 72 % in 2-8 kHz; leaf
 1.1 kHz, 91 % in 200 Hz-2 kHz; water 10.4 kHz (57 % over 8 kHz); under a
