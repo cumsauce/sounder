@@ -957,3 +957,150 @@ mod patch_paths {
         assert!((d + 6.0).abs() < 0.1, "{d}");
     }
 }
+
+mod layer_claims {
+    //! A claim that a louder layer masks, or that a multi-hit sound's
+    //! whole-sound measure cannot follow, is also measured on the knob's own
+    //! layer.
+
+    use std::collections::BTreeMap;
+
+    use serde_json::json;
+    use sfx_analysis::measure::measure;
+    use sfx_analysis::{CheckCx, Expect, run};
+    use sfx_graph::{Claim, DocEdit, Macro, MapCurve, MapEntry, Measure, RenderOpts, SoundDoc};
+
+    fn entry(node: &str, field: &str, from: f64, to: f64, curve: MapCurve) -> MapEntry {
+        MapEntry {
+            node: node.into(),
+            field: field.into(),
+            param: None,
+            from,
+            to,
+            curve,
+            col: None,
+            index: None,
+            key: None,
+        }
+    }
+
+    fn with_knob(mut d: SoundDoc, name: &str, claim: Claim, map: Vec<MapEntry>) -> SoundDoc {
+        let m = Macro {
+            name: name.into(),
+            value: 0.5,
+            default: None,
+            doc: String::new(),
+            claim: Some(claim),
+            game: false,
+            map,
+        };
+        d.apply(
+            vec![],
+            DocEdit {
+                macros: Some(vec![m]),
+                ..DocEdit::default()
+            },
+            &RenderOpts::default(),
+        )
+        .unwrap();
+        d
+    }
+
+    fn whole(d: &SoundDoc, name: &str, x: f64, m: Measure) -> f32 {
+        let r = d
+            .render(&RenderOpts {
+                macros: BTreeMap::from([(name.to_string(), x)]),
+                ..RenderOpts::default()
+            })
+            .unwrap();
+        measure(&r.audio, m)
+    }
+
+    fn macro_line(d: &SoundDoc, name: &str) -> (bool, String) {
+        let opts = RenderOpts::default();
+        let r = d.render(&opts).unwrap();
+        let res = run(
+            &Expect::defaults_for(d),
+            &CheckCx {
+                doc: d,
+                rendered: &r,
+                opts: &opts,
+            },
+        )
+        .unwrap();
+        let c = res
+            .iter()
+            .find(|c| c.name == format!("macro {name}"))
+            .unwrap();
+        (c.pass, c.detail.clone())
+    }
+
+    #[test]
+    fn a_pitch_knob_under_a_loud_hiss_is_held_on_its_own_layer() {
+        let mut d = SoundDoc::named("door");
+        d.duration = Some(0.6);
+        d.nodes = vec![
+            json!({"type": "osc", "name": "servo_o", "freq": 400, "amp": 0.3}),
+            json!({"type": "filter", "name": "servo", "input": "servo_o", "mode": "lp", "freq": 6000}),
+            json!({"type": "noise", "name": "hn", "color": "white"}),
+            json!({"type": "filter", "name": "hiss", "input": "hn", "mode": "bp", "freq": 5000, "q": 0.5}),
+            json!({"type": "gain", "name": "hiss_g", "input": "hiss", "gain": 10.0}),
+            json!({"type": "mix", "name": "dry", "inputs": ["servo", "hiss_g"], "to": "mono"}),
+            json!({"type": "output", "name": "out", "input": "dry", "peak_db": -6}),
+        ];
+        let d = with_knob(
+            d,
+            "servo_pitch",
+            Claim(Measure::Centroid, 1),
+            vec![entry("servo_o", "freq", 300.0, 1500.0, MapCurve::Exp)],
+        );
+        let c: Vec<f32> = [0.0, 0.5, 1.0]
+            .iter()
+            .map(|x| whole(&d, "servo_pitch", *x, Measure::Centroid))
+            .collect();
+        println!("whole-sound centroid: {c:?}");
+        // The hiss holds the whole-sound centroid nearly still.
+        assert!((c[2] - c[0]).abs() < 0.2 * c[0], "{c:?}");
+        let (pass, detail) = macro_line(&d, "servo_pitch");
+        println!("{detail}");
+        assert!(pass, "{detail}");
+        assert!(detail.contains("measured on `servo`"), "{detail}");
+    }
+
+    #[test]
+    fn a_ring_knob_on_a_multi_hit_sound_is_held_on_its_own_layer() {
+        let mut d = SoundDoc::named("sword");
+        d.duration = Some(2.0);
+        d.nodes = vec![
+            json!({"type": "pattern", "name": "ev", "times": [0.05, 0.6, 1.1]}),
+            json!({"type": "voices", "name": "clang", "events": "ev", "length": 0.6,
+               "patch": [
+                   {"type": "osc", "name": "o", "freq": 900, "amp": 0.5},
+                   {"type": "decay", "name": "e", "time": 0.2},
+                   {"type": "math", "name": "m", "op": "mul", "a": "o", "b": "e"}]}),
+            json!({"type": "noise", "name": "sn", "color": "white"}),
+            json!({"type": "decay", "name": "se", "time": 0.3, "at": 1.1}),
+            json!({"type": "math", "name": "scrape", "op": "mul", "a": "sn", "b": "se"}),
+            json!({"type": "gain", "name": "scrape_g", "input": "scrape", "gain": 4.0}),
+            json!({"type": "mix", "name": "dry", "inputs": ["clang", "scrape_g"], "to": "mono"}),
+            json!({"type": "output", "name": "out", "input": "dry", "peak_db": -6}),
+        ];
+        let d = with_knob(
+            d,
+            "ring",
+            Claim(Measure::Decay, 1),
+            vec![entry("clang/e", "time", 0.05, 0.4, MapCurve::Exp)],
+        );
+        let w: Vec<f32> = [0.0, 0.25, 0.5, 0.75, 1.0]
+            .iter()
+            .map(|x| whole(&d, "ring", *x, Measure::Decay))
+            .collect();
+        println!("whole-sound decay: {w:?}");
+        // The fixed late burst holds the whole-sound decay nearly still.
+        assert!((w[4] - w[0]).abs() < 0.02 * w[4].max(w[0]), "{w:?}");
+        let (pass, detail) = macro_line(&d, "ring");
+        println!("{detail}");
+        assert!(pass, "{detail}");
+        assert!(detail.contains("measured on `clang`"), "{detail}");
+    }
+}

@@ -1061,25 +1061,9 @@ fn knob_moves_db(cx: &CheckCx, m: &sfx_graph::Macro) -> Result<f32, String> {
         .fold(0.0f32, f32::max))
 }
 
-fn macro_check(
-    cx: &CheckCx,
-    m: &sfx_graph::Macro,
-    claim: sfx_graph::Claim,
-) -> Result<(bool, String), String> {
-    use crate::measure::{fmt, measure};
-    let sfx_graph::Claim(measure_of, dir) = claim;
-    let xs = sfx_graph::macros::SWEEP;
-    let (mut vals, mut peaks) = (Vec::new(), Vec::new());
-    for x in xs {
-        let r = cx.doc.render(&RenderOpts {
-            macros: [(m.name.clone(), x)].into(),
-            seed: Some(cx.rendered.seed),
-            ..cx.opts.clone()
-        })?;
-        vals.push(measure(&r.audio, measure_of));
-        peaks.push(r.peak_db);
-    }
-    let d = f32::from(dir);
+/// Does a sweep of measure values hold a claim: (steady and net the claimed
+/// way, barely moves).
+fn claim_holds(vals: &[f32], d: f32) -> (bool, bool) {
     // A step against the claim may be up to 15 % of the end-to-end move:
     // noise layers (`modal` `noise`, a noise crack) jitter a measure from
     // one knob position to the next, and a 1 % tolerance pushed agents to
@@ -1088,7 +1072,6 @@ fn macro_check(
     let tol = (span * CLAIM_BACKSTEP).max(1e-6);
     let steady = vals.windows(2).all(|w| (w[1] - w[0]) * d > -tol);
     let net = (vals[4] - vals[0]) * d > (span * 0.01).max(1e-6);
-    let clip = peaks.iter().position(|p| *p > -0.3);
     // The knob must move the measure by at least 2 % of the largest value it
     // reads: a claim that holds only by a hair is a knob nobody can hear.
     let scale = vals
@@ -1096,11 +1079,126 @@ fn macro_check(
         .map(|v| v.abs())
         .fold(0.0f32, f32::max)
         .max(1e-6);
-    let barely = (vals[4] - vals[0]).abs() < 0.02 * scale;
+    (steady && net, span < 0.02 * scale)
+}
+
+/// The nodes carrying what a macro moves: each node its `map` writes (the
+/// first segment of a patch path), or a node that reads a param it writes,
+/// followed down while exactly one node reads it, to the last one before a
+/// `mix`, `finish` or the `output`: the knob's own layer.
+fn macro_layers(doc: &SoundDoc, m: &sfx_graph::Macro) -> Vec<String> {
+    let str_field = |v: &serde_json::Value, k: &str| {
+        v.get(k).and_then(|t| t.as_str()).unwrap_or("").to_string()
+    };
+    let is_bus = |v: &serde_json::Value| {
+        matches!(str_field(v, "type").as_str(), "mix" | "finish" | "output")
+    };
+    let mut starts: Vec<String> = Vec::new();
+    for e in &m.map {
+        if let Some(p) = &e.param {
+            let pat = format!("${p}");
+            for n in &doc.nodes {
+                let name = str_field(n, "name");
+                if n.to_string().contains(&pat) && !starts.contains(&name) {
+                    starts.push(name);
+                }
+            }
+        } else if !e.node.is_empty() {
+            let first = e.node.split('/').next().unwrap_or("").to_string();
+            if !starts.contains(&first) {
+                starts.push(first);
+            }
+        }
+    }
+    let mut out: Vec<String> = Vec::new();
+    for s in starts {
+        let mut cur = s;
+        for _ in 0..doc.nodes.len() {
+            let Some(node) = doc.nodes.iter().find(|n| str_field(n, "name") == cur) else {
+                break;
+            };
+            if is_bus(node) {
+                break;
+            }
+            let readers: Vec<&serde_json::Value> = doc
+                .nodes
+                .iter()
+                .filter(|n| sfx_graph::node::refs(n).iter().any(|(r, _)| *r == cur))
+                .collect();
+            match readers.as_slice() {
+                [one] if !is_bus(one) => cur = str_field(one, "name"),
+                _ => break,
+            }
+        }
+        if !cur.is_empty() && !out.contains(&cur) {
+            out.push(cur);
+        }
+    }
+    out
+}
+
+fn macro_check(
+    cx: &CheckCx,
+    m: &sfx_graph::Macro,
+    claim: sfx_graph::Claim,
+) -> Result<(bool, String), String> {
+    use crate::measure::{fmt, measure};
+    let sfx_graph::Claim(measure_of, dir) = claim;
+    let xs = sfx_graph::macros::SWEEP;
+    let (mut vals, mut peaks, mut renders) = (Vec::new(), Vec::new(), Vec::new());
+    for x in xs {
+        let r = cx.doc.render(&RenderOpts {
+            macros: [(m.name.clone(), x)].into(),
+            seed: Some(cx.rendered.seed),
+            ..cx.opts.clone()
+        })?;
+        vals.push(measure(&r.audio, measure_of));
+        peaks.push(r.peak_db);
+        renders.push(r);
+    }
+    let d = f32::from(dir);
+    let (ok, barely) = claim_holds(&vals, d);
+    let clip = peaks.iter().position(|p| *p > -0.3);
     let shown: Vec<String> = vals.iter().map(|v| fmt(measure_of, *v)).collect();
     let word = if dir > 0 { "rise" } else { "fall" };
     let list = shown.join(" -> ");
-    Ok(match (steady && net, clip) {
+    // The whole output can mask the knob (a loud hiss over a pitch knob) or
+    // jump between hits (decay of a multi-hit sound): then the claim is also
+    // measured on the knob's own layer.
+    if clip.is_none() && !(ok && !barely) {
+        for node in macro_layers(cx.doc, m) {
+            let lv: Result<Vec<f32>, String> = renders
+                .iter()
+                .map(|r| r.node_audio(Some(&node)).map(|a| measure(&a, measure_of)))
+                .collect();
+            let Ok(lv) = lv else { continue };
+            if lv.iter().any(|v| !v.is_finite()) {
+                continue;
+            }
+            let (lok, lbarely) = claim_holds(&lv, d);
+            if lok && !lbarely {
+                let ll = lv
+                    .iter()
+                    .map(|v| fmt(measure_of, *v))
+                    .collect::<Vec<_>>()
+                    .join(" -> ");
+                let why = if ok {
+                    "the whole output moves it by under 2 %"
+                } else {
+                    "the whole output does not hold it"
+                };
+                return Ok((
+                    true,
+                    format!(
+                        "{} {}s over 0..1 measured on `{node}`, the knob's layer ({ll}); {why} ({list})",
+                        measure_of.name(),
+                        word
+                    ),
+                ));
+            }
+        }
+    }
+    Ok(match (ok, clip) {
         (true, None) if barely => (
             false,
             format!(
