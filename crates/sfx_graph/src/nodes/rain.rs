@@ -191,11 +191,11 @@ struct Struck {
 impl Struck {
     fn new(rng: &mut Rng, k: Kind, amp: f32, sr: f32) -> Struck {
         let (lo, hi, decay, click) = match k {
-            Kind::Stone => (3000.0, 7000.0, 900.0, 0.8),
+            Kind::Stone => (4500.0, 10000.0, 1100.0, 0.9), // foley: 3-7 kHz, heard as "too low, oil fry"
             Kind::Leaves => (500.0, 1800.0, 220.0, 0.25),
             Kind::Wood => (280.0, 900.0, 260.0, 0.35),
-            Kind::Glass => (2000.0, 6000.0, 90.0, 0.4),
-            Kind::Metal => (700.0, 3200.0, 35.0, 0.3),
+            Kind::Glass => (2500.0, 7000.0, 450.0, 0.6), // foley: decay 90, heard as chimes
+            Kind::Metal => (900.0, 4000.0, 220.0, 0.5),  // foley: decay 35, heard as chimes
             Kind::Soft | Kind::Water => (250.0, 1200.0, 700.0, 0.35),
         };
         let f32_hi: f32 = hi;
@@ -337,7 +337,7 @@ fn render(
     let smooth = 1.0 - (-TAU * cut / sr).exp();
     let level = 0.012 * (rate / 10.0).sqrt() * (0.3 + brightness);
     let sizzle_lvl = if k == Kind::Water && roof.is_none() {
-        0.07 * (rate / 10.0).sqrt()
+        0.025 * (rate / 10.0).sqrt() // foley 0.07: heard as white noise
     } else {
         0.0
     };

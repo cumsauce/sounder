@@ -34,3 +34,10 @@ wood roof the centroid falls from 4.9 kHz to 644 Hz. Levels differ by 20 dB
 Replaces a port of Farnell's RAIN patches (a few drops a second), which a
 listener heard as static, popcorn and tearing tape, also with a dense noise
 "wash" added (`docs/history/labels/batch6_findings.md`).
+
+## After batch 8
+
+From the listen: stone's modes moved from 3-7 kHz to 4.5-10 kHz ("too low,
+oil fry"); glass (decay 90 -> 450 /s) and metal (35 -> 220 /s) ring
+shorter, since both read as chimes; the far water sizzle is 0.025 instead
+of foley's 0.07 ("white noise"). Not heard yet.
