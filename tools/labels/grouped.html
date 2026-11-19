@@ -1,0 +1,161 @@
+<title>__TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one box per kind of sound; inside, its takes as lettered rows. Pick the best take or "all bad". */
+:root {
+  --bg: #eef1f3; --card: #ffffff; --fg: #1b2328; --muted: #5d6a73; --line: #d5dce1;
+  --accent: #0e7c86; --accent-ink: #ffffff; --bad: #a33a32;
+  --sans: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121619; --card: #1a2025; --fg: #e3e8eb; --muted: #93a1aa; --line: #2b343b;
+  --accent: #3fb6c0; --accent-ink: #071417; --bad: #e27b72; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121619; --card: #1a2025; --fg: #e3e8eb; --muted: #93a1aa; --line: #2b343b;
+  --accent: #3fb6c0; --accent-ink: #071417; --bad: #e27b72; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 15px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 1180px; margin: 0 auto; }
+header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+header .wrap { padding-block: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+h1 { font-size: 20px; font-weight: 600; margin: 0; }
+.sub { color: var(--muted); font-size: 13px; margin: 2px 0 0; max-width: 62ch; }
+.title { flex: 1 1 320px; min-width: 0; }
+.progress { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.bar { width: 140px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.notice { margin: 14px 0 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font-size: 13px; }
+main .wrap { padding-block: 18px 40px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; align-items: start; }
+.group { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.group.done { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+.group h2 { font-size: 16px; font-weight: 600; margin: 0 0 4px; display: flex; justify-content: space-between; gap: 8px; }
+.group h2 span { font-family: var(--mono); font-size: 12px; font-weight: 400; color: var(--muted); }
+.take { display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-radius: 6px; border: 1px solid transparent; }
+.take.playing { border-color: var(--accent); }
+.play { width: 36px; height: 36px; flex: none; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); display: grid; place-items: center; }
+.play svg { width: 12px; height: 12px; fill: var(--fg); }
+.letter { font-family: var(--mono); font-size: 14px; flex: 1; }
+.pick { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 6px 12px; font-size: 13px; }
+.pick[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.none { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 7px 0; font-size: 13px; width: 100%; margin-top: 4px; }
+.none[aria-pressed="true"] { background: var(--bad); border-color: var(--bad); color: var(--card); }
+textarea { width: 100%; box-sizing: border-box; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; font: inherit; font-size: 13px; resize: vertical; min-height: 34px; }
+.state { font-size: 12px; color: var(--muted); min-height: 1em; font-family: var(--mono); }
+.play:focus-visible, .pick:focus-visible, .none:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+
+<header><div class="wrap">
+  <div class="title">
+    <h1>__TITLE__</h1>
+    <p class="sub">Each box holds a few takes of one kind of sound, in random order. Play them, pick the one that sounds best, or mark them all bad. Add a note if something is off. Picks save as you go.</p>
+  </div>
+  <div class="progress"><span id="count"></span><span class="bar"><i id="fill"></i></span></div>
+</div></header>
+
+<main><div class="wrap">
+  <p class="notice" id="notice" hidden></p>
+  <div class="grid" id="grid"></div>
+</div></main>
+
+<script>
+const GROUPS = __GROUPS__;   // [{key, title, takes: ["s07", ...]}]
+const STORE = "__STORE__";
+const PLAY = '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9-5.5z"/></svg>';
+const STOP = '<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="2.5" y="2.5" width="9" height="9" rx="1"/></svg>';
+const state = {};            // group key -> {best: id | "none" | "", note}
+let db = null, audio = null, playingId = null;
+const timers = {};
+const L = i => String.fromCharCode(65 + i);
+
+const grid = document.getElementById("grid");
+grid.innerHTML = GROUPS.map(g => `
+  <section class="group" id="g-${g.key}" data-key="${g.key}">
+    <h2>${g.title}<span>${g.takes.length} takes</span></h2>
+    ${g.takes.map((id, i) => `
+      <div class="take" id="take-${id}">
+        <button class="play" type="button" data-id="${id}" aria-label="Play ${g.title} take ${L(i)}">${PLAY}</button>
+        <span class="letter">Take ${L(i)}</span>
+        <button class="pick" type="button" data-best="${id}" aria-pressed="false">Best</button>
+      </div>`).join("")}
+    <button class="none" type="button" data-best="none" aria-pressed="false">All bad</button>
+    <textarea rows="1" placeholder="Note (optional): what it sounds like, what is off"></textarea>
+    <div class="state"></div>
+  </section>`).join("");
+
+function render(key) {
+  const s = state[key] || {}, el = document.getElementById("g-" + key);
+  el.querySelectorAll("[data-best]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.best === s.best)));
+  const ta = el.querySelector("textarea");
+  if (document.activeElement !== ta) ta.value = s.note || "";
+  el.classList.toggle("done", !!s.best);
+}
+function progress() {
+  const n = GROUPS.filter(g => (state[g.key] || {}).best).length;
+  document.getElementById("count").textContent = n + " / " + GROUPS.length;
+  document.getElementById("fill").style.width = (100 * n / GROUPS.length) + "%";
+}
+function setState(key, patch) {
+  state[key] = Object.assign({}, state[key] || {}, patch);
+  render(key); progress();
+  try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {}
+  const st = document.getElementById("g-" + key).querySelector(".state");
+  clearTimeout(timers[key]);
+  if (!db) { st.textContent = "Kept in this browser only"; return; }
+  st.textContent = "Saving…";
+  timers[key] = setTimeout(async () => {
+    try {
+      const s = state[key];
+      await db.collection("picks").doc(key).set({ best: s.best || "", note: s.note || "", updated: Date.now() });
+      st.textContent = "Saved";
+    } catch (e) { st.textContent = "Not saved: " + (e && e.code ? e.code : "error"); }
+  }, 500);
+}
+function stop() {
+  if (audio) { audio.pause(); audio = null; }
+  if (playingId) {
+    document.getElementById("take-" + playingId).classList.remove("playing");
+    document.querySelector(`.play[data-id="${playingId}"]`).innerHTML = PLAY;
+  }
+  playingId = null;
+}
+function play(id) {
+  if (playingId === id) { stop(); return; }
+  stop();
+  audio = new Audio("audio/" + id + ".mp3");
+  playingId = id;
+  document.getElementById("take-" + id).classList.add("playing");
+  document.querySelector(`.play[data-id="${id}"]`).innerHTML = STOP;
+  audio.addEventListener("ended", stop);
+  audio.play().catch(stop);
+}
+grid.addEventListener("click", e => {
+  const g = e.target.closest(".group"); if (!g) return;
+  const p = e.target.closest(".play"); if (p) { play(p.dataset.id); return; }
+  const b = e.target.closest("[data-best]");
+  if (b) { const k = g.dataset.key; setState(k, { best: (state[k] || {}).best === b.dataset.best ? "" : b.dataset.best }); }
+});
+grid.addEventListener("input", e => {
+  const g = e.target.closest(".group");
+  if (g && e.target.tagName === "TEXTAREA") setState(g.dataset.key, { note: e.target.value });
+});
+
+try { Object.assign(state, JSON.parse(localStorage.getItem(STORE) || "{}")); } catch (e) {}
+GROUPS.forEach(g => render(g.key)); progress();
+
+(async () => {
+  const notice = document.getElementById("notice");
+  let got = false;
+  const t = setTimeout(() => { if (!got) { notice.hidden = false; notice.textContent = "Saving to the shared store isn't available in this view, so picks stay in this browser."; } }, 10000);
+  try { db = window.claude && await window.claude.use("db"); } catch (e) { db = null; }
+  if (!db) { got = true; clearTimeout(t); notice.hidden = false; notice.textContent = "Saving isn't available in this view (signed out or a preview), so picks stay in this browser only."; return; }
+  db.collection("picks").onSnapshot(snap => {
+    got = true; clearTimeout(t);
+    snap.docs.forEach(d => { if (d.exists && GROUPS.some(g => g.key === d.id)) { state[d.id] = Object.assign({}, state[d.id] || {}, d.data()); render(d.id); } });
+    progress();
+  }, () => { got = true; clearTimeout(t); notice.hidden = false; notice.textContent = "The shared store stopped answering; reload to save again."; });
+})();
+</script>
