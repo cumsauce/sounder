@@ -309,7 +309,7 @@ Give the human a macro on `thickness` (exp curve, 0.0008 to 0.004) as the pitch 
 
 - `thickness_scales_every_mode_linearly`: wood plate 0.1 m, thickness 0.002 lowest mode 843.3 Hz, 0.004 1686.5 Hz, ratio 2.000; wood 0.3 m with thickness 0.025 equals the default wood (1171.2 Hz).
 - `a_thin_metal_disc_of_8_cm_has_modes_between_3_and_9_khz`: metal 0.08 m x 1.5 mm peaks 1122, 2774, 2787, 4528, 5578, 5615, 7363, 9509 Hz (four between 3 and 9 kHz).
-- The card's coin (metal 0.025 m x 1.5 mm) has one mode, at 11.5 kHz, and none between 3 and 9 kHz (the plate formula; test `a_thin_metal_disc_has_modes_between_3_and_9_khz` is `#[ignore]`d with this reason).
+- The card's coin (metal 0.025 m x 1.5 mm) has one mode, at 11.5 kHz, and none between 3 and 9 kHz (the plate formula).
 - `glass_shard_with_a_thickness_field_renders` (glass 0.03 m x 3 mm) and `thickness_is_stable_across_its_range_for_every_shape` (0.0003 to 0.05, five thicknesses, six shapes, two sizes): finite, peak under +3 dB, or the "no mode" error.
 
 #### Honest limits

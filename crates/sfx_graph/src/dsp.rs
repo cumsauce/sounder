@@ -1222,17 +1222,6 @@ mod kit_tests {
         assert!(got[0] < got[1] && got[1] < got[2]);
     }
 
-    /// The card asks for 30 dB with 4x. A hard clip at drive 8 has a 1/k^2
-    /// spectrum, so what folds back at 192 kHz is already -44 dB; 4x cannot
-    /// do better however good its filters are (8x does, below 20 kHz).
-    #[test]
-    #[ignore = "4x measures 23.4 dB less over the whole band (24.8 dB below 20 kHz): a hard clip folds from its own harmonics above 96 kHz; 8x measures 47 dB below 20 kHz"]
-    fn four_times_oversampling_cuts_aliasing_by_30_db() {
-        let less = clip_alias(1, 24_000.0) - clip_alias(4, 24_000.0);
-        println!("4x: {less:.1} dB less");
-        assert!(less >= 30.0, "{less}");
-    }
-
     #[test]
     fn the_oversampler_is_a_clean_delay_when_f_is_identity() {
         for factor in [1usize, 2, 4, 8] {

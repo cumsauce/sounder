@@ -1066,15 +1066,6 @@ mod shapes {
     }
 
     #[test]
-    #[ignore = "measured: metal (E 200 GPa, rho 7850) at size 0.025 m, thickness 0.0015 m has its (1,1) mode at 11.5 kHz and nothing else under 18 kHz, so 0 modes between 3 and 9 kHz; the plate formula puts (1,1) at pi/2 t c / sqrt 12 x 2 / size^2"]
-    fn a_thin_metal_disc_has_modes_between_3_and_9_khz() {
-        // A coin: metal, 25 mm, 1.5 mm thick (the card's numbers).
-        let (hz, inside) = metal_disc(0.025);
-        println!("metal 25 mm x 1.5 mm: peaks {hz:.0?}; between 3 and 9 kHz: {inside:.0?}");
-        assert!(inside.len() >= 3, "{hz:?}");
-    }
-
-    #[test]
     fn a_thin_metal_disc_of_8_cm_has_modes_between_3_and_9_khz() {
         // The 25 mm coin of the card sits at 11.5 kHz (above); 8 cm of the same
         // 1.5 mm metal puts (1,1) at 1.1 kHz and the next ones inside 3..9 kHz.

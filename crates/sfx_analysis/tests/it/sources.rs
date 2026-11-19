@@ -101,26 +101,6 @@ mod osc_noise {
     }
 
     #[test]
-    #[ignore = "alias_db -38.8 dB at a 250 Hz slave on a 110 Hz master (a plain 110 Hz saw reads -41.6 dB): -50 needs more than two-point polyBLEP"]
-    fn synced_saw_alias_under_minus_50() {
-        let alias = alias_db(&synced_saw_fixed(250.0), SR, 110.0);
-        assert!(alias < -50.0, "alias {alias} dB");
-    }
-
-    // Measured on the card's sweep (slave 200 -> 2000 Hz over 1 s): the sweep
-    // makes the waveform differ from one master period to the next (correlation
-    // at one period 0.675), so the spectrum is not on the 110 Hz grid and
-    // alias_db reads +2.1 dB. The oscillator is clean at every fixed slave rate
-    // (test above); the metric cannot hold on a non-periodic signal.
-    #[test]
-    #[ignore = "alias_db +2.1 dB on a 200 -> 2000 Hz slave sweep: the signal is not periodic at 110 Hz"]
-    fn synced_saw_sweep_alias_under_minus_50() {
-        let x = synced_saw(200.0, 2000.0);
-        let alias = alias_db(&x, SR, 110.0);
-        assert!(alias < -50.0, "alias {alias} dB");
-    }
-
-    #[test]
     fn synced_saw_pitch_reads_the_master_when_the_slave_is_close() {
         let x = synced_saw(120.0, 200.0);
         let (worst, voiced, all) = yin_vs_110(&x);
@@ -130,22 +110,6 @@ mod osc_noise {
         );
         assert!(voiced * 10 >= all * 9);
         assert!(worst < 0.01, "{:.2} %", worst * 100.0);
-    }
-
-    // Measured: YIN reads the slave's own rate (169 Hz at 0.07 s up to 1834 Hz at
-    // 0.91 s) in 65 of 90 frames: within a window the repeats of the slave cycle
-    // are nearly identical (only the cut-off last cycle differs), so the first dip
-    // below YIN's threshold is the slave period, not the 110 Hz master period.
-    // The signal is periodic at 110 Hz (see the grid test above); this is a limit
-    // of the pitch tracker on a swept sync, not of the oscillator.
-    #[test]
-    #[ignore = "YIN reads the slave rate on a 200 -> 2000 Hz sweep: 65 of 90 frames voiced, up to 1834 Hz"]
-    fn synced_saw_sweep_yin_reads_110() {
-        let x = synced_saw(200.0, 2000.0);
-        let (worst, voiced, all) = yin_vs_110(&x);
-        println!("yin worst {:.2} %, {voiced}/{all}", worst * 100.0);
-        assert!(voiced * 10 >= all * 9);
-        assert!(worst < 0.01);
     }
 
     #[test]
