@@ -1,0 +1,105 @@
+{
+ "role": "body",
+ "material": "metal",
+ "description": "heard as \"tin foil hit\" in a blind listen; built as: a thin metal sheet struck with a longer ring: plate, lowest mode 600 Hz, thickness 0.8 mm, noise 0.85; strikes at 5 ms",
+ "tags": [
+  "foil",
+  "metal",
+  "ring",
+  "sheet",
+  "thin"
+ ],
+ "origin": "candidate batch 2 (built as metal_sheet_ring_d); the listener rated it good blind on 2026-11-18. batch 2 candidate. Variant d: the thin_metal_sheet_body settings (heard as a thin small metal hit) with loss 0.3 instead of 0.8 for a longer ring; mix of the sheet and a short second mode set an octave up",
+ "doc": {
+  "name": "tin_foil_hit_body",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "hit_n",
+    "color": "white",
+    "seed": 12
+   },
+   {
+    "type": "decay",
+    "name": "hit_e",
+    "time": 0.003,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "hit_n",
+    "b": "hit_e"
+   },
+   {
+    "type": "modal",
+    "name": "sheet",
+    "excite": "hit_burst",
+    "material": "metal",
+    "shape": "plate",
+    "f0": 600,
+    "thickness": 0.0008,
+    "loss": 0.3,
+    "noise": 0.85,
+    "noise_width": 0.5,
+    "tilt": 2
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "sheet",
+    "db": -12.3
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5,
+    "doc": "pitch of the sheet",
+    "game": false,
+    "map": [
+     {
+      "node": "sheet",
+      "field": "f0",
+      "from": 300,
+      "to": 1200,
+      "curve": "exp"
+     }
+    ],
+    "default": 0.5
+   },
+   {
+    "name": "ring",
+    "value": 0.6021,
+    "doc": "how long the sheet rings",
+    "game": false,
+    "map": [
+     {
+      "node": "sheet",
+      "field": "loss",
+      "from": 1.2,
+      "to": 0.12,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "decay",
+     1
+    ],
+    "default": 0.6021
+   }
+  ]
+ }
+}

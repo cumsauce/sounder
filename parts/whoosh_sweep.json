@@ -1,0 +1,133 @@
+{
+ "role": "whole",
+ "material": "air",
+ "description": "heard as \"whoosh\" in a blind listen; built as: a swing past: noise band-passed (q 1) swept 400 Hz up to 3 kHz then back to 500 Hz over 0.35 s, level swell peaking at 0.175 s; a hit goes at 0.175 s",
+ "tags": [
+  "air",
+  "pass",
+  "swing",
+  "whoosh"
+ ],
+ "origin": "candidate batch 2 (built as whoosh_a); the listener rated it good blind on 2026-11-18. batch 2 candidate. Variant a: wide band q 1, freq up then down (batch 1 air_whoosh_pre swept up only, 150 ms), amplitude env peaking at the middle, no doppler",
+ "doc": {
+  "name": "whoosh_sweep",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "wn",
+    "color": "white",
+    "seed": 51
+   },
+   {
+    "type": "env",
+    "name": "fq",
+    "points": [
+     [
+      0,
+      400
+     ],
+     [
+      0.175,
+      3000
+     ],
+     [
+      0.35,
+      500
+     ]
+    ],
+    "curve": "smooth"
+   },
+   {
+    "type": "env",
+    "name": "amp",
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      0.175,
+      1
+     ],
+     [
+      0.35,
+      0
+     ]
+    ],
+    "curve": "smooth"
+   },
+   {
+    "type": "filter",
+    "name": "bp",
+    "input": "wn",
+    "mode": "bp",
+    "freq": "fq",
+    "q": 1
+   },
+   {
+    "type": "math",
+    "name": "sw",
+    "op": "mul",
+    "a": "bp",
+    "b": "amp"
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "sw",
+    "db": -9.7
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "brightness",
+    "value": 0.5693,
+    "doc": "how high the band sweeps",
+    "game": false,
+    "map": [
+     {
+      "node": "fq",
+      "field": "points",
+      "from": 1200,
+      "to": 6000,
+      "curve": "exp",
+      "index": 1,
+      "key": "y"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ],
+    "default": 0.5693
+   },
+   {
+    "name": "width",
+    "value": 0.3869,
+    "doc": "how wide the band is: higher is narrower",
+    "game": false,
+    "map": [
+     {
+      "node": "bp",
+      "field": "q",
+      "from": 0.5,
+      "to": 3,
+      "curve": "exp"
+     }
+    ],
+    "default": 0.3869
+   }
+  ]
+ }
+}

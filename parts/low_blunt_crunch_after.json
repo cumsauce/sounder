@@ -1,0 +1,135 @@
+{
+ "role": "after",
+ "material": "any",
+ "description": "heard as \"low crunch/multiple blunt items hitting\" in a blind listen; built as: a few heavy stone pieces falling: 8 short low noise knocks (200-800 Hz) over 0.4 s, no high crunch; first piece at 5 ms",
+ "tags": [
+  "blunt",
+  "crunch",
+  "debris",
+  "hitting",
+  "items",
+  "low",
+  "multiple",
+  "rubble",
+  "stone"
+ ],
+ "origin": "candidate batch 2 (built as stone_rubble_a); the listener rated it good blind on 2026-11-18. batch 2 candidate. Variant a: burst of 8 events (exp-dense, values 0.4-1) -> voices of pink noise x decay 0.02 through bp 200-800 Hz q 1; batch 1 used 40 modal wood pieces and read as crunching",
+ "doc": {
+  "name": "low_blunt_crunch_after",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "burst",
+    "name": "bits",
+    "count": 8,
+    "spread": 0.4,
+    "curve": "exp",
+    "at": 0.005,
+    "values": {
+     "min": 0.4,
+     "max": 1.0
+    },
+    "seed": 7
+   },
+   {
+    "type": "voices",
+    "name": "rubble",
+    "events": "bits",
+    "length": 0.12,
+    "max": 16,
+    "map": {
+     "f": "$base * (200 + $rand * 600)"
+    },
+    "patch": [
+     {
+      "type": "noise",
+      "name": "pn",
+      "color": "pink"
+     },
+     {
+      "type": "decay",
+      "name": "pe",
+      "time": 0.03,
+      "at": 0.0
+     },
+     {
+      "type": "math",
+      "name": "pb",
+      "op": "mul",
+      "a": "pn",
+      "b": "pe"
+     },
+     {
+      "type": "filter",
+      "name": "pf",
+      "input": "pb",
+      "mode": "bp",
+      "freq": "$f",
+      "q": 1.0
+     },
+     {
+      "type": "gain",
+      "name": "pg",
+      "input": "pf",
+      "gain": "$value"
+     }
+    ]
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "rubble",
+    "db": 8.7
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {
+   "base": 1.0
+  },
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5208,
+    "doc": "size of the pieces: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "param": "base",
+      "from": 0.6,
+      "to": 1.6,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ],
+    "default": 0.5208
+   },
+   {
+    "name": "spread",
+    "value": 0.2727,
+    "doc": "how long the pieces keep falling",
+    "game": false,
+    "map": [
+     {
+      "node": "bits",
+      "field": "spread",
+      "from": 0.25,
+      "to": 0.8,
+      "curve": "linear"
+     }
+    ],
+    "default": 0.2727
+   }
+  ]
+ }
+}

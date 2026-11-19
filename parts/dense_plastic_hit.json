@@ -1,0 +1,222 @@
+{
+ "role": "whole",
+ "material": "plastic",
+ "description": "heard as \"plastic hit\" in a blind listen; built as: a dense metal clang: three bars at non-integer ratios (380 Hz, x1.62, x2.9), about 0.4 s ring, noise crack on top; strikes at 5 ms",
+ "tags": [
+  "clang",
+  "dense",
+  "metal",
+  "plastic",
+  "ring"
+ ],
+ "origin": "candidate batch 2 (built as metal_clang_c); the listener rated it good blind on 2026-11-18. batch 2 candidate. Variant c: three bar modals at 380 / 615 / 1100 Hz, loss 7 (short ring), noise 0.5, plus a white-noise crack at 2-6 kHz",
+ "doc": {
+  "name": "dense_plastic_hit",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "hit_n",
+    "color": "white",
+    "seed": 23
+   },
+   {
+    "type": "decay",
+    "name": "hit_e",
+    "time": 0.004,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "hit_n",
+    "b": "hit_e"
+   },
+   {
+    "type": "modal",
+    "name": "b1",
+    "excite": "hit_burst",
+    "material": "metal",
+    "shape": "bar",
+    "f0": 380,
+    "loss": 1.8,
+    "noise": 0.5,
+    "noise_width": 0.3,
+    "tilt": 3,
+    "strike_glide": 35,
+    "modes": 16
+   },
+   {
+    "type": "modal",
+    "name": "b2",
+    "excite": "hit_burst",
+    "material": "metal",
+    "shape": "bar",
+    "f0": 615,
+    "loss": 1.8,
+    "noise": 0.5,
+    "noise_width": 0.3,
+    "tilt": 3,
+    "modes": 16,
+    "gain_db": -3
+   },
+   {
+    "type": "modal",
+    "name": "b3",
+    "excite": "hit_burst",
+    "material": "metal",
+    "shape": "bar",
+    "f0": 1100,
+    "loss": 1.8,
+    "noise": 0.5,
+    "noise_width": 0.4,
+    "tilt": 3,
+    "modes": 16,
+    "gain_db": -6
+   },
+   {
+    "type": "noise",
+    "name": "cn",
+    "color": "white",
+    "seed": 24
+   },
+   {
+    "type": "decay",
+    "name": "ce",
+    "time": 0.012,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "cr",
+    "op": "mul",
+    "a": "cn",
+    "b": "ce"
+   },
+   {
+    "type": "filter",
+    "name": "crk_f",
+    "input": "cr",
+    "mode": "bp",
+    "freq": 3500,
+    "q": 0.6
+   },
+   {
+    "type": "gain",
+    "name": "crk_g",
+    "input": "crk_f",
+    "db": -4
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "b1",
+     "b2",
+     "b3",
+     "crk_g"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "dry",
+    "db": -16.3
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "size",
+    "value": 0.4783,
+    "doc": "size of the clang: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "b1",
+      "field": "f0",
+      "from": 250,
+      "to": 600,
+      "curve": "exp"
+     },
+     {
+      "node": "b2",
+      "field": "f0",
+      "from": 405,
+      "to": 970,
+      "curve": "exp"
+     },
+     {
+      "node": "b3",
+      "field": "f0",
+      "from": 725,
+      "to": 1740,
+      "curve": "exp"
+     }
+    ],
+    "default": 0.4783
+   },
+   {
+    "name": "ring",
+    "value": 0.7173,
+    "doc": "how long it rings",
+    "game": false,
+    "map": [
+     {
+      "node": "b1",
+      "field": "loss",
+      "from": 8,
+      "to": 1,
+      "curve": "exp"
+     },
+     {
+      "node": "b2",
+      "field": "loss",
+      "from": 8,
+      "to": 1,
+      "curve": "exp"
+     },
+     {
+      "node": "b3",
+      "field": "loss",
+      "from": 8,
+      "to": 1,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "decay",
+     1
+    ],
+    "default": 0.7173
+   },
+   {
+    "name": "crack",
+    "value": 0.6667,
+    "doc": "level of the crack on top",
+    "game": false,
+    "map": [
+     {
+      "node": "crk_g",
+      "field": "db",
+      "from": -20,
+      "to": 4,
+      "curve": "linear"
+     }
+    ],
+    "default": 0.6667
+   }
+  ]
+ }
+}

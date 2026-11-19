@@ -1,0 +1,106 @@
+{
+ "role": "body",
+ "material": "metal",
+ "description": "heard as \"metallic hit\" in a blind listen; built as: a single coin tap: one metal plate, lowest mode near 3 kHz, ring about 0.15 s, noise 0.5; strikes at 5 ms",
+ "tags": [
+  "coin",
+  "metal",
+  "metallic",
+  "short",
+  "tap"
+ ],
+ "origin": "candidate batch 2 (built as coin_single_c); the listener rated it good blind on 2026-11-18. batch 2 candidate. Variant c: one hit, f0 3000, thickness 0.0015, loss 4, noise 0.5, tilt 2, no rattle",
+ "doc": {
+  "name": "small_metallic_hit_body",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "hit_n",
+    "color": "white",
+    "seed": 31
+   },
+   {
+    "type": "decay",
+    "name": "hit_e",
+    "time": 0.003,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "hit_n",
+    "b": "hit_e"
+   },
+   {
+    "type": "modal",
+    "name": "coin",
+    "excite": "hit_burst",
+    "material": "metal",
+    "shape": "plate",
+    "f0": 3000,
+    "thickness": 0.0015,
+    "loss": 1.2,
+    "noise": 0.5,
+    "noise_width": 0.3,
+    "tilt": 0,
+    "modes": 12
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "coin",
+    "db": -12.2
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5,
+    "doc": "size of the coin: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "coin",
+      "field": "f0",
+      "from": 2000,
+      "to": 4500,
+      "curve": "exp"
+     }
+    ],
+    "default": 0.5
+   },
+   {
+    "name": "ring",
+    "value": 0.5229,
+    "doc": "how long the coin rings",
+    "game": false,
+    "map": [
+     {
+      "node": "coin",
+      "field": "loss",
+      "from": 4,
+      "to": 0.4,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "decay",
+     1
+    ],
+    "default": 0.5229
+   }
+  ]
+ }
+}

@@ -1,0 +1,192 @@
+{
+ "role": "whole",
+ "material": "any",
+ "description": "heard as \"swipe and small tap\" in a blind listen; built as: a stone dragged then dropped: 0.12 s gritty slide (friction + noise, band-passed 900 Hz) then one knock; the knock lands at 0.135 s",
+ "tags": [
+  "drop",
+  "knock",
+  "scrape",
+  "small",
+  "stone",
+  "swipe"
+ ],
+ "origin": "candidate batch 2 (built as stone_scrape_drop_b); the listener rated it good blind on 2026-11-18. batch 2 candidate. Variant b: friction (grain 600, roughness 0.9) + pink noise under an env, bp 900 Hz q 0.7; then one pink noise knock into a stone modal (f0 500, loss 8, noise 0.7)",
+ "doc": {
+  "name": "swipe_and_tap",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "env",
+    "name": "se",
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      0.01,
+      0.6
+     ],
+     [
+      0.1,
+      1
+     ],
+     [
+      0.125,
+      0
+     ]
+    ],
+    "curve": "smooth"
+   },
+   {
+    "type": "math",
+    "name": "sp",
+    "op": "mul",
+    "a": "se",
+    "b": 1.0
+   },
+   {
+    "type": "friction",
+    "name": "fr",
+    "speed": "sp",
+    "pressure": "se",
+    "roughness": 0.9,
+    "grain": 600,
+    "seed": 8
+   },
+   {
+    "type": "noise",
+    "name": "sn",
+    "color": "pink",
+    "seed": 46
+   },
+   {
+    "type": "math",
+    "name": "snb",
+    "op": "mul",
+    "a": "sn",
+    "b": "se"
+   },
+   {
+    "type": "mix",
+    "name": "sm",
+    "inputs": [
+     {
+      "input": "fr",
+      "gain": 0.6
+     },
+     {
+      "input": "snb",
+      "gain": 0.7
+     }
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "filter",
+    "name": "scr",
+    "input": "sm",
+    "mode": "bp",
+    "freq": 900,
+    "q": 0.7
+   },
+   {
+    "type": "gain",
+    "name": "scr_g",
+    "input": "scr",
+    "db": -6
+   },
+   {
+    "type": "noise",
+    "name": "k_n",
+    "color": "pink",
+    "seed": 47
+   },
+   {
+    "type": "decay",
+    "name": "k_e",
+    "time": 0.012,
+    "at": 0.135
+   },
+   {
+    "type": "math",
+    "name": "k_burst",
+    "op": "mul",
+    "a": "k_n",
+    "b": "k_e"
+   },
+   {
+    "type": "modal",
+    "name": "knock",
+    "excite": "k_burst",
+    "material": "stone",
+    "shape": "plate",
+    "f0": 500,
+    "loss": 8,
+    "noise": 0.7,
+    "noise_width": 0.4,
+    "tilt": 1,
+    "modes": 20
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "scr_g",
+     "knock"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "dry",
+    "db": -11.9
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "grit",
+    "value": 0.5455,
+    "doc": "level of the scrape against the knock",
+    "game": false,
+    "map": [
+     {
+      "node": "scr_g",
+      "field": "db",
+      "from": -18,
+      "to": 4,
+      "curve": "linear"
+     }
+    ],
+    "default": 0.5455
+   },
+   {
+    "name": "size",
+    "value": 0.5,
+    "doc": "size of the stone: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "knock",
+      "field": "f0",
+      "from": 250,
+      "to": 1000,
+      "curve": "exp"
+     }
+    ],
+    "default": 0.5
+   }
+  ]
+ }
+}

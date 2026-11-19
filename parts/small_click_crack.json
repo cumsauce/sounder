@@ -1,0 +1,146 @@
+{
+ "role": "crack",
+ "material": "any",
+ "description": "heard as \"small click\" in a blind listen; built as: a finger-snap-like crack: 3 ms noise crack band-passed at 2.5 kHz plus a 40 ms band-limited noise body at 1 kHz, no resonators; strikes at 5 ms",
+ "tags": [
+  "click",
+  "crack",
+  "noise",
+  "small",
+  "snap"
+ ],
+ "origin": "candidate batch 2 (built as snap_a); the listener rated it good blind on 2026-11-18. batch 2 candidate. Variant a: no click node (batch 1 finger_snap_crack used it): bp 2500 Hz q 1.5 crack, bp 1000 Hz q 1 body decay 0.04",
+ "doc": {
+  "name": "small_click_crack",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "ck_n",
+    "color": "white",
+    "seed": 71
+   },
+   {
+    "type": "decay",
+    "name": "ck_e",
+    "time": 0.008,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "ck_burst",
+    "op": "mul",
+    "a": "ck_n",
+    "b": "ck_e"
+   },
+   {
+    "type": "filter",
+    "name": "ck_f",
+    "input": "ck_burst",
+    "mode": "bp",
+    "freq": 2500,
+    "q": 1.5
+   },
+   {
+    "type": "noise",
+    "name": "bd_n",
+    "color": "white",
+    "seed": 72
+   },
+   {
+    "type": "decay",
+    "name": "bd_e",
+    "time": 0.045,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "bd_burst",
+    "op": "mul",
+    "a": "bd_n",
+    "b": "bd_e"
+   },
+   {
+    "type": "filter",
+    "name": "bd_f",
+    "input": "bd_burst",
+    "mode": "bp",
+    "freq": 1000,
+    "q": 1.0
+   },
+   {
+    "type": "gain",
+    "name": "bd_g",
+    "input": "bd_f",
+    "db": -6
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "ck_f",
+     "bd_g"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "dry",
+    "db": -3.4
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "body",
+    "value": 0.6364,
+    "doc": "level of the body under the crack",
+    "game": false,
+    "map": [
+     {
+      "node": "bd_g",
+      "field": "db",
+      "from": -20,
+      "to": 2,
+      "curve": "linear"
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ],
+    "default": 0.6364
+   },
+   {
+    "name": "pitch",
+    "value": 0.465,
+    "doc": "pitch of the crack",
+    "game": false,
+    "map": [
+     {
+      "node": "ck_f",
+      "field": "freq",
+      "from": 1500,
+      "to": 4500,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ],
+    "default": 0.465
+   }
+  ]
+ }
+}

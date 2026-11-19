@@ -1,0 +1,187 @@
+{
+ "role": "whole",
+ "material": "plastic",
+ "description": "heard as \"small plastic objects\" in a blind listen; built as: a coin hit then spinning down: one strike, then a fast rattle of impacts shrinking in gap (0.04 s x 0.85 each, about 13 hits); first strike at 5 ms",
+ "tags": [
+  "coin",
+  "metal",
+  "objects",
+  "plastic",
+  "rattle",
+  "small",
+  "spin"
+ ],
+ "origin": "candidate batch 2 (built as coin_spin_b); the listener rated it good blind on 2026-11-18. batch 2 candidate. Variant b: bounce with restitution 0.85 and jitter 0.1 -> short coin voices (0.12 s), values fall as 0.85^k: a quick shrinking rattle after the first hit",
+ "doc": {
+  "name": "small_plastic_objects_scatter",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "bounce",
+    "name": "bn",
+    "first": 0.05,
+    "restitution": 0.85,
+    "min_interval": 0.006,
+    "start": 0.005,
+    "jitter": 0.1,
+    "seed": 4
+   },
+   {
+    "type": "voices",
+    "name": "coins",
+    "events": "bn",
+    "length": 0.15,
+    "max": 32,
+    "map": {
+     "f": "$f * (0.9 + $rand * 0.2)"
+    },
+    "patch": [
+     {
+      "type": "noise",
+      "name": "pn",
+      "color": "white"
+     },
+     {
+      "type": "decay",
+      "name": "pe",
+      "time": 0.004,
+      "at": 0.0
+     },
+     {
+      "type": "math",
+      "name": "pb",
+      "op": "mul",
+      "a": "pn",
+      "b": "pe"
+     },
+     {
+      "type": "gain",
+      "name": "strike",
+      "input": "pb",
+      "gain": "$value"
+     },
+     {
+      "type": "modal",
+      "name": "coin",
+      "excite": "strike",
+      "material": "metal",
+      "shape": "plate",
+      "f0": "$f",
+      "thickness": 0.0015,
+      "loss": "$loss",
+      "noise": 0.3,
+      "tilt": 2,
+      "modes": 10
+     },
+     {
+      "type": "noise",
+      "name": "dn",
+      "color": "pink"
+     },
+     {
+      "type": "decay",
+      "name": "de",
+      "time": 0.012,
+      "at": 0.0
+     },
+     {
+      "type": "math",
+      "name": "db_",
+      "op": "mul",
+      "a": "dn",
+      "b": "de"
+     },
+     {
+      "type": "filter",
+      "name": "dlp",
+      "input": "db_",
+      "mode": "lp",
+      "freq": 1500
+     },
+     {
+      "type": "gain",
+      "name": "dull",
+      "input": "dlp",
+      "gain": "$dg"
+     },
+     {
+      "type": "mix",
+      "name": "pm",
+      "inputs": [
+       "coin",
+       "dull"
+      ],
+      "to": "mono"
+     }
+    ]
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "coins",
+    "db": -12.1
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {
+   "f": 3200,
+   "loss": 3.0,
+   "dg": 0.3
+  },
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5236,
+    "doc": "size of the coin: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "param": "f",
+      "from": 2200,
+      "to": 4500,
+      "curve": "exp"
+     }
+    ],
+    "default": 0.5236
+   },
+   {
+    "name": "spin",
+    "value": 0.6818,
+    "doc": "how long the rattle lasts",
+    "game": false,
+    "map": [
+     {
+      "node": "bn",
+      "field": "restitution",
+      "from": 0.7,
+      "to": 0.92,
+      "curve": "linear"
+     }
+    ],
+    "default": 0.6818
+   },
+   {
+    "name": "dullness",
+    "value": 0.2632,
+    "doc": "level of the dull contact noise",
+    "game": false,
+    "map": [
+     {
+      "param": "dg",
+      "from": 0.05,
+      "to": 1.0
+     }
+    ],
+    "default": 0.2632
+   }
+  ]
+ }
+}

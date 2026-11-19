@@ -296,12 +296,15 @@ after bed texture whole`), with a material, tags and one to three knobs.
 Before building a layer from nodes, look for one:
 
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`,
-  `approved`): the library's parts and saved sounds plus the 31 built-in
+  `approved`): the library's parts and saved sounds plus the 47 built-in
   parts in `parts/`: the five layers of the approved door slam (`wood_brush`,
-  `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock`) and 26 the
-  listener rated good in a blind batch (bodies in wood, metal and glass,
-  cracks, two weights, lead-ins, tails and debris, small plastic and UI
-  sounds). Each of those is named and described by what the listener heard
+  `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock`) and 42 the
+  listener rated good in two blind batches (bodies in wood, metal, glass,
+  ceramic and plastic, cracks, two weights, lead-ins and whooshes, tails and
+  debris, small plastic and UI sounds). **Not in the library yet:** a metal
+  ring or a coin that reads as metal (every attempt was heard as glass,
+  ceramic or plastic) and anything that reads as stone: build those from
+  nodes and say they are unheard. Each of those is named and described by what the listener heard
   (`heard as "..."`), which is often not what it was built as: search by the
   sound you need, not by the node that might make it. Approved ones come
   first. `catalog describe` shows a part's nodes and knobs.

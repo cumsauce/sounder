@@ -1,0 +1,109 @@
+{
+ "role": "after",
+ "material": "ceramic",
+ "description": "heard as \"large bowl clink\" in a blind listen; built as: a struck metal tube ringing: lowest mode 250 Hz, tube ring modes, noise-smeared, strike_glide 35; strikes at 5 ms",
+ "tags": [
+  "bowl",
+  "clink",
+  "large",
+  "low",
+  "metal",
+  "pipe",
+  "ring",
+  "tube"
+ ],
+ "origin": "candidate batch 2 (built as metal_ring_low_b); the listener rated it good blind on 2026-11-18. batch 2 candidate. Variant b: shape tube (batch 1 / variant a use bar), lowest mode 250 Hz, noise 0.4, strike_glide 35, loss 3",
+ "doc": {
+  "name": "large_bowl_clink_after",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "hit_n",
+    "color": "white",
+    "seed": 22
+   },
+   {
+    "type": "decay",
+    "name": "hit_e",
+    "time": 0.004,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "hit_n",
+    "b": "hit_e"
+   },
+   {
+    "type": "modal",
+    "name": "tube",
+    "excite": "hit_burst",
+    "material": "metal",
+    "shape": "tube",
+    "f0": 250,
+    "loss": 1.5,
+    "noise": 0.4,
+    "noise_width": 0.3,
+    "tilt": 2,
+    "strike_glide": 35,
+    "modes": 24
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "tube",
+    "db": -16.9
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.4316,
+    "doc": "pitch of the tube: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "tube",
+      "field": "f0",
+      "from": 160,
+      "to": 450,
+      "curve": "exp"
+     }
+    ],
+    "default": 0.4316
+   },
+   {
+    "name": "ring",
+    "value": 0.5229,
+    "doc": "how long the tube rings",
+    "game": false,
+    "map": [
+     {
+      "node": "tube",
+      "field": "loss",
+      "from": 5,
+      "to": 0.5,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "decay",
+     1
+    ],
+    "default": 0.5229
+   }
+  ]
+ }
+}

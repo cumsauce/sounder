@@ -1,0 +1,132 @@
+{
+ "role": "after",
+ "material": "ceramic",
+ "description": "heard as \"utensil hitting ceramic plate\" in a blind listen; built as: a low struck metal bar ringing: lowest mode 300 Hz, inharmonic bar modes (1 : 2.76 : 5.4 ...), noise-smeared, strike_glide 35; strikes at 5 ms, rings about a second",
+ "tags": [
+  "bar",
+  "ceramic",
+  "hitting",
+  "inharmonic",
+  "low",
+  "metal",
+  "plate",
+  "ring",
+  "utensil"
+ ],
+ "origin": "candidate batch 2 (built as metal_ring_low_a); the listener rated it good blind on 2026-11-18. batch 2 candidate. Variant a: shape bar, lowest mode 300 Hz (batch 1 high ring was heard as glass), noise 0.4, strike_glide 35, loss 3, small hp'd crack at the strike",
+ "doc": {
+  "name": "utensil_on_plate_after",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "hit_n",
+    "color": "white",
+    "seed": 21
+   },
+   {
+    "type": "decay",
+    "name": "hit_e",
+    "time": 0.004,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "hit_n",
+    "b": "hit_e"
+   },
+   {
+    "type": "modal",
+    "name": "bar",
+    "excite": "hit_burst",
+    "material": "metal",
+    "shape": "bar",
+    "f0": 300,
+    "loss": 1.0,
+    "noise": 0.4,
+    "noise_width": 0.3,
+    "tilt": 2,
+    "strike_glide": 35,
+    "modes": 24
+   },
+   {
+    "type": "filter",
+    "name": "crk_f",
+    "input": "hit_burst",
+    "mode": "hp",
+    "freq": 3000
+   },
+   {
+    "type": "gain",
+    "name": "crk_g",
+    "input": "crk_f",
+    "db": -8
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "bar",
+     "crk_g"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "dry",
+    "db": -14.4
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5,
+    "doc": "pitch of the bar: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "bar",
+      "field": "f0",
+      "from": 200,
+      "to": 450,
+      "curve": "exp"
+     }
+    ],
+    "default": 0.5
+   },
+   {
+    "name": "ring",
+    "value": 0.5691,
+    "doc": "how long the bar rings",
+    "game": false,
+    "map": [
+     {
+      "node": "bar",
+      "field": "loss",
+      "from": 4,
+      "to": 0.35,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "decay",
+     1
+    ],
+    "default": 0.5691
+   }
+  ]
+ }
+}

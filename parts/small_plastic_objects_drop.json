@@ -1,0 +1,189 @@
+{
+ "role": "whole",
+ "material": "plastic",
+ "description": "heard as \"small plastic objects\" in a blind listen; built as: a coin dropped and bouncing: 6 bounces speeding up (gaps 0.14 s x 0.65 each), each a small metal plate (lowest mode 2.5-3.5 kHz) plus a duller low-passed contact noise; first strike at 5 ms",
+ "tags": [
+  "bounce",
+  "coin",
+  "drop",
+  "metal",
+  "objects",
+  "plastic",
+  "small"
+ ],
+ "origin": "candidate batch 2 (built as coin_drop_a); the listener rated it good blind on 2026-11-18. batch 2 candidate. Variant a: bounce -> voices of coin modal + duller contact noise; one hit then speeding bounces, each quieter (value = restitution^k)",
+ "doc": {
+  "name": "small_plastic_objects_drop",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "bounce",
+    "name": "bn",
+    "first": 0.14,
+    "restitution": 0.65,
+    "min_interval": 0.02,
+    "start": 0.005
+   },
+   {
+    "type": "voices",
+    "name": "coins",
+    "events": "bn",
+    "length": 0.25,
+    "max": 16,
+    "map": {
+     "f": "$f * (0.85 + $rand * 0.3)"
+    },
+    "patch": [
+     {
+      "type": "noise",
+      "name": "pn",
+      "color": "white"
+     },
+     {
+      "type": "decay",
+      "name": "pe",
+      "time": 0.004,
+      "at": 0.0
+     },
+     {
+      "type": "math",
+      "name": "pb",
+      "op": "mul",
+      "a": "pn",
+      "b": "pe"
+     },
+     {
+      "type": "gain",
+      "name": "strike",
+      "input": "pb",
+      "gain": "$value"
+     },
+     {
+      "type": "modal",
+      "name": "coin",
+      "excite": "strike",
+      "material": "metal",
+      "shape": "plate",
+      "f0": "$f",
+      "thickness": 0.0015,
+      "loss": "$loss",
+      "noise": 0.3,
+      "tilt": 2,
+      "modes": 10
+     },
+     {
+      "type": "noise",
+      "name": "dn",
+      "color": "pink"
+     },
+     {
+      "type": "decay",
+      "name": "de",
+      "time": 0.012,
+      "at": 0.0
+     },
+     {
+      "type": "math",
+      "name": "db_",
+      "op": "mul",
+      "a": "dn",
+      "b": "de"
+     },
+     {
+      "type": "filter",
+      "name": "dlp",
+      "input": "db_",
+      "mode": "lp",
+      "freq": 1500
+     },
+     {
+      "type": "gain",
+      "name": "dull",
+      "input": "dlp",
+      "gain": "$dg"
+     },
+     {
+      "type": "mix",
+      "name": "pm",
+      "inputs": [
+       "coin",
+       "dull"
+      ],
+      "to": "mono"
+     }
+    ]
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "coins",
+    "db": -10.9
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {
+   "f": 3000,
+   "loss": 2.5,
+   "dg": 0.5
+  },
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5,
+    "doc": "size of the coin: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "param": "f",
+      "from": 2000,
+      "to": 4500,
+      "curve": "exp"
+     }
+    ],
+    "default": 0.5
+   },
+   {
+    "name": "bounciness",
+    "value": 0.5714,
+    "doc": "how long the bounces last",
+    "game": false,
+    "map": [
+     {
+      "node": "bn",
+      "field": "restitution",
+      "from": 0.45,
+      "to": 0.8,
+      "curve": "linear"
+     }
+    ],
+    "default": 0.5714
+   },
+   {
+    "name": "dullness",
+    "value": 0.2857,
+    "doc": "level of the dull contact noise",
+    "game": false,
+    "map": [
+     {
+      "param": "dg",
+      "from": 0.1,
+      "to": 1.5
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ],
+    "default": 0.2857
+   }
+  ]
+ }
+}

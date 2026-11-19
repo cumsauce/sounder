@@ -1,0 +1,176 @@
+{
+ "role": "crack",
+ "material": "any",
+ "description": "heard as \"small click\" in a blind listen; built as: a double snap: two noise cracks 8 ms apart (2.8 kHz then 2.2 kHz) over a short 1 kHz body; first crack at 5 ms",
+ "tags": [
+  "click",
+  "crack",
+  "double",
+  "small",
+  "snap"
+ ],
+ "origin": "candidate batch 2 (built as snap_b); the listener rated it good blind on 2026-11-18. batch 2 candidate. Variant b: two cracks 8 ms apart (the second 4 dB quieter and lower), small 30 ms body at 1 kHz; no resonators",
+ "doc": {
+  "name": "double_small_click_crack",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "c1_n",
+    "color": "white",
+    "seed": 73
+   },
+   {
+    "type": "decay",
+    "name": "c1_e",
+    "time": 0.008,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "c1_burst",
+    "op": "mul",
+    "a": "c1_n",
+    "b": "c1_e"
+   },
+   {
+    "type": "filter",
+    "name": "c1_f",
+    "input": "c1_burst",
+    "mode": "bp",
+    "freq": 2800,
+    "q": 1.5
+   },
+   {
+    "type": "noise",
+    "name": "c2_n",
+    "color": "white",
+    "seed": 74
+   },
+   {
+    "type": "decay",
+    "name": "c2_e",
+    "time": 0.008,
+    "at": 0.013
+   },
+   {
+    "type": "math",
+    "name": "c2_burst",
+    "op": "mul",
+    "a": "c2_n",
+    "b": "c2_e"
+   },
+   {
+    "type": "filter",
+    "name": "c2_f",
+    "input": "c2_burst",
+    "mode": "bp",
+    "freq": 2200,
+    "q": 1.5
+   },
+   {
+    "type": "gain",
+    "name": "c2_g",
+    "input": "c2_f",
+    "db": -4
+   },
+   {
+    "type": "noise",
+    "name": "bd_n",
+    "color": "white",
+    "seed": 75
+   },
+   {
+    "type": "decay",
+    "name": "bd_e",
+    "time": 0.035,
+    "at": 0.013
+   },
+   {
+    "type": "math",
+    "name": "bd_burst",
+    "op": "mul",
+    "a": "bd_n",
+    "b": "bd_e"
+   },
+   {
+    "type": "filter",
+    "name": "bd_f",
+    "input": "bd_burst",
+    "mode": "bp",
+    "freq": 1000,
+    "q": 1.0
+   },
+   {
+    "type": "gain",
+    "name": "bd_g",
+    "input": "bd_f",
+    "db": -8
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "c1_f",
+     "c2_g",
+     "bd_g"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "dry",
+    "db": -5.5
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "second",
+    "value": 0.7273,
+    "doc": "level of the second crack",
+    "game": false,
+    "map": [
+     {
+      "node": "c2_g",
+      "field": "db",
+      "from": -20,
+      "to": 2,
+      "curve": "linear"
+     }
+    ],
+    "default": 0.7273
+   },
+   {
+    "name": "body",
+    "value": 0.6,
+    "doc": "level of the body",
+    "game": false,
+    "map": [
+     {
+      "node": "bd_g",
+      "field": "db",
+      "from": -20,
+      "to": 0,
+      "curve": "linear"
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ],
+    "default": 0.6
+   }
+  ]
+ }
+}

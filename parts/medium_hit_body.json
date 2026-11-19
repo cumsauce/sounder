@@ -1,0 +1,209 @@
+{
+ "role": "body",
+ "material": "any",
+ "description": "heard as \"medium hit\" in a blind listen; built as: a stone hit with no resonators: three band-passed noise bursts at 300 Hz (0.09 s), 1.2 kHz (0.04 s) and 4 kHz (0.012 s), different decays; strikes at 5 ms",
+ "tags": [
+  "hit",
+  "layered",
+  "medium",
+  "noise",
+  "stone"
+ ],
+ "origin": "candidate batch 2 (built as stone_hit_b); the listener rated it good blind on 2026-11-18. batch 2 candidate. Variant b: no modal; three noise layers (low long, mid medium, high short) through bp q 1 / 1 / 0.8",
+ "doc": {
+  "name": "medium_hit_body",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "lo_n",
+    "color": "white",
+    "seed": 43
+   },
+   {
+    "type": "decay",
+    "name": "lo_e",
+    "time": 0.09,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "lo_burst",
+    "op": "mul",
+    "a": "lo_n",
+    "b": "lo_e"
+   },
+   {
+    "type": "filter",
+    "name": "lo_f",
+    "input": "lo_burst",
+    "mode": "bp",
+    "freq": 300,
+    "q": 1.0
+   },
+   {
+    "type": "gain",
+    "name": "lo_g",
+    "input": "lo_f",
+    "db": 6
+   },
+   {
+    "type": "noise",
+    "name": "mid_n",
+    "color": "white",
+    "seed": 44
+   },
+   {
+    "type": "decay",
+    "name": "mid_e",
+    "time": 0.04,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "mid_burst",
+    "op": "mul",
+    "a": "mid_n",
+    "b": "mid_e"
+   },
+   {
+    "type": "filter",
+    "name": "mid_f",
+    "input": "mid_burst",
+    "mode": "bp",
+    "freq": 1200,
+    "q": 1.0
+   },
+   {
+    "type": "gain",
+    "name": "mid_g",
+    "input": "mid_f",
+    "db": 0
+   },
+   {
+    "type": "noise",
+    "name": "hi_n",
+    "color": "white",
+    "seed": 45
+   },
+   {
+    "type": "decay",
+    "name": "hi_e",
+    "time": 0.012,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hi_burst",
+    "op": "mul",
+    "a": "hi_n",
+    "b": "hi_e"
+   },
+   {
+    "type": "filter",
+    "name": "hi_f",
+    "input": "hi_burst",
+    "mode": "bp",
+    "freq": 4000,
+    "q": 0.8
+   },
+   {
+    "type": "gain",
+    "name": "hi_g",
+    "input": "hi_f",
+    "db": -4
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "lo_g",
+     "mid_g",
+     "hi_g"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "dry",
+    "db": -6.0
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "weight",
+    "value": 0.6,
+    "doc": "level of the low band",
+    "game": false,
+    "map": [
+     {
+      "node": "lo_g",
+      "field": "db",
+      "from": -6,
+      "to": 14,
+      "curve": "linear"
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ],
+    "default": 0.6
+   },
+   {
+    "name": "grit",
+    "value": 0.6667,
+    "doc": "level of the 4 kHz band",
+    "game": false,
+    "map": [
+     {
+      "node": "hi_g",
+      "field": "db",
+      "from": -20,
+      "to": 4,
+      "curve": "linear"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ],
+    "default": 0.6667
+   },
+   {
+    "name": "size",
+    "value": 0.5,
+    "doc": "size of the stone: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "lo_f",
+      "field": "freq",
+      "from": 180,
+      "to": 500,
+      "curve": "exp"
+     },
+     {
+      "node": "mid_f",
+      "field": "freq",
+      "from": 700,
+      "to": 2000,
+      "curve": "exp"
+     }
+    ],
+    "default": 0.5
+   }
+  ]
+ }
+}

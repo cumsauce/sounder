@@ -1,0 +1,135 @@
+{
+ "role": "pre",
+ "material": "air",
+ "description": "heard as \"sweep\" in a blind listen; built as: a heavy low swing building up: pink noise band-passed 150 Hz up to 900 Hz over 0.5 s, swelling to the end; the hit goes at 0.5 s",
+ "tags": [
+  "airy",
+  "low",
+  "pre",
+  "sweep",
+  "swing",
+  "whoosh"
+ ],
+ "origin": "candidate batch 2 (built as whoosh_b); the listener rated it good blind on 2026-11-18. batch 2 candidate. Variant b: pink noise, bp q 0.8, 150 -> 900 Hz sweep, amplitude rising as a smooth curve to the hit with a 15 ms release",
+ "doc": {
+  "name": "low_sweep_pre",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "wn",
+    "color": "pink",
+    "seed": 52
+   },
+   {
+    "type": "env",
+    "name": "fq",
+    "points": [
+     [
+      0,
+      150
+     ],
+     [
+      0.5,
+      900
+     ]
+    ],
+    "curve": "smooth"
+   },
+   {
+    "type": "env",
+    "name": "amp",
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      0.15,
+      0.25
+     ],
+     [
+      0.46,
+      1
+     ],
+     [
+      0.5,
+      0
+     ]
+    ],
+    "curve": "smooth"
+   },
+   {
+    "type": "filter",
+    "name": "bp",
+    "input": "wn",
+    "mode": "bp",
+    "freq": "fq",
+    "q": 0.8
+   },
+   {
+    "type": "math",
+    "name": "sw",
+    "op": "mul",
+    "a": "bp",
+    "b": "amp"
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "sw",
+    "db": 2.8
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "top",
+    "value": 0.424,
+    "doc": "where the sweep ends",
+    "game": false,
+    "map": [
+     {
+      "node": "fq",
+      "field": "points",
+      "from": 500,
+      "to": 2000,
+      "curve": "exp",
+      "index": 1,
+      "key": "y"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ],
+    "default": 0.424
+   },
+   {
+    "name": "width",
+    "value": 0.3782,
+    "doc": "how wide the band is: higher is narrower",
+    "game": false,
+    "map": [
+     {
+      "node": "bp",
+      "field": "q",
+      "from": 0.4,
+      "to": 2.5,
+      "curve": "exp"
+     }
+    ],
+    "default": 0.3782
+   }
+  ]
+ }
+}
