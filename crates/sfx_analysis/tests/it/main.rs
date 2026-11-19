@@ -5,6 +5,7 @@
 
 mod bands;
 mod blast;
+mod cave;
 mod common;
 mod descriptors;
 mod dynamics;
