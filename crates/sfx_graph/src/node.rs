@@ -372,6 +372,10 @@ node_types! {
     "cicada" => Cicada,
     "helicopter" => Helicopter,
     "rocket" => Rocket,
+    "droid" => Droid,
+    "transporter" => Transporter,
+    "torpedo" => Torpedo,
+    "phaser_beam" => PhaserBeam,
 
     "fire" => Fire,
     "wind" => Wind,

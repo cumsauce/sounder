@@ -42,6 +42,7 @@ mod farnell_phone;
 mod farnell_rain;
 mod farnell_creatures;
 mod farnell_vehicles;
+mod farnell_scifi;
 mod machines;
 
 mod elements;
@@ -105,6 +106,7 @@ pub use farnell_phone::*;
 pub use farnell_rain::*;
 pub use farnell_creatures::*;
 pub use farnell_vehicles::*;
+pub use farnell_scifi::*;
 pub use machines::*;
 
 pub use elements::*;
