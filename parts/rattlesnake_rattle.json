@@ -1,0 +1,55 @@
+{
+ "role": "whole",
+ "material": "organic",
+ "description": "heard as \"rattlesnake\" in a blind listen (both dry and in a room); built as: a `cicada` buzz (Farnell's cicada tymbal noise, 5-8 kHz)",
+ "tags": [
+  "rattle",
+  "snake",
+  "rattlesnake",
+  "buzz",
+  "insect",
+  "loop-like"
+ ],
+ "origin": "batch 6 (the Farnell ports), cicada kind buzz; the listener rated it good blind on 2026-11-19 and kept it as what they heard",
+ "doc": {
+  "name": "rattlesnake_rattle",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 4.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "cicada",
+    "name": "src",
+    "kind": "buzz"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.002
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5,
+    "doc": "how high the rattle sits",
+    "claim": [
+     "centroid",
+     1
+    ],
+    "map": [
+     {
+      "node": "src",
+      "field": "pitch",
+      "from": 0.7,
+      "to": 1.4,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

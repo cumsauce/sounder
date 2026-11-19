@@ -184,6 +184,14 @@ pub struct Roar {
     /// two thirds of the rise are cut.
     #[serde(default)]
     pub length: Option<f32>,
+    /// How alive the voice is, 0 to 1 (default 0.6). 0 is the patch: one
+    /// clean rise and fall of pitch and level, which a listener heard as "a
+    /// cow ... too digital, goes up then immediately down perfectly with no
+    /// wavering". Above 0 the pitch wanders slowly (breath surges, a few Hz)
+    /// and jitters fast, the level shudders, alternate cord pulses are
+    /// louder (a growl's subharmonic), and the fall sags unevenly.
+    #[serde(default)]
+    pub wobble: Option<f32>,
     /// Start time, seconds (default 0).
     #[serde(default)]
     pub at: Option<f32>,
@@ -208,6 +216,7 @@ impl Eval for Roar {
         let ag = range("aggression", self.aggression.unwrap_or(0.5), 0.0, 1.0)?;
         let d = range("length", self.length.unwrap_or(1.0), 0.1, 10.0)?;
         let at = range("at", self.at.unwrap_or(0.0), 0.0, 3600.0)?;
+        let wob = range("wobble", self.wobble.unwrap_or(0.6), 0.0, 1.0)?;
         let vowel = match self.vowel.as_deref() {
             None | Some("roar") => None,
             Some(v) => match VOWELS.iter().find(|(n, _)| *n == v) {
@@ -251,6 +260,14 @@ impl Eval for Roar {
         let mut phase = 0.0f64;
         let (mut amp, mut a, mut dead) = (0.0f32, 0.25f32, false);
         let mut freqs = [0.0f32; 8];
+        // Wobble: a slow wander (new target every 60-180 ms, slewed), a fast
+        // jitter (low-passed noise), and a level shudder.
+        let mut wander = (0.0f32, 0.0f32, 0usize);
+        let mut jit = PdLop::new(30.0, sr);
+        let mut shud = PdLop::new(18.0, sr);
+        let mut pulse_n = 0u32;
+        let mut last_p = 0.0f32;
+        let slew = 1.0 - (-1.0 / (0.05 * sr)).exp();
         Ok(one(mono(cx.n, |i| {
             if i < start || dead {
                 return 0.0;
@@ -285,16 +302,42 @@ impl Eval for Roar {
                     }
                 }
             }
-            // The cord model (pd cord model).
-            let f0 = (base + a * frange).max(5.0);
+            // The cord model (pd cord model), with the wobble on its pitch.
+            if wob > 0.0 {
+                if wander.2 == 0 {
+                    wander.1 = rng.signed();
+                    wander.2 = ((0.06 + 0.12 * rng.unit()) * sr) as usize;
+                }
+                wander.2 -= 1;
+                wander.0 += slew * (wander.1 - wander.0);
+            }
+            let jitter = jit.tick(rng.signed()) * 6.0;
+            let sag = if t >= tr {
+                1.0 - 0.12 * wob * ((t - tr) / tf).min(1.0)
+            } else {
+                1.0
+            };
+            let bend = 1.0 + wob * (0.22 * (0.5 + ag) * wander.0 + 0.06 * jitter);
+            let f0 = ((base + a * frange) * bend * sag).max(5.0);
             phase = (phase + f64::from(f0 / sr)).rem_euclid(1.0);
             let p = phase as f32;
+            if p < last_p {
+                pulse_n += 1;
+            }
+            last_p = p;
+            let sub = if pulse_n.is_multiple_of(2) {
+                1.0
+            } else {
+                1.0 - 0.7 * wob * ag.max(0.4)
+            };
+            let shudder = 1.0 + wob * (0.3 * shud.tick(rng.signed()) * 4.0 + 0.15 * wander.0);
             let r = ripple.tick(a * cordr);
             let g = 0.5 * (1.0 - (TAU * p).cos());
             let x = cordw * g * (TAU * (p - 0.5) * r).cos();
             let y = 1.0 / (1.0 + x * x);
-            let cord = hip.tick(y * (1.0 - cordnz) + y * cordnz * rng.signed());
-            let e = 0.1 * cord;
+            let nz = (cordnz + 0.25 * wob).min(0.85);
+            let cord = hip.tick(y * (1.0 - nz) + y * nz * rng.signed());
+            let e = 0.1 * cord * sub * shudder.max(0.0);
             let tract = if vowel.is_some() {
                 forms.iter_mut().map(|b| b.tick(e)).sum::<f32>()
             } else {

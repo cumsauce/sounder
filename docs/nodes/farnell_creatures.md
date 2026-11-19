@@ -149,3 +149,15 @@ of the envelope energy at 20-150 Hz; `rattle` centroid 6.5 kHz, 85 % at 2-8k,
 21 % roughness; `call` (cycling, seed 1) centroid 7.9 kHz. A `tick` call's RMS sits
 35 dB under its peak, a `trill`'s 22 dB. None
 of them decays: set a `duration`.
+
+## `wobble` (after listening)
+
+Batch 6 heard the roar as a cow every time: "the pitch envelope is too
+digital - goes up then immediately down perfectly with no wavering". The
+`wobble` field (0..1, default 0.6; 0 is the patch) adds a slow pitch
+wander (a new target every 60-180 ms, slewed over 50 ms, up to +-22 % at
+aggression 1), a fast jitter (noise low-passed at 30 Hz), a level shudder,
+louder alternate cord pulses (a growl's subharmonic), an uneven sag on the
+fall, and more cord noise. At defaults the pitch by tenth went from a
+smooth 96-108-95 Hz arc to 100 107 112 102 107 (48) 97 101 101 Hz, voiced
+94 % -> 74 %. Not heard yet (batch 7).

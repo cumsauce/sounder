@@ -67,3 +67,14 @@ are parts of the four above).
 - `intensity` and `loop` are additions; the patches are free-running.
 - Phase of the 40-120 Hz sine is not wrapped for loops, so a drop straddling
   the seam can have a small step (not seen by `loop_seam`).
+
+## `wash` (after listening)
+
+Batch 6 heard none of the four surfaces as rain (leaf: static, gravel;
+window: popcorn; ground: tearing tape). The patches render a few drops a
+second; real rain is mostly a dense spray of tiny drops. `wash` (0..1,
+default 0.6; 0 is the patch) adds Bernoulli-timed ticks (700/s at
+`intensity` 20, scaled with it, power-law levels, ~1.2 ms noise bursts)
+high-passed at 1.5 kHz and low-passed at 8 kHz over a hiss bed, levelled
+against the drops' RMS. Measured over 10 s: leaf 3 -> 398 drops/s,
+2-8 kHz share 0.6 -> 11 %; ground 10 -> 393/s. Not heard yet (batch 7).

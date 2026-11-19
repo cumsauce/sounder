@@ -1,0 +1,54 @@
+{
+ "role": "whole",
+ "material": "organic",
+ "description": "heard as \"scissors snipping\" in a blind listen (both dry and in a room; the listener: perfectly fitting); built as: a `cicada` call (Farnell's cicada call cycle)",
+ "tags": [
+  "scissors",
+  "snip",
+  "cut",
+  "cicada",
+  "mechanical"
+ ],
+ "origin": "batch 6 (the Farnell ports), cicada kind call; the listener rated it good blind on 2026-11-19 and kept it as what they heard",
+ "doc": {
+  "name": "scissors_snip",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 4.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "cicada",
+    "name": "src",
+    "kind": "call"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.002
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5,
+    "doc": "how high the rattle sits",
+    "claim": [
+     "centroid",
+     1
+    ],
+    "map": [
+     {
+      "node": "src",
+      "field": "pitch",
+      "from": 0.7,
+      "to": 1.4,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

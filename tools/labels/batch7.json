@@ -1,0 +1,675 @@
+[
+ {
+  "id": "s01",
+  "family": "farnell_fix",
+  "design": "roar_big_w1",
+  "dressed": false,
+  "doc": {
+   "sound": "s01",
+   "ops": [
+    {
+     "type": "roar",
+     "size": 2.5,
+     "aggression": 1,
+     "length": 1.8,
+     "wobble": 1,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 2.5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s02",
+  "family": "farnell_fix",
+  "design": "rain_window_wash",
+  "dressed": true,
+  "doc": {
+   "sound": "s02",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "window",
+     "intensity": 20,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s03",
+  "family": "farnell_fix",
+  "design": "roar_w0",
+  "dressed": false,
+  "doc": {
+   "sound": "s03",
+   "ops": [
+    {
+     "type": "roar",
+     "wobble": 0,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s04",
+  "family": "farnell_fix",
+  "design": "roar_w1",
+  "dressed": true,
+  "doc": {
+   "sound": "s04",
+   "ops": [
+    {
+     "type": "roar",
+     "wobble": 1,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s05",
+  "family": "farnell_fix",
+  "design": "rain_leaf_wash1",
+  "dressed": true,
+  "doc": {
+   "sound": "s05",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "leaf",
+     "intensity": 60,
+     "wash": 1,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s06",
+  "family": "farnell_fix",
+  "design": "rain_ground_wash1",
+  "dressed": false,
+  "doc": {
+   "sound": "s06",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "ground",
+     "intensity": 120,
+     "wash": 1,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s07",
+  "family": "farnell_fix",
+  "design": "rain_leaf_wash",
+  "dressed": false,
+  "doc": {
+   "sound": "s07",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "leaf",
+     "intensity": 30,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s08",
+  "family": "farnell_fix",
+  "design": "roar_big_w06",
+  "dressed": true,
+  "doc": {
+   "sound": "s08",
+   "ops": [
+    {
+     "type": "roar",
+     "size": 2,
+     "aggression": 0.8,
+     "length": 1.5,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 2.2,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s09",
+  "family": "farnell_fix",
+  "design": "roar_w06",
+  "dressed": true,
+  "doc": {
+   "sound": "s09",
+   "ops": [
+    {
+     "type": "roar",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s10",
+  "family": "farnell_fix",
+  "design": "rain_water_wash",
+  "dressed": true,
+  "doc": {
+   "sound": "s10",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "water",
+     "intensity": 8,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s11",
+  "family": "farnell_fix",
+  "design": "rain_leaf_wash",
+  "dressed": true,
+  "doc": {
+   "sound": "s11",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "leaf",
+     "intensity": 30,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s12",
+  "family": "farnell_fix",
+  "design": "roar_w06",
+  "dressed": false,
+  "doc": {
+   "sound": "s12",
+   "ops": [
+    {
+     "type": "roar",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s13",
+  "family": "farnell_fix",
+  "design": "rain_ground_wash1",
+  "dressed": true,
+  "doc": {
+   "sound": "s13",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "ground",
+     "intensity": 120,
+     "wash": 1,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s14",
+  "family": "farnell_fix",
+  "design": "roar_w0",
+  "dressed": true,
+  "doc": {
+   "sound": "s14",
+   "ops": [
+    {
+     "type": "roar",
+     "wobble": 0,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s15",
+  "family": "farnell_fix",
+  "design": "rain_ground_wash",
+  "dressed": true,
+  "doc": {
+   "sound": "s15",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "ground",
+     "intensity": 60,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s16",
+  "family": "farnell_fix",
+  "design": "roar_w1",
+  "dressed": false,
+  "doc": {
+   "sound": "s16",
+   "ops": [
+    {
+     "type": "roar",
+     "wobble": 1,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s17",
+  "family": "farnell_fix",
+  "design": "roar_big_w06",
+  "dressed": false,
+  "doc": {
+   "sound": "s17",
+   "ops": [
+    {
+     "type": "roar",
+     "size": 2,
+     "aggression": 0.8,
+     "length": 1.5,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 2.2,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s18",
+  "family": "farnell_fix",
+  "design": "roar_big_w1",
+  "dressed": true,
+  "doc": {
+   "sound": "s18",
+   "ops": [
+    {
+     "type": "roar",
+     "size": 2.5,
+     "aggression": 1,
+     "length": 1.8,
+     "wobble": 1,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 2.5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s19",
+  "family": "farnell_fix",
+  "design": "rain_leaf_wash1",
+  "dressed": false,
+  "doc": {
+   "sound": "s19",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "leaf",
+     "intensity": 60,
+     "wash": 1,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s20",
+  "family": "farnell_fix",
+  "design": "rain_window_wash",
+  "dressed": false,
+  "doc": {
+   "sound": "s20",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "window",
+     "intensity": 20,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s21",
+  "family": "farnell_fix",
+  "design": "rain_ground_wash",
+  "dressed": false,
+  "doc": {
+   "sound": "s21",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "ground",
+     "intensity": 60,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s22",
+  "family": "farnell_fix",
+  "design": "rain_water_wash",
+  "dressed": false,
+  "doc": {
+   "sound": "s22",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "water",
+     "intensity": 8,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ }
+]

@@ -139,6 +139,13 @@ pub struct Rain {
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
+    /// The wash of rain everywhere else, 0 to 1 (default 0.6): a dense spray
+    /// of tiny drop ticks (hundreds a second, power-law levels, 1.5-8 kHz)
+    /// over a soft hiss bed, under the surface's own drops. The patches'
+    /// drops alone (0) were heard as static, gravel, popcorn and tearing
+    /// tape, never as rain.
+    #[serde(default)]
+    pub wash: Option<f32>,
     /// Render a buffer that wraps with no seam. Unset: yes in a `kind: loop`
     /// document, no otherwise.
     #[serde(default, rename = "loop")]
@@ -420,6 +427,56 @@ impl Eval for Rain {
                 ground(&mut rng, n, sr, scale, wrap)
             }
         };
+        let wash = self.wash.unwrap_or(0.6);
+        if !(0.0..=1.0).contains(&wash) {
+            return Err(format!("wash: {wash}: give 0 to 1"));
+        }
+        let mut out = out;
+        if wash > 0.0 {
+            let rms = (out.iter().map(|v| v * v).sum::<f32>() / n.max(1) as f32)
+                .sqrt()
+                .max(1e-4);
+            let rate = 700.0 * (self.intensity.unwrap_or(20.0) / 20.0).clamp(0.2, 4.0);
+            let w = wash_layer(&mut rng, n, sr, rate, wrap);
+            let wr = (w.iter().map(|v| v * v).sum::<f32>() / n.max(1) as f32)
+                .sqrt()
+                .max(1e-9);
+            let g = 1.6 * wash * rms / wr;
+            for (o, v) in out.iter_mut().zip(&w) {
+                *o += g * v;
+            }
+        }
         Ok(one(Buf::Audio(out)))
     }
+}
+
+/// The rain wash: Bernoulli-timed ticks (power-law levels, each a noise
+/// burst under a ~1 ms decay) high-passed at 1.5 kHz and low-passed at
+/// 8 kHz, over a hiss bed 12 dB down whose level wanders slowly.
+fn wash_layer(rng: &mut Rng, n: usize, sr: f32, rate: f32, wrap: bool) -> Vec<f32> {
+    let p = rate / sr;
+    let dec = (-1.0 / (0.0012 * sr)).exp();
+    let mut env = 0.0f32;
+    let raw: Vec<f32> = (0..n)
+        .map(|_| {
+            if rng.unit() < p {
+                let u = rng.unit();
+                env = env.max(u * u * u);
+            }
+            env *= dec;
+            env * rng.signed() + 0.06 * rng.signed()
+        })
+        .collect();
+    let (mut h1, mut h2, mut l1) = (
+        PdHip::new(1500.0, sr),
+        PdHip::new(1500.0, sr),
+        PdLop::new(8000.0, sr),
+    );
+    let mut out = vec![0.0; n];
+    for _ in 0..if wrap { 2 } else { 1 } {
+        for (o, &v) in out.iter_mut().zip(&raw) {
+            *o = l1.tick(h2.tick(h1.tick(v)));
+        }
+    }
+    out
 }

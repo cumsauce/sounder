@@ -343,7 +343,7 @@ after bed texture whole`), with a material, tags and one to three knobs.
 Before building a layer from nodes, look for one:
 
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`,
-  `approved`): the library's parts and saved sounds plus the 89 built-in
+  `approved`): the library's parts and saved sounds plus the 91 built-in
   parts in `parts/`: the five layers of the approved door slam (`wood_brush`,
   `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock`), 72 the
   listener rated good blind, and `wooden_crate_drop` (a whole crate landing
@@ -358,7 +358,7 @@ Before building a layer from nodes, look for one:
   fire, storm wind, fan, sparks, crickets, underwater bubbles, liquid drops.
   Water: a splash with bubbles (5 to 30 cm), a deep bubble pop (a big
   splash without its tail).
-  Whole sounds: door creak, engine rev, bird, breath, bells, siren, alarm,
+  Whole sounds: a rattlesnake rattle and scissors snipping (both cicada patches, heard so), door creak, engine rev, bird, breath, bells, siren, alarm,
   flute, plucked string, twang, laser, error beep. **Not in the library
   yet** (every attempt was heard as something else, rated lower, or not
   rated): a footstep on concrete, gravel or grass (wood steps from four
@@ -539,10 +539,10 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 | a creaking door, a hinge | `door_creak` | `force` (signal; creaks over 0.3) | Farnell's stick-slip hinge through wood resonances and a square panel |
 | a jet engine, a turbine | `jet` | `speed` (signal 0.1..1, spools up through a 0.2 Hz low-pass) | Farnell's jet: turbine tones and a clipped, swept burner roar |
 | a sci-fi alarm, red alert | `red_alert` | `at` (whoop times), `pitch` | Farnell's klaxon: a rising buzz through feedback delays and a formant horn |
-| rain on a leaf, water, a window, the ground | `rain` | `surface` leaf / water / window / ground, `intensity` (drops/s), `loop` | Farnell's RAIN patches; heard: water as bubbles (good), leaf as static or gravel, window as popcorn, ground as tearing tape: **not heard as rain** |
+| rain on a leaf, water, a window, the ground | `rain` | `surface` leaf / water / window / ground, `intensity` (drops/s), `wash` (the dense spray under the drops, default 0.6), `loop` | Farnell's RAIN patches; heard: water as bubbles (good), leaf as static or gravel, window as popcorn, ground as tearing tape: **not heard as rain** without the `wash` (added since, unheard) |
 | a stream, a brook; pouring into a vessel | `stream`; `pour` | `flow`, `depth`, `range`, `layers`, `loop`; `fill_time`, `vessel`, `bubbles` | heard: `stream` ok (bubbles), at `flow` 2 / `layers` 4 a gurgling tube (good); `pour` ok (chemistry-set bubbles); `pour` needs a `duration` of `fill_time` + 1.5 s |
 | a helicopter; a rocket motor | `helicopter`; `rocket` | `rotor_rate`, `engine`, `tail`, `distance` (signals); `thrust`, `ignition`, `burn` | heard: helicopter good (near and far); rocket as a fake game weapon; set a `duration` |
-| a roar, a growl; a housefly; cicadas | `roar`; `fly`; `cicada` | `size`, `aggression`, `vowel`, `length`; `freq`, `res`, `flutter`; `kind` buzz / rattle / call, `pitch`, `rate` | heard: `fly` as a fly (good); `cicada` as a rattlesnake / scissors; `roar` as a **cow** (its pitch glide is too clean); `fly` and `cicada` never decay: set a `duration` |
+| a roar, a growl; a housefly; cicadas | `roar`; `fly`; `cicada` | `size`, `aggression`, `vowel`, `length`; `freq`, `res`, `flutter`; `kind` buzz / rattle / call, `pitch`, `rate` | heard: `fly` as a fly (good); `cicada` as a rattlesnake / scissors; `roar` as a **cow** (its pitch glide too clean; `wobble`, default 0.6, added since, unheard); `fly` and `cicada` never decay: set a `duration` |
 | a chattering robot, a beam-up shimmer, a sci-fi torpedo, a hand-held beam | `droid`, `transporter`, `torpedo`, `phaser_beam` | `chatter`, `pitch`, `mood`; `chime`, `reverb`; `sweep`, `ring`; `mode` kill / stun; each a `length` | heard: transporter good, beam good (an alert), droid ok (too random), torpedo ok (a space weapon) |
 | a telephone: dial, busy, ringback, touch tones, rotary; a two-tone alarm | `phone_tone`; `two_tone` | `kind`, `digits`, `line` 0..1, `tempo`; `low`, `high`, `rate`, `shape` | heard: dial, busy, ringback, touch tones, two_tone good; pulse_dial as distant gunfire |
 | thunder, a distant storm | `thunder` | `distance`, `brightness`, `length`, `duration` | foley's N-wave and rumble; `brightness` tilts above 100 Hz, `length` stretches the rumble; a `duration` that fits |

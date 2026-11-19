@@ -11,7 +11,8 @@ fn render_error(nodes: Vec<Value>) -> String {
 }
 
 fn rain(extra: Value) -> Vec<Value> {
-    let mut r = json!({"type": "rain", "name": "n"});
+    // The patches' drops alone: the wash is tested on its own below.
+    let mut r = json!({"type": "rain", "name": "n", "wash": 0});
     r.as_object_mut()
         .unwrap()
         .extend(extra.as_object().unwrap().clone());
@@ -174,4 +175,28 @@ fn bad_fields_say_what_to_give() {
     }
     let e = render_error(rain(json!({"surface": "roof"})));
     assert!(e.contains("leaf") && e.contains("ground"), "{e}");
+}
+
+#[test]
+fn the_wash_fills_the_gaps_between_drops() {
+    // The patches' drops alone read as static, popcorn or tape; the wash adds
+    // a dense spray of tiny ticks in 1.5-8 kHz under them.
+    for s in SURFACES {
+        let dry = surface(s, json!({}));
+        let wet = surface(s, json!({"wash": 0.6}));
+        let (d0, d1) = (describe(&mono_audio(&dry)), describe(&mono_audio(&wet)));
+        println!(
+            "{s}: density {:.0} -> {:.0}/s, 2-8k share {:.2} -> {:.2}",
+            d0.density.per_s, d1.density.per_s, d0.band_shares[2], d1.band_shares[2]
+        );
+        assert!(
+            d1.density.per_s > d0.density.per_s,
+            "{s}: the wash adds no drops"
+        );
+        assert!(
+            d1.band_shares[2] > d0.band_shares[2].min(10.0),
+            "{s}: the wash adds no 2-8 kHz"
+        );
+        assert!(wet.iter().all(|v| v.is_finite()));
+    }
 }
