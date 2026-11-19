@@ -1,0 +1,969 @@
+[
+ {
+  "id": "b22_01",
+  "family": "impact",
+  "group": "pipe_drop",
+  "design": "pipe_impact_crack",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "shape": "tube",
+     "f0": 160,
+     "loss": 0.4,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "object_mass": 2.0,
+     "height": 0.4,
+     "bounce": 0.35,
+     "scatter": 0.4,
+     "floor": "stone"
+    },
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "math",
+     "name": "crk",
+     "op": "mul",
+     "a": "wn",
+     "b": "hit.force"
+    },
+    {
+     "type": "filter",
+     "name": "crk_f",
+     "input": "crk",
+     "mode": "hp",
+     "freq": 2500
+    },
+    {
+     "type": "gain",
+     "name": "crk_g",
+     "input": "crk_f",
+     "db": -14
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "hit",
+      "crk_g"
+     ]
+    },
+    {
+     "type": "finish",
+     "name": "bus",
+     "input": "dry",
+     "punch": 0.3,
+     "glue": 0.2
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "bus",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b22_02",
+  "family": "impact",
+  "group": "block_drop",
+  "design": "block_crate_part",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "sound",
+     "name": "src",
+     "sound": "wooden_crate_drop"
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ },
+ {
+  "id": "b22_03",
+  "family": "impact",
+  "group": "coin_drop",
+  "design": "coin_bounce_voices",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "bounce",
+     "name": "b",
+     "first": 0.24,
+     "restitution": 0.6,
+     "start": 0.005,
+     "jitter": 0.1
+    },
+    {
+     "type": "voices",
+     "name": "src",
+     "events": "b",
+     "length": 1.0,
+     "max": 32,
+     "patch": [
+      {
+       "type": "impulse",
+       "name": "tap",
+       "at": [
+        0.0
+       ]
+      },
+      {
+       "type": "gain",
+       "name": "strike",
+       "input": "tap",
+       "gain": "$value"
+      },
+      {
+       "type": "modal",
+       "name": "coin",
+       "excite": "strike",
+       "material": "metal",
+       "size": 0.025,
+       "thickness": 0.0015,
+       "loss": 0.5,
+       "noise": 0.4,
+       "noise_width": 0.1
+      }
+     ]
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b22_04",
+  "family": "impact",
+  "group": "pipe_drop",
+  "design": "pipe_impact_crack",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "shape": "tube",
+     "f0": 160,
+     "loss": 0.4,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "object_mass": 2.0,
+     "height": 0.4,
+     "bounce": 0.35,
+     "scatter": 0.4,
+     "floor": "stone"
+    },
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "math",
+     "name": "crk",
+     "op": "mul",
+     "a": "wn",
+     "b": "hit.force"
+    },
+    {
+     "type": "filter",
+     "name": "crk_f",
+     "input": "crk",
+     "mode": "hp",
+     "freq": 2500
+    },
+    {
+     "type": "gain",
+     "name": "crk_g",
+     "input": "crk_f",
+     "db": -14
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "hit",
+      "crk_g"
+     ]
+    },
+    {
+     "type": "finish",
+     "name": "bus",
+     "input": "dry",
+     "punch": 0.3,
+     "glue": 0.2
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "bus",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b22_05",
+  "family": "impact",
+  "group": "pipe_drop",
+  "design": "pipe_impact",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "shape": "tube",
+     "f0": 160,
+     "loss": 0.4,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "object_mass": 2.0,
+     "height": 0.4,
+     "bounce": 0.35,
+     "scatter": 0.4,
+     "floor": "stone"
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b22_06",
+  "family": "impact",
+  "group": "coin_drop",
+  "design": "coin_impact_crack",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "shape": "plate",
+     "size": 0.025,
+     "thickness": 0.0015,
+     "loss": 0.5,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "object_mass": 0.007,
+     "height": 0.3,
+     "bounce": 0.6,
+     "scatter": 0.4,
+     "floor": "stone"
+    },
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "math",
+     "name": "crk",
+     "op": "mul",
+     "a": "wn",
+     "b": "hit.force"
+    },
+    {
+     "type": "filter",
+     "name": "crk_f",
+     "input": "crk",
+     "mode": "hp",
+     "freq": 4000
+    },
+    {
+     "type": "gain",
+     "name": "crk_g",
+     "input": "crk_f",
+     "db": -16
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "hit",
+      "crk_g"
+     ]
+    },
+    {
+     "type": "finish",
+     "name": "bus",
+     "input": "dry",
+     "punch": 0.3,
+     "glue": 0.2
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "bus",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b22_07",
+  "family": "impact",
+  "group": "coin_drop",
+  "design": "coin_bounce_voices",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "bounce",
+     "name": "b",
+     "first": 0.24,
+     "restitution": 0.6,
+     "start": 0.005,
+     "jitter": 0.1
+    },
+    {
+     "type": "voices",
+     "name": "src",
+     "events": "b",
+     "length": 1.0,
+     "max": 32,
+     "patch": [
+      {
+       "type": "impulse",
+       "name": "tap",
+       "at": [
+        0.0
+       ]
+      },
+      {
+       "type": "gain",
+       "name": "strike",
+       "input": "tap",
+       "gain": "$value"
+      },
+      {
+       "type": "modal",
+       "name": "coin",
+       "excite": "strike",
+       "material": "metal",
+       "size": 0.025,
+       "thickness": 0.0015,
+       "loss": 0.5,
+       "noise": 0.4,
+       "noise_width": 0.1
+      }
+     ]
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b22_08",
+  "family": "impact",
+  "group": "block_drop",
+  "design": "block_impact",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "shape": "bar",
+     "size": 0.3,
+     "loss": 2.0,
+     "noise": 0.6,
+     "tilt": 4,
+     "object_mass": 0.8,
+     "height": 0.4,
+     "bounce": 0.3,
+     "scatter": 0.4,
+     "floor": "stone"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ },
+ {
+  "id": "b22_09",
+  "family": "impact",
+  "group": "block_drop",
+  "design": "block_impact_crack",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "shape": "bar",
+     "size": 0.3,
+     "loss": 2.0,
+     "noise": 0.6,
+     "tilt": 4,
+     "object_mass": 0.8,
+     "height": 0.4,
+     "bounce": 0.3,
+     "scatter": 0.4,
+     "floor": "stone"
+    },
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "math",
+     "name": "crk",
+     "op": "mul",
+     "a": "wn",
+     "b": "hit.force"
+    },
+    {
+     "type": "filter",
+     "name": "crk_f",
+     "input": "crk",
+     "mode": "hp",
+     "freq": 2000
+    },
+    {
+     "type": "gain",
+     "name": "crk_g",
+     "input": "crk_f",
+     "db": -10
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "hit",
+      "crk_g"
+     ]
+    },
+    {
+     "type": "finish",
+     "name": "bus",
+     "input": "dry",
+     "punch": 0.3,
+     "glue": 0.2
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "bus",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ },
+ {
+  "id": "b22_10",
+  "family": "impact",
+  "group": "pipe_drop",
+  "design": "pipe_part",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "sound",
+     "name": "src",
+     "sound": "large_pipe_drop"
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b22_11",
+  "family": "impact",
+  "group": "coin_drop",
+  "design": "coin_impact",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "shape": "plate",
+     "size": 0.025,
+     "thickness": 0.0015,
+     "loss": 0.5,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "object_mass": 0.007,
+     "height": 0.3,
+     "bounce": 0.6,
+     "scatter": 0.4,
+     "floor": "stone"
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b22_12",
+  "family": "impact",
+  "group": "coin_drop",
+  "design": "coin_impact_crack",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "shape": "plate",
+     "size": 0.025,
+     "thickness": 0.0015,
+     "loss": 0.5,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "object_mass": 0.007,
+     "height": 0.3,
+     "bounce": 0.6,
+     "scatter": 0.4,
+     "floor": "stone"
+    },
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "math",
+     "name": "crk",
+     "op": "mul",
+     "a": "wn",
+     "b": "hit.force"
+    },
+    {
+     "type": "filter",
+     "name": "crk_f",
+     "input": "crk",
+     "mode": "hp",
+     "freq": 4000
+    },
+    {
+     "type": "gain",
+     "name": "crk_g",
+     "input": "crk_f",
+     "db": -16
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "hit",
+      "crk_g"
+     ]
+    },
+    {
+     "type": "finish",
+     "name": "bus",
+     "input": "dry",
+     "punch": 0.3,
+     "glue": 0.2
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "bus",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b22_13",
+  "family": "impact",
+  "group": "pipe_drop",
+  "design": "pipe_part",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "sound",
+     "name": "src",
+     "sound": "large_pipe_drop"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b22_14",
+  "family": "impact",
+  "group": "pipe_drop",
+  "design": "pipe_impact",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "shape": "tube",
+     "f0": 160,
+     "loss": 0.4,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "object_mass": 2.0,
+     "height": 0.4,
+     "bounce": 0.35,
+     "scatter": 0.4,
+     "floor": "stone"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b22_15",
+  "family": "impact",
+  "group": "block_drop",
+  "design": "block_impact",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "shape": "bar",
+     "size": 0.3,
+     "loss": 2.0,
+     "noise": 0.6,
+     "tilt": 4,
+     "object_mass": 0.8,
+     "height": 0.4,
+     "bounce": 0.3,
+     "scatter": 0.4,
+     "floor": "stone"
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ },
+ {
+  "id": "b22_16",
+  "family": "impact",
+  "group": "coin_drop",
+  "design": "coin_impact",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "shape": "plate",
+     "size": 0.025,
+     "thickness": 0.0015,
+     "loss": 0.5,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "object_mass": 0.007,
+     "height": 0.3,
+     "bounce": 0.6,
+     "scatter": 0.4,
+     "floor": "stone"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b22_17",
+  "family": "impact",
+  "group": "block_drop",
+  "design": "block_crate_part",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "sound",
+     "name": "src",
+     "sound": "wooden_crate_drop"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ },
+ {
+  "id": "b22_18",
+  "family": "impact",
+  "group": "block_drop",
+  "design": "block_impact_crack",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "shape": "bar",
+     "size": 0.3,
+     "loss": 2.0,
+     "noise": 0.6,
+     "tilt": 4,
+     "object_mass": 0.8,
+     "height": 0.4,
+     "bounce": 0.3,
+     "scatter": 0.4,
+     "floor": "stone"
+    },
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "math",
+     "name": "crk",
+     "op": "mul",
+     "a": "wn",
+     "b": "hit.force"
+    },
+    {
+     "type": "filter",
+     "name": "crk_f",
+     "input": "crk",
+     "mode": "hp",
+     "freq": 2000
+    },
+    {
+     "type": "gain",
+     "name": "crk_g",
+     "input": "crk_f",
+     "db": -10
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "hit",
+      "crk_g"
+     ]
+    },
+    {
+     "type": "finish",
+     "name": "bus",
+     "input": "dry",
+     "punch": 0.3,
+     "glue": 0.2
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "bus",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ }
+]

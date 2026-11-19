@@ -54,7 +54,7 @@ modeler's `MODELER_*`.
    a hit or a mechanism, read "Layering a designed sound": the node is the
    body layer, and a designed sound adds the pre, crack, weight and after
    layers on a dry bus.
-   `describe_op` lists the 144 node types; `describe_op {kind: "filter"}` gives
+   `describe_op` lists the 145 node types; `describe_op {kind: "filter"}` gives
    one's example and schema (`type` and `node` are aliases of `kind`). To
    remove a node put `{"type": "delete", "name": "x"}` in `ops` (one item per
    node; a top-level `delete` is not a field and errors).
@@ -192,7 +192,7 @@ expression exactly as if it began with `=`, so a `voices` patch needs no leading
 a node. The error for an unknown node name shows the hint (`write expressions
 with a leading `=`, e.g. "=1.5 * $value"`).
 
-Families (144 types; groups marked * have a section in
+Families (145 types; groups marked * have a section in
 `docs/nodes/README.md`):
 
 - sources: `osc noise impulse sample` and `fm wavetable`*; control `lfo wander
@@ -210,7 +210,7 @@ Families (144 types; groups marked * have a section in
   spectral` (with new modes)*.
 - events `once pattern poisson bounce burst on_threshold shatter`* with
   `grains cloud`* and `voices`; `sound` (an instance of another sound).
-- physical models `modal contact friction` (with shapes, `loss`, `tilt`)*,
+- physical models `modal contact friction impact` (with shapes, `loss`, `tilt`)*,
   mechanism clicks `click`*, the foley ones
   `bubble air glottis tract syrinx thunder` (voice upgrades)*, waveguides
   `tube string`*, surfaces `rolling cloth crumple footstep`*, water `water splash`*,
@@ -346,7 +346,7 @@ Before building a layer from nodes, look for one:
 
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`:
   any word of a name, tag or description, plurals and endings folded, most
-  hits first; `approved`): the library's parts and saved sounds plus the 118 built-in
+  hits first; `approved`): the library's parts and saved sounds plus the 121 built-in
   parts in `parts/` (table below). Each is named and described by what the
   listener heard (`heard as "..."`), which is often not what it was built
   as: search by the sound you need, not by the node. Approved ones come
@@ -490,6 +490,7 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 | a telephone: dial, busy, ringback, touch tones, rotary; a two-tone alarm | `phone_tone`; `two_tone` | `kind`, `digits`, `line` 0..1, `tempo`; `low`, `high`, `rate`, `shape` | heard: dial, busy, ringback, touch tones, two_tone good; pulse_dial as distant gunfire |
 | thunder, a distant storm | `thunder` | `distance`, `brightness`, `length`, `duration` | foley's N-wave and rumble; `brightness` tilts above 100 Hz, `length` stretches the rumble; a `duration` that fits |
 | a struck object: panel, bell, pipe, keys, a door's thud | `modal` fed by `contact`, `impulse` or a noise burst | `shape` plate / bar / tube / membrane / string / shell, `material`, `size`, `thickness`, `loss`, `tilt`; **`noise` for real wood (0.6, `tilt` 4) and metal (pipe, bar, lid, tool, coin: 0.4, `noise_width` 0.1, `loss` 0.3-0.6; 0.85 with `noise_width` 0.5 reads as a thin sheet)** (clean modes read as a tuned instrument) | normalized; `size` and `thickness` are pitch knobs (small thin objects: `thickness` 0.0015 instead of a custom material); `loss` 0.5 rings twice as long; `tilt` flattens a one-mode plate |
+| how a hit plays out over time: a drop, bounces, settling, chatter, buzz (a dropped pipe, a coin, a block, a can kicked, a hammer on sheet metal, a loose lid) | `impact` (parts `impact_pipe_drop`, `impact_coin_drop`, `impact_block_drop`) | `height` or `speed`, `object_mass`, `striker_mass` (left out: a drop onto `floor`), `bounce`, `scatter`, and `modal`'s shape / material / `f0` / `loss` / `noise` | a striker (or the floor) and the modes stepped together through a Hunt-Crossley contact. Picked over the approved pipe, crate and a bounce -> voices coin in a blind listen (2026-11-19). It is the body layer: a crack from its `force` port (white noise x `hit.force`, hp 2 kHz) won the block box. Single hits stay on the parts / template and `contact` -> `modal`; hand-timed rhythms on `pattern` / `voices`. Peaks at -6 dBFS |
 | a larger-than-life hit (cinematic, trailer, a game's heavy impact) | `subdrop` under it, `riser` into it | `from` / `to` / `decay`, `drive`; `at` (the hit), `length`, `shape` | tonal on purpose: add them to a layered hit only when the brief asks for exaggeration (a realistic slam with a sine sub read as a tuned drum) |
 | a robot voice, speech-like texture, band dynamics | `vocoder`, `multiband`, `filterbank` | a pitched `carrier` + a noisy `modulator`; `crossovers` + `bands` | see "Bands and vocoder" in `docs/nodes/README.md` |
 | a swarm, a swell, a granular wash | `cloud`, `grains` | `source`, `density` (signal), `size`, `pitch_spread` | grains from any node or WAV |

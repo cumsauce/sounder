@@ -1,0 +1,101 @@
+{
+ "role": "whole",
+ "material": "wood",
+ "description": "heard as the best wooden block drop of its box in a blind listen (over the approved wooden_crate_drop); built as: `impact` wood bar 0.3 m, 0.8 kg, dropped 0.4 m on stone, bounce 0.3, a white-noise crack driven by the impact's `force` port (hp 2 kHz, -10 dB), finish",
+ "tags": [
+  "wood",
+  "block",
+  "drop",
+  "bounce",
+  "physical",
+  "impact"
+ ],
+ "origin": "batch 22 (impact against the builds); picked best of its box by the listener on 2026-11-19",
+ "doc": {
+  "name": "impact_block_drop",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 1.5,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "impact",
+    "name": "hit",
+    "material": "wood",
+    "shape": "bar",
+    "size": 0.3,
+    "loss": 2.0,
+    "noise": 0.6,
+    "tilt": 4,
+    "object_mass": 0.8,
+    "height": 0.4,
+    "bounce": 0.3,
+    "scatter": 0.4,
+    "floor": "stone",
+    "at": 0.005
+   },
+   {
+    "type": "noise",
+    "name": "wn",
+    "color": "white"
+   },
+   {
+    "type": "math",
+    "name": "crk",
+    "op": "mul",
+    "a": "wn",
+    "b": "hit.force"
+   },
+   {
+    "type": "filter",
+    "name": "crk_f",
+    "input": "crk",
+    "mode": "hp",
+    "freq": 2000
+   },
+   {
+    "type": "gain",
+    "name": "crk_g",
+    "input": "crk_f",
+    "db": -10
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "hit",
+     "crk_g"
+    ]
+   },
+   {
+    "type": "finish",
+    "name": "bus",
+    "input": "dry",
+    "punch": 0.3,
+    "glue": 0.2
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "bus",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "crack",
+    "value": 0.5,
+    "doc": "level of the crack on every touch",
+    "map": [
+     {
+      "node": "crk_g",
+      "field": "db",
+      "from": -22,
+      "to": -2
+     }
+    ]
+   }
+  ]
+ }
+}

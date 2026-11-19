@@ -1,0 +1,62 @@
+{
+ "role": "whole",
+ "material": "metal",
+ "description": "heard as the best pipe drop of its box in a blind listen (over the approved large_pipe_drop); built as: `impact` metal tube f0 160 dropped 0.4 m on stone, bounce 0.35; the listener heard the tail cut at 3 s and too long, so loss is 1.0 (was 0.4), the length 3.5 s and the output fades out over the last 0.8 s (the automatic length was 11 s); not heard since",
+ "tags": [
+  "metal",
+  "pipe",
+  "drop",
+  "bounce",
+  "physical",
+  "impact"
+ ],
+ "origin": "batch 22 (impact against the builds); picked best of its box by the listener on 2026-11-19",
+ "doc": {
+  "name": "impact_pipe_drop",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 3.5,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "impact",
+    "name": "hit",
+    "material": "metal",
+    "shape": "tube",
+    "f0": 160,
+    "loss": 1.0,
+    "noise": 0.4,
+    "noise_width": 0.1,
+    "object_mass": 2.0,
+    "height": 0.4,
+    "bounce": 0.35,
+    "scatter": 0.4,
+    "floor": "stone",
+    "at": 0.005
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "hit",
+    "fade_in": 0.0005,
+    "fade_out": 0.8
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "height",
+    "value": 0.5,
+    "doc": "drop height: later, harder bounces",
+    "map": [
+     {
+      "node": "hit",
+      "field": "height",
+      "from": 0.15,
+      "to": 0.8
+     }
+    ]
+   }
+  ]
+ }
+}

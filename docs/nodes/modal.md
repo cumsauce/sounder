@@ -381,3 +381,72 @@ this way were heard as metal; the same objects as clean sine modes (a
 `resonators` table with split, beating pairs) were heard as "digital bell".
 Earlier rings of 0.1-0.4 s read as glass or ceramic. Details:
 `docs/history/labels/batch4_findings.md`.
+
+## `impact`: the strike solved as one system
+
+`contact` -> `modal` is feed-forward: the force pulse is fixed before the
+object moves. `impact` steps a point mass and the object's modes together, so
+the contact force follows how the surface moves under it.
+
+```json
+{"type": "impact", "name": "pipe", "material": "metal", "shape": "tube", "f0": 160,
+ "loss": 0.4, "noise": 0.4, "noise_width": 0.1, "object_mass": 2.0, "height": 0.5}
+```
+
+### Model
+
+- The mode table is `modal`'s (`Modal::prepare`): the same shape, material,
+  `size` / `f0`, `thickness`, `loss`, `strike_position`. Each mode is a damped
+  oscillator of modal mass `object_mass` / 4, coupled at the contact by its
+  shape weight (1 at the strongest mode); it radiates its velocity times the
+  same weight, tilted by `tilt`. `noise` / `noise_width` work as in `modal`.
+- Two set-ups. With `striker_mass`: a ball of that mass (density 2000, its
+  modulus from `hardness` as `contact`) hits the held object. Without: the
+  object itself falls on a rigid `floor` (a material, default stone), its
+  rigid motion carrying `object_mass`.
+- Contact: Hertz stiffness k = 4/3 E* sqrt(`radius`) with Hunt-Crossley
+  damping F = k d^1.5 (1 + alpha d'), alpha set at each landing so the
+  contact keeps `bounce` of the incoming speed. The modes are springs too and
+  give energy back: without a cap a pipe with `bounce` 0 still flew 0.46 s,
+  so the rebound of each landing is held to `bounce` x the speed it came in
+  at. Touches within 3 ms of the last one are chatter of the same landing,
+  not a new one.
+- Gravity is on for a drop and for a striker given a `height`; a striker given
+  a `speed` flies without it (it would fall back for a second hit).
+- `scatter` jitters each landing's restitution (x 1 +- 0.3 scatter) and each
+  mode's coupling after the first landing (a tumbling object lands on another
+  point), so seeds differ. After `max_bounces` landings, or an incoming speed
+  under 2 cm/s, restitution is 0 and it settles.
+- Integration: symplectic Euler, `oversample` substeps a sample at least,
+  raised so the Hertz contact time of the first landing spans 20 substeps
+  (at most 64). The output is normalized to peak at -6 dBFS before `gain_db`
+  (a macro on `height` moves the timing, not the level). Port `force`: the
+  contact force, 1 at its peak, 0 off contact.
+
+### Measured (`crates/sfx_analysis/tests/it/modal.rs`, `mod impact`)
+
+- A 2 kg tube dropped 0.3 m with `bounce` 0.6, no scatter: four or more
+  landings, the first flight within 10 % of 2 e v / g at most, the gaps
+  shrinking.
+- `bounce` 0: no second flight, but the ringing tube buzzes on the floor
+  with dozens of touches in the first 70 ms (the chatter the coupling is for).
+- A 20 g steel striker on a 0.5 kg, 2 mm metal plate: two or more touches in
+  the first 20 ms. A 0.2 kg soft striker on a 50 kg wood plate: one contact
+  within a factor 2.5 of the Hertz time.
+- Finite for striker masses 1 g..10 kg, hardness 0..1; bit-identical across
+  thread counts; seeds differ with `scatter`.
+
+### Honest limits
+
+- Heard once (batch 22, `docs/history/labels/batch22_findings.md`): picked
+  over the approved pipe drop, the crate drop and a `bounce` -> `voices` coin.
+  The settings outside those three drops are unheard.
+- One contact point and one translation: no rotation, so a bar does not
+  rock end to end, and a coin does not spin down (no rising wobble).
+- Modal masses are one number for every mode, not the object's mode shapes;
+  radiation is the strike weight, not a radiation efficiency.
+- The rebound cap is a stand-in for the energy the real modes lose to
+  radiation and to the floor; without it the low modes bounce the object like
+  rubber.
+- Each mode keeps a buffer as long as the sound (32 modes x 4 s at 48 kHz is
+  about 25 MB).

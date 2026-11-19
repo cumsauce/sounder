@@ -40,7 +40,7 @@ fn failing(doc: &SoundDoc, expect: serde_json::Value) -> Vec<String> {
 #[test]
 fn every_part_parses_renders_and_its_knob_holds() {
     let all = parts::builtin();
-    assert_eq!(all.len(), 118, "a file in parts/ does not parse");
+    assert_eq!(all.len(), 121, "a file in parts/ does not parse");
     for p in &all {
         let name = &p.doc.name;
         assert!(parts::ROLES.contains(&p.role.as_str()), "{name}: role");
@@ -95,7 +95,7 @@ fn search_filters_by_text_role_material_and_approval() {
             .map(|e| e.name)
             .collect()
     };
-    assert_eq!(names(Query::default()).len(), 118);
+    assert_eq!(names(Query::default()).len(), 121);
     assert_eq!(
         names(Query {
             role: Some("body".into()),

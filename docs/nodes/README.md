@@ -12,6 +12,15 @@ in this folder; `describe_op <type>` has the schema and an example.
 {"type": "friction", "name": "hinge", "speed": "swing", "pressure": 0.8, "roughness": 0.3}
 ```
 
+- `impact` {material, shape, `size` or `f0`, [loss] [tilt] [noise] [noise_width]
+  [strike_position] [modes 32] (as `modal`), [object_mass 0.5], [striker_mass]
+  (left out: the object is dropped onto [floor "stone"]), [hardness 0.7] (a
+  striker's), `height` (gravity on; a drop defaults to 0.3) or `speed`,
+  [radius 0.01], [bounce 0.5], [scatter 0.3], [max_bounces 40], [oversample 4],
+  [at], [gain_db], [seed]}: the strike solved as one system, a point mass and
+  the modes coupled per sample by a Hunt-Crossley contact. Bounces, chatter and
+  buzz on the floor come from it; port `force` is the contact force. Unheard:
+  details in `docs/nodes/modal.md`, "`impact`".
 - `modal` {excite, material, **`size` or `f0`** (one of the two), [strike_position
   0.3], [modes 48], [loss 1], [tilt 0], [thickness], [f_min], [f_max], [seed]}:
   a simply supported square plate `size` metres a side. `material` is a foley

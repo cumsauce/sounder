@@ -1,0 +1,62 @@
+{
+ "role": "whole",
+ "material": "metal",
+ "description": "heard as the best coin drop of its box in a blind listen (over a bounce -> voices build; the note said two takes were about the same); built as: `impact` metal plate 2.5 cm, 1.5 mm thick, 7 g, dropped 0.3 m on stone, bounce 0.6",
+ "tags": [
+  "metal",
+  "coin",
+  "drop",
+  "bounce",
+  "physical",
+  "impact"
+ ],
+ "origin": "batch 22 (impact against the builds); picked best of its box by the listener on 2026-11-19",
+ "doc": {
+  "name": "impact_coin_drop",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "impact",
+    "name": "hit",
+    "material": "metal",
+    "shape": "plate",
+    "size": 0.025,
+    "thickness": 0.0015,
+    "loss": 0.5,
+    "noise": 0.4,
+    "noise_width": 0.1,
+    "object_mass": 0.007,
+    "height": 0.3,
+    "bounce": 0.6,
+    "scatter": 0.4,
+    "floor": "stone",
+    "at": 0.005
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "hit",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "bounciness",
+    "value": 0.5,
+    "doc": "how much each bounce keeps",
+    "map": [
+     {
+      "node": "hit",
+      "field": "bounce",
+      "from": 0.4,
+      "to": 0.75
+     }
+    ]
+   }
+  ]
+ }
+}
