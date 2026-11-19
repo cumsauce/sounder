@@ -43,8 +43,9 @@ comes from the human's blind ratings.
 Every attempt at these was heard as something else, rated lower, or not
 rated. An agent that builds one must say it is unheard.
 
-- A footstep (the three surfaces were heard as snaps, a plastic bag, pitter
-  patter), rain, a stream (still "oil bubbling").
+- Rain, a stream (still "oil bubbling"). Footsteps on wood now rate good
+  (four `footstep` nodes, in both eval runs); concrete, gravel and grass
+  steps were heard as snaps, a plastic bag, pitter patter.
 - A large splash: 0.6 m was rated bad with no note on why; 5 to 20 cm is good.
 - An electric motor ("digital engine simulation"), a creature voice ("low
   grumble", OK only).

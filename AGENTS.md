@@ -361,7 +361,8 @@ Before building a layer from nodes, look for one:
   Whole sounds: door creak, engine rev, bird, breath, bells, siren, alarm,
   flute, plucked string, twang, laser, error beep. **Not in the library
   yet** (every attempt was heard as something else, rated lower, or not
-  rated): a footstep, rain,
+  rated): a footstep on concrete, gravel or grass (wood steps from four
+  `footstep` nodes rated good), rain,
   a stream, a large splash (0.6 m was rated bad), an electric motor, a
   creature voice. Build those from
   nodes and say they are unheard. Each of those is named and described by what the listener heard
