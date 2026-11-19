@@ -1,0 +1,149 @@
+{
+ "name": "e10_whoosh",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "duration": 0.6,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "noise",
+   "name": "n",
+   "color": "pink"
+  },
+  {
+   "type": "env",
+   "name": "amp",
+   "points": [
+    [
+     0,
+     0
+    ],
+    [
+     0.18,
+     0.25
+    ],
+    [
+     0.28,
+     1
+    ],
+    [
+     0.36,
+     0.3
+    ],
+    [
+     0.58,
+     0
+    ]
+   ],
+   "curve": "smooth"
+  },
+  {
+   "type": "env",
+   "name": "fc",
+   "points": [
+    [
+     0,
+     500
+    ],
+    [
+     0.28,
+     2600
+    ],
+    [
+     0.58,
+     700
+    ]
+   ],
+   "curve": "smooth"
+  },
+  {
+   "type": "filter",
+   "name": "bp",
+   "input": "n",
+   "mode": "bp",
+   "freq": "fc",
+   "q": 2.5
+  },
+  {
+   "type": "math",
+   "name": "body",
+   "op": "mul",
+   "a": "bp",
+   "b": "amp"
+  },
+  {
+   "type": "filter",
+   "name": "edge_bp",
+   "input": "n",
+   "mode": "bp",
+   "freq": "fc2",
+   "q": 6
+  },
+  {
+   "type": "math",
+   "name": "fc2",
+   "op": "mul",
+   "a": "fc",
+   "b": 2.2
+  },
+  {
+   "type": "math",
+   "name": "edge",
+   "op": "mul",
+   "a": "edge_bp",
+   "b": "amp"
+  },
+  {
+   "type": "gain",
+   "name": "edge_g",
+   "input": "edge",
+   "db": -8
+  },
+  {
+   "type": "mix",
+   "name": "dry",
+   "inputs": [
+    "body",
+    "edge_g"
+   ],
+   "to": "mono"
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "dry",
+   "peak_db": -3
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "brightness",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how keen the blade edge is",
+   "claim": [
+    "centroid",
+    1
+   ],
+   "game": false,
+   "map": [
+    {
+     "node": "edge_g",
+     "field": "db",
+     "from": -24.0,
+     "to": 2.0
+    },
+    {
+     "node": "fc2",
+     "field": "b",
+     "from": 1.6,
+     "to": 3.2,
+     "curve": "exp"
+    }
+   ]
+  }
+ ],
+ "version": 2
+}

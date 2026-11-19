@@ -1,0 +1,155 @@
+{
+ "name": "e02_footsteps",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "footstep",
+   "name": "s0",
+   "surface": "wood",
+   "weight": 0.33,
+   "pace": "walk",
+   "ring": 0.6,
+   "noise": 0.5,
+   "seed": 1,
+   "at": 0.01
+  },
+  {
+   "type": "footstep",
+   "name": "s1",
+   "surface": "wood",
+   "weight": 0.3,
+   "pace": "walk",
+   "ring": 0.6,
+   "noise": 0.5,
+   "seed": 2,
+   "at": 0.56
+  },
+  {
+   "type": "footstep",
+   "name": "s2",
+   "surface": "wood",
+   "weight": 0.33,
+   "pace": "walk",
+   "ring": 0.6,
+   "noise": 0.5,
+   "seed": 3,
+   "at": 1.12
+  },
+  {
+   "type": "footstep",
+   "name": "s3",
+   "surface": "wood",
+   "weight": 0.3,
+   "pace": "walk",
+   "ring": 0.6,
+   "noise": 0.5,
+   "seed": 4,
+   "at": 1.67
+  },
+  {
+   "type": "mix",
+   "name": "dry",
+   "inputs": [
+    "s0",
+    "s1",
+    "s2",
+    "s3"
+   ],
+   "to": "mono"
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "bus",
+   "peak_db": -3
+  },
+  {
+   "type": "finish",
+   "name": "bus",
+   "input": "dry",
+   "glue": 0.4,
+   "punch": 0
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "ring",
+   "value": 0.4,
+   "default": 0.4,
+   "doc": "how long the boards ring",
+   "claim": [
+    "ring",
+    1
+   ],
+   "game": false,
+   "map": [
+    {
+     "node": "s0",
+     "field": "ring",
+     "from": 0.3,
+     "to": 1.2,
+     "curve": "exp"
+    },
+    {
+     "node": "s1",
+     "field": "ring",
+     "from": 0.3,
+     "to": 1.2,
+     "curve": "exp"
+    },
+    {
+     "node": "s2",
+     "field": "ring",
+     "from": 0.3,
+     "to": 1.2,
+     "curve": "exp"
+    },
+    {
+     "node": "s3",
+     "field": "ring",
+     "from": 0.3,
+     "to": 1.2,
+     "curve": "exp"
+    }
+   ]
+  },
+  {
+   "name": "weight",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how heavy the walker is",
+   "game": false,
+   "map": [
+    {
+     "node": "s0",
+     "field": "weight",
+     "from": 0.22,
+     "to": 0.42
+    },
+    {
+     "node": "s1",
+     "field": "weight",
+     "from": 0.22,
+     "to": 0.42
+    },
+    {
+     "node": "s2",
+     "field": "weight",
+     "from": 0.22,
+     "to": 0.42
+    },
+    {
+     "node": "s3",
+     "field": "weight",
+     "from": 0.22,
+     "to": 0.42
+    }
+   ]
+  }
+ ],
+ "version": 4
+}

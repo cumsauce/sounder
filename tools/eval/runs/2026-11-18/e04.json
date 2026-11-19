@@ -1,0 +1,136 @@
+{
+ "name": "e04_brick_drop",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "sound",
+   "name": "brick",
+   "sound": "brick_or_rock_drop",
+   "macros": {
+    "weight": 0.6,
+    "pitch": 0.45
+   }
+  },
+  {
+   "type": "sound",
+   "name": "bounce",
+   "sound": "small_brick_drop",
+   "at": 0.16,
+   "gain_db": -14
+  },
+  {
+   "type": "mix",
+   "name": "dry",
+   "inputs": [
+    "brick",
+    "bounce",
+    "body_g"
+   ],
+   "to": "mono"
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "bus",
+   "peak_db": -1.5
+  },
+  {
+   "type": "noise",
+   "name": "bn",
+   "color": "pink"
+  },
+  {
+   "type": "decay",
+   "name": "be",
+   "time": 0.3,
+   "at": 0.005
+  },
+  {
+   "type": "math",
+   "name": "braw",
+   "op": "mul",
+   "a": "bn",
+   "b": "be"
+  },
+  {
+   "type": "filter",
+   "name": "bbp",
+   "input": "braw",
+   "mode": "bp",
+   "freq": 700,
+   "q": 0.6
+  },
+  {
+   "type": "gain",
+   "name": "body_g",
+   "input": "bbp",
+   "db": -8
+  },
+  {
+   "type": "finish",
+   "name": "bus",
+   "input": "tame",
+   "glue": 0.6,
+   "punch": 0
+  },
+  {
+   "type": "transient",
+   "name": "tame",
+   "input": "dry",
+   "attack_db": -7
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "bounce",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "level of the small second hit",
+   "game": false,
+   "map": [
+    {
+     "node": "bounce",
+     "field": "gain_db",
+     "from": -24.0,
+     "to": -6.0
+    }
+   ]
+  },
+  {
+   "name": "body",
+   "value": 0.9,
+   "default": 0.9,
+   "doc": "mid body level",
+   "game": false,
+   "map": [
+    {
+     "node": "body_g",
+     "field": "db",
+     "from": -14.0,
+     "to": 2.0
+    }
+   ]
+  },
+  {
+   "name": "weight",
+   "value": 0.4,
+   "default": 0.4,
+   "doc": "low weight of the brick",
+   "game": false,
+   "map": [
+    {
+     "node": "brick",
+     "field": "macros",
+     "from": 0.1,
+     "to": 0.8,
+     "key": "weight"
+    }
+   ]
+  }
+ ],
+ "version": 6
+}

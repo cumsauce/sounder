@@ -1,0 +1,73 @@
+{
+ "name": "e06_campfire",
+ "format_version": 1,
+ "kind": "loop",
+ "sample_rate": 48000,
+ "duration": 4.0,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "fire",
+   "name": "f",
+   "size": 0.3,
+   "intensity": 0.5,
+   "crackle": 0.7,
+   "loop": true
+  },
+  {
+   "type": "gain",
+   "name": "fg",
+   "input": "f",
+   "db": 0
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "xf",
+   "lufs": -23
+  },
+  {
+   "type": "crossfade_loop",
+   "name": "xf",
+   "input": "fg"
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "crackle",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how busy the crackle is",
+   "game": false,
+   "map": [
+    {
+     "node": "f",
+     "field": "crackle",
+     "from": 0.4,
+     "to": 1.0
+    }
+   ]
+  },
+  {
+   "name": "size",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "fire size: lower and fuller roar",
+   "claim": [
+    "centroid",
+    -1
+   ],
+   "game": false,
+   "map": [
+    {
+     "node": "f",
+     "field": "size",
+     "from": 0.15,
+     "to": 0.5
+    }
+   ]
+  }
+ ],
+ "version": 2
+}

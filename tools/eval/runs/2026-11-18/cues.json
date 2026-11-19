@@ -1,0 +1,52 @@
+[
+ {
+  "cue": "r01",
+  "id": "e03",
+  "brief": "A long steel pipe dropped onto a concrete floor, bouncing once or twice and ringing out."
+ },
+ {
+  "cue": "r02",
+  "id": "e02",
+  "brief": "Four footsteps of a person walking at a normal pace on a wooden floor, shoes on."
+ },
+ {
+  "cue": "r03",
+  "id": "e07",
+  "brief": "A stone the size of a fist thrown into a pond: the splash and the bubbles after it."
+ },
+ {
+  "cue": "r04",
+  "id": "e01",
+  "brief": "A heavy wooden interior door slammed shut, for a game. Dry and mono."
+ },
+ {
+  "cue": "r05",
+  "id": "e05",
+  "brief": "A short, friendly UI confirmation sound for a mobile game menu, under half a second."
+ },
+ {
+  "cue": "r06",
+  "id": "e08",
+  "brief": "Three firm knocks with knuckles on a wooden front door."
+ },
+ {
+  "cue": "r07",
+  "id": "e06",
+  "brief": "A small campfire crackling, a 4 second seamless loop."
+ },
+ {
+  "cue": "r08",
+  "id": "e04",
+  "brief": "A brick dropped onto a stone path from waist height."
+ },
+ {
+  "cue": "r09",
+  "id": "e09",
+  "brief": "A single coin dropped onto a wooden table, bouncing and settling."
+ },
+ {
+  "cue": "r10",
+  "id": "e10",
+  "brief": "A fast whoosh of a sword swung through the air past the listener."
+ }
+]
