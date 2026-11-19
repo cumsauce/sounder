@@ -1,0 +1,53 @@
+{
+ "role": "texture",
+ "material": "organic",
+ "description": "the blades and crumbs of a grass step alone (heel at 5 ms): lay it over `all_purpose_step` for grass; built as: `step` grass, layer texture. The texture alone is unheard; the whole grass step was picked",
+ "tags": [
+  "swish",
+  "grass",
+  "blades",
+  "footstep",
+  "texture"
+ ],
+ "origin": "split from grass_step on 2026-11-19",
+ "doc": {
+  "name": "grass_swish",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 0.8,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "step",
+    "surface": "grass",
+    "speed": 0.8,
+    "layer": "texture",
+    "name": "src",
+    "at": 0.005
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "grit",
+    "value": 0.5,
+    "doc": "how much crunch",
+    "map": [
+     {
+      "node": "src",
+      "field": "grit",
+      "from": 0.3,
+      "to": 2.0,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

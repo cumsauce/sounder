@@ -1,0 +1,53 @@
+{
+ "role": "whole",
+ "material": "stone",
+ "description": "one footstep on gravel, heard as \"really good footsteps\" (batch 12, picked best of 6); built as: `step` gravel, speed 1.6",
+ "tags": [
+  "footstep",
+  "step",
+  "walk",
+  "gravel",
+  "crunch",
+  "path"
+ ],
+ "origin": "batch 12; picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "gravel_step",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 0.8,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "step",
+    "surface": "gravel",
+    "speed": 1.6,
+    "name": "src",
+    "at": 0.005
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "grit",
+    "value": 0.5,
+    "doc": "how much crunch",
+    "map": [
+     {
+      "node": "src",
+      "field": "grit",
+      "from": 0.3,
+      "to": 2.0,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

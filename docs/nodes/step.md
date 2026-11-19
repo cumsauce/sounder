@@ -21,3 +21,7 @@ The contact code is now a copy in `step.rs`, so it can change:
 - `grit` (0..2, default 1) scales the grains and the scuff.
 - The ball of the foot rings 3 x shorter (concrete's toe was heard "too resonant, wood-y").
 - Grass is the gravel body with 12 dull grains and louder blade swishes (0.35). It measures 1.2 % of its energy above 2 kHz, against 0.1 % for the plant-plate version.
+
+## Layers
+
+`layer: "body"` is the heel and toe strikes, the surface's ring and a board's creak. `layer: "texture"` is the grains, the scuff, the grass blades and the snow crackle. Both are levelled as the whole step, so with the same seed and fields they add back to `layer: "all"` to within 1e-5 (`tests/it/step.rs`). A texture with another seed over a body is a new step on the same surface. The parts `gravel_crunch` and `grass_swish` are textures meant to go over `all_purpose_step`.

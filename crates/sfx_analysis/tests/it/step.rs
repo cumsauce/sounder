@@ -97,3 +97,30 @@ fn grit_takes_the_crunch_out_and_the_toe_rings_short() {
     let e = render_error_raw(step(json!({"grit": 3})), 0.5);
     assert!(e.contains("grit") && e.contains("0 to 2"), "{e}");
 }
+
+#[test]
+fn body_and_texture_add_back_to_the_step() {
+    for s in ["gravel", "grass", "snow", "concrete"] {
+        let all = node_audio(step(json!({"surface": s, "at": [0.005, 0.5]})), "n", 1.0);
+        let body = node_audio(
+            step(json!({"surface": s, "at": [0.005, 0.5], "layer": "body"})),
+            "n",
+            1.0,
+        );
+        let tex = node_audio(
+            step(json!({"surface": s, "at": [0.005, 0.5], "layer": "texture"})),
+            "n",
+            1.0,
+        );
+        let err = all
+            .iter()
+            .zip(body.iter().zip(&tex))
+            .fold(0f32, |m, (a, (b, t))| m.max((a - b - t).abs()));
+        assert!(err < 1e-5, "{s}: body + texture is off by {err}");
+        println!(
+            "{s}: body rms {:.4}, texture rms {:.4}",
+            rms(&body),
+            rms(&tex)
+        );
+    }
+}

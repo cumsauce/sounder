@@ -76,6 +76,15 @@ impl StepSurface {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum StepLayer {
+    #[default]
+    All,
+    Body,
+    Texture,
+}
+
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Step {
@@ -93,6 +102,12 @@ pub struct Step {
     /// (an all-purpose step), 2 a crunchier one.
     #[serde(default)]
     pub grit: Option<f32>,
+    /// Which part of the step: `all` (default), `body` (heel and toe, the
+    /// surface's own ring, a board's creak) or `texture` (grains, scuff,
+    /// blades, snow crackle). Same seed, so `body` + `texture` = `all`:
+    /// a surface's texture can go on another step.
+    #[serde(default)]
+    pub layer: Option<StepLayer>,
     /// Level, dB (default 0; each step is foley's level: 0.4 peak on stone).
     #[serde(default)]
     pub gain_db: Option<f32>,
@@ -101,8 +116,8 @@ pub struct Step {
 }
 
 impl Describe for Step {
-    const BLURB: &'static str = "footsteps (after the foley project's contact model): a Hertz heel strike on the surface's own modes, the sole's scuff, the ball of the foot 60-120 ms later; gravel crunches, grass swishes, snow squeaks; surface, speed m/s, at (one time or a list: a walk), gain_db";
-    const WORDS: &'static [&'static str] = &["surface"];
+    const BLURB: &'static str = "footsteps (after the foley project's contact model): a Hertz heel strike on the surface's own modes, the sole's scuff, the ball of the foot 60-120 ms later; gravel crunches, grass swishes, snow squeaks; surface, speed m/s, grit 0..2, layer all / body / texture (they add back), at (one time or a list: a walk), gain_db";
+    const WORDS: &'static [&'static str] = &["surface", "layer"];
     fn example() -> serde_json::Value {
         serde_json::json!({"surface": "gravel", "speed": 1, "at": [0.005, 0.55], "seed": 1})
     }
@@ -141,7 +156,14 @@ impl Eval for Step {
         let mut out = vec![0.0f32; cx.n];
         for t in times {
             let mut srng = Rng::new(rng.next_u64());
-            let s = footstep(&mut srng, surface, speed, grit, sr);
+            let s = footstep(
+                &mut srng,
+                surface,
+                speed,
+                grit,
+                self.layer.unwrap_or_default(),
+                sr,
+            );
             let start = (t * cx.sr) as usize;
             for (o, x) in out.iter_mut().skip(start).zip(&s) {
                 *o += gain * x;
@@ -306,7 +328,7 @@ fn strike(
     damp: f32,
     grit: f32,
     sr: f32,
-) -> Vec<f32> {
+) -> (Vec<f32>, Vec<f32>) {
     let (mass, radius, sole) = (8.0, 0.05, (10e6, 0.45));
     let crush = (mass * speed / 350.0).sqrt().clamp(0.1, 1.5);
     let tau = hertz_time(
@@ -328,10 +350,11 @@ fn strike(
     for x in &mut out {
         *x = smooth.process(*x);
     }
+    let mut tex = Vec::new();
     match surface {
         StepSurface::Gravel => grains(
             rng,
-            &mut out,
+            &mut tex,
             (60.0 * crush * grit) as usize,
             0.06,
             0.3,
@@ -341,7 +364,7 @@ fn strike(
         // Soil under the turf: a few dull crumbs, not gravel's crunch.
         StepSurface::Grass => grains(
             rng,
-            &mut out,
+            &mut tex,
             (12.0 * crush * grit) as usize,
             0.05,
             0.15,
@@ -350,7 +373,7 @@ fn strike(
         ),
         StepSurface::Dirt => grains(
             rng,
-            &mut out,
+            &mut tex,
             (16.0 * crush * grit) as usize,
             0.04,
             0.2,
@@ -362,20 +385,36 @@ fn strike(
                 let at = (0.1 * rng.unit().sqrt() * sr) as usize;
                 let e = (1.0 + rng.unit() * (30f32.powf(-0.7) - 1.0)).powf(-1.0 / 0.7);
                 let centre = 1500.0 + 2500.0 * rng.unit();
-                noise_burst(rng, &mut out, at, 0.003, centre, 0.8 * e.sqrt(), sr);
+                noise_burst(rng, &mut tex, at, 0.003, centre, 0.8 * e.sqrt(), sr);
             }
         }
         _ => {}
     }
-    out
+    (out, tex)
+}
+
+fn add_at(dst: &mut Vec<f32>, src: &[f32], at: usize, g: f32) {
+    if dst.len() < at + src.len() {
+        dst.resize(at + src.len(), 0.0);
+    }
+    for (o, x) in dst[at..].iter_mut().zip(src) {
+        *o += g * x;
+    }
 }
 
 /// A whole step: heel, scuff, the ball of the foot, and what the surface
 /// adds (grass blades round the shoe, a board's creak).
-fn footstep(rng: &mut Rng, surface: StepSurface, speed: f32, grit: f32, sr: u32) -> Vec<f32> {
+fn footstep(
+    rng: &mut Rng,
+    surface: StepSurface,
+    speed: f32,
+    grit: f32,
+    layer: StepLayer,
+    sr: u32,
+) -> Vec<f32> {
     let p = surface.material().props();
     let sr = sr as f32;
-    let mut out = strike(rng, surface, &p, speed, 1.0, grit, sr);
+    let (mut out, mut tex) = strike(rng, surface, &p, speed, 1.0, grit, sr);
     let roll = 0.06 + 0.06 * rng.unit();
     let (scuff, centre) = match surface {
         StepSurface::Concrete | StepSurface::Gravel => (0.12, 3500.0),
@@ -388,7 +427,7 @@ fn footstep(rng: &mut Rng, surface: StepSurface, speed: f32, grit: f32, sr: u32)
         let c = centre * (0.8 + 0.4 * rng.unit());
         noise_burst(
             rng,
-            &mut out,
+            &mut tex,
             (0.01 * sr) as usize,
             roll,
             c,
@@ -396,15 +435,11 @@ fn footstep(rng: &mut Rng, surface: StepSurface, speed: f32, grit: f32, sr: u32)
             sr,
         );
     }
-    let mut toe = strike(rng, surface, &p, 0.6 * speed, TOE_DAMP, grit, sr);
+    let (toe, toe_tex) = strike(rng, surface, &p, 0.6 * speed, TOE_DAMP, grit, sr);
     let g = 0.45 + 0.25 * rng.unit();
     let at = (roll * sr) as usize;
-    if out.len() < at + toe.len() {
-        out.resize(at + toe.len(), 0.0);
-    }
-    for (o, t) in out[at..].iter_mut().zip(toe.iter_mut()) {
-        *o += g * *t;
-    }
+    add_at(&mut out, &toe, at, g);
+    add_at(&mut tex, &toe_tex, at, g);
     match surface {
         // Blades brushing the shoe going in and coming out.
         StepSurface::Grass => {
@@ -415,7 +450,7 @@ fn footstep(rng: &mut Rng, surface: StepSurface, speed: f32, grit: f32, sr: u32)
                 let at = ((base + 0.035 * rng.unit()) * sr) as usize;
                 let seconds = 0.03 + 0.06 * rng.unit();
                 let c = 2500.0 + 3500.0 * rng.unit();
-                noise_burst(rng, &mut out, at, seconds, c, 0.35, sr);
+                noise_burst(rng, &mut tex, at, seconds, c, 0.35, sr);
             }
         }
         StepSurface::Wood if rng.unit() < 0.15 => {
@@ -443,10 +478,25 @@ fn footstep(rng: &mut Rng, surface: StepSurface, speed: f32, grit: f32, sr: u32)
         }
         _ => {}
     }
-    let peak = out.iter().fold(0f32, |m, x| m.max(x.abs()));
-    if peak > 0.0 {
-        let k = 0.4 * loudness(&p) / peak;
-        out.iter_mut().for_each(|x| *x *= k);
+    // Levelled as a whole step, so the two layers add back to it exactly.
+    let n = out.len().max(tex.len());
+    out.resize(n, 0.0);
+    tex.resize(n, 0.0);
+    let peak = out
+        .iter()
+        .zip(&tex)
+        .fold(0f32, |m, (a, b)| m.max((a + b).abs()));
+    let k = if peak > 0.0 {
+        0.4 * loudness(&p) / peak
+    } else {
+        0.0
+    };
+    for (a, b) in out.iter_mut().zip(&tex) {
+        *a = k * match layer {
+            StepLayer::All => *a + b,
+            StepLayer::Body => *a,
+            StepLayer::Texture => *b,
+        };
     }
     let fade = out.len().min((0.005 * sr) as usize);
     let len = out.len();
