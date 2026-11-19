@@ -48,6 +48,7 @@ mod farnell_vehicles;
 mod frog;
 mod machines;
 mod rain;
+mod surf;
 
 mod elements;
 
@@ -116,6 +117,7 @@ pub use farnell_vehicles::*;
 pub use frog::*;
 pub use machines::*;
 pub use rain::*;
+pub use surf::*;
 
 pub use elements::*;
 

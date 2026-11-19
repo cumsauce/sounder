@@ -42,6 +42,7 @@ mod sequence;
 mod sources;
 mod space;
 mod spectral;
+mod surf;
 mod surface;
 mod voices;
 mod water;
