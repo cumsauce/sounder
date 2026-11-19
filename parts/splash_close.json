@@ -1,0 +1,92 @@
+{
+ "role": "whole",
+ "material": "water",
+ "description": "heard as \"close up / in water\" (picked best of 8 large splashes); built as: a 0.4 m `splash` over a brown-noise thump low-passed at 160 Hz",
+ "tags": [
+  "splash",
+  "water",
+  "plunge",
+  "jump",
+  "large"
+ ],
+ "origin": "batch 11; picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "splash_close",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 3.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "splash",
+    "name": "sp",
+    "size": 0.4,
+    "at": 0.02,
+    "tail": 1.5
+   },
+   {
+    "type": "noise",
+    "name": "tn",
+    "color": "brown"
+   },
+   {
+    "type": "decay",
+    "name": "te",
+    "time": 0.45,
+    "at": 0.02
+   },
+   {
+    "type": "math",
+    "name": "tr",
+    "op": "mul",
+    "a": "tn",
+    "b": "te"
+   },
+   {
+    "type": "filter",
+    "name": "tl",
+    "input": "tr",
+    "mode": "lp",
+    "freq": 160,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "tg",
+    "input": "tl",
+    "db": 6
+   },
+   {
+    "type": "mix",
+    "name": "src",
+    "inputs": [
+     "sp",
+     "tg"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "thump",
+    "value": 0.5,
+    "doc": "the low thump under the splash",
+    "map": [
+     {
+      "node": "tg",
+      "field": "gain",
+      "from": 0.3,
+      "to": 3.0
+     }
+    ]
+   }
+  ]
+ }
+}

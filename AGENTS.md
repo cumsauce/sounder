@@ -343,7 +343,7 @@ after bed texture whole`), with a material, tags and one to three knobs.
 Before building a layer from nodes, look for one:
 
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`,
-  `approved`): the library's parts and saved sounds plus the 102 built-in
+  `approved`): the library's parts and saved sounds plus the 104 built-in
   parts in `parts/`: the five layers of the approved door slam (`wood_brush`,
   `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock`), 72 the
   listener rated good blind, and `wooden_crate_drop` (a whole crate landing
@@ -360,13 +360,16 @@ Before building a layer from nodes, look for one:
   splash without its tail).
   Picked best of their boxes (2026-11-19): creature roar, growl, snarl and
   whine, a small frog, and the beds surf on shingle, lava, wind in trees,
-  underwater, rain on stone, cave drips.
+  underwater, rain on stone, cave drips; a small geared motor
+  (`small_motor_spin`) and a close-up splash (`splash_close`).
   Whole sounds: a rattlesnake rattle and scissors snipping (both cicada patches, heard so), door creak, engine rev, bird, breath, bells, siren, alarm,
   flute, plucked string, twang, laser, error beep. **Not in the library
   yet** (every attempt was heard as something else, rated lower, or not
-  rated): a footstep on concrete, gravel or grass (wood steps from four
+  rated): a footstep on concrete, gravel or grass (2026-11-19: concrete heard as a
+  snare / wooden drum, gravel as pitter-patter, not crunch, grass as hitting
+  grass, too heavy; wood steps from four
   `footstep` nodes rated good), rain (the `rain` node is new and unheard),
-  a stream, a large splash (0.6 m was rated bad), an electric motor, a
+  a stream, a large splash heard from a distance (only `splash_close` passed), a
   creature voice. Build those from
   nodes and say they are unheard. Each of those is named and described by what the listener heard
   (`heard as "..."`), which is often not what it was built as: search by the
