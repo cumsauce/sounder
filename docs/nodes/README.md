@@ -19,7 +19,7 @@ in this folder; `describe_op <type>` has the schema and an example.
   [radius 0.01], [bounce 0.5], [scatter 0.3], [max_bounces 40], [oversample 4],
   [at], [gain_db], [seed], [drive] (a force signal on the body), [excite]
   (audio on the modes), [pitch] [damping] [stiffness] (signals), [slide] (m/s
-  along the surface), [roughness] [grain] (a roll), [friction] [stribeck]
+  along the surface), [roughness] [grain] [octaves] [wobble] (a roll), [friction] [stribeck]
   (stick-slip: scrape, creak, bow)}: the strike solved as one system, a point mass and
   the modes coupled per sample by a Hunt-Crossley contact. Bounces, chatter and
   buzz on the floor come from it; port `force` is the contact force. Unheard:

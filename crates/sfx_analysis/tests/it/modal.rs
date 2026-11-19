@@ -2059,6 +2059,33 @@ mod impact {
     }
 
     #[test]
+    fn a_smooth_marble_rolls_without_hopping() {
+        // A 6 g marble pressed by its weight at 0.45 m/s: at roughness 5e-6
+        // it never leaves the board and its level stays even (no landings);
+        // at 2e-5 it hops dozens of times (heard as crunch in batch 25).
+        let marble = |rough: f64| {
+            vec![
+                json!({"type": "impact", "name": "hit", "material": "wood", "size": 0.6,
+                    "loss": 1.5, "object_mass": 2.0, "striker_mass": 0.006, "hardness": 1.0,
+                    "drive": 0.06, "radius": 0.008, "slide": 0.45, "roughness": rough,
+                    "grain": 0.003}),
+                json!({"type": "output", "name": "out", "input": "hit"}),
+            ]
+        };
+        let lifts = |n: &[Value]| {
+            let f = node_audio(n, "hit.force", 2.0);
+            f.windows(2).filter(|w| w[0] > 0.0 && w[1] == 0.0).count()
+        };
+        let smooth = marble(5e-6);
+        assert_eq!(lifts(&smooth), 0);
+        let x = node_audio(&smooth, "hit", 2.0);
+        let t = &x[4800..];
+        let crest = 20.0 * (peak(t) / rms(t)).log10();
+        assert!(crest < 15.0, "crest {crest} dB");
+        assert!(lifts(&marble(2e-5)) > 20);
+    }
+
+    #[test]
     fn errors_name_the_field() {
         let e = render_error_raw(drop(json!({"speed": 1.0})), 1.0);
         assert!(e.contains("height and speed"), "{e}");

@@ -1,0 +1,449 @@
+[
+ {
+  "id": "b26_01",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "marble_grainy",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "sp",
+     "rate": 1.0,
+     "range": [
+      0.3,
+      0.55
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": "=0.05886",
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 8e-06,
+     "grain": 0.003,
+     "wobble": 3e-06,
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b26_02",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "steel_ball",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "sp",
+     "rate": 1.0,
+     "range": [
+      0.3,
+      0.55
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.03,
+     "hardness": 1.0,
+     "drive": "=0.2943",
+     "radius": 0.01,
+     "slide": "sp",
+     "roughness": 4e-06,
+     "grain": 0.003,
+     "wobble": 3e-06,
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b26_03",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "marble_grainy",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "sp",
+     "rate": 1.0,
+     "range": [
+      0.3,
+      0.55
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": "=0.05886",
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 8e-06,
+     "grain": 0.003,
+     "wobble": 3e-06,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b26_04",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "marble_smooth",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "sp",
+     "rate": 1.0,
+     "range": [
+      0.3,
+      0.55
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": "=0.05886",
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 3e-06,
+     "grain": 0.003,
+     "wobble": 3e-06,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b26_05",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "steel_ball",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "sp",
+     "rate": 1.0,
+     "range": [
+      0.3,
+      0.55
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.03,
+     "hardness": 1.0,
+     "drive": "=0.2943",
+     "radius": 0.01,
+     "slide": "sp",
+     "roughness": 4e-06,
+     "grain": 0.003,
+     "wobble": 3e-06,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b26_06",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "marble_slowing",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "sp",
+     "from": 0.7,
+     "to": 0.1,
+     "time": 2.8
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": "=0.05886",
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 4e-06,
+     "grain": 0.003,
+     "wobble": 3e-06,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b26_07",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "marble_smooth",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "sp",
+     "rate": 1.0,
+     "range": [
+      0.3,
+      0.55
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": "=0.05886",
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 3e-06,
+     "grain": 0.003,
+     "wobble": 3e-06,
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b26_08",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "marble_slowing",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "sp",
+     "from": 0.7,
+     "to": 0.1,
+     "time": 2.8
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": "=0.05886",
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 4e-06,
+     "grain": 0.003,
+     "wobble": 3e-06,
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b24_13",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "roll_batch24_reference",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "sp",
+     "rate": 1.5,
+     "range": [
+      0.3,
+      0.6
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "noise": 0.6,
+     "tilt": 4,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": 0.06,
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 2e-05,
+     "grain": 0.003,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ }
+]

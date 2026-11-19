@@ -1615,6 +1615,12 @@ pub struct Impact {
     /// with it).
     #[serde(default)]
     pub octaves: Option<usize>,
+    /// Out-of-roundness of a rolling ball, metres (default 0; 1e-6 a good
+    /// marble, 2e-5 a dented one): its centre rises and falls once a turn
+    /// (every 2 pi `radius` of `slide`), the periodic pulse that tells a roll
+    /// from a scrape.
+    #[serde(default)]
+    pub wobble: Option<f32>,
     /// `[static, dynamic]` friction coefficients (default none: no friction,
     /// a pure roll). With `slide`, a stick-slip force drags the surface
     /// along: a scrape, a creak, a bowed squeal that locks to a mode.
@@ -1838,8 +1844,69 @@ impl Eval for Impact {
         };
         // Level at the start: the contact begins on the surface, not inside
         // a bump (which kicked every roll off with a hit).
-        let h0 = raw_profile(0.0);
-        let profile = |x: f32| raw_profile(x) - h0;
+        // The rolling filter (rolling only: with `friction` the contact is a
+        // sliding edge that drags through the dips): a ball of `radius` touches only the upper
+        // envelope of the surface as its own curve sees it,
+        // max over x' of s(x') - (x' - x)^2 / 2R, so it bridges dips
+        // narrower than itself (the profile alone fed every fine bump into
+        // the contact, heard as crunch). Tabled on a grid finer than the
+        // finest octave; the out-of-round ball's once-a-turn rise is added.
+        let wobble = range("wobble", self.wobble.unwrap_or(0.0), 0.0, 0.001)?;
+        let finest = grain / (1u32 << (octaves - 1)) as f32;
+        let dx = (finest / 8.0).max(1e-6);
+        let rolling = friction.is_none();
+        let reach = if layers.is_empty() || !rolling {
+            0
+        } else {
+            // Beyond this the parabola has fallen 8 rms bumps below the top.
+            ((2.0 * radius * 8.0 * roughness).sqrt() / dx).ceil() as usize
+        };
+        let span = path_len + grain;
+        let cells = if layers.is_empty() || !rolling {
+            0
+        } else {
+            (2.0 * span / dx) as usize + 2
+        };
+        if cells > 50_000_000 {
+            return Err(format!(
+                "the rolling surface is too long to table ({cells} cells): lower `octaves`, raise `grain` or slide less far"
+            ));
+        }
+        let raw: Vec<f32> = (0..cells)
+            .map(|j| raw_profile(j as f32 * dx - span))
+            .collect();
+        let drop: Vec<f32> = (0..=reach)
+            .map(|k| (k as f32 * dx).powi(2) / (2.0 * radius))
+            .collect();
+        let envelope: Vec<f32> = (0..cells)
+            .map(|j| {
+                let mut top = raw[j];
+                for (k, d) in drop.iter().enumerate().skip(1) {
+                    if j >= k {
+                        top = top.max(raw[j - k] - d);
+                    }
+                    if j + k < cells {
+                        top = top.max(raw[j + k] - d);
+                    }
+                }
+                top
+            })
+            .collect();
+        let surface = |x: f32| -> f32 {
+            if !rolling {
+                return raw_profile(x);
+            }
+            if envelope.is_empty() {
+                return 0.0;
+            }
+            let t = ((x + span) / dx).clamp(0.0, cells as f32 - 1.001);
+            let j = t as usize;
+            let f = t - j as f32;
+            envelope[j] * (1.0 - f) + envelope[j + 1] * f
+        };
+        let round = |x: f32| wobble * (1.0 - (x / radius).cos());
+        let h0 = surface(0.0);
+        let profile = |x: f32| surface(x) - h0 + round(x);
         // A drive with no speed: the contact time of a 0.1 m/s touch.
         let tau = hertz_time(moving_mass, radius, e_star, speed.max(0.1));
         // The highest mode, raised by the most `pitch` asks for, stays

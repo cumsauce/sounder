@@ -456,6 +456,18 @@ the contact force follows how the surface moves under it.
   30 dB of the median); with `roughness` 0 it falls silent after landing.
   The batch 23 roll (a pulsed `drive`, lifting the ball) was heard as
   "random cracks": a roll is this, not a drive.
+- A roll is crunchy when the ball hops: every landing is a small impact. A
+  6 g marble pressed by its weight at 0.45 m/s over `roughness` 2e-5 left
+  the board 88 times in 2 s (batch 25, heard as crunch); at 5e-6 it never
+  left and the crest after the start fell to 11.8 dB. Start a smooth roll at
+  `roughness` 3e-6..8e-6 with clean modes (no `noise`: its bands moved the
+  energy above 2 kHz) and a `drive` of the ball's weight (no drop).
+- The rolling filter (rolls only; with `friction` the contact is a sliding
+  edge and follows the raw profile): the ball touches the upper envelope
+  max over x' of s(x') - (x' - x)^2 / 2 `radius`, so it bridges dips
+  narrower than itself (after Rath's rolling model).
+- `wobble` (m) is the ball's out-of-roundness: its centre rises once a turn
+  (every 2 pi `radius` of travel), the periodic pulse of a roll.
 - `friction` `[static, dynamic]` adds a stick-slip drag on a second, sliding
   copy of the modes (same frequencies and decays), on a Stribeck curve
   falling from static to dynamic around `stribeck` m/s. It is only unstable,
