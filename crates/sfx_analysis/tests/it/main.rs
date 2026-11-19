@@ -11,6 +11,7 @@ mod dynamics;
 mod elements;
 mod expressions;
 mod farnell;
+mod farnell_scifi;
 mod feedback;
 mod filters;
 mod finish;

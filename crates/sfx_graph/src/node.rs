@@ -364,6 +364,10 @@ node_types! {
     "door_creak" => DoorCreak,
     "jet" => Jet,
     "red_alert" => RedAlert,
+    "droid" => Droid,
+    "transporter" => Transporter,
+    "torpedo" => Torpedo,
+    "phaser_beam" => PhaserBeam,
 
     "fire" => Fire,
     "wind" => Wind,

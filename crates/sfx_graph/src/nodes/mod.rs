@@ -38,6 +38,7 @@ mod lofi;
 mod blast;
 
 mod farnell;
+mod farnell_scifi;
 mod machines;
 
 mod elements;
@@ -97,6 +98,7 @@ pub use lofi::*;
 pub use blast::*;
 
 pub use farnell::*;
+pub use farnell_scifi::*;
 pub use machines::*;
 
 pub use elements::*;
