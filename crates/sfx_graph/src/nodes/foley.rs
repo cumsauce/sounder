@@ -19,13 +19,13 @@ use crate::dsp::{Biquad, FilterMode, Oversampler, Rng, Svf};
 use crate::node::{Cx, Describe, Eval, In, Outs};
 
 /// foley takes whole-number sample rates.
-fn rate(cx: &Cx) -> u32 {
+pub(super) fn rate(cx: &Cx) -> u32 {
     (cx.sr.round() as u32).max(1)
 }
 
 /// `src` placed at `at` seconds, scaled by `gain`, cut or zero-padded to the
 /// document's length. A cut gets a 20 ms fade so it does not click.
-fn fit(src: &[f32], at: f32, gain: f32, cx: &Cx) -> Buf {
+pub(super) fn fit(src: &[f32], at: f32, gain: f32, cx: &Cx) -> Buf {
     let start = cx.at(at);
     let mut v = vec![0.0f32; cx.n];
     let room = cx.n - start;
@@ -255,7 +255,7 @@ fn pulses() -> &'static [Pulse] {
 }
 
 /// (flow derivative, flow) at `phase` 0..1 of a period with `rd`.
-fn lf_at(rd: f32, phase: f32) -> (f32, f32) {
+pub(super) fn lf_at(rd: f32, phase: f32) -> (f32, f32) {
     let t = pulses();
     let x = ((rd.clamp(RD_MIN, RD_MAX) - RD_MIN) / (RD_MAX - RD_MIN)) * (TABLES - 1) as f32;
     let i = (x as usize).min(TABLES - 2);

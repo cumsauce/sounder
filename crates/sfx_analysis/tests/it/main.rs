@@ -6,6 +6,7 @@
 mod bands;
 mod blast;
 mod common;
+mod creature;
 mod descriptors;
 mod dynamics;
 mod elements;
