@@ -465,28 +465,43 @@ fn footstep(
     add_at(&mut out, &toe, at, g);
     add_at(&mut tex, &toe_tex, at, g);
     match surface {
-        // A metal sheet, not a bar: a thin plate's dense, damped modes and
-        // a short shimmer.
+        // A metal floor plate or grate. Clean modes read as a ladder rung
+        // or a pipe ("very tonal"), a fluttering rattle as worse. What
+        // listeners heard as metal elsewhere in sounder is modes turned to
+        // narrow noise bands (`modal` `noise` 0.4, width 0.1): an atonal
+        // ring. So: 24 inharmonic plate modes, 250 Hz-4 kHz, each a noise
+        // band (Q 10) ringing 0.12-0.4 s, the high ones shorter; then the
+        // loose plate re-striking its frame two or three times, 15-60 ms
+        // on, as a grate does.
         StepSurface::Metal => {
-            let mut sheet = Material::Metal.props();
-            sheet.thickness = 0.003;
-            let mut ring = Vec::new();
-            struck_modes(rng, &sheet, 0.002, 6.0, sr).render_into(&mut ring, 0, sr);
-            add_at(&mut out, &ring, 0, 0.2);
-            // The grate rattling after the step: atonal, lower than the
-            // 3.5 kHz shimmer that read "too high pitched", fluttering as
-            // the panel buzzes on its fixings.
-            let n = (0.45 * sr) as usize;
-            let mut band = BandPass::new_at(900.0 + 900.0 * rng.unit(), 0.9, sr as u32);
-            let flutter = 25.0 + 15.0 * rng.unit();
-            if tex.len() < n {
-                tex.resize(n, 0.0);
+            let n = (0.6 * sr) as usize;
+            let mut ring = vec![0.0f32; n];
+            for k in 0..24 {
+                let f = 250.0 * (1.0 + k as f32).powf(1.45) * (1.0 + 0.04 * rng.signed());
+                if f > 4000.0 {
+                    break;
+                }
+                let decay = 0.4 - 0.28 * (f / 4000.0);
+                let amp = (250.0 / f).sqrt() * (0.5 + 0.5 * rng.unit());
+                let mut band = BandPass::new_at(f, 10.0, sr as u32);
+                for (i, x) in ring.iter_mut().enumerate() {
+                    let t = i as f32 / sr;
+                    *x += amp * (-t / decay * 6.9).exp() * band.process(rng.signed());
+                }
             }
-            for (i, x) in tex[..n].iter_mut().enumerate() {
-                let t = i as f32 / sr;
-                let env = (-t / 0.12).exp();
-                let am = 0.6 + 0.4 * (TAU * flutter * t).sin();
-                *x += 0.3 * grit * env * am * band.process(rng.signed());
+            let peak = ring.iter().fold(0f32, |m, x| m.max(x.abs())).max(1e-9);
+            add_at(&mut out, &ring, 0, 0.35 / peak);
+            // The re-strikes: short copies of the ring's opening.
+            let short = (0.012 * sr) as usize;
+            for _ in 0..2 + (rng.unit() * 2.0) as usize {
+                let at = ((0.015 + 0.045 * rng.unit()) * sr) as usize;
+                let g = 0.3 * grit * (0.4 + 0.6 * rng.unit()) / peak;
+                let hit: Vec<f32> = ring[..short]
+                    .iter()
+                    .enumerate()
+                    .map(|(i, x)| x * (1.0 - i as f32 / short as f32))
+                    .collect();
+                add_at(&mut tex, &hit, at, g);
             }
         }
         // Carpet fibres rubbing under the sole at the heel and the toe.

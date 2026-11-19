@@ -61,3 +61,9 @@ The `carpet_step` part picks this change up.
 - dirt: speed 1.4, in a room (s02). Saved as `dirt_step`.
 - carpet: speed 1.4, dry (s06). `carpet_step` already holds this setting.
 - metal: all bad, "it sounds worse now, do some research". The grate rattle made it worse than the high-pitched sheet before it. Metal needs a researched model, not another tweak.
+
+## Metal, researched (batch 18)
+
+Sources: footstep synthesis papers treat the shoe as the exciter and the floor as a modal resonator, excited by the impact's noisy residual (Turchet et al., the ground-reaction-force paper). Catwalk recordings are described as clanking and resonant, with grates squeaking and re-striking. The one thing in sounder heard as metal is modes turned to narrow noise bands (`modal` `noise` 0.4, width 0.1).
+
+The model: the all-purpose body, plus 24 inharmonic plate modes at 250 Hz-4 kHz, each a noise band (Q 10) ringing 0.12-0.4 s, with the high modes shorter. Over that, 2-3 re-strikes 15-60 ms later as the loose plate hits its frame. `grit` scales the re-strikes. The pure sheet modes and the 25-40 Hz flutter are gone.

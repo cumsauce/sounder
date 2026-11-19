@@ -1,0 +1,302 @@
+[
+ {
+  "id": "s01",
+  "family": "gaps",
+  "group": "footstep_metal",
+  "design": "metal_0.8_grit1.5",
+  "dressed": true,
+  "doc": {
+   "sound": "s01",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "metal",
+     "speed": 0.8,
+     "grit": 1.5,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s02",
+  "family": "gaps",
+  "group": "footstep_metal",
+  "design": "metal_1.4_grit1.5",
+  "dressed": true,
+  "doc": {
+   "sound": "s02",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "metal",
+     "speed": 1.4,
+     "grit": 1.5,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s03",
+  "family": "gaps",
+  "group": "footstep_metal",
+  "design": "metal_0.8_grit0.5",
+  "dressed": false,
+  "doc": {
+   "sound": "s03",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "metal",
+     "speed": 0.8,
+     "grit": 0.5,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s04",
+  "family": "gaps",
+  "group": "footstep_metal",
+  "design": "metal_1.4_grit0.5",
+  "dressed": false,
+  "doc": {
+   "sound": "s04",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "metal",
+     "speed": 1.4,
+     "grit": 0.5,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s05",
+  "family": "gaps",
+  "group": "footstep_metal",
+  "design": "metal_1.4_grit0.5",
+  "dressed": true,
+  "doc": {
+   "sound": "s05",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "metal",
+     "speed": 1.4,
+     "grit": 0.5,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s06",
+  "family": "gaps",
+  "group": "footstep_metal",
+  "design": "metal_1.4_grit1.5",
+  "dressed": false,
+  "doc": {
+   "sound": "s06",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "metal",
+     "speed": 1.4,
+     "grit": 1.5,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s07",
+  "family": "gaps",
+  "group": "footstep_metal",
+  "design": "metal_0.8_grit0.5",
+  "dressed": true,
+  "doc": {
+   "sound": "s07",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "metal",
+     "speed": 0.8,
+     "grit": 0.5,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s08",
+  "family": "gaps",
+  "group": "footstep_metal",
+  "design": "metal_0.8_grit1.5",
+  "dressed": false,
+  "doc": {
+   "sound": "s08",
+   "ops": [
+    {
+     "type": "step",
+     "name": "src",
+     "surface": "metal",
+     "speed": 0.8,
+     "grit": 1.5,
+     "at": [
+      0.005,
+      0.6
+     ],
+     "seed": 1
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ }
+]
