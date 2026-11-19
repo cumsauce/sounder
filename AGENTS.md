@@ -339,12 +339,13 @@ after bed texture whole`), with a material, tags and one to three knobs.
 Before building a layer from nodes, look for one:
 
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`,
-  `approved`): the library's parts and saved sounds plus the 86 built-in
+  `approved`): the library's parts and saved sounds plus the 88 built-in
   parts in `parts/`: the five layers of the approved door slam (`wood_brush`,
   `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock`), 72 the
   listener rated good blind, and `wooden_crate_drop` (a whole crate landing
   on concrete, built from a spec, rated great), and eight from the metal
-  and stone batch: metal heard as metal (`large_pipe_drop`,
+  and stone batches: stone heard as stone (`brick_or_rock_drop`,
+  `small_brick_drop`), metal heard as metal (`large_pipe_drop`,
   `large_metal_container_hit`, `metal_plate_gong_hit`, `metal_bell_hit`,
   `metal_into_small_glass`) and small stone taps heard as clicks
   (`small_object_taps`, `mouse_click_tap`, `keyboard_button_hit`). Hits and
@@ -356,8 +357,8 @@ Before building a layer from nodes, look for one:
   Whole sounds: door creak, engine rev, bird, breath, bells, siren, alarm,
   flute, plucked string, twang, laser, error beep. **Not in the library
   yet** (every attempt was heard as something else, rated lower, or not
-  rated): a large rock or stone that reads as stone (a slab was heard as
-  "hitting a rock", ok only; small rocks read as clicks), a footstep, rain,
+  rated): a very large stone (a boulder or slab reads as "hitting a wall"),
+  a footstep, rain,
   a stream, a large splash (0.6 m was rated bad), an electric motor, a
   creature voice. Build those from
   nodes and say they are unheard. Each of those is named and described by what the listener heard
@@ -404,6 +405,14 @@ bus above they pass `layers` (`tests/parts.rs`).
   split, beating pairs, were heard as "digital bell" / "fm bell"; the
   earlier short rings (0.1-0.4 s) as glass and ceramic. Start a dropped
   pipe low: lowest mode 120-200 Hz (`f0`), not 300+ (a very small pipe).
+- **Stone (a rock, a brick):** brown-noise weight low-passed at 200-230 Hz
+  (0.15-0.22 s), crackle-noise grit band-passed at 2-2.5 kHz, band-passed
+  noise at 700-800 Hz for the body, a white-noise crack, and a quiet
+  `modal` stone body (f0 700-900, loss 2-2.5, 6-8 dB under the noise),
+  then a few chips or a small bounce. Heard as "brick dropped or medium
+  rock hit". A louder, longer-ringing stone body (loss 1.2) reads as a
+  woodblock; small bright dead hits read as mouse clicks; a boulder with
+  long low weight reads as a wall.
 
 **When one node is still right:** ambience and loops (`fire`, `wind`, `water`),
 UI blips, a single texture, or a brief that names one ready-made sound

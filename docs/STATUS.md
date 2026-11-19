@@ -14,7 +14,7 @@ comes from the human's blind ratings.
 - **The tool:** 122 node types, the MCP server, the window, the senses
   (`summary`, `listen`, `verify`), macros, export. 859 tests pass; clippy and
   fmt are clean.
-- **The parts library:** 86 built-in parts in `parts/`, every one rated good
+- **The parts library:** 88 built-in parts in `parts/`, every one rated good
   by ear in a blind listen and named for what the listener heard.
   `catalog search` finds them by text, role, material and approval; the
   `sound` node assembles them. Only the human can mark a part approved (a
@@ -22,12 +22,12 @@ comes from the human's blind ratings.
 
   | Role | Parts | | Material | Parts |
   |---|---|---|---|---|
-  | whole | 34 | | any | 24 |
+  | whole | 36 | | any | 24 |
   | body | 16 | | metal | 10 |
   | after | 11 | | wood | 9 |
   | | | | plastic | 8 |
   | | | | water, air, glass | 5 each |
-  | | | | stone | 3 |
+  | | | | stone | 5 |
   | texture | 7 | | synthetic | 4 |
   | bed, pre, crack | 5 each | | ceramic, mechanical | 3 each |
   | weight | 3 | | fire, voice, cloth | 2 each |
@@ -43,8 +43,7 @@ comes from the human's blind ratings.
 Every attempt at these was heard as something else, rated lower, or not
 rated. An agent that builds one must say it is unheard.
 
-- A large rock or stone that reads as stone: a slab was heard as "hitting a
-  rock" (ok only); small rocks and pebbles read as clicks and taps.
+- A very large stone: a boulder or slab reads as "hitting a wall".
 - A footstep (the three surfaces were heard as snaps, a plastic bag, pitter
   patter), rain, a stream (still "oil bubbling").
 - A large splash: 0.6 m was rated bad with no note on why; 5 to 20 cm is good.
@@ -73,8 +72,12 @@ rated. An agent that builds one must say it is unheard.
   `modal` metal with `noise` 0.4, `noise_width` 0.1 and `loss` 0.3-0.6 were
   heard as metal; the same objects as clean sine modes with beating pairs
   were "digital bell". Earlier tries had rung only 0.1-0.4 s and read as
-  glass or ceramic. Stone is half there: a heavy slab read as a rock, small
-  ones as clicks.
+  glass or ceramic.
+- **Stone works too: weight and grit, with a quiet body.** In batch 5
+  (`docs/history/labels/batch5_findings.md`) a brick and a fist-sized rock
+  built from brown-noise weight, crackle grit, band-passed noise and a
+  stone `modal` 6-8 dB under it were heard as "brick dropped or medium rock
+  hit". More ring turned stone into a woodblock.
 - **The splash was reworked by ear** over four listens: the noise opening
   ("a snare, then bubbles") is replaced by cavity bubbles and a pour, with
   short droplets falling back. Long sine droplets read as "digital tones".
@@ -92,9 +95,9 @@ rated. An agent that builds one must say it is unheard.
    `~/.local/share/sounder-hearing/` (or `SOUNDER_HEARING_PYTHON`). First
    reading: the approved door slam's brief ranks 1 of 102, the crate drop
    rated great ranks 83 (heard as "a snare drum").
-3. **Metal and stone by synthesis:** metal done (five metal parts heard as
-   metal). Stone: the slab reads as a rock (ok); small rocks read as clicks.
-   Next for stone: weight and grit under a larger rock, against the slab.
+3. **Metal and stone by synthesis:** done (2026-11-18). Five metal parts
+   heard as metal, two stone parts heard as a brick or a rock. Still
+   missing: a very large stone (it reads as a wall).
 4. **An evaluation set:** fixed briefs built by a fresh agent and rated blind,
    with a before and after per change. Not started.
 5. Fill the remaining library gaps above as they come up.

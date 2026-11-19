@@ -1,0 +1,397 @@
+{
+ "role": "whole",
+ "material": "stone",
+ "description": "heard as \"brick dropped or medium rock hit\" in a blind listen; built as: a brick dropped flat on concrete: brown-noise weight under 200 Hz (0.22 s), a white-noise crack, band-passed noise at 800 Hz, crackle grit at 2.5 kHz and a quiet `modal` stone body (f0 700, loss 2.5, -6 dB), then six small chips; strikes at 5 ms",
+ "tags": [
+  "stone",
+  "brick",
+  "rock",
+  "drop",
+  "impact",
+  "concrete",
+  "dense"
+ ],
+ "origin": "batch 5 (stone built on the slab), cue s07 / s09; the listener rated it good blind on 2026-11-18",
+ "doc": {
+  "name": "brick_or_rock_drop",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 1.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "wn",
+    "color": "white"
+   },
+   {
+    "type": "noise",
+    "name": "bn",
+    "color": "brown"
+   },
+   {
+    "type": "noise",
+    "name": "gn",
+    "color": "crackle"
+   },
+   {
+    "type": "decay",
+    "name": "w0_e",
+    "time": 0.22,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "w0_x",
+    "op": "mul",
+    "a": "bn",
+    "b": "w0_e"
+   },
+   {
+    "type": "filter",
+    "name": "w0_f",
+    "input": "w0_x",
+    "mode": "lp",
+    "freq": 200,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "w0",
+    "input": "w0_f",
+    "db": -2
+   },
+   {
+    "type": "decay",
+    "name": "c0_e",
+    "time": 0.01,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "c0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "c0_e"
+   },
+   {
+    "type": "filter",
+    "name": "c0_f",
+    "input": "c0_x",
+    "mode": "hp",
+    "freq": 1800
+   },
+   {
+    "type": "gain",
+    "name": "c0",
+    "input": "c0_f",
+    "db": -5
+   },
+   {
+    "type": "decay",
+    "name": "b0_e",
+    "time": 0.06,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "b0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "b0_e"
+   },
+   {
+    "type": "filter",
+    "name": "b0_f",
+    "input": "b0_x",
+    "mode": "bp",
+    "freq": 800,
+    "q": 0.8
+   },
+   {
+    "type": "gain",
+    "name": "b0",
+    "input": "b0_f",
+    "db": 4
+   },
+   {
+    "type": "decay",
+    "name": "g0_e",
+    "time": 0.12,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "g0_x",
+    "op": "mul",
+    "a": "gn",
+    "b": "g0_e"
+   },
+   {
+    "type": "filter",
+    "name": "g0_f",
+    "input": "g0_x",
+    "mode": "bp",
+    "freq": 2500,
+    "q": 0.7
+   },
+   {
+    "type": "gain",
+    "name": "g0",
+    "input": "g0_f",
+    "db": 0
+   },
+   {
+    "type": "decay",
+    "name": "m0_e",
+    "time": 0.004,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "m0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "m0_e"
+   },
+   {
+    "type": "modal",
+    "name": "m0_r",
+    "excite": "m0_x",
+    "material": "stone",
+    "f0": 700,
+    "loss": 2.5,
+    "noise": 0.5,
+    "noise_width": 0.2,
+    "modes": 48
+   },
+   {
+    "type": "gain",
+    "name": "m0",
+    "input": "m0_r",
+    "db": -6
+   },
+   {
+    "type": "decay",
+    "name": "ch0_e",
+    "time": 0.003499132340871282,
+    "at": 0.093
+   },
+   {
+    "type": "math",
+    "name": "ch0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "ch0_e"
+   },
+   {
+    "type": "filter",
+    "name": "ch0_f",
+    "input": "ch0_x",
+    "mode": "bp",
+    "freq": 3352.907321644554,
+    "q": 1.2
+   },
+   {
+    "type": "gain",
+    "name": "ch0",
+    "input": "ch0_f",
+    "db": -22.473375008509176
+   },
+   {
+    "type": "decay",
+    "name": "ch1_e",
+    "time": 0.0031770475533135726,
+    "at": 0.138
+   },
+   {
+    "type": "math",
+    "name": "ch1_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "ch1_e"
+   },
+   {
+    "type": "filter",
+    "name": "ch1_f",
+    "input": "ch1_x",
+    "mode": "bp",
+    "freq": 2653.3154238635807,
+    "q": 1.2
+   },
+   {
+    "type": "gain",
+    "name": "ch1",
+    "input": "ch1_f",
+    "db": -23.935625214018362
+   },
+   {
+    "type": "decay",
+    "name": "ch2_e",
+    "time": 0.002288052466081595,
+    "at": 0.196
+   },
+   {
+    "type": "math",
+    "name": "ch2_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "ch2_e"
+   },
+   {
+    "type": "filter",
+    "name": "ch2_f",
+    "input": "ch2_x",
+    "mode": "bp",
+    "freq": 3877.576256306363,
+    "q": 1.2
+   },
+   {
+    "type": "gain",
+    "name": "ch2",
+    "input": "ch2_f",
+    "db": -23.393853616211818
+   },
+   {
+    "type": "decay",
+    "name": "ch3_e",
+    "time": 0.003730425478387357,
+    "at": 0.225
+   },
+   {
+    "type": "math",
+    "name": "ch3_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "ch3_e"
+   },
+   {
+    "type": "filter",
+    "name": "ch3_f",
+    "input": "ch3_x",
+    "mode": "bp",
+    "freq": 2435.7109941195463,
+    "q": 1.2
+   },
+   {
+    "type": "gain",
+    "name": "ch3",
+    "input": "ch3_f",
+    "db": -22.468776448560345
+   },
+   {
+    "type": "decay",
+    "name": "ch4_e",
+    "time": 0.0020917221488667283,
+    "at": 0.255
+   },
+   {
+    "type": "math",
+    "name": "ch4_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "ch4_e"
+   },
+   {
+    "type": "filter",
+    "name": "ch4_f",
+    "input": "ch4_x",
+    "mode": "bp",
+    "freq": 3828.47133050888,
+    "q": 1.2
+   },
+   {
+    "type": "gain",
+    "name": "ch4",
+    "input": "ch4_f",
+    "db": -23.232608529417227
+   },
+   {
+    "type": "decay",
+    "name": "ch5_e",
+    "time": 0.004290964475666457,
+    "at": 0.278
+   },
+   {
+    "type": "math",
+    "name": "ch5_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "ch5_e"
+   },
+   {
+    "type": "filter",
+    "name": "ch5_f",
+    "input": "ch5_x",
+    "mode": "bp",
+    "freq": 2929.53663516081,
+    "q": 1.2
+   },
+   {
+    "type": "gain",
+    "name": "ch5",
+    "input": "ch5_f",
+    "db": -20.456846065986714
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "w0",
+     "c0",
+     "b0",
+     "g0",
+     "m0",
+     "ch0",
+     "ch1",
+     "ch2",
+     "ch3",
+     "ch4",
+     "ch5"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "dry",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "weight",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "how heavy it lands",
+    "game": false,
+    "map": [
+     {
+      "node": "w0",
+      "field": "db",
+      "from": -12,
+      "to": 8,
+      "curve": "linear"
+     }
+    ]
+   },
+   {
+    "name": "pitch",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "pitch of the stone body: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "m0_r",
+      "field": "f0",
+      "from": 440,
+      "to": 1110,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}
