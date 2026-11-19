@@ -322,6 +322,9 @@ asks for, so the graph can be checked against the request, not only against
   A body made of a modal alone fails a `length_ms` of [40, 300].
 - A sound with no nodes yet keeps a spec-only `sound_ops` call unrendered,
   so the spec can come first.
+- `spec_update: [{"index": 1, "node": "boards_g"}]` edits one component
+  (null clears a field; an index equal to the count appends one), so a
+  layer's node is named as it is built without resending the spec.
 - `summary` lists the spec with what is missing (no node yet, no such node,
   not reaching the output, another material); `verify` runs the `spec`
   check by default once a spec has components, one line per component

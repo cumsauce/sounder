@@ -177,6 +177,10 @@ pub struct DocEdit {
     pub sample_rate: Option<u32>,
     /// Some(None) removes the spec.
     pub spec: Option<Option<Spec>>,
+    /// Edits to single components, after `spec`: each `{"index": i,
+    /// ...fields}` merges the fields into component i (`null` clears an
+    /// optional one); `index` equal to the count appends a new component.
+    pub spec_update: Vec<Value>,
 }
 
 /// What [`SoundDoc::apply`] did.
@@ -566,6 +570,11 @@ impl SoundDoc {
                 sp.validate()?;
             }
             next.spec = sp;
+        }
+        if !edit.spec_update.is_empty() {
+            let sp = next.spec.get_or_insert_with(Spec::default);
+            sp.update(&edit.spec_update)?;
+            sp.validate()?;
         }
         let (mut added, mut changed, mut removed) = (Vec::new(), Vec::new(), Vec::new());
         for (k, item) in items.into_iter().enumerate() {

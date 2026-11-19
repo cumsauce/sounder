@@ -104,6 +104,12 @@ pub(crate) struct SoundOpsArgs {
     #[serde(default, deserialize_with = "present_or_null")]
     #[schemars(with = "Option<sfx_graph::Spec>")]
     pub(crate) spec: Option<Option<sfx_graph::Spec>>,
+    /// Edit single spec components instead of resending the spec:
+    /// [{"index": 1, "node": "boards_g", "length_ms": [40, 300]}] merges
+    /// the fields into component 1 (null clears one); an index equal to the
+    /// count appends a component (give its role). Runs after `spec`.
+    #[serde(default)]
+    pub(crate) spec_update: Vec<serde_json::Value>,
     /// Run on this open sound instead of your active one (see `sound`).
     #[serde(default)]
     pub(crate) doc: Option<String>,

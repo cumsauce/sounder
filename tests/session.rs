@@ -689,6 +689,34 @@ fn a_spec_is_listed_in_summary_and_checked_by_verify() {
     let spec: Vec<_> = r.iter().filter(|c| c.name.starts_with("spec")).collect();
     assert_eq!(spec.len(), 2, "{r:?}");
     assert!(spec[0].pass && !spec[1].pass, "{spec:?}");
+    // One component at a time: name the crack's node, append a layer.
+    let edit = DocEdit {
+        spec_update: vec![
+            json!({"index": 1, "node": "f", "note": null}),
+            json!({"index": 2, "role": "after", "material": "wood"}),
+        ],
+        ..DocEdit::default()
+    };
+    s.apply_ops(None, Vec::new(), edit).unwrap();
+    let (_, json) = s.summary(None).unwrap();
+    assert_eq!(json["spec"]["components"][1]["node"], "f");
+    assert!(json["spec"]["components"][1].get("note").is_none());
+    assert_eq!(json["spec"]["components"][2]["role"], "after");
+    for (item, want) in [
+        (
+            json!({"index": 9, "node": "f"}),
+            "the spec has 3 components",
+        ),
+        (json!({"node": "f"}), "`index`"),
+        (json!({"index": 0, "role": "thud"}), "role `thud`"),
+    ] {
+        let edit = DocEdit {
+            spec_update: vec![item],
+            ..DocEdit::default()
+        };
+        let e = s.apply_ops(None, Vec::new(), edit).unwrap_err();
+        assert!(e.contains(want), "{e}");
+    }
     // null removes it.
     let edit = DocEdit {
         spec: Some(None),

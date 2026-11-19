@@ -114,6 +114,54 @@ impl Component {
 }
 
 impl Spec {
+    /// Applies `spec_update` items: `{"index": i, ...fields}` merges into
+    /// component i; `index` equal to the count appends one (it needs a role).
+    pub fn update(&mut self, items: &[Value]) -> Result<(), String> {
+        for (k, item) in items.iter().enumerate() {
+            let at = format!("spec_update #{k}");
+            let Value::Object(m) = item else {
+                return Err(format!(
+                    "{at}: give an object {{\"index\": 0, \"node\": \"crk_g\"}}"
+                ));
+            };
+            let Some(i) = m.get("index").and_then(Value::as_u64).map(|i| i as usize) else {
+                return Err(format!(
+                    "{at}: `index` (the component's position, from 0) is missing"
+                ));
+            };
+            let n = self.components.len();
+            if i > n {
+                return Err(format!(
+                    "{at}: index {i}: the spec has {n} components (0..{}; {n} appends one)",
+                    n.saturating_sub(1)
+                ));
+            }
+            let mut v = if i < n {
+                serde_json::to_value(&self.components[i]).map_err(|e| e.to_string())?
+            } else {
+                Value::Object(Default::default())
+            };
+            let obj = v.as_object_mut().ok_or("component is not an object")?;
+            for (key, val) in m {
+                if key == "index" {
+                    continue;
+                }
+                if val.is_null() {
+                    obj.remove(key);
+                } else {
+                    obj.insert(key.clone(), val.clone());
+                }
+            }
+            let c: Component = serde_json::from_value(v).map_err(|e| format!("{at}: {e}"))?;
+            if i < n {
+                self.components[i] = c;
+            } else {
+                self.components.push(c);
+            }
+        }
+        Ok(())
+    }
+
     /// Checks the spec's own shape: known roles, ordered ranges.
     pub fn validate(&self) -> Result<(), String> {
         for (k, c) in self.components.iter().enumerate() {
@@ -199,7 +247,7 @@ impl Spec {
             .map(|c| {
                 let mut p = Vec::new();
                 match &c.node {
-                    None => p.push("not built: name its node in the spec once it exists".into()),
+                    None => p.push("not built: name its node once it exists (sound_ops spec_update [{\"index\": i, \"node\": ...}])".into()),
                     Some(n)
                         if !nodes
                             .iter()
