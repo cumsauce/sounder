@@ -376,6 +376,8 @@ node_types! {
     "transporter" => Transporter,
     "torpedo" => Torpedo,
     "phaser_beam" => PhaserBeam,
+    "stream" => Stream,
+    "pour" => Pour,
 
     "fire" => Fire,
     "wind" => Wind,
