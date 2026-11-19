@@ -362,7 +362,7 @@ Before building a layer from nodes, look for one:
   flute, plucked string, twang, laser, error beep. **Not in the library
   yet** (every attempt was heard as something else, rated lower, or not
   rated): a footstep on concrete, gravel or grass (wood steps from four
-  `footstep` nodes rated good), rain,
+  `footstep` nodes rated good), rain (the `rain` node is new and unheard),
   a stream, a large splash (0.6 m was rated bad), an electric motor, a
   creature voice. Build those from
   nodes and say they are unheard. Each of those is named and described by what the listener heard
@@ -509,7 +509,7 @@ Round-1 testers built every footstep from primitives and never tried `fire` or
 sounds starts from one node (the body layer) plus a few knobs. **Building from primitives is still
 fine** (and right for anything not listed: a laser, a UI blip, a whoosh, a
 drone); `describe_op {kind}` gives each node's fields and an example, and the
-sections below give the measured limits. None of these has been heard (the 14 ports from rain to `two_tone` were rated once, blind: their rows say how they were heard): pick by
+sections below give the measured limits. None of these has been heard (the ports from `stream` to `two_tone` were rated once, blind: their rows say how they were heard): pick by
 the brief, then `listen`, `verify` and let the human's macros do the rest.
 
 | Brief | Node | Start with | Fits |
@@ -539,7 +539,7 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 | a creaking door, a hinge | `door_creak` | `force` (signal; creaks over 0.3) | Farnell's stick-slip hinge through wood resonances and a square panel |
 | a jet engine, a turbine | `jet` | `speed` (signal 0.1..1, spools up through a 0.2 Hz low-pass) | Farnell's jet: turbine tones and a clipped, swept burner roar |
 | a sci-fi alarm, red alert | `red_alert` | `at` (whoop times), `pitch` | Farnell's klaxon: a rising buzz through feedback delays and a formant horn |
-| rain on a leaf, water, a window, the ground | `rain` | `surface` leaf / water / window / ground, `intensity` (drops/s), `wash` (the dense spray under the drops, default 0.6), `loop` | Farnell's RAIN patches; heard: water as bubbles (good), leaf as static or gravel, window as popcorn, ground as tearing tape: **not heard as rain** without the `wash` (added since, unheard) |
+| rain, a shower, a downpour, rain on a roof | `rain` | `surface` water / stone / leaf / wood / soft / glass / metal, `rate` mm/h (2 light, 10, 50 a downpour), `roof` + `roof_height`, `loop` | physically sized drops over a surface-coloured hiss (after the foley project); levels differ by 20 dB per surface: set `lufs`. Unheard |
 | a stream, a brook; pouring into a vessel | `stream`; `pour` | `flow`, `depth`, `range`, `layers`, `loop`; `fill_time`, `vessel`, `bubbles` | heard: `stream` ok (bubbles), at `flow` 2 / `layers` 4 a gurgling tube (good); `pour` ok (chemistry-set bubbles); `pour` needs a `duration` of `fill_time` + 1.5 s |
 | a helicopter; a rocket motor | `helicopter`; `rocket` | `rotor_rate`, `engine`, `tail`, `distance` (signals); `thrust`, `ignition`, `burn` | heard: helicopter good (near and far); rocket as a fake game weapon; set a `duration` |
 | a roar, a growl; a housefly; cicadas | `roar`; `fly`; `cicada` | `size`, `aggression`, `vowel`, `length`; `freq`, `res`, `flutter`; `kind` buzz / rattle / call, `pitch`, `rate` | heard: `fly` as a fly (good); `cicada` as a rattlesnake / scissors; `roar` as a **cow** (its pitch glide too clean; `wobble`, default 0.6, added since, unheard); `fly` and `cicada` never decay: set a `duration` |
@@ -554,8 +554,7 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 
 Scene sounds layer these: a door slam is the layered recipe in "Layering a
 designed sound" (not a `click` latch under a `modal` thud: that read as metal
-and as a tuned drum), a campfire is `fire` plus a few `spark`s, rain is
-`poisson` into `voices`.
+and as a tuned drum), a campfire is `fire` plus a few `spark`s, rain is the `rain` node.
 One `sound` per layer and a `mix` with `gain` / `at` keeps each one editable.
 
 Layer levels: the ready-made nodes are not normalized and sit at different
