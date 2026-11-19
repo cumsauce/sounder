@@ -343,7 +343,7 @@ after bed texture whole`), with a material, tags and one to three knobs.
 Before building a layer from nodes, look for one:
 
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`,
-  `approved`): the library's parts and saved sounds plus the 110 built-in
+  `approved`): the library's parts and saved sounds plus the 111 built-in
   parts in `parts/`: the five layers of the approved door slam (`wood_brush`,
   `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock`), 72 the
   listener rated good blind, and `wooden_crate_drop` (a whole crate landing
@@ -363,12 +363,12 @@ Before building a layer from nodes, look for one:
   underwater, rain on stone, cave drips; a small geared motor
   (`small_motor_spin`), a close-up splash (`splash_close`), and footsteps
   from `step`: `all_purpose_step` (no surface), `concrete_step`, `grass_step`,
-  `gravel_step`, and the textures `gravel_crunch` and `grass_swish` (a
+  `gravel_step`, `carpet_step`, and the textures `gravel_crunch` and `grass_swish` (a
   step's `layer: "texture"`) to lay over `all_purpose_step`.
   Whole sounds: a rattlesnake rattle and scissors snipping (both cicada patches, heard so), door creak, engine rev, bird, breath, bells, siren, alarm,
   flute, plucked string, twang, laser, error beep. **Not in the library
   yet** (every attempt was heard as something else, rated lower, or not
-  rated): a footstep on dirt, snow, metal, ice or carpet (the `footstep` node's concrete, gravel and
+  rated): a footstep on dirt, snow, wood, metal or ice from `step` (the `footstep` node's concrete, gravel and
   grass failed; `step` gives `concrete_step`, `grass_step`,
   `all_purpose_step`; wood steps from four
   `footstep` nodes rated good), rain (the `rain` node is new and unheard),

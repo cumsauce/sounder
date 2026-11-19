@@ -1,0 +1,54 @@
+{
+ "role": "whole",
+ "material": "cloth",
+ "description": "one footstep on carpet, picked best of 4 (\"good but needs some frictive noises to represent the cloth\"); built as: `step` carpet, speed 1.4; fibre rubs added after the listen (unheard)",
+ "tags": [
+  "footstep",
+  "step",
+  "walk",
+  "carpet",
+  "rug",
+  "indoor",
+  "soft"
+ ],
+ "origin": "batch 15; picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "carpet_step",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 0.8,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "step",
+    "name": "src",
+    "surface": "carpet",
+    "speed": 1.4,
+    "at": 0.005
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "rub",
+    "value": 0.5,
+    "doc": "how much the fibres rub",
+    "map": [
+     {
+      "node": "src",
+      "field": "grit",
+      "from": 0.3,
+      "to": 2.0,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

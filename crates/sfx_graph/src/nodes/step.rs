@@ -66,11 +66,15 @@ impl StepSurface {
             StepSurface::Concrete => Material::Stone,
             StepSurface::Gravel => Material::Granular,
             StepSurface::Grass => Material::Earth,
-            StepSurface::Dirt => Material::Earth,
-            StepSurface::Wood => Material::Wood,
-            StepSurface::Metal => Material::Metal,
-            StepSurface::Ice => Material::Ice,
-            StepSurface::Snow => Material::Snow,
+            // The all-purpose body (gravel's physics, heard as "really good
+            // footsteps"): a floor's own ring read as a plank or a ladder
+            // rung struck, and ice as glass. What the surface adds is
+            // layered over it below.
+            StepSurface::Dirt
+            | StepSurface::Wood
+            | StepSurface::Metal
+            | StepSurface::Ice
+            | StepSurface::Snow => Material::Granular,
             StepSurface::Carpet => Material::Soft,
         }
     }
@@ -371,21 +375,39 @@ fn strike(
             0.15,
             sr,
         ),
+        // Dirt is gravel with its grains turned down ("pretty much the same").
         StepSurface::Dirt => grains(
             rng,
             &mut tex,
-            (16.0 * crush * grit) as usize,
-            0.04,
+            (21.0 * crush * grit) as usize,
+            0.06,
             0.2,
-            0.2,
+            0.6,
             sr,
         ),
+        // Snow compacting: hundreds of bonds breaking as the foot sinks over
+        // 0.2 s, dense in the middle of the press, each a sub-ms click.
         StepSurface::Snow => {
-            for _ in 0..((120.0 * crush * grit) as usize).max(12) {
-                let at = (0.1 * rng.unit().sqrt() * sr) as usize;
+            for _ in 0..((400.0 * crush * grit) as usize).max(40) {
+                let u = 0.5 * (rng.unit() + rng.unit());
+                let at = (0.2 * u * sr) as usize;
                 let e = (1.0 + rng.unit() * (30f32.powf(-0.7) - 1.0)).powf(-1.0 / 0.7);
-                let centre = 1500.0 + 2500.0 * rng.unit();
-                noise_burst(rng, &mut tex, at, 0.003, centre, 0.8 * e.sqrt(), sr);
+                let centre = 1000.0 + 6000.0 * rng.unit();
+                noise_burst(rng, &mut tex, at, 0.0008, centre, 0.35 * e.sqrt(), sr);
+            }
+        }
+        // Ice: a few sharp cracks and crunches, not a ringing pane.
+        StepSurface::Ice => {
+            for _ in 0..6 + (8.0 * crush * grit) as usize {
+                let at = (0.08 * rng.unit().powi(2) * sr) as usize;
+                let seconds = 0.002 + 0.004 * rng.unit();
+                let centre = 2500.0 + 5500.0 * rng.unit();
+                let a = 0.5 * (0.3 + rng.unit());
+                noise_burst(rng, &mut tex, at, seconds, centre, a, sr);
+            }
+            if rng.unit() < 0.5 * grit {
+                let at = (0.02 * rng.unit() * sr) as usize;
+                noise_burst(rng, &mut tex, at, 0.015, 1800.0, 0.6, sr);
             }
         }
         _ => {}
@@ -441,6 +463,27 @@ fn footstep(
     add_at(&mut out, &toe, at, g);
     add_at(&mut tex, &toe_tex, at, g);
     match surface {
+        // A metal sheet, not a bar: a thin plate's dense, damped modes and
+        // a short shimmer.
+        StepSurface::Metal => {
+            let mut sheet = Material::Metal.props();
+            sheet.thickness = 0.0015;
+            let mut ring = Vec::new();
+            struck_modes(rng, &sheet, 0.002, 6.0, sr).render_into(&mut ring, 0, sr);
+            add_at(&mut out, &ring, 0, 0.2);
+            let c = 3500.0 * (0.8 + 0.4 * rng.unit());
+            noise_burst(rng, &mut tex, 0, 0.12, c, 0.25 * grit, sr);
+        }
+        // Carpet fibres rubbing under the sole at the heel and the toe.
+        StepSurface::Carpet => {
+            for k in 0..5 + (rng.unit() * 4.0) as usize {
+                let base = if k % 2 == 1 { roll } else { 0.0 };
+                let at = ((base + 0.03 * rng.unit()) * sr) as usize;
+                let seconds = 0.02 + 0.04 * rng.unit();
+                let c = 1500.0 + 2500.0 * rng.unit();
+                noise_burst(rng, &mut tex, at, seconds, c, 0.12 * grit, sr);
+            }
+        }
         // Blades brushing the shoe going in and coming out.
         StepSurface::Grass => {
             // Most of the crunch is the heel pressing the blades down; a
@@ -453,27 +496,35 @@ fn footstep(
                 noise_burst(rng, &mut tex, at, seconds, c, 0.35, sr);
             }
         }
-        StepSurface::Wood if rng.unit() < 0.15 => {
-            let seconds = 0.12 + 0.15 * rng.unit();
-            let n = (seconds * sr) as usize;
-            let mut body = BandPass::new_at(700.0 + 900.0 * rng.unit(), 5.0, sr as u32);
-            let mut hz = 90.0 + 80.0 * rng.unit();
-            let mut phase = 0.0f32;
-            let start = (0.03 * sr) as usize;
-            if out.len() < start + n {
-                out.resize(start + n, 0.0);
-            }
-            for i in 0..n {
-                let t = i as f32 / n as f32;
-                hz *= 1.0 + 0.003 * rng.signed();
-                phase += hz / sr;
-                let slip = if phase >= 1.0 {
-                    phase -= 1.0;
-                    1.0 + 0.5 * rng.signed()
-                } else {
-                    0.0
-                };
-                out[start + i] += 0.5 * (t * 6.0).min(1.0) * (1.0 - t) * body.process(slip);
+        // A board under the step: its knock, heavily damped by the joists,
+        // under the ordinary step; now and then it creaks.
+        StepSurface::Wood => {
+            let board = Material::Wood.props();
+            let mut knock = Vec::new();
+            struck_modes(rng, &board, 0.004, 8.0, sr).render_into(&mut knock, 0, sr);
+            add_at(&mut out, &knock, 0, 0.25);
+            if rng.unit() < 0.15 {
+                let seconds = 0.12 + 0.15 * rng.unit();
+                let n = (seconds * sr) as usize;
+                let mut body = BandPass::new_at(700.0 + 900.0 * rng.unit(), 5.0, sr as u32);
+                let mut hz = 90.0 + 80.0 * rng.unit();
+                let mut phase = 0.0f32;
+                let start = (0.03 * sr) as usize;
+                if out.len() < start + n {
+                    out.resize(start + n, 0.0);
+                }
+                for i in 0..n {
+                    let t = i as f32 / n as f32;
+                    hz *= 1.0 + 0.003 * rng.signed();
+                    phase += hz / sr;
+                    let slip = if phase >= 1.0 {
+                        phase -= 1.0;
+                        1.0 + 0.5 * rng.signed()
+                    } else {
+                        0.0
+                    };
+                    out[start + i] += 0.5 * (t * 6.0).min(1.0) * (1.0 - t) * body.process(slip);
+                }
             }
         }
         _ => {}
