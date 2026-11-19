@@ -39,6 +39,7 @@ mod output;
 mod rain;
 mod recipes;
 mod reference;
+mod rig;
 mod sequence;
 mod sources;
 mod space;

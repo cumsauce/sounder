@@ -297,6 +297,7 @@ node_types! {
     "contact" => Contact,
     "friction" => Friction,
     "impact" => Impact,
+    "rig" => Rig,
     // foley
     "bubble" => BubbleNode,
     "air" => Air,

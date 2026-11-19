@@ -67,6 +67,8 @@ mod bands;
 mod mechanism;
 
 mod crackle;
+// bodies and joints stepped together.
+mod rig;
 // the finishing bus.
 mod finish;
 // exaggeration layers.
@@ -83,6 +85,7 @@ pub use mixing::*;
 pub use modal::*;
 pub use nonlinear::*;
 pub use offline::*;
+pub use rig::*;
 pub use sources::*;
 pub use spectral::*;
 pub use time::*;

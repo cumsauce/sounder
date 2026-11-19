@@ -42,7 +42,7 @@ pub struct PlateProps {
 }
 
 impl MaterialSpec {
-    fn props(&self) -> Result<MaterialProps, String> {
+    pub(crate) fn props(&self) -> Result<MaterialProps, String> {
         match self {
             MaterialSpec::Name(n) => {
                 let m = match n.to_ascii_lowercase().as_str() {
@@ -912,7 +912,7 @@ fn rattle_buzz(x: &[f32], rattle: f32, sr: f32) -> Vec<f32> {
 
 /// The linear gain of an optional `gain_db` (-60..60): None for absent or 0,
 /// so the default path multiplies by nothing and stays bit-identical.
-fn level_gain(gain_db: Option<f32>) -> Result<Option<f32>, String> {
+pub(crate) fn level_gain(gain_db: Option<f32>) -> Result<Option<f32>, String> {
     match gain_db {
         None => Ok(None),
         Some(g) if g.is_finite() && g.abs() <= 60.0 => Ok((g != 0.0).then(|| 10f32.powf(g / 20.0))),

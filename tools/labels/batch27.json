@@ -1,0 +1,820 @@
+[
+ {
+  "id": "b27_01",
+  "family": "impact",
+  "group": "ball_drum",
+  "design": "drum_hard_ball",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "ball",
+       "mass": 0.06
+      },
+      {
+       "name": "skin",
+       "mass": 0.3,
+       "fixed": true,
+       "material": "wood",
+       "shape": "membrane",
+       "f0": 110,
+       "loss": 2.0,
+       "noise": 0.3
+      }
+     ],
+     "joints": [
+      {
+       "a": "ball",
+       "b": "skin",
+       "at_b": 0.3,
+       "gap": 0.3,
+       "bounce": 0.6,
+       "hardness": 0.8
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b27_02",
+  "family": "impact",
+  "group": "pan_lid",
+  "design": "pan_heavy_lid",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "spoon",
+       "mass": 0.05,
+       "velocity": -2.5
+      },
+      {
+       "name": "pan",
+       "mass": 1.5,
+       "fixed": true,
+       "material": "metal",
+       "size": 0.25,
+       "thickness": 0.002,
+       "loss": 0.5,
+       "noise": 0.4,
+       "noise_width": 0.1
+      },
+      {
+       "name": "lid",
+       "mass": 0.8,
+       "material": "metal",
+       "size": 0.24,
+       "thickness": 0.001,
+       "loss": 0.5,
+       "noise": 0.4,
+       "noise_width": 0.1,
+       "level_db": -3
+      }
+     ],
+     "joints": [
+      {
+       "a": "spoon",
+       "b": "pan",
+       "at_b": 0.3,
+       "hardness": 0.9,
+       "gap": 0.002
+      },
+      {
+       "a": "lid",
+       "b": "pan",
+       "at_a": 0.95,
+       "at_b": 0.9,
+       "bounce": 0.3
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b27_03",
+  "family": "impact",
+  "group": "pan_lid",
+  "design": "pan_heavy_lid",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "spoon",
+       "mass": 0.05,
+       "velocity": -2.5
+      },
+      {
+       "name": "pan",
+       "mass": 1.5,
+       "fixed": true,
+       "material": "metal",
+       "size": 0.25,
+       "thickness": 0.002,
+       "loss": 0.5,
+       "noise": 0.4,
+       "noise_width": 0.1
+      },
+      {
+       "name": "lid",
+       "mass": 0.8,
+       "material": "metal",
+       "size": 0.24,
+       "thickness": 0.001,
+       "loss": 0.5,
+       "noise": 0.4,
+       "noise_width": 0.1,
+       "level_db": -3
+      }
+     ],
+     "joints": [
+      {
+       "a": "spoon",
+       "b": "pan",
+       "at_b": 0.3,
+       "hardness": 0.9,
+       "gap": 0.002
+      },
+      {
+       "a": "lid",
+       "b": "pan",
+       "at_a": 0.95,
+       "at_b": 0.9,
+       "bounce": 0.3
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b27_04",
+  "family": "impact",
+  "group": "tin_roof",
+  "design": "roof_loose_screw",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "hammer",
+       "mass": 0.4,
+       "velocity": -3.0
+      },
+      {
+       "name": "sheet",
+       "mass": 2.0,
+       "fixed": true,
+       "material": "metal",
+       "size": 0.5,
+       "thickness": 0.002,
+       "loss": 0.4,
+       "noise": 0.3,
+       "noise_width": 0.1
+      },
+      {
+       "name": "screw",
+       "mass": 0.005,
+       "material": "metal",
+       "shape": "bar",
+       "f0": 2500,
+       "loss": 0.6,
+       "level_db": -6
+      }
+     ],
+     "joints": [
+      {
+       "a": "hammer",
+       "b": "sheet",
+       "at_b": 0.4,
+       "hardness": 0.9
+      },
+      {
+       "kind": "spring",
+       "a": "screw",
+       "b": "sheet",
+       "at_b": 0.8,
+       "gap": 0.0002,
+       "stiffness": 200000.0,
+       "damping": 2
+      }
+     ],
+     "at": 0.005,
+     "gravity": 0
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b27_05",
+  "family": "impact",
+  "group": "pan_lid",
+  "design": "pan_light_lid",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "spoon",
+       "mass": 0.05,
+       "velocity": -2.5
+      },
+      {
+       "name": "pan",
+       "mass": 1.5,
+       "fixed": true,
+       "material": "metal",
+       "size": 0.25,
+       "thickness": 0.002,
+       "loss": 0.5,
+       "noise": 0.4,
+       "noise_width": 0.1
+      },
+      {
+       "name": "lid",
+       "mass": 0.2,
+       "material": "metal",
+       "size": 0.24,
+       "thickness": 0.001,
+       "loss": 0.5,
+       "noise": 0.4,
+       "noise_width": 0.1,
+       "level_db": -3
+      }
+     ],
+     "joints": [
+      {
+       "a": "spoon",
+       "b": "pan",
+       "at_b": 0.3,
+       "hardness": 0.9,
+       "gap": 0.002
+      },
+      {
+       "a": "lid",
+       "b": "pan",
+       "at_a": 0.95,
+       "at_b": 0.9,
+       "bounce": 0.3
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b27_06",
+  "family": "impact",
+  "group": "tin_roof",
+  "design": "roof_tight_screw",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "hammer",
+       "mass": 0.4,
+       "velocity": -3.0
+      },
+      {
+       "name": "sheet",
+       "mass": 2.0,
+       "fixed": true,
+       "material": "metal",
+       "size": 0.5,
+       "thickness": 0.002,
+       "loss": 0.4,
+       "noise": 0.3,
+       "noise_width": 0.1
+      },
+      {
+       "name": "screw",
+       "mass": 0.005,
+       "material": "metal",
+       "shape": "bar",
+       "f0": 2500,
+       "loss": 0.6,
+       "level_db": -6
+      }
+     ],
+     "joints": [
+      {
+       "a": "hammer",
+       "b": "sheet",
+       "at_b": 0.4,
+       "hardness": 0.9
+      },
+      {
+       "kind": "spring",
+       "a": "screw",
+       "b": "sheet",
+       "at_b": 0.8,
+       "gap": 0.0,
+       "stiffness": 200000.0,
+       "damping": 2
+      }
+     ],
+     "at": 0.005,
+     "gravity": 0
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b27_07",
+  "family": "impact",
+  "group": "pan_lid",
+  "design": "pan_light_lid",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "spoon",
+       "mass": 0.05,
+       "velocity": -2.5
+      },
+      {
+       "name": "pan",
+       "mass": 1.5,
+       "fixed": true,
+       "material": "metal",
+       "size": 0.25,
+       "thickness": 0.002,
+       "loss": 0.5,
+       "noise": 0.4,
+       "noise_width": 0.1
+      },
+      {
+       "name": "lid",
+       "mass": 0.2,
+       "material": "metal",
+       "size": 0.24,
+       "thickness": 0.001,
+       "loss": 0.5,
+       "noise": 0.4,
+       "noise_width": 0.1,
+       "level_db": -3
+      }
+     ],
+     "joints": [
+      {
+       "a": "spoon",
+       "b": "pan",
+       "at_b": 0.3,
+       "hardness": 0.9,
+       "gap": 0.002
+      },
+      {
+       "a": "lid",
+       "b": "pan",
+       "at_a": 0.95,
+       "at_b": 0.9,
+       "bounce": 0.3
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b27_08",
+  "family": "impact",
+  "group": "ball_drum",
+  "design": "drum_soft_ball",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "ball",
+       "mass": 0.06
+      },
+      {
+       "name": "skin",
+       "mass": 0.3,
+       "fixed": true,
+       "material": "wood",
+       "shape": "membrane",
+       "f0": 110,
+       "loss": 2.0,
+       "noise": 0.3
+      }
+     ],
+     "joints": [
+      {
+       "a": "ball",
+       "b": "skin",
+       "at_b": 0.3,
+       "gap": 0.3,
+       "bounce": 0.6,
+       "hardness": 0.2
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b27_09",
+  "family": "impact",
+  "group": "ball_drum",
+  "design": "drum_hard_ball",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "ball",
+       "mass": 0.06
+      },
+      {
+       "name": "skin",
+       "mass": 0.3,
+       "fixed": true,
+       "material": "wood",
+       "shape": "membrane",
+       "f0": 110,
+       "loss": 2.0,
+       "noise": 0.3
+      }
+     ],
+     "joints": [
+      {
+       "a": "ball",
+       "b": "skin",
+       "at_b": 0.3,
+       "gap": 0.3,
+       "bounce": 0.6,
+       "hardness": 0.8
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b27_10",
+  "family": "impact",
+  "group": "tin_roof",
+  "design": "roof_loose_screw",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "hammer",
+       "mass": 0.4,
+       "velocity": -3.0
+      },
+      {
+       "name": "sheet",
+       "mass": 2.0,
+       "fixed": true,
+       "material": "metal",
+       "size": 0.5,
+       "thickness": 0.002,
+       "loss": 0.4,
+       "noise": 0.3,
+       "noise_width": 0.1
+      },
+      {
+       "name": "screw",
+       "mass": 0.005,
+       "material": "metal",
+       "shape": "bar",
+       "f0": 2500,
+       "loss": 0.6,
+       "level_db": -6
+      }
+     ],
+     "joints": [
+      {
+       "a": "hammer",
+       "b": "sheet",
+       "at_b": 0.4,
+       "hardness": 0.9
+      },
+      {
+       "kind": "spring",
+       "a": "screw",
+       "b": "sheet",
+       "at_b": 0.8,
+       "gap": 0.0002,
+       "stiffness": 200000.0,
+       "damping": 2
+      }
+     ],
+     "at": 0.005,
+     "gravity": 0
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b27_11",
+  "family": "impact",
+  "group": "ball_drum",
+  "design": "drum_soft_ball",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "ball",
+       "mass": 0.06
+      },
+      {
+       "name": "skin",
+       "mass": 0.3,
+       "fixed": true,
+       "material": "wood",
+       "shape": "membrane",
+       "f0": 110,
+       "loss": 2.0,
+       "noise": 0.3
+      }
+     ],
+     "joints": [
+      {
+       "a": "ball",
+       "b": "skin",
+       "at_b": 0.3,
+       "gap": 0.3,
+       "bounce": 0.6,
+       "hardness": 0.2
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b27_12",
+  "family": "impact",
+  "group": "tin_roof",
+  "design": "roof_tight_screw",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "hammer",
+       "mass": 0.4,
+       "velocity": -3.0
+      },
+      {
+       "name": "sheet",
+       "mass": 2.0,
+       "fixed": true,
+       "material": "metal",
+       "size": 0.5,
+       "thickness": 0.002,
+       "loss": 0.4,
+       "noise": 0.3,
+       "noise_width": 0.1
+      },
+      {
+       "name": "screw",
+       "mass": 0.005,
+       "material": "metal",
+       "shape": "bar",
+       "f0": 2500,
+       "loss": 0.6,
+       "level_db": -6
+      }
+     ],
+     "joints": [
+      {
+       "a": "hammer",
+       "b": "sheet",
+       "at_b": 0.4,
+       "hardness": 0.9
+      },
+      {
+       "kind": "spring",
+       "a": "screw",
+       "b": "sheet",
+       "at_b": 0.8,
+       "gap": 0.0,
+       "stiffness": 200000.0,
+       "damping": 2
+      }
+     ],
+     "at": 0.005,
+     "gravity": 0
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ }
+]

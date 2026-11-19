@@ -12,6 +12,12 @@ in this folder; `describe_op <type>` has the schema and an example.
 {"type": "friction", "name": "hinge", "speed": "swing", "pressure": 0.8, "roughness": 0.3}
 ```
 
+- `rig` {bodies: [{name, mass, [fixed], [velocity], [drive], [material ...
+  as modal], [level_db]}], joints: [{kind contact | spring, a, b | "ground",
+  [at_a], [at_b], [gap], [hardness] [radius] [bounce] | [stiffness]
+  [damping]}], [gravity 9.81], [oversample], [at], [gain_db], [seed]}: several
+  bodies joined by contacts and springs (a spring with a `gap` is a rattle),
+  stepped together. Details: `docs/nodes/rig.md`.
 - `impact` {material, shape, `size` or `f0`, [loss] [tilt] [noise] [noise_width]
   [strike_position] [modes 32] (as `modal`), [object_mass 0.5], [striker_mass]
   (left out: the object is dropped onto [floor "stone"]), [hardness 0.7] (a
