@@ -364,6 +364,8 @@ node_types! {
     "door_creak" => DoorCreak,
     "jet" => Jet,
     "red_alert" => RedAlert,
+    "phone_tone" => PhoneTone,
+    "two_tone" => TwoTone,
 
     "fire" => Fire,
     "wind" => Wind,
