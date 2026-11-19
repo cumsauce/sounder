@@ -1,0 +1,1485 @@
+[
+ {
+  "id": "s01",
+  "family": "farnell",
+  "design": "phone_ringback",
+  "dressed": false,
+  "doc": {
+   "sound": "s01",
+   "ops": [
+    {
+     "type": "phone_tone",
+     "kind": "ringback",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s02",
+  "family": "farnell",
+  "design": "helicopter_far",
+  "dressed": true,
+  "doc": {
+   "sound": "s02",
+   "ops": [
+    {
+     "type": "helicopter",
+     "distance": 0.7,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s03",
+  "family": "farnell",
+  "design": "roar",
+  "dressed": false,
+  "doc": {
+   "sound": "s03",
+   "ops": [
+    {
+     "type": "roar",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s04",
+  "family": "farnell",
+  "design": "cicada_buzz",
+  "dressed": false,
+  "doc": {
+   "sound": "s04",
+   "ops": [
+    {
+     "type": "cicada",
+     "kind": "buzz",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s05",
+  "family": "farnell",
+  "design": "phone_dtmf",
+  "dressed": false,
+  "doc": {
+   "sound": "s05",
+   "ops": [
+    {
+     "type": "phone_tone",
+     "kind": "dtmf",
+     "digits": "5551234",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s06",
+  "family": "farnell",
+  "design": "helicopter_far",
+  "dressed": false,
+  "doc": {
+   "sound": "s06",
+   "ops": [
+    {
+     "type": "helicopter",
+     "distance": 0.7,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s07",
+  "family": "farnell",
+  "design": "torpedo",
+  "dressed": false,
+  "doc": {
+   "sound": "s07",
+   "ops": [
+    {
+     "type": "torpedo",
+     "length": 4,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 4.5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s08",
+  "family": "farnell",
+  "design": "transporter",
+  "dressed": false,
+  "doc": {
+   "sound": "s08",
+   "ops": [
+    {
+     "type": "transporter",
+     "length": 6,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 7,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s09",
+  "family": "farnell",
+  "design": "rain_window",
+  "dressed": false,
+  "doc": {
+   "sound": "s09",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "window",
+     "intensity": 20,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s10",
+  "family": "farnell",
+  "design": "two_tone",
+  "dressed": true,
+  "doc": {
+   "sound": "s10",
+   "ops": [
+    {
+     "type": "two_tone",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s11",
+  "family": "farnell",
+  "design": "torpedo",
+  "dressed": true,
+  "doc": {
+   "sound": "s11",
+   "ops": [
+    {
+     "type": "torpedo",
+     "length": 4,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 4.5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s12",
+  "family": "farnell",
+  "design": "phone_busy",
+  "dressed": true,
+  "doc": {
+   "sound": "s12",
+   "ops": [
+    {
+     "type": "phone_tone",
+     "kind": "busy",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s13",
+  "family": "farnell",
+  "design": "fly",
+  "dressed": true,
+  "doc": {
+   "sound": "s13",
+   "ops": [
+    {
+     "type": "fly",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s14",
+  "family": "farnell",
+  "design": "stream",
+  "dressed": false,
+  "doc": {
+   "sound": "s14",
+   "ops": [
+    {
+     "type": "stream",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s15",
+  "family": "farnell",
+  "design": "rain_water",
+  "dressed": false,
+  "doc": {
+   "sound": "s15",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "water",
+     "intensity": 8,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s16",
+  "family": "farnell",
+  "design": "cicada_call",
+  "dressed": false,
+  "doc": {
+   "sound": "s16",
+   "ops": [
+    {
+     "type": "cicada",
+     "kind": "call",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s17",
+  "family": "farnell",
+  "design": "helicopter",
+  "dressed": false,
+  "doc": {
+   "sound": "s17",
+   "ops": [
+    {
+     "type": "helicopter",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -22
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s18",
+  "family": "farnell",
+  "design": "pour",
+  "dressed": false,
+  "doc": {
+   "sound": "s18",
+   "ops": [
+    {
+     "type": "pour",
+     "fill_time": 5,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 6.5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s19",
+  "family": "farnell",
+  "design": "stream_busy",
+  "dressed": false,
+  "doc": {
+   "sound": "s19",
+   "ops": [
+    {
+     "type": "stream",
+     "flow": 2,
+     "layers": 4,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s20",
+  "family": "farnell",
+  "design": "rain_window",
+  "dressed": true,
+  "doc": {
+   "sound": "s20",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "window",
+     "intensity": 20,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s21",
+  "family": "farnell",
+  "design": "rocket",
+  "dressed": true,
+  "doc": {
+   "sound": "s21",
+   "ops": [
+    {
+     "type": "rocket",
+     "burn": 4,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -22
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s22",
+  "family": "farnell",
+  "design": "roar",
+  "dressed": true,
+  "doc": {
+   "sound": "s22",
+   "ops": [
+    {
+     "type": "roar",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s23",
+  "family": "farnell",
+  "design": "phone_rotary",
+  "dressed": false,
+  "doc": {
+   "sound": "s23",
+   "ops": [
+    {
+     "type": "phone_tone",
+     "kind": "pulse_dial",
+     "digits": "37",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s24",
+  "family": "farnell",
+  "design": "rain_ground",
+  "dressed": true,
+  "doc": {
+   "sound": "s24",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "ground",
+     "intensity": 60,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s25",
+  "family": "farnell",
+  "design": "rain_leaf",
+  "dressed": false,
+  "doc": {
+   "sound": "s25",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "leaf",
+     "intensity": 30,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s26",
+  "family": "farnell",
+  "design": "phone_rotary",
+  "dressed": true,
+  "doc": {
+   "sound": "s26",
+   "ops": [
+    {
+     "type": "phone_tone",
+     "kind": "pulse_dial",
+     "digits": "37",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s27",
+  "family": "farnell",
+  "design": "rain_ground",
+  "dressed": false,
+  "doc": {
+   "sound": "s27",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "ground",
+     "intensity": 60,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s28",
+  "family": "farnell",
+  "design": "phone_busy",
+  "dressed": false,
+  "doc": {
+   "sound": "s28",
+   "ops": [
+    {
+     "type": "phone_tone",
+     "kind": "busy",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s29",
+  "family": "farnell",
+  "design": "beam_kill",
+  "dressed": true,
+  "doc": {
+   "sound": "s29",
+   "ops": [
+    {
+     "type": "phaser_beam",
+     "length": 1.2,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s30",
+  "family": "farnell",
+  "design": "helicopter",
+  "dressed": true,
+  "doc": {
+   "sound": "s30",
+   "ops": [
+    {
+     "type": "helicopter",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -22
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s31",
+  "family": "farnell",
+  "design": "stream",
+  "dressed": true,
+  "doc": {
+   "sound": "s31",
+   "ops": [
+    {
+     "type": "stream",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s32",
+  "family": "farnell",
+  "design": "cicada_call",
+  "dressed": true,
+  "doc": {
+   "sound": "s32",
+   "ops": [
+    {
+     "type": "cicada",
+     "kind": "call",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s33",
+  "family": "farnell",
+  "design": "droid",
+  "dressed": true,
+  "doc": {
+   "sound": "s33",
+   "ops": [
+    {
+     "type": "droid",
+     "length": 3,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -22
+    }
+   ],
+   "duration": 3.5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s34",
+  "family": "farnell",
+  "design": "phone_ringback",
+  "dressed": true,
+  "doc": {
+   "sound": "s34",
+   "ops": [
+    {
+     "type": "phone_tone",
+     "kind": "ringback",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s35",
+  "family": "farnell",
+  "design": "fly",
+  "dressed": false,
+  "doc": {
+   "sound": "s35",
+   "ops": [
+    {
+     "type": "fly",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s36",
+  "family": "farnell",
+  "design": "stream_busy",
+  "dressed": true,
+  "doc": {
+   "sound": "s36",
+   "ops": [
+    {
+     "type": "stream",
+     "flow": 2,
+     "layers": 4,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s37",
+  "family": "farnell",
+  "design": "phone_dial",
+  "dressed": false,
+  "doc": {
+   "sound": "s37",
+   "ops": [
+    {
+     "type": "phone_tone",
+     "kind": "dial",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s38",
+  "family": "farnell",
+  "design": "roar_big",
+  "dressed": true,
+  "doc": {
+   "sound": "s38",
+   "ops": [
+    {
+     "type": "roar",
+     "size": 2,
+     "aggression": 0.8,
+     "length": 1.5,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 2.2,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s39",
+  "family": "farnell",
+  "design": "rain_water",
+  "dressed": true,
+  "doc": {
+   "sound": "s39",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "water",
+     "intensity": 8,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s40",
+  "family": "farnell",
+  "design": "cicada_buzz",
+  "dressed": true,
+  "doc": {
+   "sound": "s40",
+   "ops": [
+    {
+     "type": "cicada",
+     "kind": "buzz",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s41",
+  "family": "farnell",
+  "design": "rocket",
+  "dressed": false,
+  "doc": {
+   "sound": "s41",
+   "ops": [
+    {
+     "type": "rocket",
+     "burn": 4,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -22
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s42",
+  "family": "farnell",
+  "design": "beam_kill",
+  "dressed": false,
+  "doc": {
+   "sound": "s42",
+   "ops": [
+    {
+     "type": "phaser_beam",
+     "length": 1.2,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s43",
+  "family": "farnell",
+  "design": "roar_big",
+  "dressed": false,
+  "doc": {
+   "sound": "s43",
+   "ops": [
+    {
+     "type": "roar",
+     "size": 2,
+     "aggression": 0.8,
+     "length": 1.5,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 2.2,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s44",
+  "family": "farnell",
+  "design": "rain_leaf",
+  "dressed": true,
+  "doc": {
+   "sound": "s44",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "leaf",
+     "intensity": 30,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 4,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s45",
+  "family": "farnell",
+  "design": "pour",
+  "dressed": true,
+  "doc": {
+   "sound": "s45",
+   "ops": [
+    {
+     "type": "pour",
+     "fill_time": 5,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 6.5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s46",
+  "family": "farnell",
+  "design": "phone_dial",
+  "dressed": true,
+  "doc": {
+   "sound": "s46",
+   "ops": [
+    {
+     "type": "phone_tone",
+     "kind": "dial",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s47",
+  "family": "farnell",
+  "design": "two_tone",
+  "dressed": false,
+  "doc": {
+   "sound": "s47",
+   "ops": [
+    {
+     "type": "two_tone",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s48",
+  "family": "farnell",
+  "design": "transporter",
+  "dressed": true,
+  "doc": {
+   "sound": "s48",
+   "ops": [
+    {
+     "type": "transporter",
+     "length": 6,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 7,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s49",
+  "family": "farnell",
+  "design": "phone_dtmf",
+  "dressed": true,
+  "doc": {
+   "sound": "s49",
+   "ops": [
+    {
+     "type": "phone_tone",
+     "kind": "dtmf",
+     "digits": "5551234",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s50",
+  "family": "farnell",
+  "design": "droid",
+  "dressed": false,
+  "doc": {
+   "sound": "s50",
+   "ops": [
+    {
+     "type": "droid",
+     "length": 3,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -22
+    }
+   ],
+   "duration": 3.5,
+   "seed": 1
+  }
+ }
+]
