@@ -372,6 +372,8 @@ node_types! {
     "frog" => Frog,
     "creature" => Creature,
     "surf" => Surf,
+    "leaves" => Leaves,
+    "underwater" => Underwater,
     "roar" => Roar,
     "fly" => Fly,
     "cicada" => Cicada,
