@@ -52,7 +52,7 @@ modeler's `MODELER_*`.
    a hit or a mechanism, read "Layering a designed sound": the node is the
    body layer, and a designed sound adds the pre, crack, weight and after
    layers on a dry bus.
-   `describe_op` lists the 143 node types; `describe_op {kind: "filter"}` gives
+   `describe_op` lists the 144 node types; `describe_op {kind: "filter"}` gives
    one's example and schema (`type` and `node` are aliases of `kind`). To
    remove a node put `{"type": "delete", "name": "x"}` in `ops` (one item per
    node; a top-level `delete` is not a field and errors).
@@ -190,7 +190,7 @@ expression exactly as if it began with `=`, so a `voices` patch needs no leading
 a node. The error for an unknown node name shows the hint (`write expressions
 with a leading `=`, e.g. "=1.5 * $value"`).
 
-Families (143 types; groups marked * have a section in
+Families (144 types; groups marked * have a section in
 `docs/nodes/README.md`):
 
 - sources: `osc noise impulse sample` and `fm wavetable`*; control `lfo wander
@@ -522,6 +522,7 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 |---|---|---|---|
 | **a door slam** | `new_sound` `template: "door_slam"` | knobs `weight`, `snap`, `stick`, `knock`, `latch` (a click latch, off at 0) | the layered slam the listener approved (brush, crack, noise-struck wood body, noise weight, knock, dry bus), copied whole and editable. Two rounds of testers given only the recipe built a click over one `modal` instead, heard as weak: **start from the template**, then tune the knobs |
 | a footstep, a walk | `footstep` | `surface` concrete / gravel / grass / wood, `weight`, `pace`, `shoe`, `body` (pitch apart from weight), `swish` (swish against ticks), on wood: `ring` (0.25..2, the board's ring; the default puts 84 % of the energy under 200 Hz and reads slammed, try 0.6 with `weight` 0.25), `noise` about 0.35 (the default board rings pitched, voiced 0.84), `scuff` (the roll between heel and toe) and `creak` (the board under the weight), both sparingly | one heel + toe step with the surface's texture. A walk is several steps: `pattern` + `sound` instances, or a few `footstep` nodes with different `seed` / `at` in a `mix` |
+| footsteps on concrete, gravel, grass, dirt, snow, carpet (foley's model) | `step` | `surface`, `speed` m/s (1 a walk), `at` a list for a walk | a Hertz heel strike on the surface's modes, scuff, ball of the foot; grains, swish, snow crackle. Unheard: try it where `footstep` failed (concrete, gravel, grass) |
 | fire, a campfire, crackle | `fire` | `size`, `intensity`, `crackle`, `loop` | roar + hiss + Poisson pops; loops by itself in a `kind: loop` document |
 | wind, a gale, howling | `wind` | `speed` (signal), `gust`, `whistle`, `loop` | five moving bands (+ an Aeolian tone); a `ramp` on `speed` is a rising gale |
 | electric arcs, sparks | `spark` | `rate` (snaps/s), `buzz`, `body` | a beating transformer hum, gated arcing chirps and formant snaps (Farnell) |

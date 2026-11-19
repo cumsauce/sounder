@@ -43,6 +43,7 @@ mod sequence;
 mod sources;
 mod space;
 mod spectral;
+mod step;
 mod surf;
 mod surface;
 mod voices;
