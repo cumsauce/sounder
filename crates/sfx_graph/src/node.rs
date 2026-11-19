@@ -367,6 +367,9 @@ node_types! {
     "phone_tone" => PhoneTone,
     "two_tone" => TwoTone,
     "rain" => Rain,
+    "roar" => Roar,
+    "fly" => Fly,
+    "cicada" => Cicada,
 
     "fire" => Fire,
     "wind" => Wind,

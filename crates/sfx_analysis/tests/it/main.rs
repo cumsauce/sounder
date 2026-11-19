@@ -13,6 +13,7 @@ mod expressions;
 mod farnell;
 mod farnell_phone;
 mod farnell_rain;
+mod farnell_creatures;
 mod feedback;
 mod filters;
 mod finish;
