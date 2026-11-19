@@ -1,0 +1,56 @@
+{
+ "role": "whole",
+ "material": "metal",
+ "description": "one footstep on a metal floor plate or grate, picked best of 8; built as: `step` metal (the all-purpose body over 24 noise-band plate modes and frame re-strikes), speed 1.4, grit 1.5",
+ "tags": [
+  "footstep",
+  "step",
+  "walk",
+  "metal",
+  "grate",
+  "catwalk",
+  "plate",
+  "industrial"
+ ],
+ "origin": "batch 18; picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "metal_step",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 0.9,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "step",
+    "name": "src",
+    "surface": "metal",
+    "speed": 1.4,
+    "grit": 1.5,
+    "at": 0.005
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "rattle",
+    "value": 0.5,
+    "doc": "how much the plate re-strikes its frame",
+    "map": [
+     {
+      "node": "src",
+      "field": "grit",
+      "from": 0.5,
+      "to": 2.0,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}
