@@ -12,9 +12,9 @@ comes from the human's blind ratings.
 ## What works
 
 - **The tool:** 122 node types, the MCP server, the window, the senses
-  (`summary`, `listen`, `verify`), macros, export. 851 tests pass; clippy and
+  (`summary`, `listen`, `verify`), macros, export. 857 tests pass; clippy and
   fmt are clean.
-- **The parts library:** 77 built-in parts in `parts/`, every one rated good
+- **The parts library:** 78 built-in parts in `parts/`, every one rated good
   by ear in a blind listen and named for what the listener heard.
   `catalog search` finds them by text, role, material and approval; the
   `sound` node assembles them. Only the human can mark a part approved (a
@@ -22,8 +22,9 @@ comes from the human's blind ratings.
 
   | Role | Parts | | Material | Parts |
   |---|---|---|---|---|
-  | whole | 27 | | any | 24 |
-  | body | 14 | | wood, plastic | 8 each |
+  | whole | 28 | | any | 24 |
+  | body | 14 | | wood | 9 |
+  | | | | plastic | 8 |
   | after | 11 | | water, air, metal, glass | 5 each |
   | texture | 7 | | synthetic | 4 |
   | bed, pre, crack | 5 each | | ceramic, mechanical | 3 each |
@@ -66,21 +67,25 @@ rated. An agent that builds one must say it is unheard.
   from the model nodes (alarm, bird, cricket, creak, engine, flute, siren,
   sparks, bells, wind) were heard as intended.
 - **Synthesised metal and stone did not work in two tries.** Lowering the
-  pitch moved "glassware" to "ceramic plate", not to metal. The route left is
-  recorded layers (`extract_modes` with `residual`).
+  pitch moved "glassware" to "ceramic plate", not to metal. Recorded layers are
+  ruled out: every sound stays sample-free, so metal and stone need another
+  synthesis route.
 - **The splash was reworked by ear** over four listens: the noise opening
   ("a snare, then bubbles") is replaced by cavity bubbles and a pour, with
   short droplets falling back. Long sine droplets read as "digital tones".
 
 ## Next, in order
 
-1. **The brief as data:** a spec on each sound listing its components (role,
-   material, time slot, band) that `summary` and `verify` check against the
-   graph. Not started.
+1. **The brief as data:** done (2026-11-18). `sound_ops` `spec` lists the
+   components (role, node, material, slot, length, band); `summary` shows what is
+   missing and `verify` checks each one by default. The door slam template
+   carries one. Components take a `length_ms` too. First use: a wooden crate
+   dropped on concrete, built from a spec, rated "sounds great" (now the part
+   `wooden_crate_drop`).
 2. **A `heard_as` line in `listen`** using the larger audio-text model, as a
    hint only. Not started.
-3. **Recorded layers for metal and stone:** needs CC0 recordings downloaded
-   by the human.
+3. **Metal and stone by synthesis:** recorded layers are ruled out (the
+   project is sample-free). Not started.
 4. **An evaluation set:** fixed briefs built by a fresh agent and rated blind,
    with a before and after per change. Not started.
 5. Fill the remaining library gaps above as they come up.

@@ -16,6 +16,7 @@ use crate::buf::{Audio, Buf};
 use crate::eval::{self, Ctx, Evaluated};
 use crate::macros::{self, Macro};
 use crate::params::{self, Params};
+use crate::spec::Spec;
 use crate::{gain_to_db, loudness};
 
 /// On-disk schema version of a sound document.
@@ -63,6 +64,10 @@ pub struct SoundDoc {
     /// game-facing inputs.
     #[serde(default)]
     pub macros: Vec<Macro>,
+    /// The brief as data: the components the sound is meant to have
+    /// (see [`crate::spec`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spec: Option<Spec>,
     /// Changes with every recorded edit.
     #[serde(default)]
     pub version: u64,
@@ -87,6 +92,7 @@ impl Default for SoundDoc {
             nodes: Vec::new(),
             params: Params::new(),
             macros: Vec::new(),
+            spec: None,
             version: 0,
         }
     }
@@ -169,6 +175,8 @@ pub struct DocEdit {
     pub duration: Option<Option<f32>>,
     pub seed: Option<u64>,
     pub sample_rate: Option<u32>,
+    /// Some(None) removes the spec.
+    pub spec: Option<Option<Spec>>,
 }
 
 /// What [`SoundDoc::apply`] did.
@@ -553,6 +561,12 @@ impl SoundDoc {
         if let Some(r) = edit.sample_rate {
             next.sample_rate = r;
         }
+        if let Some(sp) = edit.spec {
+            if let Some(sp) = &sp {
+                sp.validate()?;
+            }
+            next.spec = sp;
+        }
         let (mut added, mut changed, mut removed) = (Vec::new(), Vec::new(), Vec::new());
         for (k, item) in items.into_iter().enumerate() {
             let ty = item
@@ -596,6 +610,64 @@ impl SoundDoc {
                     next.nodes.push(item);
                 }
             }
+        }
+        // No nodes yet: settings and the spec are kept without a render, so
+        // the brief can be written down before the graph is built.
+        if next.nodes.is_empty() && next.macros.is_empty() {
+            let mut cmp = self.clone();
+            cmp.version = next.version;
+            let same = cmp == next;
+            if !same {
+                next.version = self.version + 1;
+                next.format_version = SOUND_FORMAT_VERSION;
+            }
+            let label = if removed.is_empty() {
+                "sound settings".to_string()
+            } else {
+                removed
+                    .iter()
+                    .map(|n| format!("-{n}"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            };
+            let text = format!(
+                "v{} {}: no nodes yet, so nothing is rendered{}\n",
+                next.version,
+                label,
+                if next.spec.is_some() {
+                    "; the spec is kept: summary lists the layers to build"
+                } else {
+                    ""
+                }
+            );
+            let rendered = Rendered {
+                audio: Audio {
+                    sample_rate: next.sample_rate,
+                    channels: vec![vec![0.0]],
+                },
+                eval: Evaluated {
+                    nodes: Vec::new(),
+                    ports: Default::default(),
+                    runs: 0,
+                },
+                auto_length: true,
+                causal: true,
+                acausal: Vec::new(),
+                warnings: Vec::new(),
+                seed: next.seed,
+                lufs: -70.0,
+                peak_db: -120.0,
+            };
+            *self = next;
+            return Ok(ApplyReport {
+                added,
+                changed_nodes: changed,
+                removed,
+                label,
+                changed: !same,
+                rendered,
+                text,
+            });
         }
         // The graph at the macros' current values: plain graph errors come
         // out as they are; one only the macros cause names them, with a hint.

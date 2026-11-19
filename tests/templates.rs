@@ -1,5 +1,6 @@
 //! Every `new_sound` template parses, renders, keeps its knobs, and the
-//! door slam passes `layers` (impact) like the approved slam it is.
+//! door slam passes `layers` (impact) like the approved slam it is, and
+//! its own spec.
 
 #![allow(clippy::unwrap_used)]
 
@@ -15,7 +16,8 @@ fn templates_render_and_the_door_slam_passes_layers() {
         let opts = RenderOpts::default();
         let r = doc.render(&opts).unwrap_or_else(|e| panic!("{name}: {e}"));
         assert!(r.peak_db > -30.0, "{name}: silent");
-        let e: Expect = serde_json::from_value(json!({"layers": {"preset": "impact"}})).unwrap();
+        let e: Expect =
+            serde_json::from_value(json!({"layers": {"preset": "impact"}, "spec": true})).unwrap();
         let res = run(
             &e,
             &CheckCx {
@@ -34,7 +36,10 @@ fn templates_render_and_the_door_slam_passes_layers() {
             );
         }
         if *name == "door_slam" {
-            assert!(res.iter().all(|c| c.pass), "door_slam fails layers");
+            assert!(
+                res.iter().all(|c| c.pass),
+                "door_slam fails layers or its spec"
+            );
         }
     }
 }

@@ -31,6 +31,7 @@ const FILES: &[&str] = &[
     include_str!("../parts/wood_panel_body.json"),
     include_str!("../parts/low_thump.json"),
     include_str!("../parts/wood_knock.json"),
+    include_str!("../parts/wooden_crate_drop.json"),
     include_str!("../parts/alarm_whoop.json"),
     include_str!("../parts/bells_ring.json"),
     include_str!("../parts/bird_call.json"),

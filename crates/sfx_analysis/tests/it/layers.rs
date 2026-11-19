@@ -128,3 +128,137 @@ fn an_unknown_preset_is_an_error_naming_the_presets() {
     let bad = serde_json::from_value::<LayersCheck>(json!({"wieght": {"min": 10}}));
     assert!(bad.is_err());
 }
+
+/// The `spec` check on a small two-layer hit: a crack and a weight, each
+/// named in the spec with a slot and a band.
+mod spec {
+    use super::*;
+    use sfx_graph::Spec;
+
+    fn hit(spec: serde_json::Value) -> SoundDoc {
+        let mut doc: SoundDoc = serde_json::from_value(json!({"name": "hit", "nodes": [
+            {"type": "noise", "name": "wn", "color": "white"},
+            {"type": "decay", "name": "crk_e", "time": 0.01, "at": 0.01},
+            {"type": "math", "name": "crk_raw", "op": "mul", "a": "wn", "b": "crk_e"},
+            {"type": "filter", "name": "crk", "input": "crk_raw", "mode": "hp", "freq": 3000},
+            {"type": "noise", "name": "bn", "color": "brown"},
+            {"type": "decay", "name": "thd_e", "time": 0.3, "at": 0.01},
+            {"type": "math", "name": "thd_raw", "op": "mul", "a": "bn", "b": "thd_e"},
+            {"type": "filter", "name": "thd", "input": "thd_raw", "mode": "lp", "freq": 200, "slope": 24},
+            {"type": "contact", "name": "c", "speed": 1, "mass": 0.3, "material": "wood", "at": 0.01},
+            {"type": "modal", "name": "m", "excite": "c", "material": "wood", "size": 0.5},
+            {"type": "mix", "name": "dry", "inputs": ["crk", "thd"]},
+            {"type": "output", "name": "out", "input": "dry", "peak_db": -3}
+        ]}))
+        .unwrap();
+        doc.spec = Some(serde_json::from_value::<Spec>(spec).unwrap());
+        doc
+    }
+
+    fn check(doc: &SoundDoc) -> Vec<CheckResult> {
+        let opts = RenderOpts::default();
+        let rendered = doc.render(&opts).unwrap();
+        let e = Expect::defaults_for(doc);
+        assert_eq!(
+            e.spec,
+            Some(true),
+            "a sound with a spec checks it by default"
+        );
+        let r = run(
+            &e,
+            &CheckCx {
+                doc,
+                rendered: &rendered,
+                opts: &opts,
+            },
+        )
+        .unwrap();
+        r.into_iter()
+            .filter(|c| c.name.starts_with("spec"))
+            .collect()
+    }
+
+    #[test]
+    fn a_built_spec_passes() {
+        let r = check(&hit(json!({"brief": "a dull thud", "components": [
+            {"role": "crack", "node": "crk", "at": [0.01, 0.04]},
+            {"role": "weight", "node": "thd", "at": [0.01, 0.4]}
+        ]})));
+        assert_eq!(r.len(), 2);
+        assert!(r.iter().all(|c| c.pass), "{r:?}");
+    }
+
+    #[test]
+    fn each_failure_says_what_is_wrong() {
+        let r = check(&hit(json!({"components": [
+            {"role": "body", "material": "wood"},
+            {"role": "pre", "node": "nope"},
+            {"role": "body", "node": "m", "material": "metal"},
+            {"role": "crack", "node": "crk", "at": [0.2, 0.3]},
+            {"role": "weight", "node": "crk"}
+        ]})));
+        let detail = |i: usize| {
+            assert!(!r[i].pass, "{:?}", r[i]);
+            r[i].detail.as_str()
+        };
+        assert!(detail(0).contains("not built"));
+        assert!(detail(1).contains("no node named `nope`"));
+        // `m` exists but nothing mixes it in; its material is checked once it does.
+        assert!(detail(2).contains("does not reach the output"));
+        assert!(detail(3).contains("of its energy in 0.2-0.3 s"));
+        assert!(detail(4).contains("in 20-400 Hz (the role's band)"));
+    }
+
+    #[test]
+    fn a_material_that_differs_fails() {
+        let mut doc =
+            hit(json!({"components": [{"role": "body", "node": "m", "material": "metal"}]}));
+        for n in &mut doc.nodes {
+            if n["name"] == "dry" {
+                n["inputs"] = json!(["crk", "thd", "m"]);
+            }
+        }
+        let r = check(&doc);
+        assert!(
+            !r[0].pass && r[0].detail.contains("the layer's nodes say wood"),
+            "{r:?}"
+        );
+    }
+
+    #[test]
+    fn a_layer_shorter_than_its_length_fails() {
+        let r = check(&hit(json!({"components": [
+            {"role": "weight", "node": "thd", "length_ms": [20, 300]},
+            {"role": "crack", "node": "crk", "length_ms": [40, 300]},
+            {"role": "crack", "node": "crk", "length_ms": [0.01, 0.1]}
+        ]})));
+        assert!(r[0].pass, "{r:?}");
+        assert!(!r[1].pass && r[1].detail.contains("too short"), "{r:?}");
+        assert!(!r[2].pass && r[2].detail.contains("too long"), "{r:?}");
+    }
+
+    #[test]
+    fn a_bad_role_or_range_is_refused_by_the_edit() {
+        let mut doc = hit(json!({}));
+        for (spec, want) in [
+            (json!({"components": [{"role": "thud"}]}), "role `thud`"),
+            (
+                json!({"components": [{"role": "body", "at": [0.3, 0.1]}]}),
+                "end after start",
+            ),
+            (
+                json!({"components": [{"role": "body", "band": [900, 100]}]}),
+                "high above low",
+            ),
+        ] {
+            let edit = sfx_graph::DocEdit {
+                spec: Some(Some(serde_json::from_value(spec).unwrap())),
+                ..sfx_graph::DocEdit::default()
+            };
+            let e = doc
+                .apply(Vec::new(), edit, &RenderOpts::default())
+                .unwrap_err();
+            assert!(e.contains(want), "{e}");
+        }
+    }
+}

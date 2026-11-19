@@ -385,7 +385,7 @@ fn catalog_roundtrip_and_closing() {
             ..DocEdit::default()
         },
     )
-    .unwrap_err();
+    .unwrap(); // settings on a sound with no nodes yet are kept, unrendered
     assert!(s.close_sound("u", false).unwrap_err().contains("unsaved"));
     catalog::delete(&lib, "t").unwrap();
     assert!(catalog::list(&lib).is_empty());
@@ -659,4 +659,41 @@ fn saved_sounds_that_are_not_open_are_listed_as_recent() {
         .filter_map(|x| x["name"].as_str())
         .collect();
     assert_eq!(names, ["old_one"], "{r}");
+}
+
+#[test]
+fn a_spec_is_listed_in_summary_and_checked_by_verify() {
+    let mut s = Session::new(Some(project("spec")));
+    build(&mut s, "thud");
+    let (text, _) = s.summary(None).unwrap();
+    assert!(text.contains("no spec yet"), "{text}");
+    let spec: sfx_graph::Spec =
+        serde_json::from_value(json!({"brief": "a dull thud", "components": [
+            {"role": "weight", "node": "f", "band": [20, 1500]},
+            {"role": "crack", "note": "still to build"}
+        ]}))
+        .unwrap();
+    let edit = DocEdit {
+        spec: Some(Some(spec)),
+        ..DocEdit::default()
+    };
+    assert!(s.apply_ops(None, Vec::new(), edit).unwrap().changed);
+    let (text, json) = s.summary(None).unwrap();
+    assert!(text.contains("brief: a dull thud"), "{text}");
+    assert!(
+        text.contains("- crack (no node yet, 1500-16000 Hz (role)): still to build [not built"),
+        "{text}"
+    );
+    assert_eq!(json["spec"]["components"][0]["node"], "f");
+    let r = s.check(None, None).unwrap();
+    let spec: Vec<_> = r.iter().filter(|c| c.name.starts_with("spec")).collect();
+    assert_eq!(spec.len(), 2, "{r:?}");
+    assert!(spec[0].pass && !spec[1].pass, "{spec:?}");
+    // null removes it.
+    let edit = DocEdit {
+        spec: Some(None),
+        ..DocEdit::default()
+    };
+    s.apply_ops(None, Vec::new(), edit).unwrap();
+    assert!(s.summary(None).unwrap().0.contains("no spec yet"));
 }

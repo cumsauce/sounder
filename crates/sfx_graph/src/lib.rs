@@ -27,6 +27,7 @@ pub mod macros;
 pub mod node;
 mod nodes;
 pub mod params;
+pub mod spec;
 pub mod wav;
 
 pub use buf::{Audio, Buf, Event, Sig};
@@ -36,6 +37,7 @@ pub use instance::SoundSource;
 pub use macros::{Claim, KnobMove, Macro, MapCurve, MapEntry, Measure};
 pub use node::{In, NODE_TYPES, describe, example};
 pub use params::Params;
+pub use spec::{Component, Spec};
 
 /// Converts decibels to a linear gain.
 #[inline]

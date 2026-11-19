@@ -1,0 +1,325 @@
+{
+ "role": "whole",
+ "material": "wood",
+ "description": "a small wooden crate dropped onto a concrete floor; rated \"sounds great\" by the listener; built from a spec: a noise crack, a noise-struck wood plate with band-passed noise under it, brown-noise weight and a small second bounce at 120 ms, through finish",
+ "tags": [
+  "wood",
+  "crate",
+  "box",
+  "drop",
+  "impact",
+  "floor",
+  "concrete",
+  "bounce"
+ ],
+ "origin": "the first sound built from a spec (sound_ops spec, verify spec); the listener rated it great on 2026-11-18 (all four seeds sent). Its crest fails layers on seeds 2 and 4 (23.1-23.7 dB)",
+ "doc": {
+  "name": "wooden_crate_drop",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "wn",
+    "color": "white"
+   },
+   {
+    "type": "decay",
+    "name": "crk_e",
+    "time": 0.012,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "crk_raw",
+    "op": "mul",
+    "a": "wn",
+    "b": "crk_e"
+   },
+   {
+    "type": "filter",
+    "name": "crk",
+    "input": "crk_raw",
+    "mode": "bp",
+    "freq": 3500,
+    "q": 0.6
+   },
+   {
+    "type": "gain",
+    "name": "crk_g",
+    "input": "crk",
+    "db": -13
+   },
+   {
+    "type": "noise",
+    "name": "pn",
+    "color": "pink"
+   },
+   {
+    "type": "decay",
+    "name": "hit_e",
+    "time": 0.03,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "pn",
+    "b": "hit_e"
+   },
+   {
+    "type": "modal",
+    "name": "boards",
+    "excite": "hit_burst",
+    "material": "wood",
+    "shape": "plate",
+    "size": 0.7,
+    "loss": 1.4,
+    "noise": 0.6,
+    "tilt": 4,
+    "gain_db": 0
+   },
+   {
+    "type": "filter",
+    "name": "boards_lp",
+    "input": "boards",
+    "mode": "lp",
+    "freq": 2200
+   },
+   {
+    "type": "gain",
+    "name": "boards_g",
+    "input": "boards_lp",
+    "db": 4
+   },
+   {
+    "type": "noise",
+    "name": "bn",
+    "color": "brown"
+   },
+   {
+    "type": "decay",
+    "name": "thd_e",
+    "time": 0.5,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "thd_raw",
+    "op": "mul",
+    "a": "bn",
+    "b": "thd_e"
+   },
+   {
+    "type": "filter",
+    "name": "thd",
+    "input": "thd_raw",
+    "mode": "lp",
+    "freq": 220,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "thd_g",
+    "input": "thd",
+    "db": -10
+   },
+   {
+    "type": "contact",
+    "name": "bounce_c",
+    "speed": 0.4,
+    "mass": 0.3,
+    "material": "wood",
+    "hardness": 0.6,
+    "at": 0.12
+   },
+   {
+    "type": "modal",
+    "name": "bounce_m",
+    "excite": "bounce_c",
+    "material": "wood",
+    "size": 0.3,
+    "loss": 3,
+    "noise": 0.6,
+    "tilt": 4
+   },
+   {
+    "type": "filter",
+    "name": "bounce",
+    "input": "bounce_m",
+    "mode": "lp",
+    "freq": 3500
+   },
+   {
+    "type": "gain",
+    "name": "bounce_g",
+    "input": "bounce",
+    "db": -12
+   },
+   {
+    "type": "decay",
+    "name": "nb_e",
+    "time": 0.45,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "nb_raw",
+    "op": "mul",
+    "a": "pn",
+    "b": "nb_e"
+   },
+   {
+    "type": "filter",
+    "name": "nb_bp",
+    "input": "nb_raw",
+    "mode": "bp",
+    "freq": 420,
+    "q": 0.6
+   },
+   {
+    "type": "gain",
+    "name": "nb_g",
+    "input": "nb_bp",
+    "db": 4
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "crk_g",
+     "boards_g",
+     "nb_g",
+     "thd_g",
+     "bounce_g"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "finish",
+    "name": "bus",
+    "input": "dry",
+    "punch": 0.2,
+    "glue": 0.6,
+    "warmth": 0.5
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "bus"
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "weight",
+    "value": 0.5,
+    "doc": "how heavy the crate lands",
+    "map": [
+     {
+      "node": "thd_g",
+      "field": "db",
+      "from": -20,
+      "to": -2
+     }
+    ]
+   },
+   {
+    "name": "bounce",
+    "value": 0.5,
+    "doc": "level of the second bounce",
+    "map": [
+     {
+      "node": "bounce_g",
+      "field": "db",
+      "from": -30,
+      "to": -4
+     }
+    ]
+   },
+   {
+    "name": "size",
+    "value": 0.5,
+    "doc": "how big the crate is",
+    "map": [
+     {
+      "node": "nb_bp",
+      "field": "freq",
+      "from": 700,
+      "to": 260,
+      "curve": "exp"
+     },
+     {
+      "node": "boards",
+      "field": "size",
+      "from": 0.5,
+      "to": 0.9
+     }
+    ]
+   }
+  ],
+  "spec": {
+   "brief": "a small wooden crate dropped onto a concrete floor",
+   "components": [
+    {
+     "role": "crack",
+     "at": [
+      0.005,
+      0.03
+     ],
+     "note": "a corner meeting the concrete",
+     "node": "crk_g"
+    },
+    {
+     "role": "body",
+     "material": "wood",
+     "at": [
+      0.005,
+      0.4
+     ],
+     "note": "the crate's boards ringing briefly",
+     "node": "boards_g"
+    },
+    {
+     "role": "body",
+     "node": "nb_g",
+     "at": [
+      0.005,
+      0.5
+     ],
+     "length_ms": [
+      40,
+      300
+     ],
+     "note": "band-passed noise under the boards"
+    },
+    {
+     "role": "weight",
+     "at": [
+      0.005,
+      0.3
+     ],
+     "note": "the crate's mass on the floor",
+     "node": "thd_g",
+     "length_ms": [
+      40,
+      250
+     ]
+    },
+    {
+     "role": "after",
+     "material": "wood",
+     "at": [
+      0.08,
+      0.35
+     ],
+     "note": "a small second bounce",
+     "node": "bounce_g"
+    }
+   ]
+  }
+ }
+}

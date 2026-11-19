@@ -56,6 +56,8 @@ modeler's `MODELER_*`.
    one's example and schema (`type` and `node` are aliases of `kind`). To
    remove a node put `{"type": "delete", "name": "x"}` in `ops` (one item per
    node; a top-level `delete` is not a field and errors).
+   Write the brief as a **spec** first (see "The brief as data"): one
+   component per layer the brief asks for, the node named once it exists.
 3. `listen`, `verify`, fix, repeat.
 4. Add **macros** (knobs) so the human can fit the sound by ear: at least one
    on every sound, unasked (`summary` reports "no knobs yet" until there is
@@ -71,7 +73,7 @@ modeler's `MODELER_*`.
 | Tool | What it does |
 |---|---|
 | `summary` | state, nodes (what reads what), params, macros + claim status, the human's knob moves since last read (reading clears them), open comments, warnings, causal yes/no, descriptors |
-| `sound_ops` | atomic batch: `ops` (node upserts; `{"type": "delete", "name": ...}` removes), `params`, `macros`, `delete_macros`, `kind`, `duration` (null or 0 = automatic length again), `seed`, `sample_rate`, `expect`; renders for real; one history step if anything changed |
+| `sound_ops` | atomic batch: `ops` (node upserts; `{"type": "delete", "name": ...}` removes), `params`, `macros`, `delete_macros`, `kind`, `duration` (null or 0 = automatic length again), `seed`, `sample_rate`, `expect`, `spec` (the brief as data; null removes it); renders for real; one history step if anything changed |
 | `listen` | the image + descriptor table; `node`, `seeds`, `sweep {param, values: [..]}`, `zoom {t: [a, b], hz: [lo, hi]}`, `diff`, `reference`, `reference_set` (a bad `zoom` / `sweep` error shows the accepted shape) |
 | `verify` | PASS / FAIL checks (`checks`, `only`, `expect`; see Senses); any FAIL is an error |
 | `describe_op` | node types, one line each; or one type's example + schema (`kind`, aliases `type` / `node`) |
@@ -289,6 +291,44 @@ Check a hit with `verify {checks: ["layers"]}` (the `impact` preset: energy
 by role, voiced, ringing partials, crest, no reverb; see "Senses"): every
 FAIL names the layer to add.
 
+### The brief as data
+
+A `spec` on the sound (`sound_ops` `spec`) lists the components the brief
+asks for, so the graph can be checked against the request, not only against
+"plausible":
+
+```json
+{"brief": "a heavy wooden door slammed shut", "components": [
+  {"role": "pre", "node": "scr_g", "at": [0, 0.05], "note": "the door brushing its frame"},
+  {"role": "crack", "node": "crk_g", "at": [0.05, 0.08]},
+  {"role": "body", "node": "panel", "material": "wood", "at": [0.05, 0.5]},
+  {"role": "body", "node": "body_g", "at": [0.05, 0.6], "length_ms": [50, 250]},
+  {"role": "weight", "node": "thd_g", "at": [0.05, 0.5], "length_ms": [40, 200]},
+  {"role": "after", "material": "wood", "note": "a second small knock"}]}
+```
+
+- `role` is a part role (`pre crack body weight after bed texture whole`);
+  `node` the layer's last node before the mix (left out: not built yet).
+- `material` is checked against every `material` field the node reads; `at`
+  [start, end] s must hold 80 % of the layer's energy (10 ms margin), `band`
+  [lo, hi] Hz half of it. With no `band` the role's applies: pre 1-8 kHz,
+  crack 1.5-16 kHz, body 100-3000 Hz, weight 20-400 Hz (widened from the
+  table above so the approved slam's layers pass).
+- `length_ms` [min, max]: how long the layer lasts (the span holding the
+  middle 80 % of its energy). `at` only bounds where the energy may sit.
+  In the approved slam the noise-struck modal panel lasts 5 ms, the
+  band-passed noise body 94 ms, the weight 73 ms: a modal body is mostly
+  its strike, and a hit's length comes from a noise body and the weight.
+  A body made of a modal alone fails a `length_ms` of [40, 300].
+- A sound with no nodes yet keeps a spec-only `sound_ops` call unrendered,
+  so the spec can come first.
+- `summary` lists the spec with what is missing (no node yet, no such node,
+  not reaching the output, another material); `verify` runs the `spec`
+  check by default once a spec has components, one line per component
+  (`spec crack crk_g`). The `door_slam` template carries its spec.
+- It checks the graph against the brief, not the taste: a layer can sit in
+  its slot and band and still be heard as something else.
+
 ### Parts: assemble from layers the human has heard
 
 A **part** is a small saved sound that fills one role (`pre crack body weight
@@ -296,10 +336,11 @@ after bed texture whole`), with a material, tags and one to three knobs.
 Before building a layer from nodes, look for one:
 
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`,
-  `approved`): the library's parts and saved sounds plus the 77 built-in
+  `approved`): the library's parts and saved sounds plus the 78 built-in
   parts in `parts/`: the five layers of the approved door slam (`wood_brush`,
-  `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock`) and 72 the
-  listener rated good blind. Hits and layers: bodies in
+  `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock`), 72 the
+  listener rated good blind, and `wooden_crate_drop` (a whole crate landing
+  on concrete, built from a spec, rated great). Hits and layers: bodies in
   wood, metal, glass, ceramic and plastic, cracks, weights, lead-ins and
   whooshes, tails and debris. Beds and textures (roles `bed`, `texture`):
   fire, storm wind, fan, sparks, crickets, underwater bubbles, liquid drops.
@@ -818,7 +859,7 @@ until it fits; you read their moves in `summary`.
   of shipped sounds unless the licence allows).
 - `verify` / `expect` checks: `peak_db` `true_peak_db` `lufs` `duration`
   `silent_edges` `clicks` `dc` `finite` `loop_seam` `bands` `pitch` `onsets`
-  `variations` `rebuild` `reference` `reference_set` `macros` `layers`, and the synthesis checks
+  `variations` `rebuild` `reference` `reference_set` `macros` `layers` `spec`, and the synthesis checks
   `aliasing` `inharmonicity` `modulation` `roughness`. Each line is PASS /
   FAIL with the measured value; a FAIL says what to change. Four ways to ask:
   - no arguments: the defaults (`finite`, `peak_db` max -0.3, `silent_edges`
@@ -827,7 +868,7 @@ until it fits; you read their moves in `summary`.
   - `checks: ["clicks"]` adds checks to the defaults; `only: ["clicks", "dc"]`
     runs just those. Only checks that **need no settings** can be named here:
     `finite peak_db true_peak_db silent_edges clicks dc loop_seam variations
-    rebuild macros layers` (a bare `variations` runs 4 seeds, a bare `layers`
+    rebuild macros layers spec` (a bare `variations` runs 4 seeds, a bare `layers`
     the `impact` preset). A check that needs settings errors and shows the `expect`
     form to use.
   - `expect` (verify's `expect`, `sound_ops`'s `expect`, or the same fields at
@@ -959,10 +1000,10 @@ channels, peak and centroid. Rules:
   `tests/sources.rs`).
 - Editing a WAV re-renders every node that reads it (`file`, `ir` and
   `source` are keyed on the resolved path and its modification time).
-- A recording as a layer: a `sample` (with `rate` to pitch it) as the body or
-  the crack of a layered sound, the rest synthesized (Phase 0 `slam_c`). A
-  struck object: `extract_modes` with `residual` gives editable modes plus
-  the recording's noise.
+- **Sounds are sample-free.** No recording goes into a sound: no `sample`
+  layer, no `extract_modes` residual. Recordings serve as references
+  (`listen` / `verify` `reference`, `reference_set`), and `extract_modes`
+  without `residual` can read partials off one to rebuild them as synthesis.
 
 ## Sessions, history, comments
 

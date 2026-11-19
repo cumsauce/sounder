@@ -531,6 +531,180 @@ fn layers_results(
     out
 }
 
+/// Share of a layer's energy in [t0, t1] s (10 ms of margin each side).
+const SLOT_SHARE: f32 = 0.8;
+/// Share of a layer's energy in its band.
+const BAND_SHARE: f32 = 0.5;
+
+/// The `spec` check: one line per component (`spec <role> <node>`).
+fn spec_results(cx: &CheckCx) -> Result<Vec<(String, bool, String)>, String> {
+    let Some(sp) = &cx.doc.spec else {
+        return Ok(vec![(
+            "spec".into(),
+            false,
+            "the sound has no spec: give sound_ops a spec {brief, components: [{role, node, material, at, band}]}".into(),
+        )]);
+    };
+    if sp.components.is_empty() {
+        return Ok(vec![(
+            "spec".into(),
+            false,
+            "the spec lists no components: add one per layer (role, node)".into(),
+        )]);
+    }
+    let sr = cx.rendered.audio.sample_rate;
+    let len = cx.rendered.audio.len();
+    let mut out = Vec::new();
+    let statics = sp.static_findings(&cx.doc.nodes);
+    for (c, (_, problems)) in sp.components.iter().zip(statics) {
+        let name = format!(
+            "spec {} {}",
+            c.role,
+            c.node.as_deref().unwrap_or("(not built)")
+        );
+        if !problems.is_empty() {
+            out.push((name, false, problems.join("; ")));
+            continue;
+        }
+        let node = c.node.as_deref().unwrap_or_default();
+        let mono = match cx
+            .rendered
+            .eval
+            .buf(node)
+            .and_then(|b| sfx_graph::Audio::from_buf(sr, &b))
+        {
+            Ok(a) => {
+                let mut m = a.mix_mono();
+                m.truncate(len);
+                m
+            }
+            Err(e) => {
+                out.push((name, false, format!("`{node}` is not audio: {e}")));
+                continue;
+            }
+        };
+        let total: f64 = mono.iter().map(|x| f64::from(*x) * f64::from(*x)).sum();
+        if total <= 1e-12 {
+            out.push((name, false, format!("`{node}` is silent")));
+            continue;
+        }
+        let mut ok = true;
+        let mut words = Vec::new();
+        if let Some(m) = &c.material {
+            let found = sfx_graph::spec::materials(&cx.doc.nodes, node);
+            words.push(if found.is_empty() {
+                format!("material {m} (no material field to check)")
+            } else {
+                format!("material {m}")
+            });
+        }
+        // When the energy sits: the times holding the middle 80 %.
+        let mut acc = 0.0f64;
+        let (mut s10, mut s90) = (None, None);
+        for (i, x) in mono.iter().enumerate() {
+            acc += f64::from(*x) * f64::from(*x);
+            if s10.is_none() && acc >= 0.1 * total {
+                s10 = Some(i as f32 / sr as f32);
+            }
+            if s90.is_none() && acc >= 0.9 * total {
+                s90 = Some(i as f32 / sr as f32);
+            }
+        }
+        let span = format!(
+            "{:.0}-{:.0} ms",
+            1000.0 * s10.unwrap_or(0.0),
+            1000.0 * s90.unwrap_or(0.0)
+        );
+        if let Some([t0, t1]) = c.at {
+            let a = (((t0 - 0.01).max(0.0)) * sr as f32) as usize;
+            let b = (((t1 + 0.01) * sr as f32) as usize).min(mono.len());
+            let inside: f64 = mono[a.min(b)..b]
+                .iter()
+                .map(|x| f64::from(*x) * f64::from(*x))
+                .sum();
+            let share = (inside / total) as f32;
+            if share >= SLOT_SHARE {
+                words.push(format!(
+                    "{:.0} % of its energy in {t0}-{t1} s (middle 80 % at {span})",
+                    100.0 * share
+                ));
+            } else {
+                ok = false;
+                words.push(format!(
+                    "only {:.0} % of its energy in {t0}-{t1} s, want {:.0} % (the middle 80 % sits at {span}): move its `at`, shorten its decay, or correct the slot",
+                    100.0 * share,
+                    100.0 * SLOT_SHARE
+                ));
+            }
+        }
+        if let Some([lo, hi]) = c.length_ms {
+            let v = 1000.0 * (s90.unwrap_or(0.0) - s10.unwrap_or(0.0));
+            if v >= lo - 0.5 && v <= hi + 0.5 {
+                words.push(format!("lasts {v:.0} ms ({lo}-{hi})"));
+            } else {
+                ok = false;
+                words.push(format!(
+                    "lasts {v:.0} ms (middle 80 % of its energy at {span}), want {lo}-{hi}: {}",
+                    if v < lo && c.role == "body" {
+                        "too short: a longer decay or a lower modal loss (a modal body is mostly its strike: add band-passed noise under it with a 0.3-0.6 s decay)"
+                    } else if v < lo {
+                        "too short: give it a longer decay"
+                    } else {
+                        "too long: a shorter decay or a higher modal loss"
+                    }
+                ));
+            }
+        }
+        if let Some([lo, hi]) = c.band() {
+            let spec = stft::stft(&mono, sr, 2048, 1024);
+            let mean = spec.mean(0..0);
+            let all: f32 = mean[1..].iter().sum();
+            let inside: f32 = mean
+                .iter()
+                .enumerate()
+                .skip(1)
+                .filter(|(b, _)| {
+                    let f = spec.hz(*b);
+                    f >= lo && f <= hi
+                })
+                .map(|(_, p)| p)
+                .sum();
+            let centroid = mean
+                .iter()
+                .enumerate()
+                .skip(1)
+                .map(|(b, p)| spec.hz(b) * p)
+                .sum::<f32>()
+                / all.max(1e-20);
+            let share = inside / all.max(1e-20);
+            let src = if c.band.is_some() {
+                ""
+            } else {
+                " (the role's band)"
+            };
+            if share >= BAND_SHARE {
+                words.push(format!(
+                    "{:.0} % in {lo}-{hi} Hz{src}, centroid {centroid:.0} Hz",
+                    100.0 * share
+                ));
+            } else {
+                ok = false;
+                words.push(format!(
+                    "only {:.0} % in {lo}-{hi} Hz{src}, want {:.0} % (centroid {centroid:.0} Hz): {} it, or correct the band",
+                    100.0 * share,
+                    100.0 * BAND_SHARE,
+                    if centroid < lo { "high-pass or brighten" } else { "low-pass or darken" }
+                ));
+            }
+        }
+        if words.is_empty() {
+            words.push("built and reaching the output".into());
+        }
+        out.push((name, ok, words.join("; ")));
+    }
+    Ok(out)
+}
+
 /// The `reference_set` check.
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -633,6 +807,11 @@ pub struct Expect {
     /// `max_distance` dB when given.
     #[serde(default)]
     pub reference_set: Option<ReferenceSetCheck>,
+    /// The sound matches its spec (the brief as data, `sound_ops` `spec`):
+    /// every component built and reaching the output, of its material, its
+    /// energy in its time slot (80 %) and its band (half).
+    #[serde(default)]
+    pub spec: Option<bool>,
 }
 
 impl Expect {
@@ -654,6 +833,11 @@ impl Expect {
         let looped = doc.kind == Kind::Loop;
         Expect {
             macros: (!doc.macros.is_empty()).then_some(true),
+            spec: doc
+                .spec
+                .as_ref()
+                .is_some_and(|sp| !sp.components.is_empty())
+                .then_some(true),
             silent_edges: (!looped).then_some(true),
             loop_seam: looped.then_some(true),
             ..Expect::defaults()
@@ -1545,6 +1729,11 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
     if let Some(l) = &e.layers {
         let l = l.resolved()?;
         for (name, pass, detail) in layers_results(&l, &d(), a, cx.doc) {
+            push(&name, pass, detail);
+        }
+    }
+    if e.spec == Some(true) {
+        for (name, pass, detail) in spec_results(cx)? {
             push(&name, pass, detail);
         }
     }

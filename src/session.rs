@@ -838,7 +838,9 @@ impl Session {
         self.mark_dirty();
         let salt = self.generation;
         let sound = self.open_mut(&name)?;
-        sound.set_render(&opts, salt, report.rendered.clone());
+        if !sound.doc.nodes.is_empty() {
+            sound.set_render(&opts, salt, report.rendered.clone());
+        }
         Ok(report)
     }
 
@@ -1375,7 +1377,8 @@ fn arg_hint(tool: &str, key: &str, value: &Value) -> Option<String> {
 fn bare_check(name: &str) -> Result<Value, String> {
     use serde_json::json;
     Ok(match name {
-        "finite" | "silent_edges" | "clicks" | "dc" | "loop_seam" | "rebuild" | "macros" => {
+        "finite" | "silent_edges" | "clicks" | "dc" | "loop_seam" | "rebuild" | "macros"
+        | "spec" => {
             json!(true)
         }
         "variations" => json!({"seeds": 4}),
@@ -1393,7 +1396,7 @@ fn bare_check(name: &str) -> Result<Value, String> {
         "reference_set" => return needs_settings(name, r#"{"set": "door_slam"}"#),
         other => {
             return Err(format!(
-                "verify: unknown check `{other}`; the checks are peak_db, true_peak_db, lufs, duration, silent_edges, clicks, dc, finite, loop_seam, bands, pitch, onsets, variations, rebuild, reference, reference_set, macros, layers (bare: the impact preset), aliasing, inharmonicity, modulation, roughness (the last four need settings: use expect)"
+                "verify: unknown check `{other}`; the checks are peak_db, true_peak_db, lufs, duration, silent_edges, clicks, dc, finite, loop_seam, bands, pitch, onsets, variations, rebuild, reference, reference_set, macros, layers (bare: the impact preset), spec, aliasing, inharmonicity, modulation, roughness (the last four need settings: use expect)"
             ));
         }
     })
@@ -1618,6 +1621,28 @@ impl Session {
                 );
             }
         }
+        match &d.spec {
+            Some(sp) => {
+                if !sp.brief.is_empty() {
+                    out += &format!("brief: {}\n", sp.brief);
+                }
+                out += &format!(
+                    "spec ({} components; verify measures each one's slot and band):\n",
+                    sp.components.len()
+                );
+                for (line, problems) in sp.static_findings(&d.nodes) {
+                    if problems.is_empty() {
+                        out += &format!("- {line}\n");
+                    } else {
+                        out += &format!("- {line} [{}]\n", problems.join("; "));
+                    }
+                }
+            }
+            None if !d.nodes.is_empty() => {
+                out += "no spec yet: give sound_ops a spec {brief, components: [{role, node, material, at, band}]} listing the layers the brief asks for; verify then checks each one\n";
+            }
+            None => {}
+        }
         if !moves.is_empty() {
             out += "the human moved knobs since you last read this (keep them as defaults with sound_ops macros, or re-centre a range):\n";
             for k in &moves {
@@ -1646,6 +1671,7 @@ impl Session {
             "nodes": node_lines,
             "params": d.params,
             "macros": d.macros,
+            "spec": d.spec,
             "knob_moves": moves,
             "open_annotations": open,
             "saved": !sound.unsaved,

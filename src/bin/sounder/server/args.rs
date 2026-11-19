@@ -88,6 +88,22 @@ pub(crate) struct SoundOpsArgs {
     /// error but the batch stays applied.
     #[serde(default)]
     pub(crate) expect: Option<Expect>,
+    /// The brief as data, replacing any earlier spec (null removes it):
+    /// {"brief": "a heavy wooden door slammed shut", "components": [{"role":
+    /// "crack", "node": "crk_g", "at": [0.05, 0.08], "band": [1500, 16000],
+    /// "note": "the edge meeting the frame"}, {"role": "body", "node":
+    /// "panel", "material": "wood"}]}. Roles: pre crack body weight after bed
+    /// texture whole; `node` is the layer's last node before the mix (leave
+    /// it out until the layer exists); `at` [start, end] s holds 80 % of the
+    /// layer's energy; `length_ms` [min, max] how long it lasts (the span
+    /// of the middle 80 % of its energy; a modal body alone is ~5 ms, a
+    /// noise body or weight 50-250); `band` [lo, hi] Hz half of it (left out: the role's
+    /// band; pre 1-8 kHz, crack 1.5-16 kHz, body 100-3000 Hz, weight
+    /// 20-400 Hz). summary lists it; verify runs the `spec` check when there
+    /// is one.
+    #[serde(default, deserialize_with = "present_or_null")]
+    #[schemars(with = "Option<sfx_graph::Spec>")]
+    pub(crate) spec: Option<Option<sfx_graph::Spec>>,
     /// Run on this open sound instead of your active one (see `sound`).
     #[serde(default)]
     pub(crate) doc: Option<String>,
