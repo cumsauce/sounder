@@ -40,7 +40,9 @@ binary directly: `target/debug/sounder --headless`. Example `.mcp.json`:
 ```
 
 The driver is also a shell client (`python3 mcp_driver.py --calls calls.json`,
-`--connect`, `--save-shot`), for when the session's tool list is frozen.
+`--connect`, `--save-shot`), for when the session's tool list is frozen;
+consecutive `--calls` runs share one autosave, so a sound made in one run is
+open in the next.
 `SOUNDER_BINARY`, `SOUNDER_SOCKET`, `SOUNDER_PROJECT`, `SOUNDER_STDERR` mirror
 modeler's `MODELER_*`.
 
@@ -342,8 +344,9 @@ A **part** is a small saved sound that fills one role (`pre crack body weight
 after bed texture whole`), with a material, tags and one to three knobs.
 Before building a layer from nodes, look for one:
 
-- `catalog {action: "search", role: "body", material: "wood"}` (also `text`,
-  `approved`): the library's parts and saved sounds plus the 118 built-in
+- `catalog {action: "search", role: "body", material: "wood"}` (also `text`:
+  any word of a name, tag or description, plurals and endings folded, most
+  hits first; `approved`): the library's parts and saved sounds plus the 118 built-in
   parts in `parts/` (table below). Each is named and described by what the
   listener heard (`heard as "..."`), which is often not what it was built
   as: search by the sound you need, not by the node. Approved ones come
