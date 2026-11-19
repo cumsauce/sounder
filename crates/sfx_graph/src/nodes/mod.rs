@@ -37,9 +37,9 @@ mod lofi;
 
 mod blast;
 
+mod ambience;
 mod cave;
 mod creature;
-mod ambience;
 mod farnell;
 mod farnell_creatures;
 mod farnell_liquid;
@@ -107,9 +107,9 @@ pub use lofi::*;
 
 pub use blast::*;
 
+pub use ambience::*;
 pub use cave::*;
 pub use creature::*;
-pub use ambience::*;
 pub use farnell::*;
 pub use farnell_creatures::*;
 pub use farnell_liquid::*;

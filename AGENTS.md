@@ -52,7 +52,7 @@ modeler's `MODELER_*`.
    a hit or a mechanism, read "Layering a designed sound": the node is the
    body layer, and a designed sound adds the pre, crack, weight and after
    layers on a dry bus.
-   `describe_op` lists the 136 node types; `describe_op {kind: "filter"}` gives
+   `describe_op` lists the 143 node types; `describe_op {kind: "filter"}` gives
    one's example and schema (`type` and `node` are aliases of `kind`). To
    remove a node put `{"type": "delete", "name": "x"}` in `ops` (one item per
    node; a top-level `delete` is not a field and errors).
@@ -190,7 +190,7 @@ expression exactly as if it began with `=`, so a `voices` patch needs no leading
 a node. The error for an unknown node name shows the hint (`write expressions
 with a leading `=`, e.g. "=1.5 * $value"`).
 
-Families (136 types; groups marked * have a section in
+Families (143 types; groups marked * have a section in
 `docs/nodes/README.md`):
 
 - sources: `osc noise impulse sample` and `fm wavetable`*; control `lfo wander
@@ -543,6 +543,11 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 | a stream, a brook; pouring into a vessel | `stream`; `pour` | `flow`, `depth`, `range`, `layers`, `loop`; `fill_time`, `vessel`, `bubbles` | heard: `stream` ok (bubbles), at `flow` 2 / `layers` 4 a gurgling tube (good); `pour` ok (chemistry-set bubbles); `pour` needs a `duration` of `fill_time` + 1.5 s |
 | a helicopter; a rocket motor | `helicopter`; `rocket` | `rotor_rate`, `engine`, `tail`, `distance` (signals); `thrust`, `ignition`, `burn` | heard: helicopter good (near and far); rocket as a fake game weapon; set a `duration` |
 | a roar, a growl; a housefly; cicadas | `roar`; `fly`; `cicada` | `size`, `aggression`, `vowel`, `length`; `freq`, `res`, `flutter`; `kind` buzz / rattle / call, `pitch`, `rate` | heard: `fly` as a fly (good); `cicada` as a rattlesnake / scissors; `roar` as a **cow** (its pitch glide too clean; `wobble`, default 0.6, added since, unheard); `fly` and `cicada` never decay: set a `duration` |
+| an animal roar, growl, snarl, whine | `creature` | `call`, `size` 0..1 (tract length and pitch), `aggression`, `roughness`, `length` | foley's LF voice through a waveguide tract; meant to replace `roar` (heard as a cow). Unheard |
+| waves on a shore, surf | `surf` | `shore` sand / shingle, `wave_height`, `period`, `distance`, `loop` | foley's shore: roar, plunge bubbles, foam hiss, backwash; quiet: set `lufs`. Unheard |
+| lava; a cave | `lava`; `cave` | `size`, `activity`; `depth`, `mass`, `drips`, `openness` | foley's beds: rumble plus ringing bubbles; ceiling drips over a sub rumble (a `cave` loop needs `onepole` hp 20 Hz then `crossfade_loop`). Unheard |
+| frogs, a pond chorus | `frog` | `size` cm, `rate` calls/s, `chorus` | foley's sac-resonator call, repeated and layered (birdsong by species is `syrinx` `species`). Unheard |
+| wind through grass, leaves, dry stalks; underwater | `leaves`; `underwater` | `wind` (signal), `foliage`, `gust`; `depth` (signal), `bubbles`, `pressure` | foley's plant brush and submerged bed; `underwater` loops want `bubbles` 4. Unheard |
 | a chattering robot, a beam-up shimmer, a sci-fi torpedo, a hand-held beam | `droid`, `transporter`, `torpedo`, `phaser_beam` | `chatter`, `pitch`, `mood`; `chime`, `reverb`; `sweep`, `ring`; `mode` kill / stun; each a `length` | heard: transporter good, beam good (an alert), droid ok (too random), torpedo ok (a space weapon) |
 | a telephone: dial, busy, ringback, touch tones, rotary; a two-tone alarm | `phone_tone`; `two_tone` | `kind`, `digits`, `line` 0..1, `tempo`; `low`, `high`, `rate`, `shape` | heard: dial, busy, ringback, touch tones, two_tone good; pulse_dial as distant gunfire |
 | thunder, a distant storm | `thunder` | `distance`, `brightness`, `length`, `duration` | foley's N-wave and rumble; `brightness` tilts above 100 Hz, `length` stretches the rumble; a `duration` that fits |
