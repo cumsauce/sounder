@@ -423,6 +423,44 @@ the contact force follows how the surface moves under it.
   (a macro on `height` moves the timing, not the level). Port `force`: the
   contact force, 1 at its peak, 0 off contact.
 
+### Inputs over time (one-way)
+
+- `drive`: a force on the moving body, newtons (a signal; positive pushes it
+  down). A striker given only a `drive` starts at rest touching the object;
+  add a small `height` for gravity, or it drifts off when the drive lifts it.
+  A 20 Hz sine of 0.4 N under a 20 g part with `height` 0.001 lands 10-30
+  times a second: a rattle. A slow `ramp` is a press, a pulsed `wander` an
+  uneven roll.
+- `excite`: audio pushing the modes at the contact point while the contact
+  runs; a sample of 1 is a 1 m/s kick there. A tap at 0.6 s on a tube lying
+  on the floor rings it (4x the resting level, measured).
+- `pitch` (ratio, held 0.25..4), `damping` (on every decay rate, 0.05..20),
+  `stiffness` (on the contact, 0.01..100): signals read every sample. Not
+  physical, for expression: `pitch` 1.5 moves the peak by 1.5 (within 0.08);
+  `damping` 4 leaves under half the tail. A mode pitched over the top of the
+  band goes silent; the substeps rise so the highest pitched mode stays stable.
+
+### `force` as a trigger
+
+The `force` port is the contact force, 1 at its peak. It sets the rhythm of
+the layers above the body:
+
+```json
+[{"type": "impact", "name": "hit", "material": "metal", "shape": "tube", "f0": 160,
+  "noise": 0.4, "noise_width": 0.1, "object_mass": 2, "height": 0.4, "bounce": 0.35},
+ {"type": "noise", "name": "wn", "color": "white"},
+ {"type": "math", "name": "crk", "op": "mul", "a": "wn", "b": "hit.force"},
+ {"type": "filter", "name": "crk_f", "input": "crk", "mode": "hp", "freq": 2500},
+ {"type": "on_threshold", "name": "lands", "input": "hit.force", "level": 0.2, "hold": 0.01},
+ {"type": "voices", "name": "chips", "events": "lands", "length": 0.2, "max": 64, "patch": [
+   {"type": "contact", "name": "c", "speed": 1, "mass": 0.01, "material": "stone"},
+   {"type": "modal", "name": "chip", "excite": "c", "material": "stone", "f0": 2500, "noise": 0.6}]}]
+```
+
+The crack (noise times `force`) lasts as long as each touch; `on_threshold`
+on `force` makes one event per landing for `voices`, a `click` or debris.
+The crack form won the wooden block box in batch 22.
+
 ### Measured (`crates/sfx_analysis/tests/it/modal.rs`, `mod impact`)
 
 - A 2 kg tube dropped 0.3 m with `bounce` 0.6, no scatter: four or more

@@ -17,7 +17,8 @@ in this folder; `describe_op <type>` has the schema and an example.
   (left out: the object is dropped onto [floor "stone"]), [hardness 0.7] (a
   striker's), `height` (gravity on; a drop defaults to 0.3) or `speed`,
   [radius 0.01], [bounce 0.5], [scatter 0.3], [max_bounces 40], [oversample 4],
-  [at], [gain_db], [seed]}: the strike solved as one system, a point mass and
+  [at], [gain_db], [seed], [drive] (a force signal on the body), [excite]
+  (audio on the modes), [pitch] [damping] [stiffness] (signals)}: the strike solved as one system, a point mass and
   the modes coupled per sample by a Hunt-Crossley contact. Bounces, chatter and
   buzz on the floor come from it; port `force` is the contact force. Unheard:
   details in `docs/nodes/modal.md`, "`impact`".

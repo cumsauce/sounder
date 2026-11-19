@@ -1900,6 +1900,78 @@ mod impact {
         );
     }
 
+    fn struck_plate(extra: Value) -> Vec<Value> {
+        let base = json!({"type": "impact", "name": "hit", "material": "metal", "size": 0.3,
+            "thickness": 0.003, "object_mass": 1.0, "striker_mass": 0.05, "speed": 1.0});
+        vec![
+            with_fields(base, extra),
+            json!({"type": "output", "name": "out", "input": "hit"}),
+        ]
+    }
+
+    /// Landings: touches more than 3 ms after the last one ended.
+    fn landings(nodes: &[Value], secs: f32) -> usize {
+        let f = node_audio(nodes, "hit.force", secs);
+        let (mut n, mut off) = (0, usize::MAX / 2);
+        for x in f {
+            if x > 1e-4 {
+                if off > 144 {
+                    n += 1;
+                }
+                off = 0;
+            } else {
+                off += 1;
+            }
+        }
+        n
+    }
+
+    #[test]
+    fn a_shaking_drive_rattles() {
+        // A 20 g part resting on the plate under gravity, shaken at 20 Hz
+        // harder than its weight: it lifts and lands about once a cycle.
+        let mut n = vec![
+            json!({"type": "osc", "name": "shake", "shape": "sine", "freq": 20}),
+            json!({"type": "gain", "name": "push", "input": "shake", "gain": 0.4}),
+        ];
+        n.extend(struck_plate(
+            json!({"striker_mass": 0.02, "speed": null, "height": 0.001, "drive": "push"}),
+        ));
+        n[2].as_object_mut().unwrap().remove("speed");
+        let k = landings(&n, 1.0);
+        assert!((10..=30).contains(&k), "landings {k}");
+    }
+
+    #[test]
+    fn excite_rings_the_modes_while_it_rests() {
+        // A dead drop, then a tap on the modes at 0.6 s while the tube lies on
+        // the floor: the tap is heard.
+        let rest = drop(json!({"bounce": 0.0, "loss": 4.0}));
+        let mut tapped = vec![json!({"type": "impulse", "name": "tap", "at": 0.6})];
+        tapped.extend(drop(json!({"bounce": 0.0, "loss": 4.0, "excite": "tap"})));
+        let a = node_audio(&rest, "hit", 0.8);
+        let b = node_audio(&tapped, "hit", 0.8);
+        let win = |x: &[f32]| rms(&x[28_800..33_600]);
+        assert!(win(&b) > 4.0 * win(&a), "{} vs {}", win(&b), win(&a));
+    }
+
+    #[test]
+    fn pitch_moves_every_mode() {
+        let lo = node_audio(struck_plate(json!({})), "hit", 0.5);
+        let hi = node_audio(struck_plate(json!({"pitch": 1.5})), "hit", 0.5);
+        let r = peak_hz(&hi, 48_000) / peak_hz(&lo, 48_000);
+        assert!((r - 1.5).abs() < 0.08, "ratio {r}");
+    }
+
+    #[test]
+    fn damping_shortens_the_ring() {
+        let tail = |x: &[f32]| rms(&x[12_000..]);
+        let a = node_audio(struck_plate(json!({})), "hit", 0.5);
+        let b = node_audio(struck_plate(json!({"damping": 4.0})), "hit", 0.5);
+        // Both peak at -6 dBFS, so the tails compare directly.
+        assert!(tail(&b) < 0.5 * tail(&a), "{} vs {}", tail(&b), tail(&a));
+    }
+
     #[test]
     fn errors_name_the_field() {
         let e = render_error_raw(drop(json!({"speed": 1.0})), 1.0);

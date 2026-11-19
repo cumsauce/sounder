@@ -1548,6 +1548,30 @@ pub struct Impact {
     /// before it.
     #[serde(default)]
     pub gain_db: Option<f32>,
+    /// A force on the moving body, newtons (a signal, default none; positive
+    /// pushes it down onto the object or the floor). Shaking (an `lfo`) is a
+    /// rattle, a slow `ramp` a press, a pulsed `wander` an uneven roll. With
+    /// it a striker needs no `height` or `speed`: it starts at rest, touching.
+    #[serde(default)]
+    pub drive: Option<In>,
+    /// Audio pushing the modes at the contact point (default none), as
+    /// `modal`'s `excite`, while the contact runs: wind on a sign that is
+    /// also hit. A sample of 1 kicks the contact point at 1 m/s, so a unit
+    /// impulse is about as loud as a 1 m/s strike.
+    #[serde(default)]
+    pub excite: Option<In>,
+    /// Ratio on every mode frequency (a signal, default 1, held in
+    /// 0.25..4). Not physical: a bend while it rings.
+    #[serde(default)]
+    pub pitch: Option<In>,
+    /// Multiplier on every mode's decay rate (a signal, default 1, held in
+    /// 0.05..20): 2 dies twice as fast; a hand closing on the object.
+    #[serde(default)]
+    pub damping: Option<In>,
+    /// Multiplier on the contact stiffness (a signal, default 1, held in
+    /// 0.01..100): lower is a softer, duller touch.
+    #[serde(default)]
+    pub stiffness: Option<In>,
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
@@ -1654,6 +1678,7 @@ impl Eval for Impact {
             }
             (None, Some(v)) => (None, range("speed", v, 0.01, 50.0)?),
             (None, None) if striker.is_none() => (Some(0.3), (2.0 * GRAVITY * 0.3).sqrt()),
+            (None, None) if self.drive.is_some() => (None, 0.0),
             (None, None) => {
                 return Err(
                     "give `height` (m, a fall under gravity) or `speed` (m/s) for the striker"
@@ -1690,8 +1715,27 @@ impl Eval for Impact {
             None => radius,
         };
         let k = 4.0 / 3.0 * e_star * radius.sqrt();
-        let tau = hertz_time(moving_mass, radius, e_star, speed);
-        let os = min_os.max((20.0 / (tau * cx.sr)).ceil() as usize).min(64);
+        let drive = match &self.drive {
+            Some(d) => Some(cx.mono("drive", d)?),
+            None => None,
+        };
+        let excite = match &self.excite {
+            Some(x) => Some(cx.mono("excite", x)?),
+            None => None,
+        };
+        let pitch = cx.mono_or("pitch", &self.pitch, 1.0)?;
+        let damping = cx.mono_or("damping", &self.damping, 1.0)?;
+        let stiff = cx.mono_or("stiffness", &self.stiffness, 1.0)?;
+        // A drive with no speed: the contact time of a 0.1 m/s touch.
+        let tau = hertz_time(moving_mass, radius, e_star, speed.max(0.1));
+        // The highest mode, raised by the most `pitch` asks for, stays
+        // stable (omega dt under 1.2).
+        let pmax = (0..cx.n).fold(1.0f32, |a, i| a.max(pitch.at(i).clamp(0.25, 4.0)));
+        let w_top = 2.0 * PI * p.modes.iter().fold(0.0f32, |a, m| a.max(m.0)) * pmax;
+        let os = min_os
+            .max((20.0 / (tau * cx.sr)).ceil() as usize)
+            .max((w_top / (1.2 * cx.sr)).ceil() as usize)
+            .min(64);
         let dt = 1.0 / (cx.sr * os as f32);
 
         // The modes: coupling at the contact point (the shape weights scaled
@@ -1733,7 +1777,7 @@ impl Eval for Impact {
 
         // The moving body: a striker above the object (y its height over the
         // surface, positive up), or the object's rigid motion over the floor.
-        let mut y = 1e-6f32;
+        let mut y = if speed > 0.0 { 1e-6f32 } else { 0.0 };
         let mut vy = -speed;
         let mut in_contact = false;
         let mut contacts = 0usize;
@@ -1750,6 +1794,13 @@ impl Eval for Impact {
         let mut rings: Vec<Vec<f32>> = vec![vec![0.0; n]; ms.len()];
         let mut contact = vec![0.0f32; n];
         for i in start..n {
+            let push = drive.as_ref().map_or(0.0, |d| d.at(i));
+            // A sample of 1 is a 1 m/s kick at the contact point, spread
+            // over the substeps.
+            let shake = excite.as_ref().map_or(0.0, |x| x.at(i)) * modal_mass * cx.sr;
+            let ratio = pitch.at(i).clamp(0.25, 4.0);
+            let (ratio2, damp) = (ratio * ratio, damping.at(i).clamp(0.05, 20.0));
+            let ki = k * stiff.at(i).clamp(0.01, 100.0);
             for _ in 0..os {
                 step += 1;
                 let (u, udot) = ms
@@ -1784,7 +1835,7 @@ impl Eval for Impact {
                             }
                         }
                     }
-                    (k * d * d.sqrt() * (1.0 + alpha * ddot)).max(0.0)
+                    (ki * d * d.sqrt() * (1.0 + alpha * ddot)).max(0.0)
                 } else {
                     if in_contact {
                         vy = vy.min(rebound_cap);
@@ -1799,16 +1850,24 @@ impl Eval for Impact {
                     (force, object_mass)
                 };
                 contact[i] = contact[i].max(force);
-                vy += dt * (force / mover - gravity);
+                vy += dt * ((force - push) / mover - gravity);
                 y += dt * vy;
                 for m in ms.iter_mut() {
-                    let a = m.w * body_force / modal_mass - m.sigma2 * m.v - m.w2 * m.q;
+                    let a = m.w * (body_force + shake) / modal_mass
+                        - damp * m.sigma2 * m.v
+                        - ratio2 * m.w2 * m.q;
                     m.v += dt * a;
                     m.q += dt * m.v;
                 }
             }
-            for (ring, m) in rings.iter_mut().zip(&ms) {
-                ring[i] = m.r * m.v;
+            // A mode the pitch takes past the top of the band is not heard.
+            let top = top_hz(cx.sr);
+            for ((ring, m), mode) in rings.iter_mut().zip(&ms).zip(&p.modes) {
+                ring[i] = if mode.0 * ratio <= top {
+                    m.r * m.v
+                } else {
+                    0.0
+                };
             }
         }
         let mut out = vec![0.0f32; n];

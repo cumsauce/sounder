@@ -21,7 +21,10 @@ TITLES = {"rain": "Rain", "creature": "Creature calls", "leaves": "Wind in plant
           "footstep_grass": "Two steps on grass", "footstep_allpurpose": "Two all-purpose steps (no surface)", "footstep_dirt": "Two steps on dirt", "footstep_snow": "Two steps in snow", "footstep_wood": "Two steps on a wooden floor", "footstep_metal": "Two steps on metal", "footstep_ice": "Two steps on ice", "footstep_carpet": "Two steps on carpet", "sword_draw": "A sword drawn from a leather scabbard", "vending_can": "A vending machine dispensing a can", "scifi_door": "A sci-fi bulkhead door opening", "ice_glass": "Three ice cubes dropped into a glass", "zipper": "A jacket zipper pulled up", "rain_drops": "Rain: the drops alone", "rain_hiss": "Rain: the hiss alone", "creature_voice": "Creature: the voice alone", "creature_breath": "Creature: the breath alone", "footstep_layered": "Two steps on gravel (whole vs rebuilt from layers)", "splash_large": "A large splash (something big into water)",
           "motor": "An electric motor spinning up and down",
           "pipe_drop": "A metal pipe dropped on a stone floor", "coin_drop": "A coin dropped on a stone floor",
-          "block_drop": "A wooden block dropped on a stone floor"}
+          "block_drop": "A wooden block dropped on a stone floor",
+          "lid_rattle": "A loose metal lid shaken on a pan", "marble_roll": "A marble rolling on a wooden board",
+          "sign_wind": "A metal sign in the wind, hit once", "sheet_bend": "A steel sheet struck, bending as it rings",
+          "pipe_layers": "A metal pipe dropped: crack, with and without chips"}
 
 
 def main():
