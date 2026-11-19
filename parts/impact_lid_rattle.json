@@ -1,0 +1,68 @@
+{
+ "role": "whole",
+ "material": "metal",
+ "description": "heard as the best loose lid rattle of its box in a blind listen; built as: `impact` metal plate 0.25 m, 1.5 mm, struck by a 30 g striker under gravity, shaken by `drive` a `wander` (rate 25, -0.5..0.8 N)",
+ "tags": [
+  "metal",
+  "lid",
+  "rattle",
+  "shake",
+  "loose",
+  "impact"
+ ],
+ "origin": "batch 23 (impact inputs); picked best of its box by the listener on 2026-11-19",
+ "doc": {
+  "name": "impact_lid_rattle",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.5,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "wander",
+    "name": "push",
+    "rate": 25,
+    "min": -0.5,
+    "max": 0.8
+   },
+   {
+    "type": "impact",
+    "name": "hit",
+    "material": "metal",
+    "size": 0.25,
+    "thickness": 0.0015,
+    "noise": 0.4,
+    "noise_width": 0.1,
+    "loss": 0.5,
+    "object_mass": 0.3,
+    "striker_mass": 0.03,
+    "hardness": 0.9,
+    "height": 0.001,
+    "drive": "push",
+    "scatter": 0.5
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "hit",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "shake",
+    "value": 0.5,
+    "doc": "how hard it is shaken: more, louder landings",
+    "map": [
+     {
+      "node": "push",
+      "field": "max",
+      "from": 0.3,
+      "to": 1.3
+     }
+    ]
+   }
+  ]
+ }
+}

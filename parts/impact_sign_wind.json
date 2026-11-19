@@ -1,0 +1,80 @@
+{
+ "role": "whole",
+ "material": "metal",
+ "description": "heard as the best metal sign in the wind, hit once, of its box in a blind listen; built as: `impact` metal plate 0.6 m, 2 mm, hit by a 0.2 kg striker at 2 m/s, its modes pushed by pink noise times a slow `wander` (the breeze) through `excite`",
+ "tags": [
+  "metal",
+  "sign",
+  "wind",
+  "hit",
+  "impact"
+ ],
+ "origin": "batch 23 (impact inputs); picked best of its box by the listener on 2026-11-19",
+ "doc": {
+  "name": "impact_sign_wind",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 4.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "pn",
+    "color": "pink"
+   },
+   {
+    "type": "wander",
+    "name": "gust",
+    "rate": 0.8,
+    "min": 0.0002,
+    "max": 0.0012
+   },
+   {
+    "type": "math",
+    "name": "wind",
+    "op": "mul",
+    "a": "pn",
+    "b": "gust"
+   },
+   {
+    "type": "impact",
+    "name": "hit",
+    "material": "metal",
+    "size": 0.6,
+    "thickness": 0.002,
+    "noise": 0.4,
+    "noise_width": 0.1,
+    "loss": 0.3,
+    "object_mass": 3.0,
+    "striker_mass": 0.2,
+    "hardness": 0.8,
+    "speed": 2.0,
+    "excite": "wind",
+    "at": 0.005
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "hit",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "wind",
+    "value": 0.5,
+    "doc": "how hard the wind pushes the sign",
+    "map": [
+     {
+      "node": "gust",
+      "field": "max",
+      "from": 0.0005,
+      "to": 0.004,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

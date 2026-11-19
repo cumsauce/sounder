@@ -36,6 +36,8 @@ const FILES: &[&str] = &[
     include_str!("../parts/impact_pipe_drop.json"),
     include_str!("../parts/impact_coin_drop.json"),
     include_str!("../parts/impact_block_drop.json"),
+    include_str!("../parts/impact_lid_rattle.json"),
+    include_str!("../parts/impact_sign_wind.json"),
     include_str!("../parts/large_metal_container_hit.json"),
     include_str!("../parts/metal_plate_gong_hit.json"),
     include_str!("../parts/metal_bell_hit.json"),

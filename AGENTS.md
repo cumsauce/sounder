@@ -346,7 +346,7 @@ Before building a layer from nodes, look for one:
 
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`:
   any word of a name, tag or description, plurals and endings folded, most
-  hits first; `approved`): the library's parts and saved sounds plus the 121 built-in
+  hits first; `approved`): the library's parts and saved sounds plus the 123 built-in
   parts in `parts/` (table below). Each is named and described by what the
   listener heard (`heard as "..."`), which is often not what it was built
   as: search by the sound you need, not by the node. Approved ones come

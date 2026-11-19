@@ -429,14 +429,16 @@ the contact force follows how the surface moves under it.
   down). A striker given only a `drive` starts at rest touching the object;
   add a small `height` for gravity, or it drifts off when the drive lifts it.
   A 20 Hz sine of 0.4 N under a 20 g part with `height` 0.001 lands 10-30
-  times a second: a rattle. A slow `ramp` is a press, a pulsed `wander` an
-  uneven roll.
+  times a second: a rattle (an irregular `wander` drive was picked over a
+  sine, batch 23). A slow `ramp` is a press. A pulsed drive is **not** a
+  roll: it lifts the ball, and the listener heard separate cracks.
 - `excite`: audio pushing the modes at the contact point while the contact
   runs; a sample of 1 is a 1 m/s kick there. A tap at 0.6 s on a tube lying
   on the floor rings it (4x the resting level, measured).
 - `pitch` (ratio, held 0.25..4), `damping` (on every decay rate, 0.05..20),
   `stiffness` (on the contact, 0.01..100): signals read every sample. Not
-  physical, for expression: `pitch` 1.5 moves the peak by 1.5 (within 0.08);
+  physical, for expression: `pitch` 1.5 moves the peak by 1.5 (within 0.08;
+  a +-6 % wobble and a 20 % sag on a low 89 Hz sheet were not heard apart);
   `damping` 4 leaves under half the tail. A mode pitched over the top of the
   band goes silent; the substeps rise so the highest pitched mode stays stable.
 
