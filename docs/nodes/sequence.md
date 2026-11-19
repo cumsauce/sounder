@@ -12,6 +12,16 @@ An event at time `t` first affects sample `ceil(t * sr)`, with 0.001 of a
 sample of slack, so a `pattern every 0.1` event (0.1 stored as f32) lands on
 sample 4800 at 48 kHz, not 4801.
 
+## `pattern` `accel`
+
+`pattern` with `every` + `count` takes `accel` (0.1..10, default absent =
+even spacing, bit-identical): the last gap is `accel` x the first (`every`),
+the gaps between interpolated geometrically, so `every 0.011, count 64,
+accel 0.7` is a zipper speeding up about 30 %. Out of range is an error;
+with `times` it is an error. `jitter` applies on top. Test:
+`pattern_accel_scales_the_last_gap_and_default_is_unchanged` (accel 0.5, 10
+events: last gap half the first within 1 sample).
+
 ## `trigger_env`
 
 An envelope fired at each event of a stream (envelope family).

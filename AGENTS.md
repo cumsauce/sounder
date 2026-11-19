@@ -120,7 +120,7 @@ every call.
   exactly the fields you give: a field left out goes back to its default
   (it is not merged). To change one field, send the node with all of its
   fields (`summary` lists them).
-- **Names that trip people:** `pattern` starts at `start`, not `at`. `impulse` takes `at`, a number or a list of
+- **Names that trip people:** `pattern` starts at `start`, not `at` (`accel` 0.7 = last gap 0.7 x the first, for a speed-up). `impulse` takes `at`, a number or a list of
   times (`"at": [0, 0.1, 0.2]`), default 0. `wander` takes `rate` and
   `range: [lo, hi]` or `min` and `max` together (not both forms; `range`
   omitted is -1..1). `ramp` takes `time` or `duration` (the same field) and
