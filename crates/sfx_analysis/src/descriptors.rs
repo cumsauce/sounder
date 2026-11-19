@@ -1243,7 +1243,14 @@ pub fn describe(audio: &Audio) -> Descriptors {
     let events = event_summary(&fev, last_loud.map_or(0.0, |l| (l + 1) as f32 / sr as f32));
     // The tenths count the same events, scaled by what the overlap correction
     // added to the count (1 when events are far apart).
-    let tenth_scale = if density.counted_per_s > 0.0 {
+    // A regular train's tenths count its beats, missed ones filled in.
+    let regular = matches!(density.method, RateMethod::Regular)
+        .then(|| crate::measure::regular_train(&fine_onsets))
+        .flatten();
+    let tenth_onsets = regular.as_deref().unwrap_or(&fine_onsets);
+    let tenth_scale = if regular.is_some() {
+        1.0
+    } else if density.counted_per_s > 0.0 {
         (density.per_s / density.counted_per_s).clamp(1.0, 20.0)
     } else {
         1.0
@@ -1251,7 +1258,10 @@ pub fn describe(audio: &Audio) -> Descriptors {
     let density_tenths: Vec<f32> = (0..10)
         .map(|i| {
             let (t0, t1) = (seconds * i as f32 / 10.0, seconds * (i + 1) as f32 / 10.0);
-            let k = fine_onsets.iter().filter(|t| **t >= t0 && **t < t1).count();
+            let k = tenth_onsets
+                .iter()
+                .filter(|t| **t >= t0 && **t < t1)
+                .count();
             if t1 > t0 {
                 k as f32 / (t1 - t0) * tenth_scale
             } else {
@@ -1593,6 +1603,8 @@ impl Descriptors {
                 match d.method {
                     RateMethod::Period => "a regular train, rate from the envelope's repetition",
                     RateMethod::Peaks => "rate from envelope peaks",
+                    RateMethod::Regular =>
+                        "a regular train of counted events, missed beats filled in",
                     _ => "rate corrected for events hidden by the one before",
                 },
                 d.per_s

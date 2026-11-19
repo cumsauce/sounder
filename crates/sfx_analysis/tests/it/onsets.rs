@@ -674,6 +674,57 @@ mod density {
         assert!((measure(&a, Measure::Density) - d.density.per_s).abs() < 0.05 * d.density.per_s);
     }
 
+    /// A zipper-like train: teeth that speed up, each a click ringing three
+    /// resonances (several envelope peaks per tooth: read 5 x too high from
+    /// them), and every fifth tooth quiet enough for the counter to miss
+    /// (a hole in the tenths).
+    #[test]
+    fn a_ringing_speeding_train_with_quiet_teeth_reads_its_tooth_rate() {
+        let sr = 48_000.0;
+        let mut times = vec![0.01f32];
+        let mut gap = 0.016f32;
+        while times.len() < 50 {
+            let t = times.last().unwrap() + gap;
+            times.push(t);
+            gap *= 0.99;
+        }
+        let n = ((times.last().unwrap() + 0.05) * sr) as usize;
+        let mut x = vec![0.0f32; n];
+        for (k, t) in times.iter().enumerate() {
+            let amp = if k % 5 == 4 { 0.02 } else { 1.0 };
+            let i0 = (t * sr) as usize;
+            for (f, d) in [(3100.0f32, 0.006f32), (4700.0, 0.005), (6900.0, 0.004)] {
+                for i in 0..(0.03 * sr) as usize {
+                    if i0 + i < n {
+                        let tt = i as f32 / sr;
+                        x[i0 + i] += amp * (-tt / d).exp() * (std::f32::consts::TAU * f * tt).sin();
+                    }
+                }
+            }
+        }
+        let a = Audio {
+            sample_rate: 48_000,
+            channels: vec![x],
+        };
+        let d = describe(&a);
+        let span = times.last().unwrap() - times[0];
+        let truth = times.len() as f32 / span;
+        println!(
+            "ringing train: truth {truth:.0}/s, read {:?}, tenths {:?}",
+            d.density, d.density_tenths
+        );
+        assert!(
+            (d.density.per_s / truth - 1.0).abs() < 0.2,
+            "{} vs {truth}",
+            d.density.per_s
+        );
+        let inner = &d.density_tenths[1..8];
+        assert!(
+            inner.iter().all(|v| *v > 0.4 * truth),
+            "a hole in the tenths: {inner:?}"
+        );
+    }
+
     #[test]
     fn dense_trains_report_how_the_rate_was_reached() {
         let t = regular_times(320.0);

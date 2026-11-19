@@ -296,6 +296,7 @@ node_types! {
     "modal" => Modal,
     "contact" => Contact,
     "friction" => Friction,
+    "impact" => Impact,
     // foley
     "bubble" => BubbleNode,
     "air" => Air,

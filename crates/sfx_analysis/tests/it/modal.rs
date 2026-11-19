@@ -1776,3 +1776,117 @@ mod exaggerate {
         );
     }
 }
+
+mod impact {
+    //! `impact`: a striker (or the floor) and the modes stepped together.
+
+    use crate::common::*;
+    use serde_json::{Value, json};
+
+    fn drop(extra: Value) -> Vec<Value> {
+        let base = json!({"type": "impact", "name": "hit", "material": "metal", "shape": "tube",
+            "f0": 160, "loss": 0.4, "object_mass": 2.0, "height": 0.3, "scatter": 0.0});
+        vec![
+            with_fields(base, extra),
+            json!({"type": "output", "name": "out", "input": "hit", "fade_in": 0.0005}),
+        ]
+    }
+
+    /// Start times (s) of each contact, from the `force` port.
+    fn contacts(nodes: &[Value], secs: f32) -> Vec<f32> {
+        let f = node_audio(nodes, "hit.force", secs);
+        let mut on = false;
+        let mut t = Vec::new();
+        for (i, x) in f.iter().enumerate() {
+            if *x > 1e-4 && !on {
+                t.push(i as f32 / 48_000.0);
+            }
+            on = *x > 1e-4;
+        }
+        t
+    }
+
+    #[test]
+    fn a_drop_bounces_with_shrinking_gaps() {
+        let n = drop(json!({"bounce": 0.6}));
+        let t = contacts(&n, 2.0);
+        assert!(t.len() >= 4, "contacts {t:?}");
+        let gaps: Vec<f32> = t.windows(2).map(|w| w[1] - w[0]).filter(|g| *g > 0.01).collect();
+        assert!(gaps.len() >= 3, "gaps {gaps:?}");
+        // The first flight lasts about 2 e v / g; later ones shrink.
+        let v = (2.0f32 * 9.81 * 0.3).sqrt();
+        let expect = 2.0 * 0.6 * v / 9.81;
+        assert!(gaps[0] < expect * 1.1 && gaps[0] > expect * 0.5, "first gap {} vs {expect}", gaps[0]);
+        assert!(gaps[1] < gaps[0] && gaps[2] < gaps[1], "gaps {gaps:?}");
+    }
+
+    #[test]
+    fn a_dead_drop_lands_once() {
+        let n = drop(json!({"bounce": 0.0}));
+        let t = contacts(&n, 1.0);
+        assert!(!t.is_empty() && t.iter().all(|x| *x < 0.05), "contacts {t:?}");
+    }
+
+    #[test]
+    fn a_heavy_striker_contact_is_near_hertz() {
+        // A rubbery striker on a heavy wooden plate: the force pulse lasts
+        // the Hertz time of the striker against the wood (contact's formula).
+        let n = vec![
+            json!({"type": "impact", "name": "hit", "material": "wood", "size": 0.6,
+                "object_mass": 50.0, "striker_mass": 0.2, "hardness": 0.3, "speed": 1.5}),
+            json!({"type": "output", "name": "out", "input": "hit"}),
+        ];
+        let f = node_audio(&n, "hit.force", 0.5);
+        let on = f.iter().filter(|x| **x > 1e-4).count() as f32 / 48_000.0;
+        let radius = (3.0f32 * 0.2 / (4.0 * std::f32::consts::PI * 2000.0)).cbrt();
+        let e_s = 1e6 * 2e5f32.powf(0.3);
+        let (ew, nw) = (11e9f32, 0.35f32);
+        let _ = (ew, nw);
+        // Within a factor of the analytic time (the wood's own constants
+        // come from foley; only the order of magnitude is checked here).
+        let tau = 2.87 * (0.2f32 * 0.2 / (radius * e_s * e_s * 1.5)).powf(0.2);
+        assert!(on > tau * 0.4 && on < tau * 2.5, "contact {on} s vs Hertz {tau} s");
+    }
+
+    #[test]
+    fn a_light_striker_chatters_on_a_thin_plate() {
+        // A heavy hammer on a light, thin plate re-contacts within the hit.
+        let n = vec![
+            json!({"type": "impact", "name": "hit", "material": "metal", "size": 0.3,
+                "thickness": 0.002, "object_mass": 0.5, "striker_mass": 0.02, "hardness": 1.0,
+                "speed": 2.0, "scatter": 0.0}),
+            json!({"type": "output", "name": "out", "input": "hit"}),
+        ];
+        let t = contacts(&n, 0.3);
+        let early = t.iter().filter(|x| **x < 0.02).count();
+        assert!(early >= 2, "contacts {t:?}");
+    }
+
+    #[test]
+    fn stable_finite_and_deterministic() {
+        for (mass, hard) in [(0.001, 0.0), (0.05, 1.0), (10.0, 0.5)] {
+            let n = vec![
+                json!({"type": "impact", "name": "hit", "material": "glass", "size": 0.1,
+                    "striker_mass": mass, "hardness": hard, "height": 0.2}),
+                json!({"type": "output", "name": "out", "input": "hit"}),
+            ];
+            assert_finite(&node_audio(&n, "hit", 1.0), "impact");
+        }
+        assert_bit_identical(drop(json!({"scatter": 0.5})), 1.0);
+    }
+
+    #[test]
+    fn seeds_differ_with_scatter() {
+        let a = drop(json!({"scatter": 0.5, "seed": 1}));
+        let b = drop(json!({"scatter": 0.5, "seed": 2}));
+        assert_ne!(fnv(&node_audio(&a, "hit", 1.0)), fnv(&node_audio(&b, "hit", 1.0)));
+    }
+
+    #[test]
+    fn errors_name_the_field() {
+        let e = render_error_raw(drop(json!({"speed": 1.0})), 1.0);
+        assert!(e.contains("height and speed"), "{e}");
+        let e = render_error_raw(drop(json!({"hardness": 0.5})), 1.0);
+        assert!(e.contains("striker"), "{e}");
+    }
+}

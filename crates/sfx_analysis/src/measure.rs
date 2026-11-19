@@ -742,6 +742,10 @@ pub enum RateMethod {
     /// The repetition rate of a periodic train, from the envelope's
     /// autocorrelation.
     Period,
+    /// The counter's own events form a regular train (each gap close to its
+    /// neighbours' median, or a whole multiple of it: a missed beat), so
+    /// they are the rate, with missed beats filled in.
+    Regular,
 }
 
 /// What [`event_rate`] found.
@@ -984,7 +988,58 @@ pub fn event_rate(x: &[f32], sr: u32, span_s: f32, events: &[FineEvent]) -> Even
         out.per_s = p;
         out.method = RateMethod::Period;
     }
+    // A train the counter sees regularly is its own best rate: a resonant
+    // tick rings into several envelope peaks (a zipper's ringing teeth read
+    // 5 x too high from them), and a quiet tick the counter missed leaves a
+    // gap twice the others (a hole in the tenths).
+    // Only where it changes the answer: a train the counter saw whole and
+    // that no other method raised stays a plain count.
+    if let Some(filled) = regular_train(&times)
+        && (filled.len() > times.len()
+            || matches!(out.method, RateMethod::Peaks | RateMethod::Period))
+    {
+        out.per_s = filled.len() as f32 / span;
+        out.method = RateMethod::Regular;
+    }
     out
+}
+
+/// The counted times as a regular train with missed beats filled in, or None.
+/// Regular: at least 8 events and 85 % of the gaps within 0.3 of a whole
+/// multiple of their neighbours' median gap (7 gaps around, so a train that
+/// speeds up or slows down still counts), most of them single; the median
+/// gap at least 4 ms (the counter's dead time).
+pub fn regular_train(times: &[f32]) -> Option<Vec<f32>> {
+    if times.len() < 8 {
+        return None;
+    }
+    let gaps: Vec<f32> = times.windows(2).map(|w| w[1] - w[0]).collect();
+    let local = |i: usize| {
+        let lo = i.saturating_sub(3);
+        let hi = (i + 4).min(gaps.len());
+        median_of(gaps[lo..hi].to_vec()).unwrap_or(0.0)
+    };
+    let mut fits = 0;
+    let mut singles = 0;
+    let mut filled = vec![times[0]];
+    for (i, g) in gaps.iter().enumerate() {
+        let m = local(i);
+        if m < 0.004 {
+            return None;
+        }
+        let k = (g / m).round().max(1.0);
+        if (g / m - k).abs() < 0.3 {
+            fits += 1;
+        }
+        if k == 1.0 {
+            singles += 1;
+        }
+        for j in 1..=k as usize {
+            filled.push(times[i] + g * j as f32 / k);
+        }
+    }
+    let n = gaps.len() as f32;
+    (fits as f32 >= 0.85 * n && singles as f32 >= 0.6 * n).then_some(filled)
 }
 
 /// The span `density_per_s` and the descriptors count events over: first

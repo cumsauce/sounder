@@ -122,7 +122,7 @@ class ShotNamer:
 class SounderSession:
     """Owns the sounder process and the JSON-RPC conversation."""
 
-    def __init__(self, mode="headless", log=None, slot=None):
+    def __init__(self, mode="headless", log=None, slot=None, own_slot=None):
         # mode: "windowed" (the sounder window beside the server), anything
         # else is headless (no window).
         cmd = [BINARY] + ([] if mode == "windowed" else ["--headless"]) + os.environ.get("SOUNDER_EXTRA_ARGS", "").split()
@@ -132,6 +132,10 @@ class SounderSession:
             # A server that does not own the main autosave writes
             # session.<slot>.json; a stable slot lets a restart find it.
             env["SOUNDER_SLOT"] = slot
+        if own_slot:
+            # Always this file, lock or no lock (throwaway runs): a daemon
+            # starting or stopping between two runs must not move their sounds.
+            env["SOUNDER_OWN_SLOT"] = own_slot
         # `log` (the daemon's daemon.log, or SOUNDER_STDERR=<path>) keeps the
         # server's stderr (panics, bake errors, the exit reason) instead of
         # discarding it.
@@ -815,7 +819,7 @@ def main():
         # session lock, the default slot is named after this run's pid, so the
         # next run never found what this one saved.
         session = SounderSession(mode="windowed" if windowed else "headless",
-                                 slot="throwaway")
+                                 own_slot="throwaway")
         print(json.dumps({"tools": session.tool_names()}), flush=True)
         try:
             if calls_path:

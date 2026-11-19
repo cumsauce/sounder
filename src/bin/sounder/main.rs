@@ -109,21 +109,31 @@ fn main() {
     };
     let lock = lib.join("session.lock");
     let pid = std::process::id();
-    match store::acquire_lock_at(&lock, pid) {
-        Ok(store::LockOutcome::Owner) => {}
-        Ok(store::LockOutcome::HeldBy(other)) => {
-            let slot = std::env::var("SOUNDER_SLOT")
-                .ok()
-                .filter(|s| !s.is_empty())
-                .unwrap_or_else(|| format!("pid{pid}"));
-            eprintln!(
-                "sounder: autosave SLOT {slot}: server pid {other} holds the session lock in this library, so this one autosaves to session.{slot}.json"
-            );
-            session.slot = Some(slot);
-        }
-        Err(e) => {
-            eprintln!("sounder: {e}");
-            session.autosave_ok = false;
+    // A named slot (the driver's throwaway runs) always saves and restores
+    // its own file, whether or not another server holds the lock: a daemon
+    // starting or stopping between two runs must not move their sounds.
+    let named = std::env::var("SOUNDER_OWN_SLOT")
+        .ok()
+        .filter(|s| !s.is_empty());
+    if let Some(slot) = named {
+        session.slot = Some(slot);
+    } else {
+        match store::acquire_lock_at(&lock, pid) {
+            Ok(store::LockOutcome::Owner) => {}
+            Ok(store::LockOutcome::HeldBy(other)) => {
+                let slot = std::env::var("SOUNDER_SLOT")
+                    .ok()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or_else(|| format!("pid{pid}"));
+                eprintln!(
+                    "sounder: autosave SLOT {slot}: server pid {other} holds the session lock in this library, so this one autosaves to session.{slot}.json"
+                );
+                session.slot = Some(slot);
+            }
+            Err(e) => {
+                eprintln!("sounder: {e}");
+                session.autosave_ok = false;
+            }
         }
     }
     if let Some(root) = &project {

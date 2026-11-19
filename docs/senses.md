@@ -148,3 +148,7 @@ What each line of `listen` says. This was moved from AGENTS.md, which keeps a su
   the numbers below describe this window; times count from a" says so), so
   onset, fine-onset and peak times count from `a`. `descriptors: false`
   returns the image alone.
+
+## Density on a regular train
+
+When the counter's own events form a regular train, `density` uses them: each gap must sit close to its neighbours' median, or at a whole multiple of it, so a speed-up or a missed beat still counts. Missed beats are filled in, and the tenths count the filled train. A resonant tick rings into several envelope peaks, and the peak method read a zipper's teeth 5 x too high. The `listen` line says "a regular train of counted events, missed beats filled in" (`tests/it/onsets.rs`, `a_ringing_speeding_train_with_quiet_teeth_reads_its_tooth_rate`).

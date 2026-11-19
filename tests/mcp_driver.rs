@@ -268,7 +268,8 @@ fn events_voices_and_loops_work_through_the_driver() {
 /// Throwaway `--calls` runs share the open sounds: what the first run builds
 /// the second can `listen`, also while another live server holds the
 /// library's session lock (then each run used to autosave to a slot named
-/// after its own pid, which no later run read).
+/// after its own pid, which no later run read), and when that holder goes
+/// away between the runs (then the second run took the main slot instead).
 #[test]
 fn consecutive_calls_runs_see_each_others_sounds() {
     for lock_held in [false, true] {
@@ -293,6 +294,12 @@ fn consecutive_calls_runs_see_each_others_sounds() {
         ]);
         let r = drive(&first, &dir).unwrap();
         assert!(r[1]["ok"].as_bool().unwrap_or(false), "{}", text_of(&r[1]));
+        if lock_held {
+            // The daemon goes away between the two runs: the second must
+            // still find the first one's sound.
+            let lib = dir.join("data").join("friendslop").join("sounder");
+            std::fs::remove_file(lib.join("session.lock")).unwrap();
+        }
         let second = serde_json::json!([{"name": "listen", "args": {"doc": "carried"}}]);
         let r = drive(&second, &dir).unwrap();
         assert!(
