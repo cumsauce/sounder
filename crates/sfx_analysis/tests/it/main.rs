@@ -20,6 +20,7 @@ mod feedback;
 mod filters;
 mod finish;
 mod foley;
+mod frog;
 mod grains;
 mod helpers;
 mod layers;
