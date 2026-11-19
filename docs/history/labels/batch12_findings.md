@@ -40,3 +40,9 @@ Rework: dirt, wood, metal, ice and snow now share the all-purpose body (gravel p
 - ice: 6-14 sharp crack bursts and now and then a bigger crack.
 - snow: 400 sub-ms bond-breaking clicks over 0.2 s, densest mid-press.
 - carpet: fibre rubs at the heel and toe.
+
+## Batch 16
+
+- wood: speed 1.4, dry (s14). Saved as `wood_step`.
+- snow, ice: all bad again ("give up on this"). Set aside. `step` keeps both surfaces, but they are not finished sounds.
+- dirt, metal, carpet: not rated on this page.

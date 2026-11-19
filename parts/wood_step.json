@@ -1,0 +1,54 @@
+{
+ "role": "whole",
+ "material": "wood",
+ "description": "one footstep on a wooden floor, picked best of 4; built as: `step` wood (the all-purpose body over a damped board knock), speed 1.4",
+ "tags": [
+  "footstep",
+  "step",
+  "walk",
+  "wood",
+  "floor",
+  "boards",
+  "indoor"
+ ],
+ "origin": "batch 16; picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "wood_step",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 0.8,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "step",
+    "name": "src",
+    "surface": "wood",
+    "speed": 1.4,
+    "at": 0.005
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pace",
+    "value": 0.5,
+    "doc": "how fast the foot comes down",
+    "map": [
+     {
+      "node": "src",
+      "field": "speed",
+      "from": 0.6,
+      "to": 2.0,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}
