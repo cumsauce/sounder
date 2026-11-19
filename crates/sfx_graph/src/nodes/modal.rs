@@ -1803,7 +1803,7 @@ impl Eval for Impact {
             Vec::new()
         };
         let half = bumps.len() as f32 / 2.0;
-        let profile = |x: f32| -> f32 {
+        let raw_profile = |x: f32| -> f32 {
             if bumps.is_empty() {
                 return 0.0;
             }
@@ -1813,6 +1813,10 @@ impl Eval for Impact {
             let w = 0.5 - 0.5 * (PI * f).cos();
             bumps[j] * (1.0 - w) + bumps[j + 1] * w
         };
+        // Level at the start: the contact begins on the surface, not inside
+        // a bump (which kicked every roll off with a hit).
+        let h0 = raw_profile(0.0);
+        let profile = |x: f32| raw_profile(x) - h0;
         // A drive with no speed: the contact time of a 0.1 m/s touch.
         let tau = hertz_time(moving_mass, radius, e_star, speed.max(0.1));
         // The highest mode, raised by the most `pitch` asks for, stays

@@ -24,7 +24,9 @@ TITLES = {"rain": "Rain", "creature": "Creature calls", "leaves": "Wind in plant
           "block_drop": "A wooden block dropped on a stone floor",
           "lid_rattle": "A loose metal lid shaken on a pan", "marble_roll": "A marble rolling on a wooden board",
           "sign_wind": "A metal sign in the wind, hit once", "sheet_bend": "A steel sheet struck, bending as it rings",
-          "pipe_layers": "A metal pipe dropped: crack, with and without chips"}
+          "pipe_layers": "A metal pipe dropped: crack, with and without chips",
+          "box_scrape": "A metal box scraped across a stone floor", "door_creak": "A wooden door creaking",
+          "bowed_bar": "A metal bar bowed"}
 
 
 def main():

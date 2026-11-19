@@ -1,0 +1,1036 @@
+[
+ {
+  "id": "b24_01",
+  "family": "impact",
+  "group": "bowed_bar",
+  "design": "bow_steady",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "press",
+     "from": 0.5,
+     "to": 3.0,
+     "time": 0.3,
+     "curve": "linear"
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "shape": "bar",
+     "f0": 440,
+     "loss": 0.5,
+     "object_mass": 0.3,
+     "striker_mass": 0.05,
+     "hardness": 0.5,
+     "drive": "press",
+     "slide": 0.03,
+     "friction": [
+      0.8,
+      0.3
+     ],
+     "stribeck": 0.05,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b24_02",
+  "family": "impact",
+  "group": "sheet_bend",
+  "design": "sheet_wobble",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "bend",
+     "rate": 3,
+     "range": [
+      0.9,
+      1.1
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "size": 0.3,
+     "thickness": 0.003,
+     "noise": 0.6,
+     "noise_width": 0.1,
+     "loss": 0.4,
+     "object_mass": 2.0,
+     "striker_mass": 0.5,
+     "hardness": 0.6,
+     "speed": 3.0,
+     "pitch": "bend",
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b24_03",
+  "family": "impact",
+  "group": "box_scrape",
+  "design": "scrape_jerky",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "pull",
+     "rate": 6,
+     "range": [
+      0.0,
+      0.6
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "size": 0.4,
+     "thickness": 0.0015,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "loss": 0.6,
+     "object_mass": 3.0,
+     "height": 0.001,
+     "floor": "stone",
+     "slide": "pull",
+     "roughness": 0.0001,
+     "grain": 0.003,
+     "friction": [
+      0.6,
+      0.4
+     ],
+     "stribeck": 0.1,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 1.6
+  }
+ },
+ {
+  "id": "b24_04",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "roll_coarse",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "sp",
+     "from": 0.7,
+     "to": 0.15,
+     "time": 2.8
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "noise": 0.6,
+     "tilt": 4,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": 0.06,
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 6e-05,
+     "grain": 0.006,
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b24_05",
+  "family": "impact",
+  "group": "box_scrape",
+  "design": "scrape_jerky",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "pull",
+     "rate": 6,
+     "range": [
+      0.0,
+      0.6
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "size": 0.4,
+     "thickness": 0.0015,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "loss": 0.6,
+     "object_mass": 3.0,
+     "height": 0.001,
+     "floor": "stone",
+     "slide": "pull",
+     "roughness": 0.0001,
+     "grain": 0.003,
+     "friction": [
+      0.6,
+      0.4
+     ],
+     "stribeck": 0.1,
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 1.6
+  }
+ },
+ {
+  "id": "b24_06",
+  "family": "impact",
+  "group": "box_scrape",
+  "design": "scrape_pull",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "pull",
+     "from": 0.6,
+     "to": 0.05,
+     "time": 1.4,
+     "curve": "linear"
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "size": 0.4,
+     "thickness": 0.0015,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "loss": 0.6,
+     "object_mass": 3.0,
+     "height": 0.001,
+     "floor": "stone",
+     "slide": "pull",
+     "roughness": 0.0001,
+     "grain": 0.003,
+     "friction": [
+      0.6,
+      0.4
+     ],
+     "stribeck": 0.1,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 1.6
+  }
+ },
+ {
+  "id": "b24_07",
+  "family": "impact",
+  "group": "bowed_bar",
+  "design": "bow_steady",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "press",
+     "from": 0.5,
+     "to": 3.0,
+     "time": 0.3,
+     "curve": "linear"
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "shape": "bar",
+     "f0": 440,
+     "loss": 0.5,
+     "object_mass": 0.3,
+     "striker_mass": 0.05,
+     "hardness": 0.5,
+     "drive": "press",
+     "slide": 0.03,
+     "friction": [
+      0.8,
+      0.3
+     ],
+     "stribeck": 0.05,
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b24_08",
+  "family": "impact",
+  "group": "door_creak",
+  "design": "creak_wander",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "swing",
+     "rate": 3,
+     "range": [
+      0.003,
+      0.03
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.8,
+     "noise": 0.3,
+     "tilt": 2,
+     "loss": 1.0,
+     "object_mass": 20.0,
+     "striker_mass": 0.5,
+     "hardness": 0.6,
+     "drive": 30.0,
+     "slide": "swing",
+     "friction": [
+      0.8,
+      0.3
+     ],
+     "stribeck": 0.02,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.2
+  }
+ },
+ {
+  "id": "b24_09",
+  "family": "impact",
+  "group": "door_creak",
+  "design": "creak_slow",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "swing",
+     "from": 0.004,
+     "to": 0.03,
+     "time": 2.0,
+     "curve": "linear"
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.8,
+     "noise": 0.3,
+     "tilt": 2,
+     "loss": 1.0,
+     "object_mass": 20.0,
+     "striker_mass": 0.5,
+     "hardness": 0.6,
+     "drive": 30.0,
+     "slide": "swing",
+     "friction": [
+      0.8,
+      0.3
+     ],
+     "stribeck": 0.02,
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.2
+  }
+ },
+ {
+  "id": "b24_10",
+  "family": "impact",
+  "group": "bowed_bar",
+  "design": "bow_hard",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "press",
+     "from": 1.0,
+     "to": 8.0,
+     "time": 0.3,
+     "curve": "linear"
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "shape": "bar",
+     "f0": 440,
+     "loss": 0.5,
+     "object_mass": 0.3,
+     "striker_mass": 0.05,
+     "hardness": 0.5,
+     "drive": "press",
+     "slide": 0.03,
+     "friction": [
+      0.8,
+      0.3
+     ],
+     "stribeck": 0.05,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b24_11",
+  "family": "impact",
+  "group": "sheet_bend",
+  "design": "sheet_sag",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "bend",
+     "from": 1.0,
+     "to": 0.75,
+     "time": 2.0
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "size": 0.3,
+     "thickness": 0.003,
+     "noise": 0.6,
+     "noise_width": 0.1,
+     "loss": 0.4,
+     "object_mass": 2.0,
+     "striker_mass": 0.5,
+     "hardness": 0.6,
+     "speed": 3.0,
+     "pitch": "bend",
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b24_12",
+  "family": "impact",
+  "group": "bowed_bar",
+  "design": "bow_hard",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "press",
+     "from": 1.0,
+     "to": 8.0,
+     "time": 0.3,
+     "curve": "linear"
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "shape": "bar",
+     "f0": 440,
+     "loss": 0.5,
+     "object_mass": 0.3,
+     "striker_mass": 0.05,
+     "hardness": 0.5,
+     "drive": "press",
+     "slide": 0.03,
+     "friction": [
+      0.8,
+      0.3
+     ],
+     "stribeck": 0.05,
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b24_13",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "roll_fine",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "sp",
+     "rate": 1.5,
+     "range": [
+      0.3,
+      0.6
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "noise": 0.6,
+     "tilt": 4,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": 0.06,
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 2e-05,
+     "grain": 0.003,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b24_14",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "roll_fine",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "sp",
+     "rate": 1.5,
+     "range": [
+      0.3,
+      0.6
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "noise": 0.6,
+     "tilt": 4,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": 0.06,
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 2e-05,
+     "grain": 0.003,
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b24_15",
+  "family": "impact",
+  "group": "sheet_bend",
+  "design": "sheet_sag",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "bend",
+     "from": 1.0,
+     "to": 0.75,
+     "time": 2.0
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "size": 0.3,
+     "thickness": 0.003,
+     "noise": 0.6,
+     "noise_width": 0.1,
+     "loss": 0.4,
+     "object_mass": 2.0,
+     "striker_mass": 0.5,
+     "hardness": 0.6,
+     "speed": 3.0,
+     "pitch": "bend",
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b24_16",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "roll_coarse",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "sp",
+     "from": 0.7,
+     "to": 0.15,
+     "time": 2.8
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "noise": 0.6,
+     "tilt": 4,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": 0.06,
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 6e-05,
+     "grain": 0.006,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b24_17",
+  "family": "impact",
+  "group": "door_creak",
+  "design": "creak_wander",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "swing",
+     "rate": 3,
+     "range": [
+      0.003,
+      0.03
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.8,
+     "noise": 0.3,
+     "tilt": 2,
+     "loss": 1.0,
+     "object_mass": 20.0,
+     "striker_mass": 0.5,
+     "hardness": 0.6,
+     "drive": 30.0,
+     "slide": "swing",
+     "friction": [
+      0.8,
+      0.3
+     ],
+     "stribeck": 0.02,
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.2
+  }
+ },
+ {
+  "id": "b24_18",
+  "family": "impact",
+  "group": "door_creak",
+  "design": "creak_slow",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "swing",
+     "from": 0.004,
+     "to": 0.03,
+     "time": 2.0,
+     "curve": "linear"
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.8,
+     "noise": 0.3,
+     "tilt": 2,
+     "loss": 1.0,
+     "object_mass": 20.0,
+     "striker_mass": 0.5,
+     "hardness": 0.6,
+     "drive": 30.0,
+     "slide": "swing",
+     "friction": [
+      0.8,
+      0.3
+     ],
+     "stribeck": 0.02,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.2
+  }
+ },
+ {
+  "id": "b24_19",
+  "family": "impact",
+  "group": "box_scrape",
+  "design": "scrape_pull",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "pull",
+     "from": 0.6,
+     "to": 0.05,
+     "time": 1.4,
+     "curve": "linear"
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "size": 0.4,
+     "thickness": 0.0015,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "loss": 0.6,
+     "object_mass": 3.0,
+     "height": 0.001,
+     "floor": "stone",
+     "slide": "pull",
+     "roughness": 0.0001,
+     "grain": 0.003,
+     "friction": [
+      0.6,
+      0.4
+     ],
+     "stribeck": 0.1,
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 1.6
+  }
+ },
+ {
+  "id": "b24_20",
+  "family": "impact",
+  "group": "sheet_bend",
+  "design": "sheet_wobble",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "bend",
+     "rate": 3,
+     "range": [
+      0.9,
+      1.1
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "metal",
+     "size": 0.3,
+     "thickness": 0.003,
+     "noise": 0.6,
+     "noise_width": 0.1,
+     "loss": 0.4,
+     "object_mass": 2.0,
+     "striker_mass": 0.5,
+     "hardness": 0.6,
+     "speed": 3.0,
+     "pitch": "bend",
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ }
+]
