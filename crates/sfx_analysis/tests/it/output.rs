@@ -37,7 +37,9 @@ mod stage {
 
     #[test]
     fn existing_output_behaviour_is_bit_identical() {
-        // Hashes taken on the commit before the output-stage change.
+        // Hashes taken on the commit before the output-stage change; the laser
+        // ones moved when automatic length began to stop 60 dB under the peak
+        // (a shorter trim of the same samples).
         let a = ok(&laser());
         let mut b = laser();
         b.nodes[6] = json!({"type": "output", "name": "out", "input": "lp", "gain_db": -6,
@@ -61,7 +63,7 @@ mod stage {
         assert_eq!(hash(&a), LASER_LUFS_AFTER_FADES, "laser lufs -18");
         assert_eq!(
             hash(&b),
-            0x729c_2d96_e9f7_2090,
+            0x5016_27d4_61cc_33a3,
             "laser gain / fades / ceiling"
         );
         // R2-B: the bare laser peaks at +2.2 dBFS, so the ceiling limiter acts;
@@ -83,9 +85,10 @@ mod stage {
         assert_eq!(hash(&ok(&e)), DELAYED_LASER_BEFORE, "late laser lufs -18");
     }
 
-    const BARE_LASER_TRUE_PEAK_LIMITED: u64 = 8_512_498_053_249_768_001;
-    const LASER_LUFS_AFTER_FADES: u64 = 13_211_617_635_871_047_603;
-    const DELAYED_LASER_BEFORE: u64 = 13_838_043_244_579_427_677;
+    const BARE_LASER_TRUE_PEAK_LIMITED: u64 = 12_305_721_491_713_601_062;
+    // Moved when automatic length began to stop 60 dB under the peak.
+    const LASER_LUFS_AFTER_FADES: u64 = 15_684_687_096_402_112_772;
+    const DELAYED_LASER_BEFORE: u64 = 12_366_245_397_799_164_101;
 
     fn noise_at(db: f32, output: Value, duration: f32) -> SoundDoc {
         bare_doc(

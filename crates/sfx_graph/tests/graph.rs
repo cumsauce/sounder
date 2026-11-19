@@ -222,6 +222,25 @@ fn cycles_are_errors_that_name_the_nodes() {
 }
 
 #[test]
+fn auto_length_stops_60_db_under_the_peak_on_a_slow_ring() {
+    // A short hit plus a metal modal with loss 1 at 1.35 s used to run to
+    // about 7 s (-80 dBFS); it stops 60 dB under its own peak, at any level.
+    for amp in [1.0, 0.01] {
+        let d = doc_with(vec![
+            json!({"type": "noise", "name": "n", "color": "white"}),
+            json!({"type": "decay", "name": "e", "time": 0.004, "at": 1.35}),
+            json!({"type": "math", "name": "b", "op": "mul", "a": "n", "b": "e"}),
+            json!({"type": "modal", "name": "m", "excite": "b", "material": "metal", "f0": 300, "loss": 1.0}),
+            json!({"type": "gain", "name": "g", "input": "m", "gain": amp}),
+            json!({"type": "output", "name": "out", "input": "g"}),
+        ]);
+        let r = d.render(&RenderOpts::default()).unwrap();
+        let s = r.audio.seconds();
+        assert!(r.auto_length && s < 4.0, "amp {amp}: {s}");
+    }
+}
+
+#[test]
 fn auto_length_ends_when_the_sound_decays() {
     let d = doc_with(vec![
         json!({"type": "osc", "name": "o", "freq": 300}),
@@ -230,9 +249,9 @@ fn auto_length_ends_when_the_sound_decays() {
         json!({"type": "output", "name": "out", "input": "m"}),
     ]);
     let r = d.render(&RenderOpts::default()).unwrap();
-    // -60 dB at 0.5 s, -80 dB at ~0.67 s, plus 10 ms kept.
+    // -60 dB under the peak at 0.5 s, plus 10 ms kept.
     let s = r.audio.seconds();
-    assert!(r.auto_length && (0.6..0.75).contains(&s), "{s}");
+    assert!(r.auto_length && (0.5..0.6).contains(&s), "{s}");
     assert!(r.warnings.is_empty(), "{:?}", r.warnings);
 
     // A sound that never decays stops at 30 s and says so.

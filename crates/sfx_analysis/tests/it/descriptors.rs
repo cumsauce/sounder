@@ -158,6 +158,70 @@ mod additions {
         assert_eq!(d.density.count, placed, "{:?}", d.density);
     }
 
+    /// A grainy scrape: noise whose level wobbles in 2-12 ms grains, like
+    /// the `friction` node's output.
+    fn grainy_noise(amp: f32, secs: f32, seed: u64) -> Vec<f32> {
+        let mut x = noise(1.0, secs, seed);
+        let mut s = (seed as u32).wrapping_mul(2654435761).wrapping_add(7);
+        let mut i = 0;
+        while i < x.len() {
+            s = s.wrapping_mul(1664525).wrapping_add(1013904223);
+            let len = n(0.002) + (s >> 16) as usize % n(0.010);
+            let g = 0.3 + 0.7 * ((s >> 8) & 0xff) as f32 / 255.0;
+            for v in x[i..(i + len).min(n(secs))].iter_mut() {
+                *v *= g * amp;
+            }
+            i += len;
+        }
+        x
+    }
+
+    #[test]
+    fn a_noise_scrape_is_not_a_stream_of_events() {
+        // A 0.6 s scrape, then one hit and its ring: three onsets, not 176/s.
+        let mut x = vec![0.0; n(1.2)];
+        for (i, v) in grainy_noise(0.2, 0.6, 5).into_iter().enumerate() {
+            x[i] = v;
+        }
+        tick(&mut x, n(0.8), 0.8);
+        let d = describe(&mono(x));
+        println!(
+            "scrape: {:.1}/s ({} counted)",
+            d.density.per_s, d.density.count
+        );
+        assert!(d.density.per_s < 10.0, "scrape + hit: {:?}", d.density);
+        // Pink-ish (smoothed) noise alone.
+        let mut p = noise(0.3, 0.6, 9);
+        let mut lp = 0.0;
+        for v in p.iter_mut() {
+            lp += 0.3 * (*v - lp);
+            *v = lp * 3.0;
+        }
+        let d = describe(&mono(p));
+        println!("lp noise: {:.1}/s", d.density.per_s);
+        assert!(d.density.per_s < 10.0, "lp noise: {:?}", d.density);
+    }
+
+    #[test]
+    fn a_tick_train_over_a_quieter_bed_keeps_its_rate() {
+        for (spacing, bed) in [(480usize, 0.03f32), (480, 0.06)] {
+            let mut x = noise(bed, 1.0, 11);
+            let mut at = 100;
+            while at + 200 < x.len() {
+                tick(&mut x, at, 0.5);
+                at += spacing;
+            }
+            let want = 48_000.0 / spacing as f32;
+            let d = describe(&mono(x));
+            println!("bed {bed}: {:.1}/s", d.density.per_s);
+            assert!(
+                (d.density.per_s - want).abs() / want < 0.15,
+                "bed {bed}: {:?}",
+                d.density
+            );
+        }
+    }
+
     #[test]
     fn steady_signals_have_no_density() {
         let d = describe(&mono(sine(120.0, 0.5, 1.0)));
@@ -166,6 +230,7 @@ mod additions {
         let d = describe(&mono(noise(0.3, 2.0, 7)));
         println!("white noise: {} events", d.density.count);
         assert!(d.density.count <= 2, "noise: {}", d.density.count);
+        assert!(d.density.per_s < 10.0, "noise rate: {:?}", d.density);
     }
 
     #[test]

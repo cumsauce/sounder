@@ -68,7 +68,7 @@ pub(crate) struct SoundOpsArgs {
     #[serde(default)]
     pub(crate) kind: Option<String>,
     /// Seconds. Omit to leave it as it is. A oneshot with no duration renders
-    /// until it falls under -80 dBFS (up to 30 s); a loop needs one. Pass
+    /// until it falls under -80 dBFS or 60 dB under its peak (up to 30 s); a loop needs one. Pass
     /// null (or 0) to clear a fixed duration and go back to automatic length.
     #[serde(default, deserialize_with = "present_or_null")]
     #[schemars(with = "Option<f32>")]

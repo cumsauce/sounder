@@ -27,6 +27,15 @@ pub const MAX_AUTO_SECONDS: f32 = 30.0;
 /// Silence below this (dBFS) ends an auto-duration sound.
 pub const SILENCE_DB: f32 = -80.0;
 
+/// The sound's own tail floor, dB under its peak: automatic length stops at
+/// the higher of this and [`SILENCE_DB`], so a slow modal ring does not run
+/// the length out and the length does not depend on the level.
+pub const AUTO_TAIL_DB: f32 = -60.0;
+
+fn auto_threshold(a: &Audio) -> f32 {
+    crate::db_to_gain(SILENCE_DB).max(a.peak() * crate::db_to_gain(AUTO_TAIL_DB))
+}
+
 #[derive(
     Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema,
 )]
@@ -50,7 +59,7 @@ pub struct SoundDoc {
     #[serde(default = "default_rate")]
     pub sample_rate: u32,
     /// Seconds. A oneshot without one renders until its output stays under
-    /// -80 dBFS for 50 ms (at most 30 s); a loop needs one.
+    /// -80 dBFS or 60 dB under its peak for 50 ms (at most 30 s); a loop needs one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub duration: Option<f32>,
     #[serde(default = "default_seed")]
@@ -305,7 +314,7 @@ impl SoundDoc {
                     let ev = eval::evaluate(&nodes, &params, &ctx(secs), opts.cached)?;
                     let a = out_of(&ev)?;
                     let tail = (0.05 * sr as f32) as usize;
-                    let th = crate::db_to_gain(SILENCE_DB);
+                    let th = auto_threshold(&a);
                     let quiet = a.channels.iter().all(|c| {
                         c[c.len().saturating_sub(tail)..]
                             .iter()
@@ -325,7 +334,7 @@ impl SoundDoc {
         };
         if auto {
             // Trim the trailing silence, keeping 10 ms.
-            let th = crate::db_to_gain(SILENCE_DB);
+            let th = auto_threshold(&audio);
             let last = (0..audio.len())
                 .rev()
                 .find(|&i| audio.channels.iter().any(|c| c[i].abs() >= th))

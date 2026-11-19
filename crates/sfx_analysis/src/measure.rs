@@ -774,6 +774,11 @@ const PEAK_DEAD_S: f32 = 0.0017;
 /// collapsed (reads under 1 / 1.6 of the peaks).
 const DENSE_PEAKS_PER_S: f32 = 100.0;
 
+/// The peak counter is only trusted when the counter itself sees this many
+/// events per second (noise texture: under 2; Poisson ticks over 300/s: 12+),
+/// or the envelope repeats (a regular dense train, which the counter misses).
+const MIN_COUNTED_FOR_DENSE_PER_S: f32 = 10.0;
+
 /// 1 ms RMS envelope of `y`, one value every `sr / hop_per_s` samples.
 fn rms_envelope_1ms(y: &[f32], sr: u32, hop_per_s: u32) -> (Vec<f32>, f32) {
     let hop = (sr / hop_per_s).max(1) as usize;
@@ -937,15 +942,20 @@ pub fn event_rate(x: &[f32], sr: u32, span_s: f32, events: &[FineEvent]) -> Even
     let (e, _) = rms_envelope_1ms(&y, sr, 2000);
     let pk = envelope_peaks(&e);
     let peaks_per_s = pk.len() as f32 / span;
-    let dense = peaks_per_s > DENSE_PEAKS_PER_S && peaks_per_s > 1.6 * counted_per_s;
+    let dense_peaks = peaks_per_s > DENSE_PEAKS_PER_S && peaks_per_s > 1.6 * counted_per_s;
     // The autocorrelation is the costly part: only where the counter has
     // collapsed, on a 0.125 ms hop (a period of 3.125 ms is 25 hops).
-    let period_hz = if dense {
+    let period_hz = if dense_peaks {
         let (ef, hop_f) = rms_envelope_1ms(&y, sr, 8000);
         envelope_period_hz(&ef, hop_f)
     } else {
         None
     };
+    // A noise texture (a scrape, a hiss) has envelope wobbles at 100-250 a
+    // second but no transient the counter can see and no repetition; dense
+    // ticks leave the counter some events or a periodic envelope.
+    let dense =
+        dense_peaks && (counted_per_s >= MIN_COUNTED_FOR_DENSE_PER_S || period_hz.is_some());
     let mut out = EventRate {
         per_s: counted_per_s,
         method: RateMethod::Count,
