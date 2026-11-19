@@ -370,6 +370,8 @@ node_types! {
     "roar" => Roar,
     "fly" => Fly,
     "cicada" => Cicada,
+    "helicopter" => Helicopter,
+    "rocket" => Rocket,
 
     "fire" => Fire,
     "wind" => Wind,

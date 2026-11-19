@@ -14,6 +14,7 @@ mod farnell;
 mod farnell_phone;
 mod farnell_rain;
 mod farnell_creatures;
+mod farnell_vehicles;
 mod feedback;
 mod filters;
 mod finish;
