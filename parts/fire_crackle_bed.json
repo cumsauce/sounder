@@ -1,0 +1,78 @@
+{
+ "role": "bed",
+ "material": "fire",
+ "description": "heard as \"fire crackling\" in a blind listen; built as: a campfire: the `fire` node at size 0.7, intensity 0.5, crackle 0.5 (flutter roar, hiss, high-passed noise snaps); 2 s preview; `fire` renders periodic in a kind: loop document",
+ "tags": [
+  "bed",
+  "campfire",
+  "crackle",
+  "crackling",
+  "fire"
+ ],
+ "origin": "candidate batch 3 (built as campfire_bed); the listener rated it good blind on 2026-11-18. new, built on the `fire` node (reworked in batch 2, not re-heard)",
+ "doc": {
+  "name": "fire_crackle_bed",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "fire",
+    "name": "f",
+    "size": 0.7,
+    "intensity": 0.5,
+    "crackle": 0.5,
+    "seed": 2
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "f",
+    "db": -9.37
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.02,
+    "fade_out": 0.05
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "crackle",
+    "value": 0.4286,
+    "default": 0.4286,
+    "doc": "how many snaps",
+    "game": false,
+    "map": [
+     {
+      "node": "f",
+      "field": "crackle",
+      "from": 0.2,
+      "to": 0.9,
+      "curve": "linear"
+     }
+    ]
+   },
+   {
+    "name": "intensity",
+    "value": 0.4286,
+    "default": 0.4286,
+    "doc": "how strong the roar",
+    "game": false,
+    "map": [
+     {
+      "node": "f",
+      "field": "intensity",
+      "from": 0.2,
+      "to": 0.9,
+      "curve": "linear"
+     }
+    ]
+   }
+  ]
+ }
+}

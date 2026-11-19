@@ -1,0 +1,86 @@
+{
+ "role": "whole",
+ "material": "fire",
+ "description": "heard as \"fire crackles\" in a blind listen; built as: a fire catching: `fire` size 1.0 with `intensity` ramped 0.15 -> 0.95 over 2 s (linear) and crackle 0.35; a swell, 2 s",
+ "tags": [
+  "crackles",
+  "fire",
+  "rising",
+  "roar",
+  "swell"
+ ],
+ "origin": "candidate batch 3 (built as fire_roar_swell); the listener rated it good blind on 2026-11-18. new, `fire` with a ramp on intensity, not heard",
+ "doc": {
+  "name": "fire_crackle_swell",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "ramp",
+    "name": "int",
+    "from": 0.15,
+    "to": 0.95,
+    "time": 2.0,
+    "curve": "linear"
+   },
+   {
+    "type": "fire",
+    "name": "f",
+    "size": 1.0,
+    "intensity": "int",
+    "crackle": 0.35,
+    "seed": 4
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "f",
+    "db": -15.55
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.02,
+    "fade_out": 0.05
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "final",
+    "value": 0.9,
+    "default": 0.9,
+    "doc": "how strong the fire gets",
+    "game": false,
+    "map": [
+     {
+      "node": "int",
+      "field": "to",
+      "from": 0.5,
+      "to": 1.0,
+      "curve": "linear"
+     }
+    ]
+   },
+   {
+    "name": "crackle",
+    "value": 0.3571,
+    "default": 0.3571,
+    "doc": "how many snaps",
+    "game": false,
+    "map": [
+     {
+      "node": "f",
+      "field": "crackle",
+      "from": 0.1,
+      "to": 0.8,
+      "curve": "linear"
+     }
+    ]
+   }
+  ]
+ }
+}

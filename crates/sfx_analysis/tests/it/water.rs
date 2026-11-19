@@ -22,7 +22,9 @@ mod model {
     }
 
     fn splash(extra: Value) -> Vec<Value> {
-        let mut w = json!({"type": "splash", "name": "s", "size": 0.1, "seed": 3});
+        // These tests describe the earlier `impact: "noise"` opening.
+        let mut w =
+            json!({"type": "splash", "name": "s", "size": 0.1, "seed": 3, "impact": "noise"});
         w.as_object_mut()
             .unwrap()
             .extend(extra.as_object().unwrap().clone());
@@ -977,7 +979,10 @@ mod after_listening {
         let mut bad = Vec::new();
         for size in [0.01, 0.05, 0.15, 0.3, 0.6] {
             let x = node_audio(
-                one("splash", json!({"size": size, "at": 0.0, "seed": 2})),
+                one(
+                    "splash",
+                    json!({"size": size, "at": 0.0, "seed": 2, "impact": "noise"}),
+                ),
                 "n",
                 2.5,
             );
@@ -1065,7 +1070,12 @@ mod tail_tone {
     // ---------------------------------------------------------------- splash
 
     fn splash(extra: Value) -> Vec<Value> {
-        node("splash", json!({"size": 0.15, "seed": 3}), extra)
+        // The `tail` / `burst` numbers below are for the `impact: "noise"` opening.
+        node(
+            "splash",
+            json!({"size": 0.15, "seed": 3, "impact": "noise"}),
+            extra,
+        )
     }
 
     #[test]
@@ -1365,5 +1375,90 @@ mod tail_tone {
         let e = d.render(&RenderOpts::default()).unwrap_err();
         println!("error: {e}");
         assert!(e.contains("tone"));
+    }
+}
+
+mod plunge {
+    //! `splash` `impact: "plunge"`, the default: the listener heard the
+    //! earlier noise opening as "a snare, then bubbles" and rated it bad. The
+    //! plunge has no noise burst: it swells in instead of starting at its
+    //! peak, and droplets fall back after it.
+
+    use crate::common::*;
+    use serde_json::{Value, json};
+
+    fn splash(extra: Value) -> Vec<Value> {
+        vec![with_fields(
+            json!({"type": "splash", "name": "s", "size": 0.2, "seed": 3}),
+            extra,
+        )]
+    }
+
+    /// Seconds from the first sample over 1 % of the peak to the peak.
+    fn rise(x: &[f32]) -> f32 {
+        let pk = peak(x);
+        let first = x.iter().position(|v| v.abs() > 0.01 * pk).unwrap();
+        let top = x.iter().position(|v| v.abs() >= pk).unwrap();
+        (top - first) as f32 / SR as f32
+    }
+
+    #[test]
+    fn the_plunge_swells_where_the_noise_slap_starts_at_its_peak() {
+        let noise = node_audio(splash(json!({"impact": "noise"})), "s", 1.2);
+        let plunge = node_audio(splash(json!({})), "s", 1.2);
+        assert_finite(&plunge, "plunge");
+        let (rn, rp) = (rise(&noise), rise(&plunge));
+        // Energy above 2 kHz in the first 10 ms: the slap is there at once.
+        let early = |x: &[f32]| band_db(&x[..SR as usize / 50], SR, 2000.0, 12000.0);
+        println!(
+            "rise to peak: noise {:.1} ms, plunge {:.1} ms; >2 kHz in the first 20 ms: noise {:.1} dB, plunge {:.1} dB",
+            rn * 1e3,
+            rp * 1e3,
+            early(&noise),
+            early(&plunge)
+        );
+        assert!(rn < 0.006, "{rn}");
+        assert!(rp > 0.008, "{rp}");
+        assert!(early(&plunge) < early(&noise) - 10.0);
+    }
+
+    #[test]
+    fn plunge_is_the_default_and_a_bad_word_names_both() {
+        assert_eq!(
+            fnv(&node_audio(splash(json!({})), "s", 1.0)),
+            fnv(&node_audio(splash(json!({"impact": "plunge"})), "s", 1.0))
+        );
+        let e = render_error(splash(json!({"impact": "wet"})), "s", 1.0);
+        assert!(e.contains("\"noise\"") && e.contains("\"plunge\""), "{e}");
+    }
+
+    #[test]
+    fn droplets_follow_the_impact_and_go_with_the_tail() {
+        // After 0.3 s the cloud's bubbles are nearly over at this size; what
+        // is left above 1 kHz is the droplets.
+        let late = |x: &[f32]| band_db(&x[SR as usize * 3 / 10..], SR, 1000.0, 8000.0);
+        let with = node_audio(splash(json!({})), "s", 1.5);
+        let none = node_audio(splash(json!({"tail": 0})), "s", 1.5);
+        println!(
+            "1-8 kHz after 0.3 s: tail 1 {:.1} dB, tail 0 {:.1} dB",
+            late(&with),
+            late(&none)
+        );
+        assert!(late(&with) > late(&none) + 20.0);
+        for size in [0.005, 0.05, 1.0] {
+            for tail in [0.0, 3.0] {
+                let x = node_audio(
+                    splash(json!({"size": size, "tail": tail, "burst": 2})),
+                    "s",
+                    3.0,
+                );
+                assert_finite(&x, "plunge extremes");
+                assert!(
+                    peak(&x) > 0.4 && peak(&x) <= 0.5001,
+                    "{size} {tail}: {}",
+                    peak(&x)
+                );
+            }
+        }
     }
 }

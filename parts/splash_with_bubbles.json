@@ -1,0 +1,59 @@
+{
+ "role": "whole",
+ "material": "water",
+ "description": "heard as \"splash with bubbles\" (and, at the small end of the knob, \"small splash with bubbles\") in a blind listen, dry and in a room; built as: the `splash` node with its default opening, droplets and bubble cloud; strikes about 10 ms in. The knob stops at 0.3 m: the listener rated a 0.6 m splash bad",
+ "tags": [
+  "water",
+  "splash",
+  "bubbles",
+  "droplets",
+  "plunge",
+  "small"
+ ],
+ "origin": "splash rework, 2026-11-18: the listener rated sizes 0.05 and 0.2 good blind. Built on the `splash` node.",
+ "doc": {
+  "name": "splash_with_bubbles",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 3,
+  "nodes": [
+   {
+    "type": "splash",
+    "name": "s",
+    "size": 0.2,
+    "seed": 3
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "s",
+    "db": -6
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "size",
+    "value": 0.6,
+    "default": 0.6,
+    "doc": "size of what went in, 5 cm to 30 cm: larger is lower and longer",
+    "game": false,
+    "map": [
+     {
+      "node": "s",
+      "field": "size",
+      "from": 0.05,
+      "to": 0.3
+     }
+    ]
+   }
+  ]
+ }
+}

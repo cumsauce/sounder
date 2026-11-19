@@ -1,0 +1,88 @@
+{
+ "role": "whole",
+ "material": "any",
+ "description": "heard as \"clean plucked string\" in a blind listen; built as: a plucked string: `string` waveguide, freq 220 Hz, pluck at position 0.15, damping 0.3, stiffness 0; high-passed at 30 Hz; fixed 1.5 s",
+ "tags": [
+  "clean",
+  "guitar",
+  "pluck",
+  "plucked",
+  "string",
+  "tonal",
+  "waveguide"
+ ],
+ "origin": "candidate batch 3 (built as string_pluck); the listener rated it good blind on 2026-11-18. new, built on the `string` node (the bowed string was heard as a fog horn; this is the pluck), not heard",
+ "doc": {
+  "name": "string_pluck",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 1.5,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "string",
+    "name": "s",
+    "freq": 220,
+    "excite": "pluck",
+    "position": 0.15,
+    "damping": 0.3,
+    "stiffness": 0,
+    "seed": 1
+   },
+   {
+    "type": "onepole",
+    "name": "dc",
+    "input": "s",
+    "mode": "hp",
+    "freq": 30
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "dc",
+    "db": -9.26
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.3905,
+    "default": 0.3905,
+    "doc": "string pitch",
+    "game": false,
+    "map": [
+     {
+      "node": "s",
+      "field": "freq",
+      "from": 150,
+      "to": 400,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "damping",
+    "value": 0.3333,
+    "default": 0.3333,
+    "doc": "damping: higher dies faster",
+    "game": false,
+    "map": [
+     {
+      "node": "s",
+      "field": "damping",
+      "from": 0.1,
+      "to": 0.7,
+      "curve": "linear"
+     }
+    ]
+   }
+  ]
+ }
+}

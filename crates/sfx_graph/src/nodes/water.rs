@@ -160,7 +160,14 @@ fn ring(out: &mut [f32], b: &Pop, sr: f32, wrap: bool, rise_rate: f32, onset: us
 ///
 /// The earlier model (a slap, a swarm of chirping Minnaert bubbles, spray) was
 /// heard as "diminishing" against this one in an A/B (book check 1).
-fn splash_buffer(size: f32, tail: f32, burst_level: f32, rng: &mut Rng, sr: f32) -> Vec<f32> {
+fn splash_buffer(
+    size: f32,
+    tail: f32,
+    burst_level: f32,
+    plunge: bool,
+    rng: &mut Rng,
+    sr: f32,
+) -> Vec<f32> {
     let k = (size / 0.1).max(1e-3).sqrt();
     let kp = k.powf(0.3);
     let at = |t: f32| (t * sr) as usize;
@@ -169,13 +176,29 @@ fn splash_buffer(size: f32, tail: f32, burst_level: f32, rng: &mut Rng, sr: f32)
     let spray_t60 = 0.35 * k * tail;
     let len = (at(LEAD + spread + 0.2 * kp + 0.01))
         .max(at(LEAD + 0.003 + spray_t60))
+        .max(if plunge {
+            at(LEAD + (0.16 + 0.55 * tail) * k + 0.25)
+        } else {
+            0
+        })
         .min(at(MAX_SPLASH_SECONDS))
         .max(1);
     let mut out = vec![0.0f32; len];
     let lead = at(LEAD);
     let tau = |t60: f32| t60 / 1000.0f32.ln();
 
-    if burst_level > 0.0 {
+    if burst_level > 0.0 && plunge {
+        plunge_impact(
+            &mut out[lead..],
+            k,
+            kp,
+            spray_t60,
+            tail,
+            burst_level,
+            rng,
+            sr,
+        );
+    } else if burst_level > 0.0 {
         // Impact bump.
         let blen = at((0.005 * k).clamp(0.003, 0.03)).max(2);
         let mut hp = OnePole::default();
@@ -409,7 +432,7 @@ impl Eval for Water {
                 let f = clamp_flow(flow.at(i));
                 if f > 0.0 && srng.unit() < splash * f * 4.0 / sr {
                     let size = 0.02 * 6.0f32.powf(srng.unit());
-                    let seg = splash_buffer(size, 1.0, 1.0, &mut srng, sr);
+                    let seg = splash_buffer(size, 1.0, 1.0, false, &mut srng, sr);
                     for (k, v) in seg.iter().enumerate() {
                         let mut j = i + k;
                         if j >= n {
@@ -575,6 +598,145 @@ impl Eval for Water {
 
 // ---------------------------------------------------------------- splash
 
+/// The `impact: "plunge"` opening of a splash: no noise burst (the default
+/// slap was heard as "a snare, then bubbles"). Everything is a sine whose
+/// pitch moves, as in Farnell's water patches (Designing Sound,
+/// POUREDLIQUIDS/pour1.pd):
+///
+/// - cavity: four large bubbles in the first `25 ms * k`, each a sine rising
+///   1.6x from `(220..640) / k^0.3` Hz over `(60..140 ms) * k^0.3`, a 4 ms
+///   rise and Farnell's quartic fall `(1 - t / d)^4`.
+/// - flow: `pour1.pd`'s `waterflow`. Every 6 ms a new pitch
+///   `(800 + 1600 x) / k^0.3` Hz, x a two-sided exponential draw
+///   (`+-exp(9 u) / 23000`), reached by a 2.689 ms line; the level is the
+///   upward pitch step per sample (at 44.1 kHz, clipped 0..1), low-passed at
+///   10 Hz, times 0.9, squared. It starts 10 ms in, rises over 20 ms and
+///   falls 60 dB in 0.6 of the spray time.
+/// - a soft hiss: noise high-passed at 1.5 kHz and low-passed at 8 kHz with a
+///   30 ms rise (no sharp onset) and the same fall.
+/// - droplets falling back (the listener missed them): `28 * k * tail` drops
+///   from `0.16 s * k` on, thinning over `0.55 s * k * tail`. Each is a plip:
+///   a 1.5 ms tick of noise high-passed at 2 kHz, then a bubble at
+///   `(1.8..5 kHz) / k^0.3` rising 1.5x over `(6..26 ms) * k^0.3` and falling
+///   60 dB in 1.4x that; three in ten leave a second, lower bubble (0.6x the
+///   pitch) just after. The sum is high-passed at 150 Hz. A first version
+///   used Farnell's rain-on-water drop (a sine sweeping up over 20-140 ms)
+///   and was heard as "digital tones".
+fn plunge_impact(
+    out: &mut [f32],
+    k: f32,
+    kp: f32,
+    spray_t60: f32,
+    tail: f32,
+    level: f32,
+    rng: &mut Rng,
+    sr: f32,
+) {
+    let n = out.len();
+    let at = |t: f32| (t * sr) as usize;
+    // Cavity bubbles.
+    for _ in 0..4 {
+        let i0 = at(0.025 * k * rng.unit());
+        let f0 = (220.0 + 420.0 * rng.unit()) / kp;
+        let dur = (0.06 + 0.08 * rng.unit()) * kp;
+        let g = 0.6 + 0.4 * rng.unit();
+        let mut ph = 0.0f32;
+        for i in 0..at(dur) {
+            let Some(o) = out.get_mut(i0 + i) else { break };
+            let t = i as f32 / sr;
+            let x = 1.0 - t / dur;
+            ph = (ph + f0 * 1.6f32.powf(t / dur) / sr).fract();
+            *o += 0.3 * level * g * (t / 0.006).min(1.0) * x * x * x * x * (TAU * ph).sin();
+        }
+    }
+    // Flow and hiss.
+    let fall = ((0.6 * spray_t60).max(0.1) / 1000.0f32.ln()) * sr;
+    let (start, step, glide) = (at(0.01), at(0.006).max(1), at(0.002689).max(1));
+    let (mut hz, mut from, mut to) = (800.0 / kp, 800.0 / kp, 800.0 / kp);
+    let (mut ph, mut amp) = (0.0f32, 0.0f32);
+    let lp = 1.0 - (-TAU * 10.0 / sr).exp();
+    let mut hiss_hp = OnePole::default();
+    let mut hiss_lp = OnePole::default();
+    for i in 0..n.saturating_sub(start) {
+        if i % step == 0 {
+            let u = rng.unit();
+            let x = (9.0 * u).exp() / 23000.0 * if rng.unit() < 0.5 { -1.0 } else { 1.0 };
+            from = hz;
+            to = (800.0 + 1600.0 * x) / kp;
+        }
+        let j = i % step;
+        let next = if j < glide {
+            from + (to - from) * (j + 1) as f32 / glide as f32
+        } else {
+            to
+        };
+        let up = ((next - hz) * sr / 44100.0).clamp(0.0, 1.0);
+        hz = next;
+        amp += lp * (up - amp);
+        ph = (ph + hz / sr).fract();
+        let t = i as f32;
+        let env = (t / (0.02 * sr)).min(1.0) * (-t / fall).exp();
+        let a = 0.9 * amp;
+        let flow = 0.3 * a * a * (TAU * ph).sin();
+        let (_, h) = hiss_hp.tick(rng.signed(), 1500.0, sr);
+        let (l, _) = hiss_lp.tick(h, 8000.0, sr);
+        let hiss_env = (t / (0.03 * sr)).min(1.0) * (-t / fall).exp();
+        out[start + i] += level * (4.0 * flow * env + 1.0 * l * hiss_env);
+        if env < 1e-5 && t > 0.03 * sr {
+            break;
+        }
+    }
+    // Droplets thrown up by the impact, falling back onto the water.
+    if tail > 0.0 {
+        let count = (28.0 * k * tail).round().min(120.0) as usize;
+        let mut drops = vec![0.0f32; n];
+        // One plip: a 1.5 ms noise tick, then a short bubble whose pitch
+        // rises 1.5x and whose level falls 60 dB in 1.4 x its length.
+        let plip = |drops: &mut [f32], i0: usize, hz: f32, dur: f32, g: f32, rng: &mut Rng| {
+            let mut ph = 0.0f32;
+            let tau = 1.4 * dur / 1000.0f32.ln();
+            let mut tick_hp = OnePole::default();
+            for i in 0..at(1.6 * dur) {
+                let Some(o) = drops.get_mut(i0 + i) else {
+                    break;
+                };
+                let t = i as f32 / sr;
+                ph = (ph + hz * 1.5f32.powf((t / dur).min(1.0)) / sr).fract();
+                let tick = if t < 0.0015 {
+                    0.35 * (1.0 - t / 0.0015) * tick_hp.tick(rng.signed(), 2000.0, sr).1
+                } else {
+                    0.0
+                };
+                *o += g * ((t / 0.001).min(1.0) * (-t / tau).exp() * (TAU * ph).sin() + tick);
+            }
+        };
+        for _ in 0..count {
+            let u = rng.unit();
+            let i0 = at((0.16 + 0.55 * u.powf(1.5) * tail) * k);
+            let dur = (0.006 + 0.02 * rng.unit()) * kp;
+            let hz = (1800.0 + 3200.0 * rng.unit()) / kp;
+            // Later droplets are smaller and quieter.
+            let g = 0.22 * (0.2 + 0.8 * rng.unit()) * (1.0 - 0.6 * u);
+            plip(&mut drops, i0, hz, dur, g, rng);
+            if rng.unit() < 0.3 {
+                // The bubble a drop leaves behind: lower, a moment later.
+                plip(
+                    &mut drops,
+                    i0 + at(1.5 * dur),
+                    0.6 * hz,
+                    1.3 * dur,
+                    0.5 * g,
+                    rng,
+                );
+            }
+        }
+        let mut hp = OnePole::default();
+        for (o, d) in out.iter_mut().zip(&drops) {
+            *o += level * hp.tick(*d, 150.0, sr).1;
+        }
+    }
+}
+
 /// A single splash (source, one-shot), after Farnell's raindrop and bubble
 /// recipes: an impact bump, a slap and spray, then a cloud of short bubbles
 /// whose pitch rises (see `splash_buffer`). `size` is the splash's radius in
@@ -603,6 +765,13 @@ pub struct Splash {
     /// its usual peak, so a louder burst makes the bubbles quieter.
     #[serde(default)]
     pub burst: Option<f32>,
+    /// The opening: `"plunge"` (default: large cavity bubbles, a pour of
+    /// moving sines after Farnell's poured liquid, and droplets falling back,
+    /// with no noise burst) or `"noise"` (the earlier one: a pressure bump, a
+    /// noise slap and spray, which the listener heard as a snare and rated
+    /// bad).
+    #[serde(default)]
+    pub impact: Option<String>,
     /// Mixed with the document seed and the node name (default 0: another
     /// seed is another splash of the same size).
     #[serde(default)]
@@ -610,7 +779,8 @@ pub struct Splash {
 }
 
 impl Describe for Splash {
-    const BLURB: &'static str = "one splash (Farnell's raindrop and bubble recipes): an impact bump, a slap and spray, then a cloud of bubbles whose pitch rises; size in metres; peak levelled to -6 dBFS";
+    const WORDS: &'static [&'static str] = &["impact"];
+    const BLURB: &'static str = "one splash: cavity bubbles and a pour (no noise burst), droplets falling back, then a cloud of bubbles whose pitch rises; impact \"noise\" is the earlier bump, slap and spray; size in metres; peak levelled to -6 dBFS";
     fn example() -> serde_json::Value {
         serde_json::json!({"size": 0.08, "at": 0.05, "tail": 1.5, "burst": 1.5, "seed": 1})
     }
@@ -644,7 +814,16 @@ impl Eval for Splash {
             ));
         }
         let mut rng = cx.rng(self.seed);
-        let seg = splash_buffer(size, tail, burst, &mut rng, cx.sr);
+        let plunge = match self.impact.as_deref().unwrap_or("plunge") {
+            "noise" => false,
+            "plunge" => true,
+            o => {
+                return Err(format!(
+                    "impact: \"{o}\": use \"noise\" (a bump, a noise slap and spray) or \"plunge\" (cavity bubbles and a pour, no noise burst)"
+                ));
+            }
+        };
+        let seg = splash_buffer(size, tail, burst, plunge, &mut rng, cx.sr);
         let start = cx.at(at);
         let mut v = vec![0.0f32; cx.n];
         let room = cx.n - start;

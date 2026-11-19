@@ -1,0 +1,97 @@
+{
+ "role": "whole",
+ "material": "mechanical",
+ "description": "heard as \"car engine revving up\" in a blind listen; built as: a rev up: `engine` rpm ramped 900 -> 4500 (exp, 2 s), load ramped 0.3 -> 0.8, 4 cylinders; the ramps hold, so the duration is fixed at 2 s",
+ "tags": [
+  "accelerate",
+  "car",
+  "engine",
+  "machine",
+  "rev",
+  "revving"
+ ],
+ "origin": "candidate batch 3 (built as engine_rev); the listener rated it good blind on 2026-11-18. new, `engine` with an rpm ramp, not heard",
+ "doc": {
+  "name": "engine_rev",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "ramp",
+    "name": "rpm",
+    "from": 900,
+    "to": 4500,
+    "time": 2.0,
+    "curve": "exp"
+   },
+   {
+    "type": "ramp",
+    "name": "ld",
+    "from": 0.3,
+    "to": 0.8,
+    "time": 2.0,
+    "curve": "linear"
+   },
+   {
+    "type": "engine",
+    "name": "e",
+    "rpm": "rpm",
+    "cylinders": 4,
+    "load": "ld",
+    "stroke": 4,
+    "exhaust_length": 1.2,
+    "seed": 3
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "e",
+    "db": -10.14
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.02,
+    "fade_out": 0.05
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "top_rpm",
+    "value": 0.6152,
+    "default": 0.6152,
+    "doc": "rpm reached at the end",
+    "game": false,
+    "map": [
+     {
+      "node": "rpm",
+      "field": "to",
+      "from": 2500,
+      "to": 6500,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "exhaust",
+    "value": 0.3158,
+    "default": 0.3158,
+    "doc": "exhaust pipe length",
+    "game": false,
+    "map": [
+     {
+      "node": "e",
+      "field": "exhaust_length",
+      "from": 0.6,
+      "to": 2.5,
+      "curve": "linear"
+     }
+    ]
+   }
+  ]
+ }
+}

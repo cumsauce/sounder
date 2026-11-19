@@ -1,0 +1,90 @@
+{
+ "role": "whole",
+ "material": "metal",
+ "description": "heard as \"bells\" in a blind listen; built as: an old telephone bell struck three times (0.05, 0.45, 0.85 s): `bell` freq 750, ring 1 (Farnell's partial groups, strike and body loop)",
+ "tags": [
+  "bell",
+  "bells",
+  "farnell",
+  "metal",
+  "ring",
+  "telephone"
+ ],
+ "origin": "candidate batch 3 (built as telephone_bell); the listener rated it good blind on 2026-11-18. new, built on the `bell` node (port of BELL/A4-bell-telephone.pd, 3.6 dB from Pd), not heard",
+ "doc": {
+  "name": "bells_ring",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "bell",
+    "name": "b",
+    "freq": 750,
+    "at": [
+     0.05,
+     0.45,
+     0.85
+    ],
+    "ring": 1,
+    "seed": 1
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "b",
+    "db": 1.87
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5143,
+    "default": 0.5143,
+    "doc": "bell pitch",
+    "game": false,
+    "map": [
+     {
+      "node": "b",
+      "field": "freq",
+      "from": 500,
+      "to": 1100,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   },
+   {
+    "name": "ring",
+    "value": 0.5693,
+    "default": 0.5693,
+    "doc": "how long the partials ring",
+    "game": false,
+    "map": [
+     {
+      "node": "b",
+      "field": "ring",
+      "from": 0.4,
+      "to": 2.0,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "decay",
+     1
+    ]
+   }
+  ]
+ }
+}

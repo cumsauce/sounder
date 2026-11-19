@@ -1,0 +1,82 @@
+{
+ "role": "texture",
+ "material": "electric",
+ "description": "heard as \"sparks\" in a blind listen; built as: electric arcing: the `spark` node at 6 snaps/s, 50 Hz mains, body 3 kHz (beating hum, chirps, formant snaps); 2 s preview; renders periodic in a loop document",
+ "tags": [
+  "arc",
+  "buzz",
+  "electric",
+  "spark",
+  "sparks"
+ ],
+ "origin": "candidate batch 3 (built as spark_arcs); the listener rated it good blind on 2026-11-18. new, built on the `spark` node (rebuilt from Farnell, rated better than the old model), not heard in this form",
+ "doc": {
+  "name": "spark_arcs",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "spark",
+    "name": "s",
+    "rate": 6,
+    "buzz": 50,
+    "body": 3000,
+    "seed": 3
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "s",
+    "db": -22.78
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.02,
+    "fade_out": 0.05
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "rate",
+    "value": 0.2857,
+    "default": 0.2857,
+    "doc": "snaps a second",
+    "game": false,
+    "map": [
+     {
+      "node": "s",
+      "field": "rate",
+      "from": 2,
+      "to": 16,
+      "curve": "linear"
+     }
+    ]
+   },
+   {
+    "name": "body",
+    "value": 0.4444,
+    "default": 0.4444,
+    "doc": "formant scale of the snaps",
+    "game": false,
+    "map": [
+     {
+      "node": "s",
+      "field": "body",
+      "from": 1800,
+      "to": 4500,
+      "curve": "linear"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   }
+  ]
+ }
+}

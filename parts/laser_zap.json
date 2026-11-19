@@ -1,0 +1,132 @@
+{
+ "role": "whole",
+ "material": "synthetic",
+ "description": "heard as \"ray gun/synthetic sweep down\" in a blind listen; built as: a laser zap: saw oscillator following a ramp 2400 -> 180 Hz (exp, 0.3 s) times a 0.3 s decay, through a low-pass at 3x the ramp (q 2)",
+ "tags": [
+  "down",
+  "laser",
+  "sci-fi",
+  "sweep",
+  "synth",
+  "synthetic",
+  "zap"
+ ],
+ "origin": "candidate batch 3 (built as laser_zap); the listener rated it good blind on 2026-11-18. new, the pitch-sweep recipe from AGENTS.md, not heard",
+ "doc": {
+  "name": "laser_zap",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "ramp",
+    "name": "sw",
+    "from": 2400,
+    "to": 180,
+    "time": 0.3,
+    "curve": "exp"
+   },
+   {
+    "type": "osc",
+    "name": "o",
+    "shape": "saw",
+    "freq": "sw",
+    "amp": 0.8
+   },
+   {
+    "type": "math",
+    "name": "fq",
+    "op": "mul",
+    "a": "sw",
+    "b": 3
+   },
+   {
+    "type": "filter",
+    "name": "lp",
+    "input": "o",
+    "mode": "lp",
+    "freq": "fq",
+    "q": 2
+   },
+   {
+    "type": "decay",
+    "name": "d",
+    "time": 0.3,
+    "at": 0.002
+   },
+   {
+    "type": "math",
+    "name": "z",
+    "op": "mul",
+    "a": "lp",
+    "b": "d"
+   },
+   {
+    "type": "onepole",
+    "name": "dc",
+    "input": "z",
+    "mode": "hp",
+    "freq": 30
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "dc",
+    "db": -13.49
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "start",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "starting pitch",
+    "game": false,
+    "map": [
+     {
+      "node": "sw",
+      "field": "from",
+      "from": 1200,
+      "to": 4800,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   },
+   {
+    "name": "length",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "how long the zap lasts",
+    "game": false,
+    "map": [
+     {
+      "node": "sw",
+      "field": "time",
+      "from": 0.15,
+      "to": 0.6,
+      "curve": "exp"
+     },
+     {
+      "node": "d",
+      "field": "time",
+      "from": 0.15,
+      "to": 0.6,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

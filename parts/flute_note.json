@@ -1,0 +1,117 @@
+{
+ "role": "whole",
+ "material": "any",
+ "description": "heard as \"flute tone\" in a blind listen; built as: a blown pipe note: `tube` length 0.3 m open (about 570 Hz), excite jet, pressure from an envelope (0 -> 0.7 in 80 ms, held, 0 at 1.0 s); high-passed at 100 Hz; 1.2 s",
+ "tags": [
+  "flute",
+  "jet",
+  "note",
+  "tonal",
+  "tone",
+  "tube",
+  "waveguide"
+ ],
+ "origin": "candidate batch 3 (built as flute_note); the listener rated it good blind on 2026-11-18. new, built on the `tube` node (jet excitation), not heard",
+ "doc": {
+  "name": "flute_note",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 1.2,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "env",
+    "name": "press",
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      0.08,
+      0.7
+     ],
+     [
+      0.85,
+      0.65
+     ],
+     [
+      1.0,
+      0
+     ]
+    ],
+    "curve": "smooth"
+   },
+   {
+    "type": "tube",
+    "name": "t",
+    "length": 0.3,
+    "excite": "jet",
+    "pressure": "press",
+    "bore": 0.01,
+    "open_end": true,
+    "seed": 2
+   },
+   {
+    "type": "onepole",
+    "name": "dc",
+    "input": "t",
+    "mode": "hp",
+    "freq": 100
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "dc",
+    "db": -6.55
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "length",
+    "value": 0.4425,
+    "default": 0.4425,
+    "doc": "pipe length: longer is lower",
+    "game": false,
+    "map": [
+     {
+      "node": "t",
+      "field": "length",
+      "from": 0.2,
+      "to": 0.5,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ]
+   },
+   {
+    "name": "breath",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "blowing pressure",
+    "game": false,
+    "map": [
+     {
+      "node": "press",
+      "field": "points",
+      "from": 0.4,
+      "to": 1.0,
+      "curve": "linear",
+      "index": 1,
+      "key": "y"
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,60 @@
+{
+ "role": "whole",
+ "material": "water",
+ "description": "heard as \"deep bubble pop\" in a room and as \"bubble\" dry, rated good both times; built as: a large splash with its tail off, so only the cavity bubbles and a short pour, no bubble cloud and no droplets; strikes about 10 ms in",
+ "tags": [
+  "water",
+  "bubble",
+  "deep",
+  "pop",
+  "plunge",
+  "splash"
+ ],
+ "origin": "splash rework, 2026-11-18: the listener rated it good blind. Built on the `splash` node, size 0.6, tail near 0.",
+ "doc": {
+  "name": "deep_bubble_pop",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 3,
+  "nodes": [
+   {
+    "type": "splash",
+    "name": "s",
+    "size": 0.6,
+    "tail": 0.0001,
+    "seed": 3
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "s",
+    "db": -6
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "size",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "size of what went in: larger is lower and longer",
+    "game": false,
+    "map": [
+     {
+      "node": "s",
+      "field": "size",
+      "from": 0.2,
+      "to": 1.0
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,85 @@
+{
+ "role": "bed",
+ "material": "air",
+ "description": "heard as \"outside noise by a highway\" in a blind listen; built as: wind with a howl: `wind` speed 14 m/s, gust 0.3, whistle 0.6, diameter 4 mm (an Aeolian tone at 0.2 x speed / diameter = 700 Hz); 2 s preview",
+ "tags": [
+  "air",
+  "highway",
+  "howl",
+  "noise",
+  "outside",
+  "whistle",
+  "wind"
+ ],
+ "origin": "candidate batch 3 (built as wind_howl); the listener rated it good blind on 2026-11-18. new, `wind` with `whistle`, not heard",
+ "doc": {
+  "name": "highway_air_bed",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "wind",
+    "name": "w",
+    "speed": 14,
+    "gust": 0.3,
+    "whistle": 0.6,
+    "diameter": 0.004,
+    "seed": 5
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "w",
+    "db": -5.59
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.02,
+    "fade_out": 0.05
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "whistle",
+    "value": 0.6,
+    "default": 0.6,
+    "doc": "strength of the howling tone",
+    "game": false,
+    "map": [
+     {
+      "node": "w",
+      "field": "whistle",
+      "from": 0.0,
+      "to": 1.0,
+      "curve": "linear"
+     }
+    ]
+   },
+   {
+    "name": "speed",
+    "value": 0.375,
+    "default": 0.375,
+    "doc": "wind speed: howl pitch and brightness",
+    "game": false,
+    "map": [
+     {
+      "node": "w",
+      "field": "speed",
+      "from": 8,
+      "to": 24,
+      "curve": "linear"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   }
+  ]
+ }
+}

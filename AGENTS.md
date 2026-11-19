@@ -296,14 +296,21 @@ after bed texture whole`), with a material, tags and one to three knobs.
 Before building a layer from nodes, look for one:
 
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`,
-  `approved`): the library's parts and saved sounds plus the 47 built-in
+  `approved`): the library's parts and saved sounds plus the 77 built-in
   parts in `parts/`: the five layers of the approved door slam (`wood_brush`,
-  `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock`) and 42 the
-  listener rated good in two blind batches (bodies in wood, metal, glass,
-  ceramic and plastic, cracks, two weights, lead-ins and whooshes, tails and
-  debris, small plastic and UI sounds). **Not in the library yet:** a metal
-  ring or a coin that reads as metal (every attempt was heard as glass,
-  ceramic or plastic) and anything that reads as stone: build those from
+  `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock`) and 72 the
+  listener rated good blind. Hits and layers: bodies in
+  wood, metal, glass, ceramic and plastic, cracks, weights, lead-ins and
+  whooshes, tails and debris. Beds and textures (roles `bed`, `texture`):
+  fire, storm wind, fan, sparks, crickets, underwater bubbles, liquid drops.
+  Water: a splash with bubbles (5 to 30 cm), a deep bubble pop (a big
+  splash without its tail).
+  Whole sounds: door creak, engine rev, bird, breath, bells, siren, alarm,
+  flute, plucked string, twang, laser, error beep. **Not in the library
+  yet** (every attempt was heard as something else, rated lower, or not
+  rated): a metal ring or coin that reads as metal, stone, a footstep, rain,
+  a stream, a large splash (0.6 m was rated bad), an electric motor, a
+  creature voice. Build those from
   nodes and say they are unheard. Each of those is named and described by what the listener heard
   (`heard as "..."`), which is often not what it was built as: search by the
   sound you need, not by the node that might make it. Approved ones come
@@ -484,7 +491,7 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 | wind, a gale, howling | `wind` | `speed` (signal), `gust`, `whistle`, `loop` | five moving bands (+ an Aeolian tone); a `ramp` on `speed` is a rising gale |
 | electric arcs, sparks | `spark` | `rate` (snaps/s), `buzz`, `body` | a beating transformer hum, gated arcing chirps and formant snaps (Farnell) |
 | a stream, a brook, rain on water | `water` | `flow` (signal), `density`, `splash`, `depth` | a Minnaert bubble population plus hiss; a loop in a loop document |
-| a splash, something dropped in water | `splash` | `size` (m) | an impact bump, slap and spray, then bubbles whose pitch rises (Farnell, fitted to real splashes); a transient: use `peak_db` |
+| a splash, something dropped in water | `splash` | `size` (m) | cavity bubbles and a pour with no noise burst, droplets falling back, then bubbles whose pitch rises (after Farnell's poured liquid and rain drops; rated good by ear at 5-20 cm, bad at 60 cm); `impact: "noise"` is the earlier opening, heard as a snare; a transient: use `peak_db` |
 | a single drip, a blip of water | `bubble` | `radius_mm`, `jitter`; in `voices` `map` a `$rand` radius | one Minnaert bubble: drips, water_drips example |
 | cloth, foliage rustle | `cloth` | `motion` (signal), `weight` | power-law rustle bursts in four bands; shape `motion` with a `wander` or `ramp` |
 | crumpled paper, foil, plastic, dry leaves | `crumple` | `density` (signal, bursts/s up to 400), `size`, `hardness` | band-passed noise bursts whose count follows `density` (cloth's saturates); hardness 0.2 paper, 0.85 foil; `peak_db` for a sparse one |

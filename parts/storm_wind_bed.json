@@ -1,0 +1,82 @@
+{
+ "role": "bed",
+ "material": "air",
+ "description": "heard as \"storm wind\" in a blind listen; built as: steady wind with gusts: `wind` speed 10 m/s, gust 0.5, no whistle (five moving resonant bands); 2 s preview; `wind` renders periodic in a loop document",
+ "tags": [
+  "air",
+  "bed",
+  "gust",
+  "storm",
+  "wind"
+ ],
+ "origin": "candidate batch 3 (built as wind_bed); the listener rated it good blind on 2026-11-18. new, built on the `wind` node (wind was recognised in batch 2), not heard in this form",
+ "doc": {
+  "name": "storm_wind_bed",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "wind",
+    "name": "w",
+    "speed": 10,
+    "gust": 0.5,
+    "whistle": 0,
+    "seed": 3
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "w",
+    "db": -2.39
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.02,
+    "fade_out": 0.05
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "speed",
+    "value": 0.375,
+    "default": 0.375,
+    "doc": "wind speed: higher and brighter",
+    "game": false,
+    "map": [
+     {
+      "node": "w",
+      "field": "speed",
+      "from": 4,
+      "to": 20,
+      "curve": "linear"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   },
+   {
+    "name": "gust",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "how gusty",
+    "game": false,
+    "map": [
+     {
+      "node": "w",
+      "field": "gust",
+      "from": 0.1,
+      "to": 0.9,
+      "curve": "linear"
+     }
+    ]
+   }
+  ]
+ }
+}

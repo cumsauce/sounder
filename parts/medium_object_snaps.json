@@ -1,0 +1,84 @@
+{
+ "role": "whole",
+ "material": "any",
+ "description": "heard as \"cracks/snaps/hits/breaks of medium object\" in a blind listen; built as: one gentle footstep on concrete: `footstep` surface concrete, weight 0.35, walk, hard shoe, starts 5 ms in",
+ "tags": [
+  "breaks",
+  "concrete",
+  "cracks",
+  "foley",
+  "footstep",
+  "hits",
+  "medium",
+  "object",
+  "snaps",
+  "step"
+ ],
+ "origin": "candidate batch 3 (built as footstep_concrete); the listener rated it good blind on 2026-11-18. new, built on `footstep` (gentle settings per listening notes), not heard in this form",
+ "doc": {
+  "name": "medium_object_snaps",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "footstep",
+    "name": "f",
+    "surface": "concrete",
+    "weight": 0.35,
+    "pace": "walk",
+    "shoe": "hard",
+    "at": 0.005,
+    "seed": 2
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "f",
+    "db": -1.28
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "weight",
+    "value": 0.375,
+    "default": 0.375,
+    "doc": "how heavy the step",
+    "game": false,
+    "map": [
+     {
+      "node": "f",
+      "field": "weight",
+      "from": 0.2,
+      "to": 0.6,
+      "curve": "linear"
+     }
+    ]
+   },
+   {
+    "name": "body",
+    "value": 0.5208,
+    "default": 0.5208,
+    "doc": "resonant body pitch apart from weight",
+    "game": false,
+    "map": [
+     {
+      "node": "f",
+      "field": "body",
+      "from": 0.6,
+      "to": 1.6,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

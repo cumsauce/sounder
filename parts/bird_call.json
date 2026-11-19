@@ -1,0 +1,66 @@
+{
+ "role": "whole",
+ "material": "voice",
+ "description": "heard as \"bird\" in a blind listen; built as: a bird: `syrinx` species robin at 0.05 s (foley's birdsong2 phrase, seed 1 individual); length is the phrase's own",
+ "tags": [
+  "animal",
+  "bird",
+  "call",
+  "robin",
+  "syrinx"
+ ],
+ "origin": "candidate batch 3 (built as bird_call); the listener rated it good blind on 2026-11-18. new, built on the `syrinx` node, not heard",
+ "doc": {
+  "name": "bird_call",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "syrinx",
+    "name": "b",
+    "species": "robin",
+    "at": 0.05,
+    "rate": 1.0,
+    "amp": 1.0,
+    "seed": 1
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "b",
+    "db": -2.8
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch_speed",
+    "value": 0.4609,
+    "default": 0.4609,
+    "doc": "resample rate: pitch and speed together",
+    "game": false,
+    "map": [
+     {
+      "node": "b",
+      "field": "rate",
+      "from": 0.75,
+      "to": 1.4,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   }
+  ]
+ }
+}

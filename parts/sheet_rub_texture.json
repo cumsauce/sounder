@@ -1,0 +1,90 @@
+{
+ "role": "texture",
+ "material": "cloth",
+ "description": "heard as \"rubbing against something like a sheet or paper\" in a blind listen; built as: cloth rustle: `cloth` weight 0.5 with `motion` from a wander (0.3-1.6, 2 Hz); 2 s",
+ "tags": [
+  "against",
+  "cloth",
+  "fabric",
+  "like",
+  "paper",
+  "rubbing",
+  "rustle",
+  "sheet",
+  "something",
+  "texture"
+ ],
+ "origin": "candidate batch 3 (built as cloth_rustle); the listener rated it good blind on 2026-11-18. new, built on the `cloth` node (reworked in batch 2 as a continuous rubbing bed, not re-heard)",
+ "doc": {
+  "name": "sheet_rub_texture",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "wander",
+    "name": "mv",
+    "rate": 2,
+    "min": 0.3,
+    "max": 1.6,
+    "seed": 6
+   },
+   {
+    "type": "cloth",
+    "name": "c",
+    "motion": "mv",
+    "weight": 0.5,
+    "seed": 2
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "c",
+    "db": -3.42
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.02,
+    "fade_out": 0.05
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "vigour",
+    "value": 0.4706,
+    "default": 0.4706,
+    "doc": "how vigorous the movement gets",
+    "game": false,
+    "map": [
+     {
+      "node": "mv",
+      "field": "max",
+      "from": 0.8,
+      "to": 2.5,
+      "curve": "linear"
+     }
+    ]
+   },
+   {
+    "name": "weight",
+    "value": 0.4286,
+    "default": 0.4286,
+    "doc": "heavier cloth: darker, longer bursts",
+    "game": false,
+    "map": [
+     {
+      "node": "c",
+      "field": "weight",
+      "from": 0.2,
+      "to": 0.9,
+      "curve": "linear"
+     }
+    ]
+   }
+  ]
+ }
+}

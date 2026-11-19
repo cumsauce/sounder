@@ -1,0 +1,66 @@
+{
+ "role": "whole",
+ "material": "synthetic",
+ "description": "heard as \"alarm\" in a blind listen; built as: a klaxon: `red_alert` two whoops at 0.01 and 1.0 s, pitch 1 (rising buzz through feedback delays and a formant horn); 2 s",
+ "tags": [
+  "alarm",
+  "farnell",
+  "klaxon",
+  "sci-fi",
+  "whoop"
+ ],
+ "origin": "candidate batch 3 (built as alarm_whoop); the listener rated it good blind on 2026-11-18. new, built on the `red_alert` node (port of REDALERT/TOS_redalert.pd, 4.2 dB from Pd), not heard",
+ "doc": {
+  "name": "alarm_whoop",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "red_alert",
+    "name": "r",
+    "at": [
+     0.01,
+     1.0
+    ],
+    "pitch": 1
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "r",
+    "db": -8.98
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5208,
+    "default": 0.5208,
+    "doc": "klaxon pitch",
+    "game": false,
+    "map": [
+     {
+      "node": "r",
+      "field": "pitch",
+      "from": 0.6,
+      "to": 1.6,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   }
+  ]
+ }
+}

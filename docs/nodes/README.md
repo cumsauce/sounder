@@ -608,8 +608,20 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
   node makes (0.5 = off, bit-identical); it is primed from the periodic
   buffer in a loop, so put the brightness knob here and not in a `filter`
   after the node (which breaks the seam). The level is not re-normalised.
-- `splash` {size (m, 0.005..1), [tail 1, 0..3], [burst 1, 0..2], [at 0],
-  [seed]}: Farnell's raindrop and bubble recipes (Designing Sound ch. 35, 38),
+- `splash` {size (m, 0.005..1), [tail 1, 0..3], [burst 1, 0..2], [impact
+  "plunge" | "noise"], [at 0], [seed]}: the default `impact: "plunge"` opens
+  with four large cavity bubbles and a pour of moving sines after Farnell's
+  `pour1.pd`, a soft hiss that fades in and no noise burst, then droplets
+  falling back from `0.16 s * k` on (short plips: a noise tick and a rising
+  bubble at 1.8-5 kHz; a first version with Farnell's longer sine drops was
+  heard as "digital tones"); `tail` scales the droplets as well as the bubble cloud. It rises to its
+  peak in about 19 ms. With these droplets the listener rated sizes 0.05 and 0.2 good
+  ("splash with bubbles"), dry and in a room, and `tail` near 0 good ("deep
+  bubble pop"); size 0.6 was rated bad, dry and in a room, with no note on
+  why.
+  `impact: "noise"` is the earlier opening, which the listener heard as "a
+  snare, then bubbles" and rated bad; `water`'s own `splash` field still uses
+  it. The noise opening: Farnell's raindrop and bubble recipes (Designing Sound ch. 35, 38),
   fitted to `refs/splash_set`: an impact bump (a 5 ms x k raised-cosine
   pressure pulse, k = sqrt(size / 0.1)), a slap (noise, 60 ms x k, band-pass
   3.5 kHz) and spray (the same noise, 350 ms x k x tail, band-pass 3.2 kHz),
@@ -798,7 +810,8 @@ patch adds one 64-sample block to the loop, and the ports include it.
   `logosc~` is `1 - (1 - 2p)^e` then `(2 - 2p)^(e/2)` (Pd-extended pow~); one
   at `rate` sweeps another between `low` and `high`, clipped +-0.2 into `bp~`
   1500 Hz Q 4. `echo` 1 is environment.pd (33 / 121 / 165 ms cross-fed
-  echoes); the default 0 is dry.
+  echoes); the default 0 is dry. Its output carries DC (the `dc` check reads
+  about -23 dB): follow it with an `onepole` hp at 20 Hz.
 - `door_creak` {force (signal), [seed]}: CREAKING/doorcreaker.pd. Over 0.3, a
   tick every `3 + 60 (1 - f)` ms + up to `6 (1 - f)` ms; height `sqrt(sqrt(e)
   + 0.1)` and fall `sqrt(e)` ms (e = ms since the last / 100), squared;

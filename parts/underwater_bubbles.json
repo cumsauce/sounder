@@ -1,0 +1,139 @@
+{
+ "role": "texture",
+ "material": "water",
+ "description": "heard as \"underwater bubbles\" in a blind listen; built as: dense low bubbles: 70 a second, each a 3-11 mm bubble (300-1100 Hz) in voices, low-passed at 1.2 kHz over a quiet brown-noise rumble; 2 s preview (listener note: lacks high end, ergo underwater)",
+ "tags": [
+  "bubbles",
+  "dense",
+  "low",
+  "underwater",
+  "water"
+ ],
+ "origin": "candidate batch 3 (built as underwater_bubbles); the listener rated it good blind on 2026-11-18. new, poisson -> voices of low `bubble` plus lowpass, not heard",
+ "doc": {
+  "name": "underwater_bubbles",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "poisson",
+    "name": "ev",
+    "rate": 70,
+    "values": {
+     "min": 0.3,
+     "max": 1.0
+    },
+    "seed": 7
+   },
+   {
+    "type": "voices",
+    "name": "bub",
+    "events": "ev",
+    "length": 0.4,
+    "max": 300,
+    "map": {
+     "r": "3 + $rand * 8"
+    },
+    "patch": [
+     {
+      "type": "bubble",
+      "name": "b",
+      "radius_mm": "$r",
+      "loudness": 0.3,
+      "rise": 0.1,
+      "at": 0.0
+     },
+     {
+      "type": "gain",
+      "name": "g",
+      "input": "b",
+      "gain": "$value"
+     }
+    ]
+   },
+   {
+    "type": "noise",
+    "name": "rn",
+    "color": "brown",
+    "seed": 3
+   },
+   {
+    "type": "gain",
+    "name": "rumble",
+    "input": "rn",
+    "gain": 0.15
+   },
+   {
+    "type": "mix",
+    "name": "m",
+    "inputs": [
+     "bub",
+     "rumble"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "filter",
+    "name": "dark",
+    "input": "m",
+    "mode": "lp",
+    "freq": 1200,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "dark",
+    "db": -39.33
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.02,
+    "fade_out": 0.05
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "muffle",
+    "value": 0.4886,
+    "default": 0.4886,
+    "doc": "low-pass cutoff: higher is clearer",
+    "game": false,
+    "map": [
+     {
+      "node": "dark",
+      "field": "freq",
+      "from": 500,
+      "to": 3000,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   },
+   {
+    "name": "rate",
+    "value": 0.3913,
+    "default": 0.3913,
+    "doc": "bubbles a second",
+    "game": false,
+    "map": [
+     {
+      "node": "ev",
+      "field": "rate",
+      "from": 25,
+      "to": 140,
+      "curve": "linear"
+     }
+    ]
+   }
+  ]
+ }
+}

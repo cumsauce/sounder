@@ -1,0 +1,111 @@
+{
+ "role": "texture",
+ "material": "water",
+ "description": "heard as \"liquid drops of increasingly larger size\" in a blind listen; built as: a few water drips: four drops at about 0.1 / 0.65 / 1.2 / 1.55 s (+-50 ms jitter), each a Minnaert bubble of 1-4 mm radius in voices (tone 0.8-3.3 kHz, rising pitch)",
+ "tags": [
+  "bubble",
+  "drip",
+  "drops",
+  "increasingly",
+  "larger",
+  "liquid",
+  "size",
+  "sparse",
+  "water"
+ ],
+ "origin": "candidate batch 3 (built as drips_sparse); the listener rated it good blind on 2026-11-18. new, pattern -> voices of `bubble` with a random radius, not heard; bubbles were heard before as UI pops",
+ "doc": {
+  "name": "liquid_drops",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "pattern",
+    "name": "ev",
+    "times": [
+     0.1,
+     0.65,
+     1.2,
+     1.55
+    ],
+    "jitter": 0.05,
+    "values": {
+     "min": 0.5,
+     "max": 1.0
+    },
+    "seed": 4
+   },
+   {
+    "type": "voices",
+    "name": "drips",
+    "events": "ev",
+    "length": 0.25,
+    "max": 8,
+    "map": {
+     "r": "$rmin + $rand * 3"
+    },
+    "patch": [
+     {
+      "type": "bubble",
+      "name": "b",
+      "radius_mm": "$r",
+      "loudness": 0.3,
+      "rise": 0.1,
+      "at": 0.0
+     },
+     {
+      "type": "gain",
+      "name": "g",
+      "input": "b",
+      "gain": "$value"
+     }
+    ]
+   },
+   {
+    "type": "onepole",
+    "name": "soft",
+    "input": "drips",
+    "mode": "lp",
+    "freq": 5000
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "soft",
+    "db": -13.49
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {
+   "rmin": 1.0
+  },
+  "macros": [
+   {
+    "name": "size",
+    "value": 0.1667,
+    "default": 0.1667,
+    "doc": "drip size: bigger drops are lower",
+    "game": false,
+    "map": [
+     {
+      "param": "rmin",
+      "from": 0.6,
+      "to": 3.0,
+      "curve": "linear"
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,90 @@
+{
+ "role": "whole",
+ "material": "plastic",
+ "description": "heard as \"opening a plastic shopping bag by jerking it around a bit to fill with air\" in a blind listen; built as: one gentle footstep on grass: `footstep` surface grass, weight 0.3, walk, sneaker, swish 0.5, starts 5 ms in",
+ "tags": [
+  "around",
+  "fill",
+  "foley",
+  "footstep",
+  "grass",
+  "jerking",
+  "opening",
+  "plastic",
+  "shopping",
+  "step",
+  "with"
+ ],
+ "origin": "candidate batch 3 (built as footstep_grass); the listener rated it good blind on 2026-11-18. new, built on `footstep`, not heard in this form",
+ "doc": {
+  "name": "plastic_bag_rustle",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "footstep",
+    "name": "f",
+    "surface": "grass",
+    "weight": 0.3,
+    "pace": "walk",
+    "shoe": "sneaker",
+    "swish": 0.5,
+    "at": 0.005,
+    "seed": 4
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "f",
+    "db": 2.05
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "weight",
+    "value": 0.25,
+    "default": 0.25,
+    "doc": "how heavy the step",
+    "game": false,
+    "map": [
+     {
+      "node": "f",
+      "field": "weight",
+      "from": 0.2,
+      "to": 0.6,
+      "curve": "linear"
+     }
+    ]
+   },
+   {
+    "name": "swish",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "swish against stalk ticks",
+    "game": false,
+    "map": [
+     {
+      "node": "f",
+      "field": "swish",
+      "from": 0.1,
+      "to": 0.9,
+      "curve": "linear"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   }
+  ]
+ }
+}

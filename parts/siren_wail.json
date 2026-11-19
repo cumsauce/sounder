@@ -1,0 +1,88 @@
+{
+ "role": "whole",
+ "material": "synthetic",
+ "description": "heard as \"siren\" in a blind listen; built as: a siren sweep: `siren` rate 0.5 (one sweep every 2 s), 300-1100 Hz, echo 0 (dry); 2 s",
+ "tags": [
+  "alarm",
+  "police",
+  "siren",
+  "sweep"
+ ],
+ "origin": "candidate batch 3 (built as siren_wail); the listener rated it good blind on 2026-11-18. new, built on the `siren` node (port of POLICE/police3.pd, 6.1 dB from Pd), not heard",
+ "doc": {
+  "name": "siren_wail",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "siren",
+    "name": "s",
+    "rate": 0.5,
+    "low": 300,
+    "high": 1100,
+    "echo": 0
+   },
+   {
+    "type": "onepole",
+    "name": "dc",
+    "input": "s",
+    "mode": "hp",
+    "freq": 20
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "dc",
+    "db": 0.23
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.02,
+    "fade_out": 0.05
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "high",
+    "value": 0.3636,
+    "default": 0.3636,
+    "doc": "top of the sweep",
+    "game": false,
+    "map": [
+     {
+      "node": "s",
+      "field": "high",
+      "from": 700,
+      "to": 1800,
+      "curve": "linear"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   },
+   {
+    "name": "rate",
+    "value": 0.3333,
+    "default": 0.3333,
+    "doc": "sweeps a second",
+    "game": false,
+    "map": [
+     {
+      "node": "s",
+      "field": "rate",
+      "from": 0.25,
+      "to": 2.0,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

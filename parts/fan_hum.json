@@ -1,0 +1,84 @@
+{
+ "role": "bed",
+ "material": "mechanical",
+ "description": "heard as \"fan/lawnmower\" in a blind listen; built as: a ventilation fan: `fan` speed 0.8, rate 30 (blade pulses at 48 Hz), air band 1.5 kHz, duct 0.5; 2 s preview",
+ "tags": [
+  "bed",
+  "fan",
+  "hum",
+  "lawnmower",
+  "machine",
+  "ventilation"
+ ],
+ "origin": "candidate batch 3 (built as fan_hum); the listener rated it good blind on 2026-11-18. new, built on the `fan` node, not heard",
+ "doc": {
+  "name": "fan_hum",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "fan",
+    "name": "f",
+    "speed": 0.8,
+    "rate": 30,
+    "air": 1500,
+    "duct": 0.5,
+    "seed": 2
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "f",
+    "db": -5.1
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.02,
+    "fade_out": 0.05
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "speed",
+    "value": 0.7143,
+    "default": 0.7143,
+    "doc": "fan speed",
+    "game": false,
+    "map": [
+     {
+      "node": "f",
+      "field": "speed",
+      "from": 0.3,
+      "to": 1.0,
+      "curve": "linear"
+     }
+    ]
+   },
+   {
+    "name": "air",
+    "value": 0.4756,
+    "default": 0.4756,
+    "doc": "air-noise band",
+    "game": false,
+    "map": [
+     {
+      "node": "f",
+      "field": "air",
+      "from": 800,
+      "to": 3000,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   }
+  ]
+ }
+}

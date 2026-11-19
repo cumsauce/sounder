@@ -1,0 +1,93 @@
+{
+ "role": "whole",
+ "material": "wood",
+ "description": "heard as \"creaking\" in a blind listen; built as: a door creaking open: `door_creak` with force from an envelope (0 -> 0.2 -> 0.7 at 0.5 s -> 0.55 -> 0.35 -> 0 at 2 s; creaks only over 0.3); 2 s",
+ "tags": [
+  "creak",
+  "creaking",
+  "door",
+  "farnell",
+  "hinge",
+  "wood"
+ ],
+ "origin": "candidate batch 3 (built as door_creak_open); the listener rated it good blind on 2026-11-18. new, built on the `door_creak` node (port of CREAKING/doorcreaker.pd, 8.0 dB from Pd), not heard",
+ "doc": {
+  "name": "door_creak",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "env",
+    "name": "force",
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      0.15,
+      0.2
+     ],
+     [
+      0.5,
+      0.7
+     ],
+     [
+      1.2,
+      0.55
+     ],
+     [
+      1.8,
+      0.35
+     ],
+     [
+      2.0,
+      0
+     ]
+    ],
+    "curve": "smooth"
+   },
+   {
+    "type": "door_creak",
+    "name": "d",
+    "force": "force",
+    "seed": 2
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "d",
+    "db": -6.82
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "push",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "how hard the door is pushed: peak force",
+    "game": false,
+    "map": [
+     {
+      "node": "force",
+      "field": "points",
+      "from": 0.4,
+      "to": 1.0,
+      "curve": "linear",
+      "index": 2,
+      "key": "y"
+     }
+    ]
+   }
+  ]
+ }
+}

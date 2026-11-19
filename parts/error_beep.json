@@ -1,0 +1,148 @@
+{
+ "role": "whole",
+ "material": "synthetic",
+ "description": "heard as \"digital beep incorrect\" in a blind listen; built as: an error buzz: two short low square buzzes (0-0.12 s and 0.2-0.32 s, 4 ms attack, 10 ms release) at 120 Hz, low-passed at 1.5 kHz; high-passed at 30 Hz",
+ "tags": [
+  "beep",
+  "buzz",
+  "digital",
+  "error",
+  "incorrect",
+  "negative",
+  "square",
+  "synth",
+  "ui"
+ ],
+ "origin": "candidate batch 3 (built as error_buzz); the listener rated it good blind on 2026-11-18. new, osc square with a two-pulse envelope, not heard",
+ "doc": {
+  "name": "error_beep",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "osc",
+    "name": "o",
+    "shape": "square",
+    "freq": 120,
+    "amp": 0.6
+   },
+   {
+    "type": "filter",
+    "name": "lp",
+    "input": "o",
+    "mode": "lp",
+    "freq": 1500
+   },
+   {
+    "type": "env",
+    "name": "e",
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      0.004,
+      1
+     ],
+     [
+      0.11,
+      1
+     ],
+     [
+      0.12,
+      0
+     ],
+     [
+      0.2,
+      0
+     ],
+     [
+      0.204,
+      1
+     ],
+     [
+      0.31,
+      1
+     ],
+     [
+      0.32,
+      0
+     ]
+    ],
+    "curve": "linear"
+   },
+   {
+    "type": "math",
+    "name": "b",
+    "op": "mul",
+    "a": "lp",
+    "b": "e"
+   },
+   {
+    "type": "onepole",
+    "name": "dc",
+    "input": "b",
+    "mode": "hp",
+    "freq": 30
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "dc",
+    "db": -10.5
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.4425,
+    "default": 0.4425,
+    "doc": "buzz pitch",
+    "game": false,
+    "map": [
+     {
+      "node": "o",
+      "field": "freq",
+      "from": 80,
+      "to": 200,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   },
+   {
+    "name": "brightness",
+    "value": 0.483,
+    "default": 0.483,
+    "doc": "low-pass cutoff",
+    "game": false,
+    "map": [
+     {
+      "node": "lp",
+      "field": "freq",
+      "from": 600,
+      "to": 4000,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   }
+  ]
+ }
+}

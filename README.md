@@ -44,7 +44,8 @@ tools/labels/         blind-label batches: generators and the cue graphs.
 design/               the window API contract and mock, the node roadmap.
 ```
 
-`AGENTS.md` is the reference for agents using or changing the tool.
+`AGENTS.md` is the reference for agents using or changing the tool. `docs/STATUS.md` says
+what works, what is missing and what comes next.
 
 Local state that is not in git: `.sounder/` (the sound library and session),
 `assets/` (exports and source recordings), `refs/` (reference recordings).

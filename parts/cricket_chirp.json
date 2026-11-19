@@ -1,0 +1,82 @@
+{
+ "role": "texture",
+ "material": "any",
+ "description": "heard as \"cricket\" in a blind listen; built as: a cricket: `cricket` defaults but pitch 4500 Hz, ring 0.3 (chirps of 7 pulses every 41 ticks of 17 ms, narrow bands at 4.5 and 9 kHz); 2 s",
+ "tags": [
+  "chirp",
+  "cricket",
+  "insect",
+  "night"
+ ],
+ "origin": "candidate batch 3 (built as cricket_chirp); the listener rated it good blind on 2026-11-18. new, built on the `cricket` node (port of INSECTS/cricket2.pd; the listener picked ring 0.3), not heard in this form",
+ "doc": {
+  "name": "cricket_chirp",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "cricket",
+    "name": "c",
+    "tick": 0.017,
+    "pulses": 7,
+    "period": 41,
+    "pitch": 4500,
+    "ring": 0.3
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "c",
+    "db": -15.95
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.02,
+    "fade_out": 0.05
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.6,
+    "default": 0.6,
+    "doc": "cricket pitch",
+    "game": false,
+    "map": [
+     {
+      "node": "c",
+      "field": "pitch",
+      "from": 3000,
+      "to": 5500,
+      "curve": "linear"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   },
+   {
+    "name": "ring",
+    "value": 0.375,
+    "default": 0.375,
+    "doc": "how long each pulse rings: lower is more cicada",
+    "game": false,
+    "map": [
+     {
+      "node": "c",
+      "field": "ring",
+      "from": 0.12,
+      "to": 0.6,
+      "curve": "linear"
+     }
+    ]
+   }
+  ]
+ }
+}

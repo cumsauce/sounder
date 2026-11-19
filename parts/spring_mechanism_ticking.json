@@ -1,0 +1,88 @@
+{
+ "role": "texture",
+ "material": "mechanical",
+ "description": "heard as \"metallic spring clicking back and forth in a mechanism\" in a blind listen; built as: a clock heard across a room: `clock` rate 4 beats/s, size 1, escapement 1, distance 3 m (a tick each second, faint tocks between); 2.5 s",
+ "tags": [
+  "back",
+  "clicking",
+  "clock",
+  "forth",
+  "mechanical",
+  "mechanism",
+  "metallic",
+  "room",
+  "spring",
+  "tick"
+ ],
+ "origin": "candidate batch 3 (built as clock_tick); the listener rated it good blind on 2026-11-18. new, built on the `clock` node (heard close up as a clock or blinker in an earlier round), not heard at distance 3",
+ "doc": {
+  "name": "spring_mechanism_ticking",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.5,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "clock",
+    "name": "c",
+    "rate": 4,
+    "size": 1,
+    "escapement": 1,
+    "distance": 3,
+    "at": 0.05,
+    "seed": 2
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "c",
+    "db": -10.37
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "distance",
+    "value": 0.3333,
+    "default": 0.3333,
+    "doc": "how far away: darker and quieter ticks",
+    "game": false,
+    "map": [
+     {
+      "node": "c",
+      "field": "distance",
+      "from": 0.5,
+      "to": 8,
+      "curve": "linear"
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ]
+   },
+   {
+    "name": "size",
+    "value": 0.3333,
+    "default": 0.3333,
+    "doc": "case size: lower case resonance",
+    "game": false,
+    "map": [
+     {
+      "node": "c",
+      "field": "size",
+      "from": 0.6,
+      "to": 1.8,
+      "curve": "linear"
+     }
+    ]
+   }
+  ]
+ }
+}

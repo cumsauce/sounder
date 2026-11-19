@@ -1,0 +1,134 @@
+{
+ "role": "whole",
+ "material": "voice",
+ "description": "heard as \"breath out\" in a blind listen; built as: an exhaled breath: pink noise through `tract` (vowel a -> u with a morph ramp, no glottis) high-passed at 200 Hz, envelope 0.15 s swell then falling to 0 at 0.9 s; 1 s",
+ "tags": [
+  "breath",
+  "exhale",
+  "noise",
+  "sigh",
+  "voice"
+ ],
+ "origin": "candidate batch 3 (built as breath_out); the listener rated it good blind on 2026-11-18. new, noise -> `tract` formant filter, not heard",
+ "doc": {
+  "name": "breath_out",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 1.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "n",
+    "color": "pink",
+    "seed": 4
+   },
+   {
+    "type": "ramp",
+    "name": "mph",
+    "from": 0,
+    "to": 1,
+    "time": 0.9,
+    "curve": "linear"
+   },
+   {
+    "type": "tract",
+    "name": "t",
+    "input": "n",
+    "vowel": "a",
+    "vowel_to": "u",
+    "morph": "mph",
+    "scale": 1.0,
+    "seed": 1
+   },
+   {
+    "type": "onepole",
+    "name": "hp",
+    "input": "t",
+    "mode": "hp",
+    "freq": 200
+   },
+   {
+    "type": "env",
+    "name": "e",
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      0.15,
+      1
+     ],
+     [
+      0.55,
+      0.7
+     ],
+     [
+      0.9,
+      0
+     ]
+    ],
+    "curve": "smooth"
+   },
+   {
+    "type": "math",
+    "name": "br",
+    "op": "mul",
+    "a": "hp",
+    "b": "e"
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "br",
+    "db": -10.0
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "scale",
+    "value": 0.4286,
+    "default": 0.4286,
+    "doc": "tract length: higher is a smaller mouth, brighter",
+    "game": false,
+    "map": [
+     {
+      "node": "t",
+      "field": "scale",
+      "from": 0.7,
+      "to": 1.4,
+      "curve": "linear"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   },
+   {
+    "name": "end_vowel",
+    "value": 1.0,
+    "default": 1.0,
+    "doc": "how far the vowel glides",
+    "game": false,
+    "map": [
+     {
+      "node": "mph",
+      "field": "to",
+      "from": 0.3,
+      "to": 1.0,
+      "curve": "linear"
+     }
+    ]
+   }
+  ]
+ }
+}

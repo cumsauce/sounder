@@ -1,0 +1,160 @@
+{
+ "role": "texture",
+ "material": "any",
+ "description": "heard as \"small crunching of many objects\" in a blind listen; built as: steady rain: ~220 ticks a second (poisson -> voices of 4 ms band-passed noise ticks at random 1.5-6.5 kHz) over a soft pink hiss; 2 s preview; the ticks are random so it is not periodic (add crossfade_loop for a loop)",
+ "tags": [
+  "crunching",
+  "hiss",
+  "many",
+  "objects",
+  "rain",
+  "small",
+  "texture",
+  "ticks",
+  "water"
+ ],
+ "origin": "candidate batch 3 (built as rain_bed); the listener rated it good blind on 2026-11-18. new, poisson -> voices of noise ticks plus hiss, not heard",
+ "doc": {
+  "name": "small_objects_crunch_texture",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "poisson",
+    "name": "drops",
+    "rate": 220,
+    "values": {
+     "min": 0.25,
+     "max": 1.0
+    },
+    "seed": 5
+   },
+   {
+    "type": "voices",
+    "name": "ticks",
+    "events": "drops",
+    "length": 0.03,
+    "max": 900,
+    "map": {
+     "hz": "1500 + $rand * 5000"
+    },
+    "patch": [
+     {
+      "type": "noise",
+      "name": "n",
+      "color": "white"
+     },
+     {
+      "type": "decay",
+      "name": "e",
+      "time": 0.005
+     },
+     {
+      "type": "math",
+      "name": "b",
+      "op": "mul",
+      "a": "n",
+      "b": "e"
+     },
+     {
+      "type": "filter",
+      "name": "f",
+      "input": "b",
+      "mode": "bp",
+      "freq": "$hz",
+      "q": 1.2
+     },
+     {
+      "type": "gain",
+      "name": "g",
+      "input": "f",
+      "gain": "$value"
+     }
+    ]
+   },
+   {
+    "type": "noise",
+    "name": "hn",
+    "color": "pink",
+    "seed": 2
+   },
+   {
+    "type": "filter",
+    "name": "hbp",
+    "input": "hn",
+    "mode": "bp",
+    "freq": 4500,
+    "q": 0.4
+   },
+   {
+    "type": "gain",
+    "name": "hiss",
+    "input": "hbp",
+    "gain": 0.03
+   },
+   {
+    "type": "mix",
+    "name": "rain",
+    "inputs": [
+     "ticks",
+     "hiss"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "rain",
+    "db": -16.42
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.02,
+    "fade_out": 0.05
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "density",
+    "value": 0.4375,
+    "default": 0.4375,
+    "doc": "how hard it rains: ticks a second",
+    "game": false,
+    "map": [
+     {
+      "node": "drops",
+      "field": "rate",
+      "from": 80,
+      "to": 400,
+      "curve": "linear"
+     }
+    ],
+    "claim": [
+     "density",
+     1
+    ]
+   },
+   {
+    "name": "hiss",
+    "value": 0.375,
+    "default": 0.375,
+    "doc": "level of the steady hiss under the ticks",
+    "game": false,
+    "map": [
+     {
+      "node": "hiss",
+      "field": "gain",
+      "from": 0.0,
+      "to": 0.08,
+      "curve": "linear"
+     }
+    ]
+   }
+  ]
+ }
+}

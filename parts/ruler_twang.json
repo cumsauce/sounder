@@ -1,0 +1,86 @@
+{
+ "role": "whole",
+ "material": "wood",
+ "description": "heard as \"twang\" in a blind listen; built as: a ruler twanged on a desk: `twang` freq 426 Hz, vibrato 6 Hz, ring 1 (phasor-driven clamped modes into six resonators); starts at 10 ms",
+ "tags": [
+  "boing",
+  "farnell",
+  "ruler",
+  "twang",
+  "wood"
+ ],
+ "origin": "candidate batch 3 (built as ruler_twang); the listener rated it good blind on 2026-11-18. new, built on the `twang` node (port of MRBOINGY/twang.pd, 4.8 dB from Pd), not heard",
+ "doc": {
+  "name": "ruler_twang",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "twang",
+    "name": "t",
+    "freq": 426,
+    "vibrato": 6,
+    "at": 0.01,
+    "ring": 1,
+    "seed": 1
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "t",
+    "db": -10.02
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "overhang",
+    "value": 0.5176,
+    "default": 0.5176,
+    "doc": "overhang pitch",
+    "game": false,
+    "map": [
+     {
+      "node": "t",
+      "field": "freq",
+      "from": 250,
+      "to": 700,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   },
+   {
+    "name": "ring",
+    "value": 0.5693,
+    "default": 0.5693,
+    "doc": "how long it rings",
+    "game": false,
+    "map": [
+     {
+      "node": "t",
+      "field": "ring",
+      "from": 0.4,
+      "to": 2.0,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "decay",
+     1
+    ]
+   }
+  ]
+ }
+}

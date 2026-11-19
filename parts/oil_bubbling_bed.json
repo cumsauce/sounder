@@ -1,0 +1,83 @@
+{
+ "role": "bed",
+ "material": "water",
+ "description": "heard as \"oil bubbling\" in a blind listen; built as: a steady stream: the `water` node at flow 0.5 and depth 0.5 (bubble population plus hiss), 2 s preview of a bed; `water` renders periodic in a kind: loop document",
+ "tags": [
+  "bed",
+  "brook",
+  "bubbling",
+  "steady",
+  "stream",
+  "water"
+ ],
+ "origin": "candidate batch 3 (built as stream_bed); the listener rated it good blind on 2026-11-18. new, built on the `water` node, not heard",
+ "doc": {
+  "name": "oil_bubbling_bed",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "water",
+    "name": "w",
+    "flow": 0.5,
+    "depth": 0.5,
+    "splash": 0,
+    "seed": 3
+   },
+   {
+    "type": "gain",
+    "name": "lvl",
+    "input": "w",
+    "db": -7.14
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "lvl",
+    "fade_in": 0.02,
+    "fade_out": 0.05
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "flow",
+    "value": 0.4444,
+    "default": 0.4444,
+    "doc": "how hard the stream runs: bigger, lower bubbles",
+    "game": false,
+    "map": [
+     {
+      "node": "w",
+      "field": "flow",
+      "from": 0.3,
+      "to": 0.75,
+      "curve": "linear"
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ]
+   },
+   {
+    "name": "depth",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "water depth: lower and darker",
+    "game": false,
+    "map": [
+     {
+      "node": "w",
+      "field": "depth",
+      "from": 0.2,
+      "to": 0.8,
+      "curve": "linear"
+     }
+    ]
+   }
+  ]
+ }
+}
