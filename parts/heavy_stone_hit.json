@@ -1,0 +1,338 @@
+{
+ "role": "whole",
+ "material": "stone",
+ "description": "heard as \"hitting wall\" (in a room) and \"hard knock on door\" (dry) in a blind listen; built as: a heavy stone slab dropped flat: brown-noise weight low-passed at 140 Hz (0.35 s), a gritty crack, band-passed noise at 420 Hz, crackle grit and five small chips; strikes at 5 ms",
+ "tags": [
+  "stone",
+  "slab",
+  "boulder",
+  "wall",
+  "heavy",
+  "thud",
+  "large"
+ ],
+ "origin": "batch 5 (stone built on the slab), cues s03 / s06; rated good in a small room and ok dry on 2026-11-18; the listener said a very large stone reading as a wall is fine",
+ "doc": {
+  "name": "heavy_stone_hit",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 1.2,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "wn",
+    "color": "white"
+   },
+   {
+    "type": "noise",
+    "name": "bn",
+    "color": "brown"
+   },
+   {
+    "type": "noise",
+    "name": "gn",
+    "color": "crackle"
+   },
+   {
+    "type": "decay",
+    "name": "w0_e",
+    "time": 0.35,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "w0_x",
+    "op": "mul",
+    "a": "bn",
+    "b": "w0_e"
+   },
+   {
+    "type": "filter",
+    "name": "w0_f",
+    "input": "w0_x",
+    "mode": "lp",
+    "freq": 140,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "w0",
+    "input": "w0_f",
+    "db": 0
+   },
+   {
+    "type": "decay",
+    "name": "c0_e",
+    "time": 0.012,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "c0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "c0_e"
+   },
+   {
+    "type": "filter",
+    "name": "c0_f",
+    "input": "c0_x",
+    "mode": "hp",
+    "freq": 1800
+   },
+   {
+    "type": "gain",
+    "name": "c0",
+    "input": "c0_f",
+    "db": -6
+   },
+   {
+    "type": "decay",
+    "name": "b0_e",
+    "time": 0.14,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "b0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "b0_e"
+   },
+   {
+    "type": "filter",
+    "name": "b0_f",
+    "input": "b0_x",
+    "mode": "bp",
+    "freq": 420,
+    "q": 0.8
+   },
+   {
+    "type": "gain",
+    "name": "b0",
+    "input": "b0_f",
+    "db": 4
+   },
+   {
+    "type": "decay",
+    "name": "g0_e",
+    "time": 0.12,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "g0_x",
+    "op": "mul",
+    "a": "gn",
+    "b": "g0_e"
+   },
+   {
+    "type": "filter",
+    "name": "g0_f",
+    "input": "g0_x",
+    "mode": "bp",
+    "freq": 2500,
+    "q": 0.7
+   },
+   {
+    "type": "gain",
+    "name": "g0",
+    "input": "g0_f",
+    "db": 0
+   },
+   {
+    "type": "decay",
+    "name": "ch0_e",
+    "time": 0.0025239823001829654,
+    "at": 0.147
+   },
+   {
+    "type": "math",
+    "name": "ch0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "ch0_e"
+   },
+   {
+    "type": "filter",
+    "name": "ch0_f",
+    "input": "ch0_x",
+    "mode": "bp",
+    "freq": 2371.3249450424682,
+    "q": 1.2
+   },
+   {
+    "type": "gain",
+    "name": "ch0",
+    "input": "ch0_f",
+    "db": -22.873193328510506
+   },
+   {
+    "type": "decay",
+    "name": "ch1_e",
+    "time": 0.0020121086529039725,
+    "at": 0.18
+   },
+   {
+    "type": "math",
+    "name": "ch1_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "ch1_e"
+   },
+   {
+    "type": "filter",
+    "name": "ch1_f",
+    "input": "ch1_x",
+    "mode": "bp",
+    "freq": 1951.7137289102639,
+    "q": 1.2
+   },
+   {
+    "type": "gain",
+    "name": "ch1",
+    "input": "ch1_f",
+    "db": -20.892624518304824
+   },
+   {
+    "type": "decay",
+    "name": "ch2_e",
+    "time": 0.0037856311059905443,
+    "at": 0.205
+   },
+   {
+    "type": "math",
+    "name": "ch2_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "ch2_e"
+   },
+   {
+    "type": "filter",
+    "name": "ch2_f",
+    "input": "ch2_x",
+    "mode": "bp",
+    "freq": 2484.1783410146313,
+    "q": 1.2
+   },
+   {
+    "type": "gain",
+    "name": "ch2",
+    "input": "ch2_f",
+    "db": -20.752576148630624
+   },
+   {
+    "type": "decay",
+    "name": "ch3_e",
+    "time": 0.002734378466211416,
+    "at": 0.261
+   },
+   {
+    "type": "math",
+    "name": "ch3_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "ch3_e"
+   },
+   {
+    "type": "filter",
+    "name": "ch3_f",
+    "input": "ch3_x",
+    "mode": "bp",
+    "freq": 3795.1012119232005,
+    "q": 1.2
+   },
+   {
+    "type": "gain",
+    "name": "ch3",
+    "input": "ch3_f",
+    "db": -21.75079602472807
+   },
+   {
+    "type": "decay",
+    "name": "ch4_e",
+    "time": 0.002275772017922948,
+    "at": 0.292
+   },
+   {
+    "type": "math",
+    "name": "ch4_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "ch4_e"
+   },
+   {
+    "type": "filter",
+    "name": "ch4_f",
+    "input": "ch4_x",
+    "mode": "bp",
+    "freq": 3197.761196830669,
+    "q": 1.2
+   },
+   {
+    "type": "gain",
+    "name": "ch4",
+    "input": "ch4_f",
+    "db": -20.963949084428652
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "w0",
+     "c0",
+     "b0",
+     "g0",
+     "ch0",
+     "ch1",
+     "ch2",
+     "ch3",
+     "ch4"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "dry",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "weight",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "how heavy it lands",
+    "game": false,
+    "map": [
+     {
+      "node": "w0",
+      "field": "db",
+      "from": -10,
+      "to": 10,
+      "curve": "linear"
+     }
+    ]
+   },
+   {
+    "name": "size",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "how big the stone is: lower weight band",
+    "game": false,
+    "map": [
+     {
+      "node": "w0_f",
+      "field": "freq",
+      "from": 224.0,
+      "to": 87.5,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

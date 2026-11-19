@@ -14,7 +14,7 @@ comes from the human's blind ratings.
 - **The tool:** 122 node types, the MCP server, the window, the senses
   (`summary`, `listen`, `verify`), macros, export. 859 tests pass; clippy and
   fmt are clean.
-- **The parts library:** 88 built-in parts in `parts/`, every one rated good
+- **The parts library:** 89 built-in parts in `parts/`, every one rated good
   by ear in a blind listen and named for what the listener heard.
   `catalog search` finds them by text, role, material and approval; the
   `sound` node assembles them. Only the human can mark a part approved (a
@@ -22,12 +22,12 @@ comes from the human's blind ratings.
 
   | Role | Parts | | Material | Parts |
   |---|---|---|---|---|
-  | whole | 36 | | any | 24 |
+  | whole | 37 | | any | 24 |
   | body | 16 | | metal | 10 |
   | after | 11 | | wood | 9 |
   | | | | plastic | 8 |
   | | | | water, air, glass | 5 each |
-  | | | | stone | 5 |
+  | | | | stone | 6 |
   | texture | 7 | | synthetic | 4 |
   | bed, pre, crack | 5 each | | ceramic, mechanical | 3 each |
   | weight | 3 | | fire, voice, cloth | 2 each |
@@ -43,7 +43,6 @@ comes from the human's blind ratings.
 Every attempt at these was heard as something else, rated lower, or not
 rated. An agent that builds one must say it is unheard.
 
-- A very large stone: a boulder or slab reads as "hitting a wall".
 - A footstep (the three surfaces were heard as snaps, a plastic bag, pitter
   patter), rain, a stream (still "oil bubbling").
 - A large splash: 0.6 m was rated bad with no note on why; 5 to 20 cm is good.
@@ -96,8 +95,8 @@ rated. An agent that builds one must say it is unheard.
    reading: the approved door slam's brief ranks 1 of 102, the crate drop
    rated great ranks 83 (heard as "a snare drum").
 3. **Metal and stone by synthesis:** done (2026-11-18). Five metal parts
-   heard as metal, two stone parts heard as a brick or a rock. Still
-   missing: a very large stone (it reads as a wall).
+   heard as metal, two stone parts heard as a brick or a rock, and a heavy
+   slab heard as a wall (fine for a very large stone, the listener said).
 4. **An evaluation set:** fixed briefs built by a fresh agent and rated blind,
    with a before and after per change. Not started.
 5. Fill the remaining library gaps above as they come up.
