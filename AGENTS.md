@@ -343,7 +343,7 @@ after bed texture whole`), with a material, tags and one to three knobs.
 Before building a layer from nodes, look for one:
 
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`,
-  `approved`): the library's parts and saved sounds plus the 114 built-in
+  `approved`): the library's parts and saved sounds plus the 118 built-in
   parts in `parts/`: the five layers of the approved door slam (`wood_brush`,
   `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock`), 72 the
   listener rated good blind, and `wooden_crate_drop` (a whole crate landing
@@ -364,7 +364,9 @@ Before building a layer from nodes, look for one:
   (`small_motor_spin`), a close-up splash (`splash_close`), and footsteps
   from `step`: `all_purpose_step` (no surface), `concrete_step`, `grass_step`,
   `gravel_step`, `carpet_step`, `wood_step`, `dirt_step`, `metal_step`, and the textures `gravel_crunch` and `grass_swish` (a
-  step's `layer: "texture"`) to lay over `all_purpose_step`.
+  step's `layer: "texture"`) to lay over `all_purpose_step`; layers of rain and creatures:
+  `rain_drops_on_grass` over `rain_hiss`, `creature_roar_voice`, and
+  `creature_snarl_breath` (a breath to put under any voice).
   Whole sounds: a rattlesnake rattle and scissors snipping (both cicada patches, heard so), door creak, engine rev, bird, breath, bells, siren, alarm,
   flute, plucked string, twang, laser, error beep. **Not in the library
   yet** (every attempt was heard as something else, rated lower, or not

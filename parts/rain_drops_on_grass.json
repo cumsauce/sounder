@@ -1,0 +1,49 @@
+{
+ "role": "texture",
+ "material": "organic",
+ "description": "the near drops of rain on grass alone, picked best of 6 drop layers; built as: `rain` soft, layer drops; lay it over `rain_hiss` for rain",
+ "tags": [
+  "rain",
+  "drops",
+  "grass",
+  "patter"
+ ],
+ "origin": "batch 19 (layers heard alone); picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "rain_drops_on_grass",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 5.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "rain",
+    "surface": "soft",
+    "layer": "drops",
+    "name": "src"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.002
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "rate",
+    "value": 0.5,
+    "doc": "how hard it rains, mm/h",
+    "map": [
+     {
+      "node": "src",
+      "field": "rate",
+      "from": 3,
+      "to": 30
+     }
+    ]
+   }
+  ]
+ }
+}

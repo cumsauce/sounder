@@ -1,0 +1,52 @@
+{
+ "role": "texture",
+ "material": "organic",
+ "description": "a creature snarl's breath alone, picked best of 6 breath layers; built as: `creature` snarl, layer breath; under a voice it adds air and menace",
+ "tags": [
+  "breath",
+  "snarl",
+  "creature",
+  "hiss",
+  "exhale"
+ ],
+ "origin": "batch 19 (layers heard alone); picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "creature_snarl_breath",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.5,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "creature",
+    "call": "snarl",
+    "size": 0.5,
+    "length": 2,
+    "layer": "breath",
+    "name": "src"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.002
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "size",
+    "value": 0.5,
+    "doc": "how big the beast is",
+    "map": [
+     {
+      "node": "src",
+      "field": "size",
+      "from": 0.3,
+      "to": 0.8
+     }
+    ]
+   }
+  ]
+ }
+}

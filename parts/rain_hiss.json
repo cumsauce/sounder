@@ -1,0 +1,50 @@
+{
+ "role": "bed",
+ "material": "stone",
+ "description": "the far hiss of rain on stone alone, picked best of 6 hiss layers; built as: `rain` stone, layer hiss",
+ "tags": [
+  "rain",
+  "hiss",
+  "shower",
+  "distant",
+  "bed"
+ ],
+ "origin": "batch 19 (layers heard alone); picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "rain_hiss",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 5.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "rain",
+    "surface": "stone",
+    "layer": "hiss",
+    "name": "src"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.002
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "rate",
+    "value": 0.5,
+    "doc": "how hard it rains, mm/h",
+    "map": [
+     {
+      "node": "src",
+      "field": "rate",
+      "from": 3,
+      "to": 30
+     }
+    ]
+   }
+  ]
+ }
+}
