@@ -49,6 +49,8 @@ pub fn is_expr(s: &str) -> bool {
 fn expr_text_keys(map: &serde_json::Map<String, Value>) -> &'static [&'static str] {
     match map.get("type").and_then(Value::as_str) {
         Some("expr") => &["out", "update"],
+        // Keys dialled: "5551234" and "1-2" are text, not numbers.
+        Some("phone_tone") => &["digits"],
         // A voices patch is its own graph: its `$x` are per-event params,
         // resolved when each voice renders.
         Some("voices") => &["patch", "map"],
