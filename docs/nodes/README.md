@@ -999,3 +999,75 @@ Limits: size and pitch signals are read once at a grain's start; a grain that
 reaches the end of the source stops there (no wrap); `pitch_spread` is uniform
 in semitones, a `grains` `pitch` range with `curve: "linear"` is uniform in
 ratio.
+
+## Worked recipes
+
+Moved from AGENTS.md, and still rendered by `tests/it/recipes.rs`.
+
+A sword clash (metal, so here the body **should** ring and be inharmonic:
+two `modal` bars a non-integer ratio apart; macro: `ring` -> both bars'
+`loss`, exp, 1.5 to 0.25, unclaimed: the thump and crack hold the whole-sound
+`decay` at the low end):
+
+<!-- recipe 0.6 -->
+```json
+[
+  {"type": "env", "name": "scr_env", "points": [[0, 0], [0.02, 0], [0.04, 1], [0.25, 0.3], [0.32, 0]], "curve": "smooth"},
+  {"type": "friction", "name": "scr_f", "speed": "scr_env", "pressure": "scr_env", "roughness": 0.6, "grain": 1800},
+  {"type": "filter", "name": "scr", "input": "scr_f", "mode": "bp", "freq": 4000, "q": 0.8},
+  {"type": "gain", "name": "scr_g", "input": "scr", "db": -8},
+  {"type": "noise", "name": "n", "color": "white"},
+  {"type": "decay", "name": "crk_e", "time": 0.012, "at": 0.005},
+  {"type": "math", "name": "crk_raw", "op": "mul", "a": "n", "b": "crk_e"},
+  {"type": "filter", "name": "crk", "input": "crk_raw", "mode": "hp", "freq": 2500},
+  {"type": "gain", "name": "crk_g", "input": "crk", "db": -6},
+  {"type": "decay", "name": "hit_e", "time": 0.004, "at": 0.005},
+  {"type": "math", "name": "hit_burst", "op": "mul", "a": "n", "b": "hit_e"},
+  {"type": "modal", "name": "blade_a", "excite": "hit_burst", "material": "metal", "shape": "bar", "f0": 1750, "loss": 0.6, "tilt": 3, "gain_db": -4},
+  {"type": "modal", "name": "blade_b", "excite": "hit_burst", "material": "metal", "shape": "bar", "f0": 2630, "loss": 0.8, "tilt": 3, "gain_db": -8},
+  {"type": "noise", "name": "thd_n", "color": "brown"},
+  {"type": "decay", "name": "thd_e", "time": 0.15, "at": 0.005},
+  {"type": "math", "name": "thd_raw", "op": "mul", "a": "thd_n", "b": "thd_e"},
+  {"type": "filter", "name": "thd", "input": "thd_raw", "mode": "lp", "freq": 250, "slope": 24},
+  {"type": "gain", "name": "thd_g", "input": "thd", "db": 4},
+  {"type": "mix", "name": "dry", "inputs": ["scr_g", "crk_g", "blade_a", "blade_b", "thd_g"], "to": "mono"},
+  {"type": "gain", "name": "trim", "input": "dry", "db": -8},
+  {"type": "transient", "name": "punch", "input": "trim", "attack_db": 4},
+  {"type": "shape", "name": "warm", "input": "punch", "mode": "tube", "drive": 1.5, "oversample": 4, "mix": 0.2},
+  {"type": "onepole", "name": "dc", "input": "warm", "mode": "hp", "freq": 40},
+  {"type": "output", "name": "out", "input": "dc", "peak_db": -1.5}
+]
+```
+
+A UI confirm (tonal on purpose: a tick, two rising notes a fifth apart, a short
+low body, and an echo as the after-layer instead of a reverb; give each note a
+3 ms `env` attack, since a `decay` starting at `at` clicks and the echo repeats
+the click; macro: `brightness` -> both notes' `freq`, exp, claim `centroid` 1):
+
+<!-- recipe 0.8 -->
+```json
+[
+  {"type": "noise", "name": "n", "color": "white"},
+  {"type": "decay", "name": "tick_e", "time": 0.004, "at": 0.005},
+  {"type": "math", "name": "tick_raw", "op": "mul", "a": "n", "b": "tick_e"},
+  {"type": "filter", "name": "tick", "input": "tick_raw", "mode": "hp", "freq": 4000},
+  {"type": "gain", "name": "tick_g", "input": "tick", "db": -14},
+  {"type": "osc", "name": "note1_o", "shape": "tri", "freq": 880},
+  {"type": "env", "name": "note1_env", "points": [[0, 0], [0.005, 0], [0.008, 1], [0.3, 0]]},
+  {"type": "math", "name": "note1", "op": "mul", "a": "note1_o", "b": "note1_env"},
+  {"type": "osc", "name": "note2_o", "shape": "tri", "freq": 1320},
+  {"type": "env", "name": "note2_env", "points": [[0, 0], [0.075, 0], [0.078, 1], [0.45, 0]]},
+  {"type": "math", "name": "note2", "op": "mul", "a": "note2_o", "b": "note2_env"},
+  {"type": "osc", "name": "body_o", "freq": 220},
+  {"type": "decay", "name": "body_e", "time": 0.09, "at": 0.005},
+  {"type": "math", "name": "body", "op": "mul", "a": "body_o", "b": "body_e"},
+  {"type": "gain", "name": "body_g", "input": "body", "db": -12},
+  {"type": "mix", "name": "notes", "inputs": [{"input": "note1", "gain": 0.5}, {"input": "note2", "gain": 0.5}]},
+  {"type": "delay", "name": "echo", "input": "notes", "time": 0.11, "feedback": 0.25},
+  {"type": "filter", "name": "echo_lp", "input": "echo", "mode": "lp", "freq": 3000},
+  {"type": "gain", "name": "echo_g", "input": "echo_lp", "db": -12},
+  {"type": "mix", "name": "dry", "inputs": ["tick_g", "notes", "body_g", "echo_g"], "to": "mono"},
+  {"type": "output", "name": "out", "input": "dry", "peak_db": -3}
+]
+```
+

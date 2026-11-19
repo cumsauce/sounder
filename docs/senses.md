@@ -84,3 +84,67 @@ Moved out of AGENTS.md to keep it short; AGENTS.md "Senses" has the summary.
   sketch's negative (a peak of 1.10 against the noise's 0.89), so change the
   sketch's decays and the residual stops cancelling them.
 
+
+## The descriptor table
+
+What each line of `listen` says. This was moved from AGENTS.md, which keeps a summary.
+
+- `listen`: one PNG (log-frequency spectrogram with octave lines, waveform with
+  peak + RMS envelopes, loudness curve; seeds / sweep values tile as labelled
+  columns, 8 at most, under ~1.15 MP) and the descriptor table, one line each:
+  - `length`, `level` (peak, true peak, LUFS, momentary max, RMS, crest, DC),
+    `time` (attack as the 10-90 % rise, peak time, decay -20 / -60 dB, and the silence wording:
+    leading / trailing silence, or "all silent"; "loop: n/a (see steadiness)"
+    for a loop), `swell/attack (the headline)` (ms from the first sound to 90 %
+    of the peak of the 10 ms RMS envelope: a swell reads long, a click near
+    zero; the 10-90 % `attack` and `attack detail` measure other things),
+    `onsets {n} (40 ms merge); fine {m} (5 ms): ...` (the fine count is the one
+    `density` is built on; it resolves hits 5 ms apart; the first 40 are listed
+    in ms, 20 to a line, with "... N more fine onsets not shown" after; not
+    for a loop), `pitch` (YIN, voiced share, harmonicity).
+  - `events: N strong (>= 0.5 of the loudest onset), M weak; last event at T s`
+    (from the fine onsets by peak strength: clinks against crackle, a hit
+    against its chips; it also says what follows the last event; omitted for a
+    loop), and when the ticks overlap the `density` line reads "density
+    estimate" (see the `density` claim above).
+  - `spectrum (start/middle/end)` centroid / rolloff / flatness, then the
+    **whole-sound** line (centroid, rolloff, full-band flatness, and flatness
+    over the **occupied band**, the middle 80 % of the energy, "none" when that
+    band is too narrow: tonal), `energy shares` (<200 Hz, 200-2k, 2k-8k, >8k),
+    `centroid by tenth` and `pitch by tenth` (ten values over the sound; "-"
+    where none), and when partials are clearly off a harmonic series an
+    `inharmonic: partials at ...` line.
+  - the 8 octave-band x 5 time-segment dB table (your main "what does it sound
+    like"), `modes`, `stereo` (correlation, width).
+  - `attack detail` (first sound to 90 % of peak, and to the sample peak, in
+    ms), `density` (events a second, from a 1 ms envelope: the count of hits in
+    a rain, a crackle or a footstep) and `density by tenth (events/s)` (ten
+    values: does a roll speed up, does a crumple thin out), `steadiness` (loops: loudness over 400 ms
+    windows, min / max / spread in LU), and the **onset table** (one row per
+    onset: time, strength, attack ms, -20 dB ms, -60 dB ms (`>N` when the hit
+    is still sounding at the next onset or the end, N ms in), centroid, pitch
+    start>end; pitch reads `n/a` for an inharmonic or unvoiced hit, and a
+    burst of 8-60 ms shows `glide up a>b` / `glide down a>b` instead; left out
+    for loops: read `density`). Beside it: `modes` ends with `(N ignored:
+    slower than the sound)` when partials too slow to fit in the sound were
+    left out; `inharmonic: partials at ...` comes from partial *ratios* (the
+    separate `inharmonicity:` line below still uses the older pitch-guess
+    method, so the two can disagree: trust the ratios for "is it bell-like");
+    `closely spaced events: N pairs within 20 ms (at ... ms)` flags double
+    hits (a latch, a bounce's end) that the 40 ms onset merge hides.
+  - four lines for synthesis checking: `aliasing` (energy off the harmonic grid
+    above 4 kHz, relative to the total, dB; n/a without a steady pitched
+    segment), `inharmonicity` (cents, mean over the strongest 8 partials; n/a
+    under 3 clear partials), `amplitude modulation` and `pitch modulation`
+    (the strongest rates and peak-to-peak depths: Hz, dB / cents), `roughness`
+    (percent of the loudness envelope's energy at 20-150 Hz).
+  `diff: true` shows your previous render of the same request, this one, and
+  their dB-difference spectrogram (this minus previous; diverging colours:
+  blue = quieter now, red = louder, grey = same, saturating at +-24 dB, the
+  scale is drawn). `zoom {t: [from_s, to_s], hz: [low, high]}` (seconds and
+  Hz; either key alone; a bad shape errors with this) magnifies an attack or
+  a band; with `zoom {t: [a, b]}`
+  the descriptor text describes that window too (the line "zoom window a-b s:
+  the numbers below describe this window; times count from a" says so), so
+  onset, fine-onset and peak times count from `a`. `descriptors: false`
+  returns the image alone.
