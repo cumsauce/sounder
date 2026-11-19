@@ -120,8 +120,11 @@ pub fn list_with_builtin(lib: &Path) -> Vec<CatalogEntry> {
     v
 }
 
-/// What `catalog search` filters on. Every word of `text` must appear in
-/// the name, description, tags, role or material (case-insensitive).
+/// What `catalog search` filters on. `text` is split into words; an entry
+/// matches when at least one word matches a word of its name, description,
+/// tags, role or material (case-insensitive, simple plurals and endings
+/// folded, a word of 3+ letters also matches the start of a longer word), and
+/// entries matching more words come first.
 #[derive(Clone, Debug, Default)]
 pub struct Query {
     pub text: Option<String>,
@@ -130,38 +133,83 @@ pub struct Query {
     pub approved: Option<bool>,
 }
 
+const STOP_WORDS: &[&str] = &[
+    "a", "an", "the", "of", "for", "and", "or", "to", "in", "on", "with", "my", "some",
+];
+
+/// Lower-case words of `text`, split on anything that is not a letter or digit.
+fn words_of(text: &str) -> Vec<String> {
+    text.to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(stem)
+        .collect()
+}
+
+/// Folds plurals and common endings: motors -> motor, whirring -> whir,
+/// clicked -> click, boxes -> box. Short words are left alone.
+fn stem(w: &str) -> String {
+    let mut s = w.to_string();
+    for suf in ["ing", "ed", "es", "s"] {
+        if s.len() >= suf.len() + 3 && s.ends_with(suf) && !s.ends_with("ss") {
+            s.truncate(s.len() - suf.len());
+            let b = s.as_bytes();
+            let n = b.len();
+            // whirr -> whir, stopp -> stop
+            if suf != "s" && suf != "es" && n >= 2 && b[n - 1] == b[n - 2] && b[n - 1] != b'l' {
+                s.pop();
+            }
+            break;
+        }
+    }
+    s
+}
+
+fn word_hit(q: &str, hay: &[String]) -> bool {
+    hay.iter().any(|h| {
+        h == q
+            || (q.len() >= 3 && h.starts_with(q))
+            || (h.len() >= 4 && q.starts_with(h.as_str()) && q.len() <= h.len() + 2)
+    })
+}
+
 pub fn search(entries: &[CatalogEntry], q: &Query) -> Vec<CatalogEntry> {
-    let words: Vec<String> = q
-        .text
-        .as_deref()
-        .unwrap_or("")
-        .split_whitespace()
-        .map(str::to_lowercase)
+    let words: Vec<String> = words_of(q.text.as_deref().unwrap_or(""))
+        .into_iter()
+        .filter(|w| !STOP_WORDS.contains(&w.as_str()))
         .collect();
-    let mut hits: Vec<CatalogEntry> = entries
+    let mut hits: Vec<(usize, CatalogEntry)> = entries
         .iter()
         .filter(|e| {
-            let hay = format!(
+            q.role.as_ref().is_none_or(|r| e.role.as_ref() == Some(r))
+                && q.material
+                    .as_ref()
+                    .is_none_or(|m| e.material.as_deref().is_some_and(|x| x == m || x == "any"))
+                && q.approved.is_none_or(|a| e.approved == a)
+        })
+        .filter_map(|e| {
+            if words.is_empty() {
+                return Some((0, e.clone()));
+            }
+            let hay = words_of(&format!(
                 "{} {} {} {} {}",
                 e.name,
                 e.description,
                 e.tags.join(" "),
                 e.role.as_deref().unwrap_or(""),
                 e.material.as_deref().unwrap_or("")
-            )
-            .to_lowercase();
-            words.iter().all(|w| hay.contains(w))
-                && q.role.as_ref().is_none_or(|r| e.role.as_ref() == Some(r))
-                && q.material
-                    .as_ref()
-                    .is_none_or(|m| e.material.as_deref().is_some_and(|x| x == m || x == "any"))
-                && q.approved.is_none_or(|a| e.approved == a)
+            ));
+            let n = words.iter().filter(|w| word_hit(w, &hay)).count();
+            (n > 0).then(|| (n, e.clone()))
         })
-        .cloned()
         .collect();
-    // Approved first, then by name.
-    hits.sort_by(|a, b| b.approved.cmp(&a.approved).then(a.name.cmp(&b.name)));
-    hits
+    // More word hits first, then approved, then by name.
+    hits.sort_by(|a, b| {
+        b.0.cmp(&a.0)
+            .then(b.1.approved.cmp(&a.1.approved))
+            .then(a.1.name.cmp(&b.1.name))
+    });
+    hits.into_iter().map(|(_, e)| e).collect()
 }
 
 pub fn format_search(hits: &[CatalogEntry]) -> String {

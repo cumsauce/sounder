@@ -8,7 +8,12 @@
   "fan",
   "spin",
   "machine",
-  "small"
+  "small",
+  "whir",
+  "whirring",
+  "dispense",
+  "vending",
+  "appliance"
  ],
  "origin": "batch 11; picked best of its box on 2026-11-19",
  "doc": {

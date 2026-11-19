@@ -811,7 +811,11 @@ def main():
         client_mode(socket_path, calls_path, save_shot, save_dir, b64, json_only)
     else:
         # Throwaway mode: own server, dies with this invocation.
-        session = SounderSession(mode="windowed" if windowed else "headless")
+        # A stable slot: when a daemon (or the window) holds the library's
+        # session lock, the default slot is named after this run's pid, so the
+        # next run never found what this one saved.
+        session = SounderSession(mode="windowed" if windowed else "headless",
+                                 slot="throwaway")
         print(json.dumps({"tools": session.tool_names()}), flush=True)
         try:
             if calls_path:

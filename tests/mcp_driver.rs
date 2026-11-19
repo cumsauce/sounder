@@ -264,3 +264,41 @@ fn events_voices_and_loops_work_through_the_driver() {
     assert!(ok(15) && r[15]["n_images"] == 1, "{}", t(15));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Throwaway `--calls` runs share the open sounds: what the first run builds
+/// the second can `listen`, also while another live server holds the
+/// library's session lock (then each run used to autosave to a slot named
+/// after its own pid, which no later run read).
+#[test]
+fn consecutive_calls_runs_see_each_others_sounds() {
+    for lock_held in [false, true] {
+        let dir = temp_dir(if lock_held { "carry_held" } else { "carry" });
+        if lock_held {
+            let lib = dir.join("data").join("friendslop").join("sounder");
+            std::fs::create_dir_all(&lib).unwrap();
+            // This test process is the live holder.
+            std::fs::write(
+                lib.join("session.lock"),
+                format!("{}\n", std::process::id()),
+            )
+            .unwrap();
+        }
+        let first = serde_json::json!([
+            {"name": "new_sound", "args": {"name": "carried"}},
+            {"name": "sound_ops", "args": {"doc": "carried", "ops": [
+                {"type": "osc", "name": "o", "freq": 440},
+                {"type": "decay", "name": "d", "time": 0.2},
+                {"type": "math", "name": "m", "op": "mul", "a": "o", "b": "d"},
+                {"type": "output", "name": "out", "input": "m", "peak_db": -6}]}}
+        ]);
+        let r = drive(&first, &dir).unwrap();
+        assert!(r[1]["ok"].as_bool().unwrap_or(false), "{}", text_of(&r[1]));
+        let second = serde_json::json!([{"name": "listen", "args": {"doc": "carried"}}]);
+        let r = drive(&second, &dir).unwrap();
+        assert!(
+            r[0]["ok"].as_bool().unwrap_or(false) && text_of(&r[0]).contains("LUFS"),
+            "lock_held={lock_held}: {}",
+            text_of(&r[0])
+        );
+    }
+}

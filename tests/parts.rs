@@ -112,12 +112,38 @@ fn search_filters_by_text_role_material_and_approval() {
     });
     assert!(wood.contains(&"low_thump".to_string()) && wood.contains(&"wood_knock".to_string()));
     assert!(!wood.contains(&"glass_bowl_body".to_string()));
+    // Word-based, any word, most word hits first.
     assert_eq!(
         names(Query {
             text: Some("DOOR settling".into()),
             ..Query::default()
+        })[0],
+        "wood_knock"
+    );
+    for text in [
+        "motor",
+        "motors",
+        "whir",
+        "whirring",
+        "machine",
+        "vending machine motor",
+        "dispense",
+    ] {
+        let hits = names(Query {
+            text: Some(text.into()),
+            ..Query::default()
+        });
+        assert!(
+            hits.contains(&"small_motor_spin".to_string()),
+            "`{text}` should find small_motor_spin: {hits:?}"
+        );
+    }
+    assert_eq!(
+        names(Query {
+            text: Some("zzzqx".into()),
+            ..Query::default()
         }),
-        ["wood_knock"]
+        Vec::<String>::new()
     );
     assert!(
         names(Query {
