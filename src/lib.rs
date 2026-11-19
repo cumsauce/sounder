@@ -9,6 +9,7 @@
 pub mod catalog;
 pub mod export;
 pub mod feedback;
+pub mod hearing;
 pub mod history;
 pub mod ogg;
 pub mod parts;

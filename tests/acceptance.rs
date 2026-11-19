@@ -51,6 +51,7 @@ fn five_sounds_pass_their_expect_export_and_a_reference_is_matched() {
         .arg("--calls")
         .arg(&file)
         .env("SOUNDER_BINARY", env!("CARGO_BIN_EXE_sounder"))
+        .env("SOUNDER_HEARING", "off")
         .env("FRIENDSLOP_DATA_DIR", dir.join("data"))
         .env("SOUNDER_STDERR", dir.join("server.log"))
         .output()

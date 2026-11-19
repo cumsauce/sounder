@@ -28,6 +28,7 @@ fn drive(calls: &Value, data: &Path) -> Option<Vec<Value>> {
         .arg("--calls")
         .arg(&file)
         .env("SOUNDER_BINARY", env!("CARGO_BIN_EXE_sounder"))
+        .env("SOUNDER_HEARING", "off")
         .env("FRIENDSLOP_DATA_DIR", data.join("data"))
         .env("SOUNDER_STDERR", data.join("server.log"))
         .output()

@@ -320,6 +320,8 @@ pub struct Session {
     check_cache: HashMap<String, (u64, Vec<CheckResult>)>,
     /// Descriptors as JSON per sound: (doc hash, generation, value).
     desc_cache: HashMap<String, (u64, u64, Value)>,
+    /// The `heard_as` model worker (started on the first listen).
+    pub hearing: crate::hearing::Hearing,
 }
 
 impl Session {

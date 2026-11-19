@@ -12,7 +12,7 @@ comes from the human's blind ratings.
 ## What works
 
 - **The tool:** 122 node types, the MCP server, the window, the senses
-  (`summary`, `listen`, `verify`), macros, export. 857 tests pass; clippy and
+  (`summary`, `listen`, `verify`), macros, export. 859 tests pass; clippy and
   fmt are clean.
 - **The parts library:** 78 built-in parts in `parts/`, every one rated good
   by ear in a blind listen and named for what the listener heard.
@@ -82,8 +82,11 @@ rated. An agent that builds one must say it is unheard.
    carries one. Components take a `length_ms` too. First use: a wooden crate
    dropped on concrete, built from a spec, rated "sounds great" (now the part
    `wooden_crate_drop`).
-2. **A `heard_as` line in `listen`** using the larger audio-text model, as a
-   hint only. Not started.
+2. **A `heard_as` line in `listen`:** done (2026-11-18), a hint only. The
+   worker is `tools/hearing/heard_as.py`; it needs the venv in
+   `~/.local/share/sounder-hearing/` (or `SOUNDER_HEARING_PYTHON`). First
+   reading: the approved door slam's brief ranks 1 of 102, the crate drop
+   rated great ranks 83 (heard as "a snare drum").
 3. **Metal and stone by synthesis:** recorded layers are ruled out (the
    project is sample-free). Not started.
 4. **An evaluation set:** fixed briefs built by a fresh agent and rated blind,

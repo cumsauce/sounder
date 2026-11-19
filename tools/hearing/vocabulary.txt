@@ -1,0 +1,112 @@
+# One description per line, as "the sound of <line>". The heard_as hint
+# ranks a sound against these. Built from what the listener heard in the
+# blind labels (docs/history/labels/) and the sounds sounder is asked for.
+# Impacts by material
+hitting a piece of wood
+a heavy wooden impact
+knocking on a wooden door
+a door slamming shut
+a wooden box dropped on the floor
+hitting a metal object
+a metal pipe dropped on the floor
+a coin dropped on a table
+a bell ringing
+hitting a glass
+glass breaking
+a ceramic plate hitting a table
+a plastic object hitting a table
+hitting a stone
+a rock dropped on concrete
+a cardboard box hit
+a drum being hit
+a snare drum
+a kick drum
+a heavy thud
+# Mechanisms
+a switch clicking
+a button being pressed
+a latch clicking shut
+a lock turning
+a door creaking
+a clock ticking
+a typewriter
+a camera shutter
+a zipper
+# Surfaces and handling
+a footstep on concrete
+a footstep on gravel
+a footstep on a wooden floor
+footsteps on grass
+crumpling paper
+crinkling plastic
+cloth rustling
+leaves rustling
+an object rolling across a surface
+scraping an object across a surface
+a ball bouncing
+something sliding on a table
+# Water
+water splashing
+a splash of a small object into water
+water dripping
+water bubbling
+a stream flowing
+rain falling
+pouring water
+boiling oil
+underwater bubbles
+# Air and elements
+wind blowing
+a strong gale howling
+a fire crackling
+a campfire
+electric sparks
+thunder
+an explosion
+a gunshot
+a whoosh
+air hissing out of a valve
+breathing
+# Machines
+a car engine
+an engine idling
+an engine revving
+an electric motor
+a fan humming
+a jet engine
+a helicopter
+a vacuum cleaner
+a refrigerator hum
+# Voices and creatures
+a bird chirping
+a cricket chirping
+insects buzzing
+a dog barking
+a growling creature
+a person speaking
+a person humming
+# Tonal and synthetic
+a telephone ringing
+a police siren
+an alarm
+a beep
+a user interface confirmation sound
+an error sound
+a laser zap
+a power up sound
+a video game sound effect
+a synthesizer tone
+a sine wave tone
+a digital glitch
+static noise
+white noise
+a flute
+a plucked string
+a guitar
+a piano note
+a marimba
+a xylophone
+a gong
+a ruler twanging
+a low drone
+a rising tone

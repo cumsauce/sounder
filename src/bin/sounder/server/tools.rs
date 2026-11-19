@@ -334,7 +334,32 @@ fn do_listen(s: &mut Session, a: ListenArgs) -> R {
             descs.push(json!({"label": label, "descriptors": d}));
         }
     }
-    let mut out = Out::text(text).with_json(json!({"columns": descs, "reference": ref_json}));
+    let mut heard = Vec::new();
+    if a.heard_as != Some(false) {
+        let brief = doc
+            .spec
+            .as_ref()
+            .map(|sp| sp.brief.clone())
+            .unwrap_or_default();
+        for (label, au) in &cols {
+            match s.hearing.hear(au, &brief) {
+                Ok((h, model)) => {
+                    if cols.len() > 1 {
+                        text += &format!("{label}: ");
+                    }
+                    text += &h.line(&model);
+                    text.push('\n');
+                    heard.push(json!({"label": label, "top": h.top, "brief": h.brief.map(|b| json!({"score": b.score, "rank": b.rank, "of": b.of}))}));
+                }
+                Err(why) => {
+                    text += &format!("heard_as: off ({why})\n");
+                    break;
+                }
+            }
+        }
+    }
+    let mut out = Out::text(text)
+        .with_json(json!({"columns": descs, "reference": ref_json, "heard_as": heard}));
     out.images.push(png);
     Ok(out)
 }
@@ -705,7 +730,9 @@ impl Tools {
     /// magnifies a region, `diff` compares with your previous render of the
     /// same request (before, now, and now minus before in dB), `reference`
     /// compares with a WAV (sound, reference, and their dB difference, plus
-    /// the distance and the biggest differences in words).
+    /// the distance and the biggest differences in words). A `heard_as`
+    /// line gives what an audio-text model hears (closest descriptions, and
+    /// the spec brief's rank): a hint only, it often misnames good sounds.
     #[tool]
     async fn listen(
         &self,

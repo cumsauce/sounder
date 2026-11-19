@@ -725,3 +725,48 @@ fn a_spec_is_listed_in_summary_and_checked_by_verify() {
     s.apply_ops(None, Vec::new(), edit).unwrap();
     assert!(s.summary(None).unwrap().0.contains("no spec yet"));
 }
+
+/// The `heard_as` worker protocol, with a fake worker standing in for the
+/// model: a ready line, then one JSON reply per request; and the off path.
+#[test]
+fn heard_as_talks_to_its_worker_and_says_when_it_is_off() {
+    let dir = project("hearing");
+    let script = dir.join("fake.py");
+    std::fs::write(
+        &script,
+        r#"import json, sys
+print(json.dumps({"ready": "fake-model"}), flush=True)
+for line in sys.stdin:
+    req = json.loads(line)
+    out = {"top": [["a heavy thud", 0.4], ["a drum being hit", 0.3]]}
+    if req.get("brief"):
+        out["brief"] = {"score": 0.2, "rank": 4, "of": 102}
+    print(json.dumps(out), flush=True)
+"#,
+    )
+    .unwrap();
+    let mut h = sounder::hearing::Hearing::default();
+    h.python = Some("python3".into());
+    h.script = Some(script);
+    let audio = sfx_graph::Audio {
+        sample_rate: 48000,
+        channels: vec![vec![0.0; 480]],
+    };
+    let (heard, model) = h.hear(&audio, "a dull thud").unwrap();
+    assert_eq!(model, "fake-model");
+    let line = heard.line(&model);
+    assert!(
+        line.contains("a heavy thud 0.40") && line.contains("ranks 4 of 102"),
+        "{line}"
+    );
+    // The worker stays up: a second request, no brief.
+    let (heard, _) = h.hear(&audio, "").unwrap();
+    assert!(heard.brief.is_none());
+
+    let mut off = sounder::hearing::Hearing::default();
+    off.python = Some(dir.join("no-such-python"));
+    let e = off.hear(&audio, "").unwrap_err();
+    assert!(e.contains("could not start"), "{e}");
+    // Once off, it stays off without trying again.
+    assert_eq!(off.hear(&audio, "").unwrap_err(), e);
+}

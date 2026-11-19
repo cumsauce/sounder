@@ -400,6 +400,7 @@ fn drive(calls: &Value, dir: &Path) -> Vec<Value> {
         .arg("--calls")
         .arg(&file)
         .env("SOUNDER_BINARY", env!("CARGO_BIN_EXE_sounder"))
+        .env("SOUNDER_HEARING", "off")
         .env("FRIENDSLOP_DATA_DIR", dir.join("data"))
         .env("SOUNDER_STDERR", dir.join("server.log"))
         .output()

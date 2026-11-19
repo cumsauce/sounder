@@ -140,6 +140,12 @@ pub(crate) struct ListenArgs {
     /// Listen to this node instead of the output.
     #[serde(default)]
     pub(crate) node: Option<String>,
+    /// The `heard_as` line (default true when a model is set up): the
+    /// closest descriptions an audio-text model finds for each column, and
+    /// where the spec's brief ranks. A hint, not a check: it named a crate
+    /// drop the listener called great "a snare drum". false skips it.
+    #[serde(default)]
+    pub(crate) heard_as: Option<bool>,
     /// Render these seeds as side-by-side columns: [1, 2, 3].
     #[serde(default)]
     pub(crate) seeds: Option<Vec<u64>>,

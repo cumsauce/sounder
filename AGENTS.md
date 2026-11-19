@@ -825,6 +825,18 @@ until it fits; you read their moves in `summary`.
   the numbers below describe this window; times count from a" says so), so
   onset, fine-onset and peak times count from `a`. `descriptors: false`
   returns the image alone.
+- `heard_as` (a line in `listen`, on when a model is set up; `heard_as:
+  false` skips it): the five closest of about 100 sound descriptions
+  (`tools/hearing/vocabulary.txt`) an audio-text model
+  (`laion/larger_clap_general`, run by `tools/hearing/heard_as.py`) finds
+  for each column, and where the spec's brief ranks among them. **A hint,
+  not a check:** it called the crate drop the listener rated great "a snare
+  drum" and ranked its brief 83 of 102, while the approved door slam's brief
+  ranks 1. Read it as "what a stranger might mistake this for". The worker
+  starts on the first `listen` (about 4 s) and its Python is
+  `SOUNDER_HEARING_PYTHON`, else `~/.local/share/sounder-hearing/venv`;
+  without one the line says the hint is off. `SOUNDER_HEARING=off` turns it
+  off.
 - `listen reference: "file.wav"` (relative to the project or a sources folder, or absolute): the
   reference is resampled to the sound's rate, moved so its first onset (30 dB
   under its peak) meets the sound's, and scaled to the sound's integrated
