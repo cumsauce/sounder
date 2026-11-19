@@ -1,0 +1,39 @@
+{
+ "name": "e07_splash",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "splash",
+   "name": "sp",
+   "size": 0.1
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "sp",
+   "peak_db": -1.5
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "size",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "stone size: bigger is lower and longer",
+   "game": false,
+   "map": [
+    {
+     "node": "sp",
+     "field": "size",
+     "from": 0.07,
+     "to": 0.15
+    }
+   ]
+  }
+ ],
+ "version": 1
+}

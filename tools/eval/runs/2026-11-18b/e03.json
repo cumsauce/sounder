@@ -1,0 +1,209 @@
+{
+ "name": "e03_pipe_drop",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "pattern",
+   "name": "hits",
+   "times": [
+    0.005,
+    0.34,
+    0.56
+   ]
+  },
+  {
+   "type": "voices",
+   "name": "pipe",
+   "events": "hits",
+   "length": 3.5,
+   "max": 8,
+   "patch": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "white"
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.006
+    },
+    {
+     "type": "math",
+     "name": "b",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "gain",
+     "name": "s",
+     "input": "b",
+     "gain": "=1 / (1 + $index * 1.2)"
+    },
+    {
+     "type": "modal",
+     "name": "m",
+     "excite": "s",
+     "material": "metal",
+     "shape": "tube",
+     "f0": 160,
+     "noise": 0.3,
+     "strike_glide": 35,
+     "loss": 0.5
+    }
+   ]
+  },
+  {
+   "type": "voices",
+   "name": "crk",
+   "events": "hits",
+   "length": 0.1,
+   "max": 8,
+   "patch": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "white"
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.015
+    },
+    {
+     "type": "math",
+     "name": "b",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "filter",
+     "name": "f",
+     "input": "b",
+     "mode": "hp",
+     "freq": 2500
+    },
+    {
+     "type": "gain",
+     "name": "s",
+     "input": "f",
+     "gain": "=1 / (1 + $index * 1.2)"
+    }
+   ]
+  },
+  {
+   "type": "voices",
+   "name": "thd",
+   "events": "hits",
+   "length": 0.5,
+   "max": 8,
+   "patch": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "brown"
+    },
+    {
+     "type": "decay",
+     "name": "e",
+     "time": 0.2
+    },
+    {
+     "type": "math",
+     "name": "b",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "filter",
+     "name": "f",
+     "input": "b",
+     "mode": "lp",
+     "freq": 220,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "s",
+     "input": "f",
+     "gain": "=1 / (1 + $index * 1.2)"
+    }
+   ]
+  },
+  {
+   "type": "gain",
+   "name": "pipe_g",
+   "input": "pipe",
+   "db": -6
+  },
+  {
+   "type": "gain",
+   "name": "crk_g",
+   "input": "crk",
+   "db": -10
+  },
+  {
+   "type": "gain",
+   "name": "thd_g",
+   "input": "thd",
+   "db": 0
+  },
+  {
+   "type": "mix",
+   "name": "dry",
+   "inputs": [
+    "pipe_g",
+    "crk_g",
+    "thd_g"
+   ],
+   "to": "mono"
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "dry",
+   "peak_db": -1.5
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "ring",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how long the pipe rings",
+   "game": false,
+   "map": [
+    {
+     "node": "pipe/m",
+     "field": "loss",
+     "from": 1.2,
+     "to": 0.25,
+     "curve": "exp"
+    }
+   ]
+  },
+  {
+   "name": "weight",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "concrete thud level",
+   "game": false,
+   "map": [
+    {
+     "node": "thd_g",
+     "field": "db",
+     "from": -8.0,
+     "to": 6.0
+    }
+   ]
+  }
+ ],
+ "version": 1
+}

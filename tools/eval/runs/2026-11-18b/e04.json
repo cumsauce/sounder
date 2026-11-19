@@ -1,0 +1,154 @@
+{
+ "name": "e04_brick_drop",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "sound",
+   "name": "brick",
+   "sound": "brick_or_rock_drop",
+   "at": 0,
+   "gain_db": 0,
+   "macros": {
+    "weight": 0.35,
+    "pitch": 0.45
+   }
+  },
+  {
+   "type": "sound",
+   "name": "debris",
+   "sound": "low_blunt_crunch_after",
+   "at": 0.04,
+   "gain_db": 0
+  },
+  {
+   "type": "gain",
+   "name": "debris_g",
+   "input": "debris",
+   "db": -14
+  },
+  {
+   "type": "mix",
+   "name": "dry",
+   "inputs": [
+    "brick",
+    "body_g",
+    "debris_g"
+   ],
+   "to": "mono"
+  },
+  {
+   "type": "finish",
+   "name": "bus",
+   "input": "soften",
+   "punch": 0,
+   "glue": 1
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "dcf",
+   "peak_db": -1.5
+  },
+  {
+   "type": "noise",
+   "name": "bn",
+   "color": "pink"
+  },
+  {
+   "type": "decay",
+   "name": "be",
+   "time": 0.18,
+   "at": 0.005
+  },
+  {
+   "type": "math",
+   "name": "braw",
+   "op": "mul",
+   "a": "bn",
+   "b": "be"
+  },
+  {
+   "type": "filter",
+   "name": "bbp",
+   "input": "braw",
+   "mode": "bp",
+   "freq": 650,
+   "q": 0.7
+  },
+  {
+   "type": "gain",
+   "name": "body_g",
+   "input": "bbp",
+   "db": -8
+  },
+  {
+   "type": "transient",
+   "name": "soften",
+   "input": "dry",
+   "attack_db": -7
+  },
+  {
+   "type": "onepole",
+   "name": "dcf",
+   "input": "bus",
+   "mode": "hp",
+   "freq": 25
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "debris",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "level of the settling pieces after the hit",
+   "game": false,
+   "map": [
+    {
+     "node": "debris_g",
+     "field": "db",
+     "from": -26.0,
+     "to": -4.0
+    }
+   ]
+  },
+  {
+   "name": "weight",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "low end of the bus",
+   "claim": [
+    "centroid",
+    -1
+   ],
+   "game": false,
+   "map": [
+    {
+     "node": "bus",
+     "field": "weight_db",
+     "from": -4.0,
+     "to": 4.0
+    }
+   ]
+  },
+  {
+   "name": "body",
+   "value": 0.75,
+   "default": 0.75,
+   "doc": "level of the 650 Hz stone body",
+   "game": false,
+   "map": [
+    {
+     "node": "body_g",
+     "field": "db",
+     "from": -18.0,
+     "to": 0.0
+    }
+   ]
+  }
+ ],
+ "version": 6
+}

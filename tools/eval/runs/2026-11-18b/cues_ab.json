@@ -1,0 +1,122 @@
+[
+ {
+  "cue": "c01",
+  "id": "e04",
+  "run": "2026-11-18b",
+  "brief": "A brick dropped onto a stone path from waist height."
+ },
+ {
+  "cue": "c02",
+  "id": "e06",
+  "run": "2026-11-18b",
+  "brief": "A small campfire crackling, a 4 second seamless loop."
+ },
+ {
+  "cue": "c03",
+  "id": "e03",
+  "run": "2026-11-18",
+  "brief": "A long steel pipe dropped onto a concrete floor, bouncing once or twice and ringing out."
+ },
+ {
+  "cue": "c04",
+  "id": "e05",
+  "run": "2026-11-18b",
+  "brief": "A short, friendly UI confirmation sound for a mobile game menu, under half a second."
+ },
+ {
+  "cue": "c05",
+  "id": "e06",
+  "run": "2026-11-18",
+  "brief": "A small campfire crackling, a 4 second seamless loop."
+ },
+ {
+  "cue": "c06",
+  "id": "e09",
+  "run": "2026-11-18",
+  "brief": "A single coin dropped onto a wooden table, bouncing and settling."
+ },
+ {
+  "cue": "c07",
+  "id": "e02",
+  "run": "2026-11-18b",
+  "brief": "Four footsteps of a person walking at a normal pace on a wooden floor, shoes on."
+ },
+ {
+  "cue": "c08",
+  "id": "e08",
+  "run": "2026-11-18",
+  "brief": "Three firm knocks with knuckles on a wooden front door."
+ },
+ {
+  "cue": "c09",
+  "id": "e01",
+  "run": "2026-11-18b",
+  "brief": "A heavy wooden interior door slammed shut, for a game. Dry and mono."
+ },
+ {
+  "cue": "c10",
+  "id": "e01",
+  "run": "2026-11-18",
+  "brief": "A heavy wooden interior door slammed shut, for a game. Dry and mono."
+ },
+ {
+  "cue": "c11",
+  "id": "e10",
+  "run": "2026-11-18b",
+  "brief": "A fast whoosh of a sword swung through the air past the listener."
+ },
+ {
+  "cue": "c12",
+  "id": "e07",
+  "run": "2026-11-18",
+  "brief": "A stone the size of a fist thrown into a pond: the splash and the bubbles after it."
+ },
+ {
+  "cue": "c13",
+  "id": "e04",
+  "run": "2026-11-18",
+  "brief": "A brick dropped onto a stone path from waist height."
+ },
+ {
+  "cue": "c14",
+  "id": "e07",
+  "run": "2026-11-18b",
+  "brief": "A stone the size of a fist thrown into a pond: the splash and the bubbles after it."
+ },
+ {
+  "cue": "c15",
+  "id": "e05",
+  "run": "2026-11-18",
+  "brief": "A short, friendly UI confirmation sound for a mobile game menu, under half a second."
+ },
+ {
+  "cue": "c16",
+  "id": "e02",
+  "run": "2026-11-18",
+  "brief": "Four footsteps of a person walking at a normal pace on a wooden floor, shoes on."
+ },
+ {
+  "cue": "c17",
+  "id": "e09",
+  "run": "2026-11-18b",
+  "brief": "A single coin dropped onto a wooden table, bouncing and settling."
+ },
+ {
+  "cue": "c18",
+  "id": "e03",
+  "run": "2026-11-18b",
+  "brief": "A long steel pipe dropped onto a concrete floor, bouncing once or twice and ringing out."
+ },
+ {
+  "cue": "c19",
+  "id": "e08",
+  "run": "2026-11-18b",
+  "brief": "Three firm knocks with knuckles on a wooden front door."
+ },
+ {
+  "cue": "c20",
+  "id": "e10",
+  "run": "2026-11-18",
+  "brief": "A fast whoosh of a sword swung through the air past the listener."
+ }
+]

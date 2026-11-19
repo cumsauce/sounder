@@ -1,0 +1,155 @@
+{
+ "name": "e02_footsteps",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "footstep",
+   "name": "s0",
+   "surface": "wood",
+   "weight": 0.3,
+   "pace": "walk",
+   "shoe": "sneaker",
+   "ring": 0.6,
+   "noise": 0.5,
+   "at": 0.01,
+   "seed": 1
+  },
+  {
+   "type": "footstep",
+   "name": "s1",
+   "surface": "wood",
+   "weight": 0.3,
+   "pace": "walk",
+   "shoe": "sneaker",
+   "ring": 0.6,
+   "noise": 0.5,
+   "at": 0.56,
+   "seed": 2
+  },
+  {
+   "type": "footstep",
+   "name": "s2",
+   "surface": "wood",
+   "weight": 0.3,
+   "pace": "walk",
+   "shoe": "sneaker",
+   "ring": 0.6,
+   "noise": 0.5,
+   "at": 1.12,
+   "seed": 3
+  },
+  {
+   "type": "footstep",
+   "name": "s3",
+   "surface": "wood",
+   "weight": 0.3,
+   "pace": "walk",
+   "shoe": "sneaker",
+   "ring": 0.6,
+   "noise": 0.5,
+   "at": 1.66,
+   "seed": 4
+  },
+  {
+   "type": "mix",
+   "name": "dry",
+   "inputs": [
+    "s0",
+    "s1",
+    "s2",
+    "s3"
+   ],
+   "to": "mono"
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "bus",
+   "peak_db": -3
+  },
+  {
+   "type": "finish",
+   "name": "bus",
+   "input": "dry",
+   "glue": 0.6,
+   "punch": 0
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "ring",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how long the boards ring",
+   "claim": [
+    "ring",
+    1
+   ],
+   "game": false,
+   "map": [
+    {
+     "node": "s0",
+     "field": "ring",
+     "from": 0.4,
+     "to": 0.9
+    },
+    {
+     "node": "s1",
+     "field": "ring",
+     "from": 0.4,
+     "to": 0.9
+    },
+    {
+     "node": "s2",
+     "field": "ring",
+     "from": 0.4,
+     "to": 0.9
+    },
+    {
+     "node": "s3",
+     "field": "ring",
+     "from": 0.4,
+     "to": 0.9
+    }
+   ]
+  },
+  {
+   "name": "weight",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "heavier walker",
+   "game": false,
+   "map": [
+    {
+     "node": "s0",
+     "field": "weight",
+     "from": 0.2,
+     "to": 0.45
+    },
+    {
+     "node": "s1",
+     "field": "weight",
+     "from": 0.2,
+     "to": 0.45
+    },
+    {
+     "node": "s2",
+     "field": "weight",
+     "from": 0.2,
+     "to": 0.45
+    },
+    {
+     "node": "s3",
+     "field": "weight",
+     "from": 0.2,
+     "to": 0.45
+    }
+   ]
+  }
+ ],
+ "version": 2
+}

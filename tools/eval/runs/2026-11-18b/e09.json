@@ -1,0 +1,181 @@
+{
+ "name": "e09_coin",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "bounce",
+   "name": "hits",
+   "first": 0.16,
+   "restitution": 0.78,
+   "start": 0.005,
+   "jitter": 0.08,
+   "min_interval": 0.008
+  },
+  {
+   "type": "voices",
+   "name": "coin",
+   "events": "hits",
+   "length": 0.6,
+   "max": 64,
+   "map": {
+    "pf": "1400 + $rand * 250"
+   },
+   "patch": [
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "white"
+    },
+    {
+     "type": "env",
+     "name": "e",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.0005,
+       1
+      ],
+      [
+       0.008,
+       0
+      ]
+     ]
+    },
+    {
+     "type": "math",
+     "name": "b",
+     "op": "mul",
+     "a": "n",
+     "b": "e"
+    },
+    {
+     "type": "gain",
+     "name": "s",
+     "input": "b",
+     "gain": "$value"
+    },
+    {
+     "type": "modal",
+     "name": "disc",
+     "excite": "s",
+     "material": "metal",
+     "shape": "plate",
+     "f0": "$pf",
+     "loss": 0.8,
+     "noise": 0.85,
+     "noise_width": 0.5,
+     "tilt": 6
+    },
+    {
+     "type": "filter",
+     "name": "dl",
+     "input": "disc",
+     "mode": "lp",
+     "freq": 9000
+    },
+    {
+     "type": "env",
+     "name": "te",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.001,
+       1
+      ],
+      [
+       0.06,
+       0
+      ]
+     ]
+    },
+    {
+     "type": "math",
+     "name": "tb",
+     "op": "mul",
+     "a": "n",
+     "b": "te"
+    },
+    {
+     "type": "filter",
+     "name": "tl",
+     "input": "tb",
+     "mode": "bp",
+     "freq": 350,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "thud",
+     "input": "tl",
+     "gain": "=6*$value"
+    },
+    {
+     "type": "mix",
+     "name": "o",
+     "inputs": [
+      "dl",
+      "thud"
+     ]
+    }
+   ]
+  },
+  {
+   "type": "gain",
+   "name": "lvl",
+   "input": "coin",
+   "db": 0
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "lvl",
+   "peak_db": -3,
+   "fade_in": 0.0005
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "bounciness",
+   "value": 0.4,
+   "default": 0.4,
+   "doc": "time between bounces (drop height); unclaimed: jitter moves the spacing measure",
+   "game": false,
+   "map": [
+    {
+     "node": "hits",
+     "field": "first",
+     "from": 0.08,
+     "to": 0.3,
+     "curve": "exp"
+    }
+   ]
+  },
+  {
+   "name": "ring",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how long the coin rings each hit; unclaimed: holds on 3 of 4 seeds",
+   "game": false,
+   "map": [
+    {
+     "node": "coin/disc",
+     "field": "loss",
+     "from": 1.6,
+     "to": 0.4,
+     "curve": "exp"
+    }
+   ]
+  }
+ ],
+ "version": 4
+}

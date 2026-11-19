@@ -1,0 +1,63 @@
+{
+ "name": "e06_campfire",
+ "format_version": 1,
+ "kind": "loop",
+ "sample_rate": 48000,
+ "duration": 4.0,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "fire",
+   "name": "f",
+   "size": 0.3,
+   "crackle": 0.6,
+   "loop": true
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "xf",
+   "lufs": -24
+  },
+  {
+   "type": "crossfade_loop",
+   "name": "xf",
+   "input": "f",
+   "fade": 0.3
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "crackle",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how busy the pops are",
+   "game": false,
+   "map": [
+    {
+     "node": "f",
+     "field": "crackle",
+     "from": 0.3,
+     "to": 0.9
+    }
+   ]
+  },
+  {
+   "name": "size",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "fire size",
+   "game": false,
+   "map": [
+    {
+     "node": "f",
+     "field": "size",
+     "from": 0.2,
+     "to": 0.45
+    }
+   ]
+  }
+ ],
+ "version": 2
+}

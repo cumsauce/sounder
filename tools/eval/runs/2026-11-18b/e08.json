@@ -1,0 +1,224 @@
+{
+ "name": "e08_door_knock",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "pattern",
+   "name": "taps",
+   "every": 0.2,
+   "count": 3,
+   "jitter": 0.015,
+   "values": {
+    "min": 0.85,
+    "max": 1
+   },
+   "seed": 2
+  },
+  {
+   "type": "voices",
+   "name": "knocks",
+   "events": "taps",
+   "length": 0.4,
+   "max": 8,
+   "map": {
+    "pitch": "200 + $rand * 25"
+   },
+   "patch": [
+    {
+     "type": "contact",
+     "name": "c",
+     "speed": "$value",
+     "mass": 0.15,
+     "material": "wood",
+     "hardness": 0.7
+    },
+    {
+     "type": "modal",
+     "name": "m",
+     "excite": "c",
+     "material": "wood",
+     "f0": "$pitch",
+     "noise": 0.6,
+     "noise_width": 0.15,
+     "tilt": 4,
+     "loss": 3,
+     "gain_db": 4
+    },
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "white"
+    },
+    {
+     "type": "decay",
+     "name": "ce",
+     "time": 0.012
+    },
+    {
+     "type": "math",
+     "name": "cr",
+     "op": "mul",
+     "a": "n",
+     "b": "ce"
+    },
+    {
+     "type": "filter",
+     "name": "crk",
+     "input": "cr",
+     "mode": "bp",
+     "freq": 3000,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "crk_g",
+     "input": "crk",
+     "db": -14
+    },
+    {
+     "type": "noise",
+     "name": "pn",
+     "color": "pink"
+    },
+    {
+     "type": "decay",
+     "name": "be",
+     "time": 0.09
+    },
+    {
+     "type": "math",
+     "name": "br",
+     "op": "mul",
+     "a": "pn",
+     "b": "be"
+    },
+    {
+     "type": "filter",
+     "name": "bod",
+     "input": "br",
+     "mode": "bp",
+     "freq": 550,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "bod_g",
+     "input": "bod",
+     "db": 0
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown"
+    },
+    {
+     "type": "decay",
+     "name": "te",
+     "time": 0.12
+    },
+    {
+     "type": "math",
+     "name": "tr",
+     "op": "mul",
+     "a": "bn",
+     "b": "te"
+    },
+    {
+     "type": "filter",
+     "name": "thd",
+     "input": "tr",
+     "mode": "lp",
+     "freq": 220,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "thd_g",
+     "input": "thd",
+     "db": -14
+    },
+    {
+     "type": "mix",
+     "name": "vm",
+     "inputs": [
+      "m",
+      "crk_g",
+      "bod_g",
+      "thd_g"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "gain",
+     "name": "vg",
+     "input": "vm",
+     "gain": "$value"
+    }
+   ]
+  },
+  {
+   "type": "finish",
+   "name": "bus",
+   "input": "knocks",
+   "punch": 0.2,
+   "glue": 0.45,
+   "warmth": 0.4
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "bus",
+   "peak_db": -1.5,
+   "fade_in": 0.0005
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "thud",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "low thump of the door",
+   "game": false,
+   "map": [
+    {
+     "node": "knocks/thd_g",
+     "field": "db",
+     "from": -22.0,
+     "to": -6.0
+    }
+   ]
+  },
+  {
+   "name": "ring",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how long each knock rings",
+   "claim": [
+    "ring",
+    1
+   ],
+   "game": false,
+   "map": [
+    {
+     "node": "knocks/m",
+     "field": "loss",
+     "from": 8.0,
+     "to": 1.2,
+     "curve": "exp"
+    },
+    {
+     "node": "knocks/be",
+     "field": "time",
+     "from": 0.04,
+     "to": 0.22,
+     "curve": "exp"
+    }
+   ]
+  }
+ ],
+ "version": 3
+}
