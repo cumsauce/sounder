@@ -46,3 +46,12 @@ Rework: dirt, wood, metal, ice and snow now share the all-purpose body (gravel p
 - wood: speed 1.4, dry (s14). Saved as `wood_step`.
 - snow, ice: all bad again ("give up on this"). Set aside. `step` keeps both surfaces, but they are not finished sounds.
 - dirt, metal, carpet: not rated on this page.
+
+## Batch 16, second pass (dirt, metal, carpet)
+
+All three were bad:
+- carpet: "still needs to be a bit more muffled". The fibre rubs were moved down to 0.5-1.4 kHz and the scuff to 600 Hz.
+- dirt: "just sounds like walking on something solid, should be more like gravel". The grains went up to 0.6 of gravel's.
+- metal: "good but too high pitched, no after-vibration ... like a metal grate staircase, rings a bit after but atonal". The sheet went to 3 mm, and the 3.5 kHz shimmer became a 0.45 s atonal rattle at 0.9-1.8 kHz with a 25-40 Hz flutter.
+
+The `carpet_step` part picks this change up.

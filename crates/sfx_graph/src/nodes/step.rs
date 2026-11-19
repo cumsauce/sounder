@@ -375,13 +375,14 @@ fn strike(
             0.15,
             sr,
         ),
-        // Dirt is gravel with its grains turned down ("pretty much the same").
+        // Dirt is gravel with its grains turned down ("pretty much the same";
+        // at a third it read as "something solid": now 0.6 of gravel's count).
         StepSurface::Dirt => grains(
             rng,
             &mut tex,
-            (21.0 * crush * grit) as usize,
+            (36.0 * crush * grit) as usize,
             0.06,
-            0.2,
+            0.25,
             0.6,
             sr,
         ),
@@ -443,7 +444,8 @@ fn footstep(
         StepSurface::Wood | StepSurface::Metal | StepSurface::Ice => (0.06, 2500.0),
         StepSurface::Dirt => (0.05, 1500.0),
         StepSurface::Grass => (0.0, 0.0),
-        StepSurface::Carpet | StepSurface::Snow => (0.02, 1200.0),
+        StepSurface::Snow => (0.02, 1200.0),
+        StepSurface::Carpet => (0.02, 600.0),
     };
     if scuff * grit > 0.0 {
         let c = centre * (0.8 + 0.4 * rng.unit());
@@ -467,12 +469,25 @@ fn footstep(
         // a short shimmer.
         StepSurface::Metal => {
             let mut sheet = Material::Metal.props();
-            sheet.thickness = 0.0015;
+            sheet.thickness = 0.003;
             let mut ring = Vec::new();
             struck_modes(rng, &sheet, 0.002, 6.0, sr).render_into(&mut ring, 0, sr);
             add_at(&mut out, &ring, 0, 0.2);
-            let c = 3500.0 * (0.8 + 0.4 * rng.unit());
-            noise_burst(rng, &mut tex, 0, 0.12, c, 0.25 * grit, sr);
+            // The grate rattling after the step: atonal, lower than the
+            // 3.5 kHz shimmer that read "too high pitched", fluttering as
+            // the panel buzzes on its fixings.
+            let n = (0.45 * sr) as usize;
+            let mut band = BandPass::new_at(900.0 + 900.0 * rng.unit(), 0.9, sr as u32);
+            let flutter = 25.0 + 15.0 * rng.unit();
+            if tex.len() < n {
+                tex.resize(n, 0.0);
+            }
+            for (i, x) in tex[..n].iter_mut().enumerate() {
+                let t = i as f32 / sr;
+                let env = (-t / 0.12).exp();
+                let am = 0.6 + 0.4 * (TAU * flutter * t).sin();
+                *x += 0.3 * grit * env * am * band.process(rng.signed());
+            }
         }
         // Carpet fibres rubbing under the sole at the heel and the toe.
         StepSurface::Carpet => {
@@ -480,8 +495,9 @@ fn footstep(
                 let base = if k % 2 == 1 { roll } else { 0.0 };
                 let at = ((base + 0.03 * rng.unit()) * sr) as usize;
                 let seconds = 0.02 + 0.04 * rng.unit();
-                let c = 1500.0 + 2500.0 * rng.unit();
-                noise_burst(rng, &mut tex, at, seconds, c, 0.12 * grit, sr);
+                // Low: the pile muffles them (at 1.5-4 kHz they read bright).
+                let c = 500.0 + 900.0 * rng.unit();
+                noise_burst(rng, &mut tex, at, seconds, c, 0.1 * grit, sr);
             }
         }
         // Blades brushing the shoe going in and coming out.
