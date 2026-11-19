@@ -148,6 +148,11 @@ pub struct Pattern {
     /// Added to every time (default 0).
     #[serde(default)]
     pub start: Option<f32>,
+    /// With `every` + `count`: the last gap is `accel` x the first, the gaps
+    /// between interpolated geometrically (0.7 speeds up, 2 slows down;
+    /// 0.1..10, default 1 = even). `every` is the first gap.
+    #[serde(default)]
+    pub accel: Option<f32>,
     /// Each time moves by a seeded amount within +-jitter seconds.
     #[serde(default)]
     pub jitter: Option<f32>,
@@ -173,11 +178,35 @@ impl Eval for Pattern {
         let start = f64::from(self.start.unwrap_or(0.0));
         let jitter = f64::from(non_negative("jitter", self.jitter.unwrap_or(0.0))?);
         let base: Vec<f64> = match (&self.times, self.every, self.count) {
-            (Some(t), None, None) => t.iter().map(|x| f64::from(*x)).collect(),
+            (Some(t), None, None) if self.accel.is_none() => {
+                t.iter().map(|x| f64::from(*x)).collect()
+            }
             (None, Some(every), Some(count)) => {
                 let every = f64::from(positive("every", every)?);
                 check_count("count", count as f64)?;
-                (0..count).map(|k| k as f64 * every).collect()
+                match self.accel {
+                    None => (0..count).map(|k| k as f64 * every).collect(),
+                    Some(a) => {
+                        if !(0.1..=10.0).contains(&a) {
+                            return Err(format!(
+                                "accel: {a}: give the last gap as a multiple of the first, 0.1 to 10 (0.7 speeds up, 2 slows down)"
+                            ));
+                        }
+                        let ratio = f64::from(a);
+                        let steps = count.saturating_sub(2).max(1) as f64;
+                        let mut t = 0.0;
+                        (0..count)
+                            .map(|k| {
+                                let at = t;
+                                t += every * ratio.powf(k as f64 / steps);
+                                at
+                            })
+                            .collect()
+                    }
+                }
+            }
+            (Some(_), _, _) if self.accel.is_some() => {
+                return Err("`accel` needs `every` and `count`, not `times`".into());
             }
             _ => {
                 return Err(

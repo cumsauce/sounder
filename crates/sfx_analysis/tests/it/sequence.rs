@@ -707,3 +707,23 @@ fn sequence_recipes_render() {
     assert_eq!(g.iter().filter(|v| **v == 1.0).count(), 4 * idx(0.03));
     assert!(rms_db(&y) > -40.0);
 }
+
+#[test]
+fn pattern_accel_scales_the_last_gap_and_default_is_unchanged() {
+    let ev = |extra: Value| events(vec![with_fields(pat(0.1, 10), extra)], "ev", 1.5);
+    let plain = ev(json!({}));
+    let one = ev(json!({"accel": 1.0}));
+    let ts = |v: &[Event]| v.iter().map(|e| e.t).collect::<Vec<_>>();
+    assert_eq!(ts(&plain), ts(&one));
+    let fast = ev(json!({"accel": 0.5}));
+    assert_eq!(fast.len(), 10);
+    let gap = |k: usize| fast[k + 1].t - fast[k].t;
+    let sr = f64::from(SR as f32);
+    assert!((gap(0) - 0.1).abs() * sr < 1.0, "first gap {}", gap(0));
+    assert!((gap(8) - 0.05).abs() * sr < 1.0, "last gap {}", gap(8));
+    // jitter still applies on top
+    let j = ev(json!({"accel": 0.5, "jitter": 0.004}));
+    assert_ne!(ts(&j), ts(&fast));
+    let err = render_error(vec![with_fields(pat(0.1, 4), json!({"accel": 20}))], "ev");
+    assert!(err.contains("accel"), "{err}");
+}
