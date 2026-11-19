@@ -978,6 +978,38 @@ folds it into what to fix first.
 - Honest limit: the human hears it, you do not. `play` succeeding means the
   samples were sent, nothing about how they sound.
 
+## Changing the tool: where things go
+
+Name files for what they are, never for the task that made them: no work
+package, round, phase or `_fix` in a file name, a module name or a comment. A
+comment may say why a number is what it is ("a listener heard 0.1 as boiling
+oil"), not which task set it.
+
+| Adding | Goes in |
+|---|---|
+| a node | its family's file in `crates/sfx_graph/src/nodes/` (a new file only for a new family) |
+| a node's tests | the family's module in `crates/sfx_analysis/tests/it/` (see `tests/README.md` there); helpers from `it/common.rs` |
+| a node's reference (fields, limits, measurements) | `docs/nodes/<family>.md`, and a short entry in `docs/nodes/README.md` |
+| a change made after listening | a section in that node's doc and tests in that node's module, not a new file |
+| a rule or recipe every agent needs | this file, kept short; the MCP `instructions` string in step |
+| notes on how something was built, a plan, a round report | `docs/history/` (summaries only) |
+| a script you will run again | `tools/`; a one-off script stays out of git |
+
+- **Not in git:** generated audio and images, exports (`assets/`), the sound
+  library and session (`.sounder/`), reference recordings (`refs/`), raw
+  per-sound logs, feedback or score dumps, experiment sounds (`*_old`,
+  `*_new`, `ab_*`). Use the scratch directory for those.
+- **This file stays under about 70 KB.** A new node gets a row in "Which
+  ready-made node for which sound" at most; its detail goes in `docs/nodes/`.
+- **Tests:** extend an existing module before adding one. Do not copy a helper
+  into a module when `it/common.rs` has it or could. A measured limit belongs
+  in the node's doc, not in an `#[ignore]`d test.
+- **A file path written in a doc or comment must exist.** After a rename,
+  grep for the old name.
+- Before finishing: `cargo test --workspace`, `cargo clippy --workspace
+  --all-targets -- -D warnings`, `cargo fmt --all`, and `git status` shows
+  nothing you did not mean to add.
+
 ## Not now
 
 - A **live runtime** for the causal subset (`summary` reports whether a sound is
