@@ -1,0 +1,73 @@
+{
+ "role": "whole",
+ "material": "metal",
+ "description": "heard as the best bowed metal bar of its box in a blind listen; built as: `impact` metal bar f0 440, a 50 g slider pressed by a `drive` ramping 1 -> 8 N, `slide` 0.03 m/s, `friction` [0.8, 0.3], `stribeck` 0.05",
+ "tags": [
+  "metal",
+  "bar",
+  "bow",
+  "bowed",
+  "squeal",
+  "friction",
+  "impact"
+ ],
+ "origin": "batch 24 (impact sliding); picked best of its box by the listener on 2026-11-19",
+ "doc": {
+  "name": "impact_bowed_bar",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.5,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "ramp",
+    "name": "press",
+    "from": 1.0,
+    "to": 8.0,
+    "time": 0.3,
+    "curve": "linear"
+   },
+   {
+    "type": "impact",
+    "name": "hit",
+    "material": "metal",
+    "shape": "bar",
+    "f0": 440,
+    "loss": 0.5,
+    "object_mass": 0.3,
+    "striker_mass": 0.05,
+    "hardness": 0.5,
+    "drive": "press",
+    "slide": 0.03,
+    "friction": [
+     0.8,
+     0.3
+    ],
+    "stribeck": 0.05,
+    "at": 0.005
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "hit",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pressure",
+    "value": 0.5,
+    "doc": "how hard the bow presses",
+    "map": [
+     {
+      "node": "press",
+      "field": "to",
+      "from": 3.0,
+      "to": 12.0
+     }
+    ]
+   }
+  ]
+ }
+}

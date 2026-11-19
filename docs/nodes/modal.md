@@ -446,8 +446,10 @@ the contact force follows how the surface moves under it.
 
 - `slide` (m/s, a signal) moves the contact along the surface while it is
   pressed (gravity from `height`, or a `drive`).
-- `roughness` (rms m) and `grain` (m between bumps) lay a seeded profile
-  under the path: the contact rides it, so a ball stays in contact and the
+- `roughness` (rms m), `grain` (m between the largest bumps) and `octaves`
+  (default 6: finer scales, each half the spacing and 0.2 the height; 1 is
+  one scale, heard as a crackle in batch 24) lay a seeded profile under the
+  path: the contact rides it, so a ball stays in contact and the
   bumps excite the modes all along: a roll. Measured: a 10 g steel ball at
   0.5 m/s on a wood plate, `roughness` 3e-5, `grain` 0.004, touches 70 % or
   more of the time and has no gaps (the 5th percentile 10 ms frame within
@@ -461,6 +463,8 @@ the contact force follows how the surface moves under it.
   `stribeck` (a bow at 0.03 m/s with `stribeck` 0.05 and a 3 N `drive`
   sustains a metal bar on one of its struck modes, within 3 %; at 0.3 m/s it
   is silent). Faster slides scrape (with `roughness`) rather than sing.
+  Heard (batch 24): the bow and the scrape picked; the creak heard as "a
+  glass played with a wet finger": use `door_creak` for a creak.
 - `pitch` now moves the `noise` bands with the lines (before, the bands sat
   at the unbent frequencies, so a noisy sheet did not bend; the batch 23 bend
   was not heard). At `noise` 0.9, `pitch` 1.5 moves the centroid by 1.5

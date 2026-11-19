@@ -1,0 +1,354 @@
+[
+ {
+  "id": "b25_01",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "roll_fractal_fine",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "sp",
+     "rate": 1.5,
+     "range": [
+      0.3,
+      0.6
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "noise": 0.6,
+     "tilt": 4,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": 0.06,
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 2e-05,
+     "grain": 0.003,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b25_02",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "roll_fractal_coarse",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "sp",
+     "from": 0.7,
+     "to": 0.15,
+     "time": 2.8
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "noise": 0.6,
+     "tilt": 4,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": 0.06,
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 6e-05,
+     "grain": 0.006,
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b25_03",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "roll_fractal_coarse",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "ramp",
+     "name": "sp",
+     "from": 0.7,
+     "to": 0.15,
+     "time": 2.8
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "noise": 0.6,
+     "tilt": 4,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": 0.06,
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 6e-05,
+     "grain": 0.006,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b25_04",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "roll_fractal_fine",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "sp",
+     "rate": 1.5,
+     "range": [
+      0.3,
+      0.6
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "noise": 0.6,
+     "tilt": 4,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": 0.06,
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 2e-05,
+     "grain": 0.003,
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b25_05",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "roll_steel_ball",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "sp",
+     "rate": 1.0,
+     "range": [
+      0.25,
+      0.5
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "noise": 0.6,
+     "tilt": 4,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.03,
+     "hardness": 1.0,
+     "drive": 0.3,
+     "radius": 0.01,
+     "slide": "sp",
+     "roughness": 2e-05,
+     "grain": 0.004,
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b25_06",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "roll_steel_ball",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "sp",
+     "rate": 1.0,
+     "range": [
+      0.25,
+      0.5
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "noise": 0.6,
+     "tilt": 4,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.03,
+     "hardness": 1.0,
+     "drive": 0.3,
+     "radius": 0.01,
+     "slide": "sp",
+     "roughness": 2e-05,
+     "grain": 0.004,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ },
+ {
+  "id": "b24_13",
+  "family": "impact",
+  "group": "marble_roll",
+  "design": "roll_onescale_reference",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "wander",
+     "name": "sp",
+     "rate": 1.5,
+     "range": [
+      0.3,
+      0.6
+     ]
+    },
+    {
+     "type": "impact",
+     "name": "hit",
+     "material": "wood",
+     "size": 0.6,
+     "noise": 0.6,
+     "tilt": 4,
+     "loss": 1.5,
+     "object_mass": 2.0,
+     "striker_mass": 0.006,
+     "hardness": 1.0,
+     "drive": 0.06,
+     "radius": 0.008,
+     "slide": "sp",
+     "roughness": 2e-05,
+     "grain": 0.003,
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 3.0
+  }
+ }
+]

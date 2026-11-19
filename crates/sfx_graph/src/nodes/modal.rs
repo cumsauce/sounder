@@ -1609,6 +1609,12 @@ pub struct Impact {
     /// fall into a narrower dip.
     #[serde(default)]
     pub grain: Option<f32>,
+    /// Scales in the surface profile (default 6, 1..8): `grain` and finer
+    /// octaves, each half the spacing and 0.2 the height. 1 is one scale of
+    /// bumps, heard as a crackle in a roll (the batch 24 scrape was picked
+    /// with it).
+    #[serde(default)]
+    pub octaves: Option<usize>,
     /// `[static, dynamic]` friction coefficients (default none: no friction,
     /// a pure roll). With `slide`, a stick-slip force drags the surface
     /// along: a scrape, a creak, a bowed squeal that locks to a mode.
@@ -1789,29 +1795,46 @@ impl Eval for Impact {
                 Some((ms_, md))
             }
         };
-        // The surface profile under the path: value noise with a bump every
-        // `grain`, cosine-interpolated, scaled to `roughness`.
+        // The surface profile under the path: value noise at `grain` and
+        // five finer octaves, each half the spacing and 0.2 the height,
+        // cosine-interpolated, scaled so the sum's rms is `roughness`. One
+        // scale alone was heard as a crackle of separate bumps. Halving the
+        // height per octave made the fine bumps' curvature grow, so the ball
+        // hopped (contact fell from 100 % to 39 %, and to 38 % at 0.3); at 0.2 the curvature falls
+        // per octave, as a ball that cannot follow detail finer than itself.
+        let octaves = self.octaves.unwrap_or(6);
+        if !(1..=8).contains(&octaves) {
+            return Err(format!("octaves: {octaves}: give 1..8"));
+        }
         let path_len = (0..cx.n).fold(0.0f32, |a, i| a + slide.at(i).abs() / cx.sr);
-        let bumps: Vec<f32> = if roughness > 0.0 {
-            let mut prng = cx.rng(self.seed ^ 0x0000_b0b5_u64);
-            let count = (2.0 * path_len / grain) as usize + 4;
-            // Uniform values in -1..1 have an rms of 1 / sqrt 3.
-            (0..count)
-                .map(|_| prng.signed() * roughness * 3f32.sqrt())
+        let mut prng = cx.rng(self.seed ^ 0x0000_b0b5_u64);
+        let norm = (0..octaves)
+            .map(|o| 0.04f32.powi(o as i32))
+            .sum::<f32>()
+            .sqrt();
+        let layers: Vec<(f32, Vec<f32>)> = if roughness > 0.0 {
+            (0..octaves)
+                .map(|o| {
+                    let g = grain / (1u32 << o) as f32;
+                    let a = 0.2f32.powi(o as i32) * roughness * 3f32.sqrt() / norm;
+                    let count = (2.0 * path_len / g) as usize + 4;
+                    (g, (0..count).map(|_| prng.signed() * a).collect())
+                })
                 .collect()
         } else {
             Vec::new()
         };
-        let half = bumps.len() as f32 / 2.0;
         let raw_profile = |x: f32| -> f32 {
-            if bumps.is_empty() {
-                return 0.0;
+            let mut h = 0.0;
+            for (g, bumps) in &layers {
+                let half = bumps.len() as f32 / 2.0;
+                let t = (x / g + half).clamp(0.0, bumps.len() as f32 - 1.001);
+                let j = t as usize;
+                let f = t - j as f32;
+                let w = 0.5 - 0.5 * (PI * f).cos();
+                h += bumps[j] * (1.0 - w) + bumps[j + 1] * w;
             }
-            let t = (x / grain + half).clamp(0.0, bumps.len() as f32 - 1.001);
-            let j = t as usize;
-            let f = t - j as f32;
-            let w = 0.5 - 0.5 * (PI * f).cos();
-            bumps[j] * (1.0 - w) + bumps[j + 1] * w
+            h
         };
         // Level at the start: the contact begins on the surface, not inside
         // a bump (which kicked every roll off with a hit).

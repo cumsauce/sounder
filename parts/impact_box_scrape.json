@@ -1,0 +1,76 @@
+{
+ "role": "whole",
+ "material": "metal",
+ "description": "heard as the best metal box scraped across stone of its box in a blind listen; built as: `impact` metal plate 0.4 m, 1.5 mm, 3 kg, resting on a stone floor, `slide` a ramp 0.6 -> 0.05 m/s, `roughness` 1e-4, `friction` [0.6, 0.4]; `octaves` 1 (the one-scale surface it was heard with)",
+ "tags": [
+  "metal",
+  "box",
+  "scrape",
+  "drag",
+  "friction",
+  "impact"
+ ],
+ "origin": "batch 24 (impact sliding); picked best of its box by the listener on 2026-11-19",
+ "doc": {
+  "name": "impact_box_scrape",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 1.6,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "ramp",
+    "name": "pull",
+    "from": 0.6,
+    "to": 0.05,
+    "time": 1.4,
+    "curve": "linear"
+   },
+   {
+    "type": "impact",
+    "name": "hit",
+    "material": "metal",
+    "size": 0.4,
+    "thickness": 0.0015,
+    "noise": 0.4,
+    "noise_width": 0.1,
+    "loss": 0.6,
+    "object_mass": 3.0,
+    "height": 0.001,
+    "floor": "stone",
+    "slide": "pull",
+    "roughness": 0.0001,
+    "grain": 0.003,
+    "friction": [
+     0.6,
+     0.4
+    ],
+    "stribeck": 0.1,
+    "at": 0.005,
+    "octaves": 1
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "hit",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "speed",
+    "value": 0.5,
+    "doc": "how fast it is pulled at first",
+    "map": [
+     {
+      "node": "pull",
+      "field": "from",
+      "from": 0.3,
+      "to": 1.0
+     }
+    ]
+   }
+  ]
+ }
+}
