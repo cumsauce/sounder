@@ -1,7 +1,7 @@
 {
  "role": "whole",
  "material": "cloth",
- "description": "one footstep on carpet, picked best of 4 (\"good but needs some frictive noises to represent the cloth\"); built as: `step` carpet, speed 1.4; fibre rubs added after the listen (unheard)",
+ "description": "one footstep on carpet, picked best of 4 twice (the second time after the fibres were muffled); built as: `step` carpet, speed 1.4",
  "tags": [
   "footstep",
   "step",
@@ -11,7 +11,7 @@
   "indoor",
   "soft"
  ],
- "origin": "batch 15; picked best of its box on 2026-11-19",
+ "origin": "batches 15 and 17; picked best of its box on 2026-11-19",
  "doc": {
   "name": "carpet_step",
   "kind": "oneshot",

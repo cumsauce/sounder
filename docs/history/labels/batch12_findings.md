@@ -55,3 +55,9 @@ All three were bad:
 - metal: "good but too high pitched, no after-vibration ... like a metal grate staircase, rings a bit after but atonal". The sheet went to 3 mm, and the 3.5 kHz shimmer became a 0.45 s atonal rattle at 0.9-1.8 kHz with a 25-40 Hz flutter.
 
 The `carpet_step` part picks this change up.
+
+## Batch 17
+
+- dirt: speed 1.4, in a room (s02). Saved as `dirt_step`.
+- carpet: speed 1.4, dry (s06). `carpet_step` already holds this setting.
+- metal: all bad, "it sounds worse now, do some research". The grate rattle made it worse than the high-pitched sheet before it. Metal needs a researched model, not another tweak.
