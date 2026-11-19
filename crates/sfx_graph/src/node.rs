@@ -369,6 +369,7 @@ node_types! {
     "rain" => Rain,
     "lava" => Lava,
     "cave" => Cave,
+    "frog" => Frog,
     "roar" => Roar,
     "fly" => Fly,
     "cicada" => Cicada,

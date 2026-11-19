@@ -44,6 +44,7 @@ mod farnell_liquid;
 mod farnell_phone;
 mod farnell_scifi;
 mod farnell_vehicles;
+mod frog;
 mod machines;
 mod rain;
 
@@ -110,6 +111,7 @@ pub use farnell_liquid::*;
 pub use farnell_phone::*;
 pub use farnell_scifi::*;
 pub use farnell_vehicles::*;
+pub use frog::*;
 pub use machines::*;
 pub use rain::*;
 
