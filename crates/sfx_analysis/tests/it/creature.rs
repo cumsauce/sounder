@@ -113,3 +113,22 @@ fn bad_fields_say_what_to_give() {
     let e = render_error(creature(json!({"call": "moo"})), "n", 0.1);
     assert!(e.contains("roar"), "{e}");
 }
+
+#[test]
+fn voice_and_breath_add_back_to_the_call() {
+    for call in ["roar", "growl", "snarl", "whine"] {
+        let f = |layer: &str| node_audio(creature(json!({"call": call, "layer": layer})), "n", 2.5);
+        let (all, v, b) = (f("all"), f("voice"), f("breath"));
+        let err = all
+            .iter()
+            .zip(v.iter().zip(&b))
+            .fold(0f32, |m, (a, (x, y))| m.max((a - x - y).abs()));
+        assert!(err < 1e-4, "{call}: voice + breath off by {err}");
+        let r = |x: &[f32]| (x.iter().map(|s| s * s).sum::<f32>() / x.len() as f32).sqrt();
+        println!("{call}: voice rms {:.4}, breath rms {:.4}", r(&v), r(&b));
+        assert!(
+            r(&b) > 0.0 && r(&v) > r(&b) * 0.1,
+            "{call}: both layers sound"
+        );
+    }
+}

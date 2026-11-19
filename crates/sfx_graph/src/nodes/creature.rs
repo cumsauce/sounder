@@ -74,11 +74,25 @@ pub struct Creature {
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
+    /// Which part: `all` (default), `voice` (the voiced pulses through the
+    /// tract) or `breath` (the breath noise through it). Same seed, levelled
+    /// as the whole call, so `voice` + `breath` = `all`.
+    #[serde(default)]
+    pub layer: Option<CreatureLayer>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum CreatureLayer {
+    #[default]
+    All,
+    Voice,
+    Breath,
 }
 
 impl Describe for Creature {
     const BLURB: &'static str = "creature (after the foley project's creature voices): an LF glottal source with subharmonics, sidebands, chaos and creak through a waveguide vocal tract whose length is the body; call roar / growl / snarl / whine, size 0..1 (tract + pitch), aggression, roughness, length s";
-    const WORDS: &'static [&'static str] = &["call"];
+    const WORDS: &'static [&'static str] = &["call", "layer"];
     fn example() -> serde_json::Value {
         serde_json::json!({"call": "growl", "size": 0.7, "aggression": 0.6, "roughness": 0.6, "seed": 1})
     }
@@ -117,6 +131,7 @@ impl Eval for Creature {
             roughness,
             self.length,
             rate(cx),
+            self.layer.unwrap_or_default(),
         );
         Ok(one(fit(&out, self.at.unwrap_or(0.0), 1.0, cx)))
     }
@@ -140,6 +155,7 @@ fn render(
     roughness: f32,
     length: Option<f32>,
     sr: u32,
+    layer: CreatureLayer,
 ) -> Vec<f32> {
     let (mut segments, peak, natural) = match call {
         CreatureCallKind::Roar => (roar(rng, aggression, roughness), 0.7, 1.0),
@@ -158,7 +174,18 @@ fn render(
         length: tract_length(size),
         f0: usual_pitch(size) * (1.0 + 0.06 * rng.signed()),
     };
-    finish_at(perform_at(rng, voice, &segments, sr), peak, sr)
+    let take = rng.clone();
+    let all = perform_at(rng, voice, &segments, sr, [1.0, 1.0]);
+    let weights = match layer {
+        CreatureLayer::All => return finish_at(all, peak, sr, None),
+        CreatureLayer::Voice => [1.0, 0.0],
+        CreatureLayer::Breath => [0.0, 1.0],
+    };
+    // The same draws again with one source muted, levelled by the whole
+    // call's gain (the tract is linear), so the layers add back.
+    let gain = finish_gain(&all, peak, sr);
+    let part = perform_at(&mut take.clone(), voice, &segments, sr, weights);
+    finish_at(part, peak, sr, Some(gain))
 }
 
 /// A usual value wavered by the usual amount.
@@ -367,7 +394,13 @@ fn gauss(rng: &mut Rng) -> f32 {
 /// rate down to 25-65 Hz, irregularly; ingressive voicing plays each pulse
 /// backwards, breathier and quieter. Breath noise follows the glottal flow.
 /// The tract moves towards each instant's mouth shape in a few milliseconds.
-fn perform_at(rng: &mut Rng, voice: Voice, segments: &[Seg], sample_rate: u32) -> Vec<f32> {
+fn perform_at(
+    rng: &mut Rng,
+    voice: Voice,
+    segments: &[Seg],
+    sample_rate: u32,
+    weights: [f32; 2],
+) -> Vec<f32> {
     let rate = sample_rate as f32;
     let mut tract = Tract::new(voice.length, sample_rate);
     let mut out = Vec::new();
@@ -446,7 +479,7 @@ fn perform_at(rng: &mut Rng, voice: Voice, segments: &[Seg], sample_rate: u32) -
             let coloured = breath_lp[1].process(first);
             let ingress = if seg.ingressive { 1.5 } else { 1.0 };
             let aspiration = 0.3 * coloured * seg.breath.at(t) * opening * ingress;
-            let glottis = seg.loud.at(t) * (0.5 * voiced + aspiration);
+            let glottis = seg.loud.at(t) * (weights[0] * 0.5 * voiced + weights[1] * aspiration);
             out.push(tract.run(glottis));
         }
         for _ in 0..(seg.gap * rate) as usize {
@@ -457,18 +490,30 @@ fn perform_at(rng: &mut Rng, voice: Voice, segments: &[Seg], sample_rate: u32) -
     out
 }
 
+/// The gain `finish_at` gives `out`: what scales its loudest sample, after
+/// the rumble is taken off, to `peak`.
+fn finish_gain(out: &[f32], peak: f32, sample_rate: u32) -> f32 {
+    let mut low = LowPass::new_at(40.0, sample_rate);
+    let loudest = out
+        .iter()
+        .map(|x| (x - low.process(*x)).abs())
+        .fold(0f32, f32::max);
+    if loudest > 0.0 { peak / loudest } else { 1.0 }
+}
+
 /// Takes off the lowest rumble (below about 40 Hz), scales to `peak`, and
 /// fades the ends so it never clicks.
-fn finish_at(mut out: Vec<f32>, peak: f32, sample_rate: u32) -> Vec<f32> {
+fn finish_at(mut out: Vec<f32>, peak: f32, sample_rate: u32, gain: Option<f32>) -> Vec<f32> {
     let mut low = LowPass::new_at(40.0, sample_rate);
     for x in &mut out {
         *x -= low.process(*x);
     }
     out.extend(std::iter::repeat_n(0.0, sample_rate as usize / 50));
-    let loudest = out.iter().fold(0f32, |m, x| m.max(x.abs()));
-    if loudest > 0.0 {
-        out.iter_mut().for_each(|x| *x *= peak / loudest);
-    }
+    let g = gain.unwrap_or_else(|| {
+        let loudest = out.iter().fold(0f32, |m, x| m.max(x.abs()));
+        if loudest > 0.0 { peak / loudest } else { 1.0 }
+    });
+    out.iter_mut().for_each(|x| *x *= g);
     let fade = (sample_rate as usize / 500).min(out.len() / 2);
     let len = out.len();
     for i in 0..fade {

@@ -41,3 +41,7 @@ From the listen: stone's modes moved from 3-7 kHz to 4.5-10 kHz ("too low,
 oil fry"); glass (decay 90 -> 450 /s) and metal (35 -> 220 /s) ring
 shorter, since both read as chimes; the far water sizzle is 0.025 instead
 of foley's 0.07 ("white noise"). Not heard yet.
+
+## Layers
+
+`layer` splits the sound into two parts that add back to `all` exactly with the same seed and fields (`tests/it/rain.md`). Rain splits into `drops` (the near drops) and `hiss` (the far rain and water's sizzle). A creature splits into `voice` (the voiced pulses) and `breath` (the breath noise), both through the same tract and levelled by the whole call's gain.

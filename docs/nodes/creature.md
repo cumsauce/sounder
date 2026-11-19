@@ -48,3 +48,7 @@ length follows the document's sample rate (foley is fixed at 48 kHz); frication
 and biphonation are not ported (no call here uses them). The calls have not
 been heard; the existing `roar` (Farnell) was heard as a cow and a groan, and
 this is meant to replace it.
+
+## Layers
+
+`layer` splits the sound into two parts that add back to `all` exactly with the same seed and fields (`tests/it/creature.md`). Rain splits into `drops` (the near drops) and `hiss` (the far rain and water's sizzle). A creature splits into `voice` (the voiced pulses) and `breath` (the breath noise), both through the same tract and levelled by the whole call's gain.

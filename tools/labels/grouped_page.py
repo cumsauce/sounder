@@ -18,7 +18,7 @@ TITLES = {"rain": "Rain", "creature": "Creature calls", "leaves": "Wind in plant
           "creature_roar": "Creature roar", "creature_growl": "Creature growl",
           "creature_snarl": "Creature snarl", "creature_whine": "Creature whine",
           "footstep_concrete": "Two steps on concrete", "footstep_gravel": "Two steps on gravel",
-          "footstep_grass": "Two steps on grass", "footstep_allpurpose": "Two all-purpose steps (no surface)", "footstep_dirt": "Two steps on dirt", "footstep_snow": "Two steps in snow", "footstep_wood": "Two steps on a wooden floor", "footstep_metal": "Two steps on metal", "footstep_ice": "Two steps on ice", "footstep_carpet": "Two steps on carpet", "footstep_layered": "Two steps on gravel (whole vs rebuilt from layers)", "splash_large": "A large splash (something big into water)",
+          "footstep_grass": "Two steps on grass", "footstep_allpurpose": "Two all-purpose steps (no surface)", "footstep_dirt": "Two steps on dirt", "footstep_snow": "Two steps in snow", "footstep_wood": "Two steps on a wooden floor", "footstep_metal": "Two steps on metal", "footstep_ice": "Two steps on ice", "footstep_carpet": "Two steps on carpet", "rain_drops": "Rain: the drops alone", "rain_hiss": "Rain: the hiss alone", "creature_voice": "Creature: the voice alone", "creature_breath": "Creature: the breath alone", "footstep_layered": "Two steps on gravel (whole vs rebuilt from layers)", "splash_large": "A large splash (something big into water)",
           "motor": "An electric motor spinning up and down"}
 
 

@@ -1,0 +1,794 @@
+[
+ {
+  "id": "s01",
+  "family": "layers",
+  "group": "rain_hiss",
+  "design": "rain_hiss_water",
+  "dressed": false,
+  "doc": {
+   "sound": "s01",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "water",
+     "layer": "hiss",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s02",
+  "family": "layers",
+  "group": "creature_voice",
+  "design": "creature_roar_voice",
+  "dressed": true,
+  "doc": {
+   "sound": "s02",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "roar",
+     "layer": "voice",
+     "size": 0.9,
+     "aggression": 0.8,
+     "length": 2,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s03",
+  "family": "layers",
+  "group": "rain_drops",
+  "design": "rain_drops_soft",
+  "dressed": true,
+  "doc": {
+   "sound": "s03",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "soft",
+     "layer": "drops",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s04",
+  "family": "layers",
+  "group": "rain_hiss",
+  "design": "rain_hiss_stone",
+  "dressed": false,
+  "doc": {
+   "sound": "s04",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "stone",
+     "layer": "hiss",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s05",
+  "family": "layers",
+  "group": "creature_voice",
+  "design": "creature_roar_voice",
+  "dressed": false,
+  "doc": {
+   "sound": "s05",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "roar",
+     "layer": "voice",
+     "size": 0.9,
+     "aggression": 0.8,
+     "length": 2,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s06",
+  "family": "layers",
+  "group": "rain_hiss",
+  "design": "rain_hiss_water",
+  "dressed": true,
+  "doc": {
+   "sound": "s06",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "water",
+     "layer": "hiss",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s07",
+  "family": "layers",
+  "group": "creature_voice",
+  "design": "creature_growl_voice",
+  "dressed": false,
+  "doc": {
+   "sound": "s07",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "growl",
+     "layer": "voice",
+     "size": 0.95,
+     "aggression": 1,
+     "roughness": 1,
+     "length": 2.5,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s08",
+  "family": "layers",
+  "group": "rain_drops",
+  "design": "rain_drops_stone",
+  "dressed": true,
+  "doc": {
+   "sound": "s08",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "stone",
+     "layer": "drops",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s09",
+  "family": "layers",
+  "group": "creature_breath",
+  "design": "creature_growl_breath",
+  "dressed": true,
+  "doc": {
+   "sound": "s09",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "growl",
+     "layer": "breath",
+     "size": 0.95,
+     "aggression": 1,
+     "roughness": 1,
+     "length": 2.5,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s10",
+  "family": "layers",
+  "group": "rain_drops",
+  "design": "rain_drops_soft",
+  "dressed": false,
+  "doc": {
+   "sound": "s10",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "soft",
+     "layer": "drops",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s11",
+  "family": "layers",
+  "group": "creature_breath",
+  "design": "creature_snarl_breath",
+  "dressed": true,
+  "doc": {
+   "sound": "s11",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "snarl",
+     "layer": "breath",
+     "size": 0.5,
+     "length": 2,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s12",
+  "family": "layers",
+  "group": "creature_voice",
+  "design": "creature_growl_voice",
+  "dressed": true,
+  "doc": {
+   "sound": "s12",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "growl",
+     "layer": "voice",
+     "size": 0.95,
+     "aggression": 1,
+     "roughness": 1,
+     "length": 2.5,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s13",
+  "family": "layers",
+  "group": "rain_hiss",
+  "design": "rain_hiss_soft",
+  "dressed": false,
+  "doc": {
+   "sound": "s13",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "soft",
+     "layer": "hiss",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s14",
+  "family": "layers",
+  "group": "creature_breath",
+  "design": "creature_roar_breath",
+  "dressed": false,
+  "doc": {
+   "sound": "s14",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "roar",
+     "layer": "breath",
+     "size": 0.9,
+     "aggression": 0.8,
+     "length": 2,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s15",
+  "family": "layers",
+  "group": "creature_breath",
+  "design": "creature_snarl_breath",
+  "dressed": false,
+  "doc": {
+   "sound": "s15",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "snarl",
+     "layer": "breath",
+     "size": 0.5,
+     "length": 2,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s16",
+  "family": "layers",
+  "group": "creature_breath",
+  "design": "creature_growl_breath",
+  "dressed": false,
+  "doc": {
+   "sound": "s16",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "growl",
+     "layer": "breath",
+     "size": 0.95,
+     "aggression": 1,
+     "roughness": 1,
+     "length": 2.5,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s17",
+  "family": "layers",
+  "group": "creature_voice",
+  "design": "creature_snarl_voice",
+  "dressed": true,
+  "doc": {
+   "sound": "s17",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "snarl",
+     "layer": "voice",
+     "size": 0.5,
+     "length": 2,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s18",
+  "family": "layers",
+  "group": "rain_hiss",
+  "design": "rain_hiss_stone",
+  "dressed": true,
+  "doc": {
+   "sound": "s18",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "stone",
+     "layer": "hiss",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s19",
+  "family": "layers",
+  "group": "creature_voice",
+  "design": "creature_snarl_voice",
+  "dressed": false,
+  "doc": {
+   "sound": "s19",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "snarl",
+     "layer": "voice",
+     "size": 0.5,
+     "length": 2,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s20",
+  "family": "layers",
+  "group": "rain_drops",
+  "design": "rain_drops_wood",
+  "dressed": false,
+  "doc": {
+   "sound": "s20",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "wood",
+     "layer": "drops",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s21",
+  "family": "layers",
+  "group": "rain_drops",
+  "design": "rain_drops_stone",
+  "dressed": false,
+  "doc": {
+   "sound": "s21",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "stone",
+     "layer": "drops",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s22",
+  "family": "layers",
+  "group": "rain_hiss",
+  "design": "rain_hiss_soft",
+  "dressed": true,
+  "doc": {
+   "sound": "s22",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "soft",
+     "layer": "hiss",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s23",
+  "family": "layers",
+  "group": "creature_breath",
+  "design": "creature_roar_breath",
+  "dressed": true,
+  "doc": {
+   "sound": "s23",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "roar",
+     "layer": "breath",
+     "size": 0.9,
+     "aggression": 0.8,
+     "length": 2,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s24",
+  "family": "layers",
+  "group": "rain_drops",
+  "design": "rain_drops_wood",
+  "dressed": true,
+  "doc": {
+   "sound": "s24",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "wood",
+     "layer": "drops",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ }
+]

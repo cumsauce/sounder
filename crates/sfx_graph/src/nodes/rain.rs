@@ -67,11 +67,25 @@ pub struct Rain {
     /// document, no otherwise.
     #[serde(default, rename = "loop")]
     pub looped: Option<bool>,
+    /// Which part: `all` (default), `drops` (the near drops one by one) or
+    /// `hiss` (the far rain blurred into noise, and water's sizzle). Same
+    /// seed, so `drops` + `hiss` = `all`.
+    #[serde(default)]
+    pub layer: Option<RainLayer>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum RainLayer {
+    #[default]
+    All,
+    Drops,
+    Hiss,
 }
 
 impl Describe for Rain {
     const BLURB: &'static str = "rain (after the foley project's physical rain): Marshall-Palmer drops, each a struck surface or a bubble on water, over a hiss coloured by the surface; surface water / stone / leaf / wood / soft / glass / metal, rate mm/h, roof; loop: true wraps without a seam";
-    const WORDS: &'static [&'static str] = &["surface", "roof"];
+    const WORDS: &'static [&'static str] = &["surface", "roof", "layer"];
     fn example() -> serde_json::Value {
         serde_json::json!({"surface": "stone", "rate": 10, "seed": 1})
     }
@@ -105,6 +119,7 @@ impl Eval for Rain {
             rate,
             self.roof.map(|r| (r, h)),
             wrap,
+            self.layer.unwrap_or_default(),
         );
         Ok(one(Buf::Audio(out)))
     }
@@ -313,7 +328,13 @@ fn render(
     rate: f32,
     roof: Option<(RainSurface, f32)>,
     wrap: bool,
+    layer: RainLayer,
 ) -> Vec<f32> {
+    let (wd, wh) = match layer {
+        RainLayer::All => (1.0, 1.0),
+        RainLayer::Drops => (1.0, 0.0),
+        RainLayer::Hiss => (0.0, 1.0),
+    };
     let k = kind(surface);
     let roof = roof.map(|(s, h)| (kind(s), h));
     let lam = lambda(rate);
@@ -407,7 +428,7 @@ fn render(
         hiss += smooth * (rng.signed() - hiss);
         hiss_low += smooth * (hiss - hiss_low);
         let far = sizzle_lvl * sizzle.tick(rng.signed());
-        *o = mix + level * hiss_low * 3.0 + far;
+        *o = wd * mix + wh * (level * hiss_low * 3.0 + far);
     }
     if wrap {
         // The tail's ringing goes onto the start; the hiss crossfades.

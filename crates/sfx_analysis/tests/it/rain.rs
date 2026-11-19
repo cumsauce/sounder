@@ -105,3 +105,22 @@ fn bad_fields_say_what_to_give() {
     let e = crate::common::render_error(rain(json!({"roof_height": 0.1})), "n", 0.1);
     assert!(e.contains("roof_height"), "{e}");
 }
+
+#[test]
+fn drops_and_hiss_add_back_to_the_rain() {
+    for surface in ["stone", "water", "soft"] {
+        let f = |layer: &str| {
+            node_audio(
+                vec![json!({"type": "rain", "name": "n", "surface": surface, "layer": layer})],
+                "n",
+                2.0,
+            )
+        };
+        let (all, d, h) = (f("all"), f("drops"), f("hiss"));
+        let err = all
+            .iter()
+            .zip(d.iter().zip(&h))
+            .fold(0f32, |m, (a, (x, y))| m.max((a - x - y).abs()));
+        assert!(err < 1e-5, "{surface}: drops + hiss off by {err}");
+    }
+}
