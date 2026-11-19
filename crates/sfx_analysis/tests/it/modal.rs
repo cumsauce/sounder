@@ -1973,6 +1973,92 @@ mod impact {
     }
 
     #[test]
+    fn pitch_moves_the_noise_bands_too() {
+        // Mostly noise bands: they bend with the lines.
+        let lo = node_audio(struck_plate(json!({"noise": 0.9})), "hit", 0.5);
+        let hi = node_audio(
+            struck_plate(json!({"noise": 0.9, "pitch": 1.5})),
+            "hit",
+            0.5,
+        );
+        let c = spectrum_centroid(&hi) / spectrum_centroid(&lo);
+        assert!((c - 1.5).abs() < 0.15, "centroid ratio {c}");
+    }
+
+    fn roller(extra: Value) -> Vec<Value> {
+        let base = json!({"type": "impact", "name": "hit", "material": "wood", "size": 0.6,
+            "object_mass": 2.0, "striker_mass": 0.01, "hardness": 1.0, "height": 0.001,
+            "radius": 0.004, "slide": 0.5, "roughness": 3e-5, "grain": 0.004});
+        vec![
+            with_fields(base, extra),
+            json!({"type": "output", "name": "out", "input": "hit"}),
+        ]
+    }
+
+    #[test]
+    fn a_roll_stays_in_contact_and_sounds_all_along() {
+        let n = roller(json!({}));
+        let f = node_audio(&n, "hit.force", 1.0);
+        let on = f[4800..].iter().filter(|x| **x > 0.0).count() as f32 / (f.len() - 4800) as f32;
+        assert!(on > 0.7, "in contact {on}");
+        let x = node_audio(&n, "hit", 1.0);
+        let mut frames: Vec<f32> = x[9600..].chunks(480).map(rms).collect();
+        frames.sort_by(f32::total_cmp);
+        let (lo, mid) = (frames[frames.len() / 20], frames[frames.len() / 2]);
+        assert!(
+            lo > mid * 0.03,
+            "gaps in the roll: 5th percentile {lo} vs median {mid}"
+        );
+    }
+
+    #[test]
+    fn a_smooth_roll_is_quiet() {
+        // Without bumps nothing excites the modes after the landing.
+        let x = node_audio(roller(json!({"roughness": 0.0})), "hit", 1.0);
+        let late = rms(&x[24_000..]);
+        let early = rms(&x[..2400]);
+        assert!(late < early * 0.05, "late {late} vs landing {early}");
+    }
+
+    #[test]
+    fn friction_locks_to_a_mode() {
+        let bow = vec![
+            json!({"type": "impact", "name": "hit", "material": "metal", "shape": "bar",
+                "f0": 600, "loss": 0.5, "object_mass": 0.3, "striker_mass": 0.05,
+                "hardness": 0.5, "drive": 3.0, "slide": 0.03, "friction": [0.8, 0.3],
+                "stribeck": 0.05}),
+            json!({"type": "output", "name": "out", "input": "hit"}),
+        ];
+        let x = node_audio(&bow, "hit", 1.0);
+        assert_finite(&x, "bow");
+        let tail = &x[24_000..];
+        assert!(
+            rms(tail) > 0.02,
+            "the bow should keep it sounding: {}",
+            rms(tail)
+        );
+        let struck = node_audio(
+            vec![
+                json!({"type": "impact", "name": "hit", "material": "metal", "shape": "bar",
+                    "f0": 600, "loss": 0.5, "object_mass": 0.3, "striker_mass": 0.05,
+                    "hardness": 0.5, "speed": 1.0}),
+                json!({"type": "output", "name": "out", "input": "hit"}),
+            ],
+            "hit",
+            1.0,
+        );
+        let modes: Vec<f32> = peaks(&struck, 48_000, 8, 40.0)
+            .iter()
+            .map(|p| p.0)
+            .collect();
+        let f = peak_hz(tail, 48_000);
+        assert!(
+            modes.iter().any(|m| (f / m - 1.0).abs() < 0.03),
+            "bowed peak {f} Hz not on a mode {modes:?}"
+        );
+    }
+
+    #[test]
     fn errors_name_the_field() {
         let e = render_error_raw(drop(json!({"speed": 1.0})), 1.0);
         assert!(e.contains("height and speed"), "{e}");

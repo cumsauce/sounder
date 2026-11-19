@@ -442,6 +442,30 @@ the contact force follows how the surface moves under it.
   `damping` 4 leaves under half the tail. A mode pitched over the top of the
   band goes silent; the substeps rise so the highest pitched mode stays stable.
 
+### Sliding: a roll and friction
+
+- `slide` (m/s, a signal) moves the contact along the surface while it is
+  pressed (gravity from `height`, or a `drive`).
+- `roughness` (rms m) and `grain` (m between bumps) lay a seeded profile
+  under the path: the contact rides it, so a ball stays in contact and the
+  bumps excite the modes all along: a roll. Measured: a 10 g steel ball at
+  0.5 m/s on a wood plate, `roughness` 3e-5, `grain` 0.004, touches 70 % or
+  more of the time and has no gaps (the 5th percentile 10 ms frame within
+  30 dB of the median); with `roughness` 0 it falls silent after landing.
+  The batch 23 roll (a pulsed `drive`, lifting the ball) was heard as
+  "random cracks": a roll is this, not a drive.
+- `friction` `[static, dynamic]` adds a stick-slip drag on a second, sliding
+  copy of the modes (same frequencies and decays), on a Stribeck curve
+  falling from static to dynamic around `stribeck` m/s. It is only unstable,
+  and so only sings, where the curve falls steeply: a `slide` near
+  `stribeck` (a bow at 0.03 m/s with `stribeck` 0.05 and a 3 N `drive`
+  sustains a metal bar on one of its struck modes, within 3 %; at 0.3 m/s it
+  is silent). Faster slides scrape (with `roughness`) rather than sing.
+- `pitch` now moves the `noise` bands with the lines (before, the bands sat
+  at the unbent frequencies, so a noisy sheet did not bend; the batch 23 bend
+  was not heard). At `noise` 0.9, `pitch` 1.5 moves the centroid by 1.5
+  (within 0.15).
+
 ### `force` as a trigger
 
 The `force` port is the contact force, 1 at its peak. It sets the rhythm of

@@ -819,6 +819,23 @@ pub(crate) fn add_noise_band(
     white: &mut [f32],
     sr: f32,
 ) {
+    add_noise_band_bent(out, ring, (f, t60), depth, width, rng, white, sr, None);
+}
+
+/// `add_noise_band` whose band follows a per-sample ratio on its frequency
+/// (`impact`'s `pitch`), so a bend moves the noise as well as the lines.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn add_noise_band_bent(
+    out: &mut [f32],
+    ring: &[f32],
+    (f, t60): (f32, f32),
+    depth: f32,
+    width: f32,
+    rng: &mut crate::dsp::Rng,
+    white: &mut [f32],
+    sr: f32,
+    ratio: Option<&[f32]>,
+) {
     let n = ring.len();
     // Its amplitude: a peak follower that falls at the mode's own decay
     // rate, so it holds the envelope between the sine's peaks.
@@ -831,9 +848,14 @@ pub(crate) fn add_noise_band(
     let bw = (width * f).clamp(20.0, 0.2 * sr);
     let q = (f / bw).max(0.05);
     let mut svf = Svf::default();
+    let top = 0.45 * sr;
     let band: Vec<f32> = white[..n]
         .iter()
-        .map(|w| svf.tick(*w, FilterMode::Bp, f, q, 0.0, sr))
+        .enumerate()
+        .map(|(i, w)| {
+            let fi = ratio.map_or(f, |r| (f * r[i]).min(top));
+            svf.tick(*w, FilterMode::Bp, fi, q, 0.0, sr)
+        })
         .collect();
     let rms = (band
         .iter()
@@ -1572,6 +1594,30 @@ pub struct Impact {
     /// 0.01..100): lower is a softer, duller touch.
     #[serde(default)]
     pub stiffness: Option<In>,
+    /// Speed along the surface while in contact, m/s (a signal, default 0):
+    /// a ball rolling, a block or a bow sliding. Keep it pressed with
+    /// gravity (`height`) or a `drive`.
+    #[serde(default)]
+    pub slide: Option<In>,
+    /// RMS height of the surface's bumps under the contact, metres (default
+    /// 0; 1e-6 a polished floor, 3e-5 a rough board, 2e-4 gravel). With
+    /// `slide`, the contact rides the profile: a roll.
+    #[serde(default)]
+    pub roughness: Option<f32>,
+    /// Distance between the surface's bumps, metres (default 0.002,
+    /// 0.0001..0.1). Keep it at least the contact `radius`: a ball cannot
+    /// fall into a narrower dip.
+    #[serde(default)]
+    pub grain: Option<f32>,
+    /// `[static, dynamic]` friction coefficients (default none: no friction,
+    /// a pure roll). With `slide`, a stick-slip force drags the surface
+    /// along: a scrape, a creak, a bowed squeal that locks to a mode.
+    #[serde(default)]
+    pub friction: Option<[f32; 2]>,
+    /// Speed where friction falls from static to dynamic, m/s (default 0.1,
+    /// 0.001..10): lower locks harder to a mode.
+    #[serde(default)]
+    pub stribeck: Option<f32>,
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
@@ -1726,6 +1772,47 @@ impl Eval for Impact {
         let pitch = cx.mono_or("pitch", &self.pitch, 1.0)?;
         let damping = cx.mono_or("damping", &self.damping, 1.0)?;
         let stiff = cx.mono_or("stiffness", &self.stiffness, 1.0)?;
+        let slide = cx.mono_or("slide", &self.slide, 0.0)?;
+        let roughness = range("roughness", self.roughness.unwrap_or(0.0), 0.0, 0.01)?;
+        let grain = range("grain", self.grain.unwrap_or(0.002), 0.0001, 0.1)?;
+        let vc = range("stribeck", self.stribeck.unwrap_or(0.1), 0.001, 10.0)?;
+        let friction = match self.friction {
+            None => None,
+            Some([ms_, md]) => {
+                let ms_ = range("friction static", ms_, 0.0, 3.0)?;
+                let md = range("friction dynamic", md, 0.0, 3.0)?;
+                if md > ms_ {
+                    return Err(format!(
+                        "friction: [{ms_}, {md}]: the dynamic coefficient is above the static one; give [static, dynamic] with dynamic <= static"
+                    ));
+                }
+                Some((ms_, md))
+            }
+        };
+        // The surface profile under the path: value noise with a bump every
+        // `grain`, cosine-interpolated, scaled to `roughness`.
+        let path_len = (0..cx.n).fold(0.0f32, |a, i| a + slide.at(i).abs() / cx.sr);
+        let bumps: Vec<f32> = if roughness > 0.0 {
+            let mut prng = cx.rng(self.seed ^ 0x0000_b0b5_u64);
+            let count = (2.0 * path_len / grain) as usize + 4;
+            // Uniform values in -1..1 have an rms of 1 / sqrt 3.
+            (0..count)
+                .map(|_| prng.signed() * roughness * 3f32.sqrt())
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let half = bumps.len() as f32 / 2.0;
+        let profile = |x: f32| -> f32 {
+            if bumps.is_empty() {
+                return 0.0;
+            }
+            let t = (x / grain + half).clamp(0.0, bumps.len() as f32 - 1.001);
+            let j = t as usize;
+            let f = t - j as f32;
+            let w = 0.5 - 0.5 * (PI * f).cos();
+            bumps[j] * (1.0 - w) + bumps[j + 1] * w
+        };
         // A drive with no speed: the contact time of a 0.1 m/s touch.
         let tau = hertz_time(moving_mass, radius, e_star, speed.max(0.1));
         // The highest mode, raised by the most `pitch` asks for, stays
@@ -1755,6 +1842,9 @@ impl Eval for Impact {
             r: f32,
             q: f32,
             v: f32,
+            // The same mode moving along the surface, driven by friction.
+            qt: f32,
+            vt: f32,
         }
         let mut ms: Vec<M> = p
             .modes
@@ -1769,9 +1859,14 @@ impl Eval for Impact {
                     r: w * 10f32.powf(p.tilt_db * (f / f_low).log2() / 20.0),
                     q: 0.0,
                     v: 0.0,
+                    qt: 0.0,
+                    vt: 0.0,
                 }
             })
             .collect();
+        let sum_w2: f32 = ms.iter().map(|m| m.w * m.w).sum::<f32>().max(1e-6);
+        let mut x_path = 0.0f32;
+        let mut h_prev = profile(0.0);
         let coupling: Vec<f32> = ms.iter().map(|m| m.w).collect();
         let mut rng = cx.rng(self.seed ^ 0x1a9c_7000);
 
@@ -1793,24 +1888,32 @@ impl Eval for Impact {
         let n = cx.n;
         let mut rings: Vec<Vec<f32>> = vec![vec![0.0; n]; ms.len()];
         let mut contact = vec![0.0f32; n];
+        let mut ratios = vec![1.0f32; n];
         for i in start..n {
             let push = drive.as_ref().map_or(0.0, |d| d.at(i));
             // A sample of 1 is a 1 m/s kick at the contact point, spread
             // over the substeps.
             let shake = excite.as_ref().map_or(0.0, |x| x.at(i)) * modal_mass * cx.sr;
             let ratio = pitch.at(i).clamp(0.25, 4.0);
+            ratios[i] = ratio;
             let (ratio2, damp) = (ratio * ratio, damping.at(i).clamp(0.05, 20.0));
             let ki = k * stiff.at(i).clamp(0.01, 100.0);
+            let along = slide.at(i);
             for _ in 0..os {
                 step += 1;
                 let (u, udot) = ms
                     .iter()
                     .fold((0.0, 0.0), |(a, b), m| (a + m.w * m.q, b + m.w * m.v));
+                // The bump under the contact rises into it.
+                x_path += along * dt;
+                let h = profile(x_path);
+                let hdot = (h - h_prev) / dt;
+                h_prev = h;
                 // Penetration and its rate.
                 let (d, ddot) = if striker.is_some() {
-                    (u - y, udot - vy)
+                    (u + h - y, udot + hdot - vy)
                 } else {
-                    (-(y + u), -(vy + udot))
+                    (h - (y + u), hdot - (vy + udot))
                 };
                 let force = if d > 0.0 {
                     if !in_contact {
@@ -1852,19 +1955,39 @@ impl Eval for Impact {
                 contact[i] = contact[i].max(force);
                 vy += dt * ((force - push) / mover - gravity);
                 y += dt * vy;
+                // Friction: a Stribeck curve on the slip between the slider
+                // and the surface's own motion along it; the falling curve
+                // near zero slip is what locks it to a mode.
+                let drag = match friction {
+                    Some((mu_s, mu_d)) if force > 0.0 && along != 0.0 => {
+                        let surf = ms.iter().fold(0.0, |a, m| a + m.w * m.vt);
+                        let slip = along - surf;
+                        // Smooth enough near zero slip for the step to hold.
+                        let eps = (2.0 * dt * force * mu_s * sum_w2 / modal_mass).max(1e-3);
+                        let r = slip / vc;
+                        (slip / eps).tanh() * (mu_d + (mu_s - mu_d) / (1.0 + r * r)) * force
+                    }
+                    _ => 0.0,
+                };
                 for m in ms.iter_mut() {
                     let a = m.w * (body_force + shake) / modal_mass
                         - damp * m.sigma2 * m.v
                         - ratio2 * m.w2 * m.q;
                     m.v += dt * a;
                     m.q += dt * m.v;
+                    if friction.is_some() {
+                        let at =
+                            m.w * drag / modal_mass - damp * m.sigma2 * m.vt - ratio2 * m.w2 * m.qt;
+                        m.vt += dt * at;
+                        m.qt += dt * m.vt;
+                    }
                 }
             }
             // A mode the pitch takes past the top of the band is not heard.
             let top = top_hz(cx.sr);
             for ((ring, m), mode) in rings.iter_mut().zip(&ms).zip(&p.modes) {
                 ring[i] = if mode.0 * ratio <= top {
-                    m.r * m.v
+                    m.r * (m.v + m.vt)
                 } else {
                     0.0
                 };
@@ -1885,7 +2008,7 @@ impl Eval for Impact {
                 let width = p.noise_width.unwrap_or(DEFAULT_NOISE_WIDTH);
                 let mut white = vec![0.0f32; n];
                 for (ring, &(f, t60, _)) in rings.iter().zip(&p.modes) {
-                    add_noise_band(
+                    add_noise_band_bent(
                         &mut out,
                         ring,
                         (f, t60),
@@ -1894,6 +2017,7 @@ impl Eval for Impact {
                         &mut nrng,
                         &mut white,
                         cx.sr,
+                        Some(&ratios[..]),
                     );
                 }
             }
