@@ -73,3 +73,27 @@ fn bad_fields_say_what_to_give() {
     let e = render_error_raw(step(json!({"surface": "lava"})), 0.5);
     assert!(e.contains("concrete"), "{e}");
 }
+
+#[test]
+fn grit_takes_the_crunch_out_and_the_toe_rings_short() {
+    let crunch = describe(&mono_audio(&node_audio(
+        step(json!({"surface": "gravel"})),
+        "n",
+        0.6,
+    )));
+    let bare = describe(&mono_audio(&node_audio(
+        step(json!({"surface": "gravel", "grit": 0})),
+        "n",
+        0.6,
+    )));
+    println!(
+        "gravel grit 1 centroid {:.0} Hz, grit 0 {:.0} Hz",
+        crunch.centroid_all_hz, bare.centroid_all_hz
+    );
+    assert!(
+        bare.centroid_all_hz < crunch.centroid_all_hz,
+        "grit 0 is duller"
+    );
+    let e = render_error_raw(step(json!({"grit": 3})), 0.5);
+    assert!(e.contains("grit") && e.contains("0 to 2"), "{e}");
+}

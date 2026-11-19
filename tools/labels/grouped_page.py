@@ -18,7 +18,7 @@ TITLES = {"rain": "Rain", "creature": "Creature calls", "leaves": "Wind in plant
           "creature_roar": "Creature roar", "creature_growl": "Creature growl",
           "creature_snarl": "Creature snarl", "creature_whine": "Creature whine",
           "footstep_concrete": "Two steps on concrete", "footstep_gravel": "Two steps on gravel",
-          "footstep_grass": "Two steps on grass", "splash_large": "A large splash (something big into water)",
+          "footstep_grass": "Two steps on grass", "footstep_allpurpose": "Two all-purpose steps (no surface)", "splash_large": "A large splash (something big into water)",
           "motor": "An electric motor spinning up and down"}
 
 

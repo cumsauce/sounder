@@ -14,3 +14,10 @@ Footsteps after the foley project's contact model (`foley-synth/src/modal.rs`, `
 | `gain_db` | level |
 
 Added after labels batch 11. There, the `footstep` node on concrete was heard as a snare / wooden drum, on gravel as a pitter-patter, and on grass as a blow. Measured on one step (`tests/it/step.rs`): metal centroid 229 Hz, ice 181, snow 131, carpet 48. The rest print in the test.
+
+## After labels batch 12
+
+The contact code is now a copy in `step.rs`, so it can change:
+- `grit` (0..2, default 1) scales the grains and the scuff.
+- The ball of the foot rings 3 x shorter (concrete's toe was heard "too resonant, wood-y").
+- Grass is the gravel body with 12 dull grains and louder blade swishes (0.35). It measures 1.2 % of its energy above 2 kHz, against 0.1 % for the plant-plate version.
