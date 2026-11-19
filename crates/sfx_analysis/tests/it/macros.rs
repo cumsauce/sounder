@@ -244,7 +244,7 @@ mod claims {
     }
 
     #[test]
-    fn without_a_claim_there_is_no_sweep_and_no_failure() {
+    fn without_a_claim_a_knob_is_only_checked_for_an_audible_change() {
         let mut d = voices_doc();
         d.apply(
             vec![],
@@ -268,14 +268,43 @@ mod claims {
         )
         .unwrap();
         println!("{res:?}");
+        let size = res.iter().find(|c| c.name == "macro size").unwrap();
         assert!(
-            !res.iter().any(|c| c.name == "macro size"),
-            "a claimless macro was swept: {res:?}"
+            size.pass && size.detail.contains("unclaimed; from 0 to 1"),
+            "{size:?}"
         );
         assert!(res.iter().all(|c| c.pass), "{res:?}");
         let line = res.iter().find(|c| c.name == "macros").unwrap();
         println!("{}", line.detail);
         assert!(line.detail.contains("1 macros unclaimed") && line.detail.contains("size"));
+    }
+
+    #[test]
+    fn a_claimless_knob_that_changes_nothing_fails() {
+        let mut d = voices_doc();
+        let mut edit = edit_macros(vec![knob(
+            "spare",
+            None,
+            vec![param_entry("spare", 0.0, 1.0, MapCurve::Linear)],
+        )]);
+        edit.params = Some([("spare".to_string(), 0.5)].into());
+        d.apply(vec![], edit, &RenderOpts::default()).unwrap();
+        let opts = RenderOpts::default();
+        let r = d.render(&opts).unwrap();
+        let res = run(
+            &Expect::defaults_for(&d),
+            &CheckCx {
+                doc: &d,
+                rendered: &r,
+                opts: &opts,
+            },
+        )
+        .unwrap();
+        let spare = res.iter().find(|c| c.name == "macro spare").unwrap();
+        assert!(
+            !spare.pass && spare.detail.contains("does nothing audible"),
+            "{spare:?}"
+        );
     }
 
     #[test]

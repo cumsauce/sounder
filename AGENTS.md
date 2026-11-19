@@ -686,8 +686,11 @@ until it fits; you read their moves in `summary`.
   `sound_ops` `params`, use it in the patch as `"=$name"` (or `$name` in the
   `voices` `map`), map `{"param": ...}`.
 - **`claim` is optional.** A macro without one is a plain knob (summary says
-  "unclaimed") and is not swept by `verify`. Give a claim when the name says
-  what a measure does.
+  "unclaimed"). `verify` holds it to no measure, but it must still change
+  the sound: from 0 to 1, some 10 ms frame in one of the four role bands
+  must move by 1 dB or more, else "it does nothing audible" (a crate's
+  bounce knob, masked by the boards' tail, moved 0.66 dB). Give a claim
+  when the name says what a measure does.
 - **Replace a macro** by listing its name in `delete_macros` and in `macros` in
   the same call (the new definition stays; the old one is deleted first).
 - **The sweep runs when you create a macro.** `sound_ops` renders each macro you

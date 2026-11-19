@@ -999,6 +999,68 @@ fn seam_spectral(tail: &[f32], head: &[f32], sr: u32) -> f32 {
 /// the end-to-end move.
 const CLAIM_BACKSTEP: f32 = 0.15;
 
+/// Smallest change an unclaimed knob must make over 0..1, dB: the largest
+/// difference in level of a 10 ms frame in one of the four role bands,
+/// among the band-frames within 40 dB of the loudest.
+const KNOB_AUDIBLE_DB: f32 = 1.0;
+
+/// How much a knob changes the sound from 0 to 1 (see [`KNOB_AUDIBLE_DB`]).
+fn knob_moves_db(cx: &CheckCx, m: &sfx_graph::Macro) -> Result<f32, String> {
+    let at = |x: f64| -> Result<Vec<f32>, String> {
+        let r = cx.doc.render(&RenderOpts {
+            macros: [(m.name.clone(), x)].into(),
+            seed: Some(cx.rendered.seed),
+            ..cx.opts.clone()
+        })?;
+        Ok(r.audio.mix_mono())
+    };
+    let (mut a, mut b) = (at(0.0)?, at(1.0)?);
+    let n = a.len().max(b.len());
+    a.resize(n, 0.0);
+    b.resize(n, 0.0);
+    // 10 ms frames, each split into the four role bands (under 200 Hz,
+    // 200 Hz-2 kHz, 2-8 kHz, above 8 kHz): a crack moves its own band even
+    // when the frame's total level barely changes, while a layer under a
+    // louder one in the same band stays masked.
+    let sr = cx.rendered.audio.sample_rate;
+    let hop = ((0.01 * sr as f32) as usize).max(1);
+    let bands = |x: &[f32]| -> Vec<[f64; 4]> {
+        let sp = stft::stft(x, sr, 1024, hop);
+        sp.frames
+            .iter()
+            .map(|f| {
+                let mut e = [0.0f64; 4];
+                for (bin, p) in f.iter().enumerate().skip(1) {
+                    let hz = sp.hz(bin);
+                    let k = usize::from(hz >= 200.0)
+                        + usize::from(hz >= 2000.0)
+                        + usize::from(hz >= 8000.0);
+                    e[k] += f64::from(*p);
+                }
+                e
+            })
+            .collect()
+    };
+    let (ea, eb) = (bands(&a), bands(&b));
+    let top = ea
+        .iter()
+        .chain(&eb)
+        .flatten()
+        .copied()
+        .fold(0.0f64, f64::max);
+    if top <= 0.0 {
+        return Ok(0.0);
+    }
+    let floor = top * 1e-4;
+    Ok(ea
+        .iter()
+        .zip(&eb)
+        .flat_map(|(x, y)| x.iter().zip(y))
+        .filter(|(x, y)| x.max(**y) >= floor)
+        .map(|(x, y)| (10.0 * (x.max(1e-20) / y.max(1e-20)).log10()).abs() as f32)
+        .fold(0.0f32, f32::max))
+}
+
 fn macro_check(
     cx: &CheckCx,
     m: &sfx_graph::Macro,
@@ -1753,12 +1815,38 @@ pub fn run(e: &Expect, cx: &CheckCx) -> Result<Vec<CheckResult>, String> {
                 ),
             }
         }
+        // An unclaimed knob is not held to a measure, but it must still
+        // change the sound: a knob that does nothing audible is a broken
+        // front panel (a crate's bounce knob mapped 20 dB under the tail).
+        for name in &unclaimed {
+            let Some(m) = cx.doc.macros.iter().find(|m| &m.name == name) else {
+                continue;
+            };
+            match knob_moves_db(cx, m) {
+                Ok(v) => push(
+                    &format!("macro {name}"),
+                    v >= KNOB_AUDIBLE_DB,
+                    if v >= KNOB_AUDIBLE_DB {
+                        format!("unclaimed; from 0 to 1 it changes the sound by up to {v:.1} dB")
+                    } else {
+                        format!(
+                            "unclaimed, and from 0 to 1 it changes the sound by at most {v:.2} dB (want {KNOB_AUDIBLE_DB}): it does nothing audible; widen its map, raise the layer it moves above what masks it, or delete it"
+                        )
+                    },
+                ),
+                Err(e) => push(
+                    &format!("macro {name}"),
+                    false,
+                    format!("the sweep failed to render: {e}"),
+                ),
+            }
+        }
         if !unclaimed.is_empty() {
             push(
                 "macros",
                 true,
                 format!(
-                    "{} macros unclaimed, not swept: {} (give one a claim [measure, direction] to have verify hold its name to it)",
+                    "{} macros unclaimed (checked only for an audible change): {} (give one a claim [measure, direction] to have verify hold its name to it)",
                     unclaimed.len(),
                     unclaimed.join(", ")
                 ),
