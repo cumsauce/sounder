@@ -1,0 +1,176 @@
+{
+ "role": "body",
+ "material": "metal",
+ "description": "heard as \"very large metal container hit\" in a blind listen; built as: an empty metal trash can kicked: `modal` metal tube f0 118, noise 0.4, noise_width 0.1, loss 0.5, a band-passed noise boom at 230 Hz and a crack; strikes at 5 ms",
+ "tags": [
+  "metal",
+  "bin",
+  "can",
+  "container",
+  "drum",
+  "kick"
+ ],
+ "origin": "batch 4 (metal and stone by synthesis), cue m16 / m23; the listener rated it good blind on 2026-11-18",
+ "doc": {
+  "name": "large_metal_container_hit",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "wn",
+    "color": "white"
+   },
+   {
+    "type": "noise",
+    "name": "bn",
+    "color": "brown"
+   },
+   {
+    "type": "decay",
+    "name": "s0_e",
+    "time": 0.006,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "s0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "s0_e"
+   },
+   {
+    "type": "gain",
+    "name": "s0",
+    "input": "s0_x",
+    "gain": 1.0
+   },
+   {
+    "type": "mix",
+    "name": "strikes",
+    "inputs": [
+     "s0"
+    ]
+   },
+   {
+    "type": "modal",
+    "name": "ring",
+    "excite": "strikes",
+    "material": "metal",
+    "shape": "tube",
+    "f0": 118,
+    "loss": 0.5,
+    "noise": 0.4,
+    "noise_width": 0.1,
+    "tilt": 3,
+    "modes": 64
+   },
+   {
+    "type": "decay",
+    "name": "boom_e",
+    "time": 0.35,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "boom_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "boom_e"
+   },
+   {
+    "type": "filter",
+    "name": "boom",
+    "input": "boom_x",
+    "mode": "bp",
+    "freq": 230,
+    "q": 1.2
+   },
+   {
+    "type": "gain",
+    "name": "boom_g",
+    "input": "boom",
+    "db": 2
+   },
+   {
+    "type": "decay",
+    "name": "crk_e",
+    "time": 0.01,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "crk_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "crk_e"
+   },
+   {
+    "type": "filter",
+    "name": "crk_f",
+    "input": "crk_x",
+    "mode": "hp",
+    "freq": 2500
+   },
+   {
+    "type": "gain",
+    "name": "crk",
+    "input": "crk_f",
+    "db": -10
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "ring",
+     "boom_g",
+     "crk"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "dry",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "pitch of the metal: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "ring",
+      "field": "f0",
+      "from": 73.8,
+      "to": 188.8,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "ring",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "how long it rings",
+    "game": false,
+    "map": [
+     {
+      "node": "ring",
+      "field": "loss",
+      "from": 1.5,
+      "to": 0.167,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

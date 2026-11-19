@@ -1,0 +1,213 @@
+{
+ "role": "whole",
+ "material": "stone",
+ "description": "heard as \"mouse click\" in a blind listen; built as: a rock on concrete as struck stone modes: a noise burst into `modal` stone f0 1500, loss 1.5, noise 0.45, a crack and a thud, a second small hit at 115 ms; first hit at 5 ms",
+ "tags": [
+  "click",
+  "mouse",
+  "tap",
+  "stone",
+  "small",
+  "hard"
+ ],
+ "origin": "batch 4 (metal and stone by synthesis), cue m14 / m22; the listener rated it good blind on 2026-11-18",
+ "doc": {
+  "name": "mouse_click_tap",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 0.8,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "wn",
+    "color": "white"
+   },
+   {
+    "type": "noise",
+    "name": "bn",
+    "color": "brown"
+   },
+   {
+    "type": "decay",
+    "name": "s0_e",
+    "time": 0.002,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "s0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "s0_e"
+   },
+   {
+    "type": "gain",
+    "name": "s0",
+    "input": "s0_x",
+    "gain": 1.0
+   },
+   {
+    "type": "decay",
+    "name": "s1_e",
+    "time": 0.002,
+    "at": 0.115
+   },
+   {
+    "type": "math",
+    "name": "s1_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "s1_e"
+   },
+   {
+    "type": "gain",
+    "name": "s1",
+    "input": "s1_x",
+    "gain": 0.32
+   },
+   {
+    "type": "mix",
+    "name": "strikes",
+    "inputs": [
+     "s0",
+     "s1"
+    ]
+   },
+   {
+    "type": "modal",
+    "name": "rock",
+    "excite": "strikes",
+    "material": "stone",
+    "f0": 1500,
+    "loss": 1.5,
+    "noise": 0.45,
+    "noise_width": 0.2,
+    "tilt": 0,
+    "modes": 48
+   },
+   {
+    "type": "gain",
+    "name": "rock_g",
+    "input": "rock",
+    "db": 0
+   },
+   {
+    "type": "decay",
+    "name": "crk_e",
+    "time": 0.003,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "crk_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "crk_e"
+   },
+   {
+    "type": "filter",
+    "name": "crk_f",
+    "input": "crk_x",
+    "mode": "hp",
+    "freq": 2500
+   },
+   {
+    "type": "gain",
+    "name": "crk",
+    "input": "crk_f",
+    "db": -6
+   },
+   {
+    "type": "decay",
+    "name": "thd_e",
+    "time": 0.07,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "thd_x",
+    "op": "mul",
+    "a": "bn",
+    "b": "thd_e"
+   },
+   {
+    "type": "filter",
+    "name": "thd_f",
+    "input": "thd_x",
+    "mode": "lp",
+    "freq": 200,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "thd",
+    "input": "thd_f",
+    "db": -10
+   },
+   {
+    "type": "decay",
+    "name": "thd2_e",
+    "time": 0.05,
+    "at": 0.115
+   },
+   {
+    "type": "math",
+    "name": "thd2_x",
+    "op": "mul",
+    "a": "bn",
+    "b": "thd2_e"
+   },
+   {
+    "type": "filter",
+    "name": "thd2_f",
+    "input": "thd2_x",
+    "mode": "lp",
+    "freq": 200,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "thd2",
+    "input": "thd2_f",
+    "db": -20
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "rock_g",
+     "crk",
+     "thd",
+     "thd2"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "dry",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "pitch of the click: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "rock",
+      "field": "f0",
+      "from": 940,
+      "to": 2400,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

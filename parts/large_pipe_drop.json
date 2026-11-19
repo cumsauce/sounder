@@ -1,0 +1,332 @@
+{
+ "role": "whole",
+ "material": "metal",
+ "description": "heard as \"large pipe drop\" in a blind listen; built as: a 1 m steel pipe dropped on concrete, two bounces: noise-struck `modal` metal bar f0 165, noise 0.4, noise_width 0.1, loss 0.3, plus a crack and a low thud per bounce; first hit at 5 ms",
+ "tags": [
+  "metal",
+  "pipe",
+  "drop",
+  "bounce",
+  "steel",
+  "clang"
+ ],
+ "origin": "batch 4 (metal and stone by synthesis), cue m13 / m15; the listener rated it good blind on 2026-11-18",
+ "doc": {
+  "name": "large_pipe_drop",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 3.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "wn",
+    "color": "white"
+   },
+   {
+    "type": "noise",
+    "name": "bn",
+    "color": "brown"
+   },
+   {
+    "type": "decay",
+    "name": "s0_e",
+    "time": 0.003,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "s0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "s0_e"
+   },
+   {
+    "type": "gain",
+    "name": "s0",
+    "input": "s0_x",
+    "gain": 1.0
+   },
+   {
+    "type": "decay",
+    "name": "s1_e",
+    "time": 0.003,
+    "at": 0.19
+   },
+   {
+    "type": "math",
+    "name": "s1_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "s1_e"
+   },
+   {
+    "type": "gain",
+    "name": "s1",
+    "input": "s1_x",
+    "gain": 0.45
+   },
+   {
+    "type": "decay",
+    "name": "s2_e",
+    "time": 0.003,
+    "at": 0.32
+   },
+   {
+    "type": "math",
+    "name": "s2_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "s2_e"
+   },
+   {
+    "type": "gain",
+    "name": "s2",
+    "input": "s2_x",
+    "gain": 0.22
+   },
+   {
+    "type": "mix",
+    "name": "strikes",
+    "inputs": [
+     "s0",
+     "s1",
+     "s2"
+    ]
+   },
+   {
+    "type": "modal",
+    "name": "ring",
+    "excite": "strikes",
+    "material": "metal",
+    "shape": "bar",
+    "f0": 165,
+    "loss": 0.3,
+    "noise": 0.4,
+    "noise_width": 0.1,
+    "tilt": 3,
+    "modes": 64
+   },
+   {
+    "type": "gain",
+    "name": "ring_g",
+    "input": "ring",
+    "db": 0
+   },
+   {
+    "type": "decay",
+    "name": "c0_e",
+    "time": 0.006,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "c0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "c0_e"
+   },
+   {
+    "type": "filter",
+    "name": "c0_f",
+    "input": "c0_x",
+    "mode": "hp",
+    "freq": 3000
+   },
+   {
+    "type": "gain",
+    "name": "c0",
+    "input": "c0_f",
+    "db": -10.0
+   },
+   {
+    "type": "decay",
+    "name": "t0_e",
+    "time": 0.08,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "t0_x",
+    "op": "mul",
+    "a": "bn",
+    "b": "t0_e"
+   },
+   {
+    "type": "filter",
+    "name": "t0_f",
+    "input": "t0_x",
+    "mode": "lp",
+    "freq": 300,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "t0",
+    "input": "t0_f",
+    "db": -8.0
+   },
+   {
+    "type": "decay",
+    "name": "c1_e",
+    "time": 0.006,
+    "at": 0.19
+   },
+   {
+    "type": "math",
+    "name": "c1_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "c1_e"
+   },
+   {
+    "type": "filter",
+    "name": "c1_f",
+    "input": "c1_x",
+    "mode": "hp",
+    "freq": 3000
+   },
+   {
+    "type": "gain",
+    "name": "c1",
+    "input": "c1_f",
+    "db": -16.935749724493128
+   },
+   {
+    "type": "decay",
+    "name": "t1_e",
+    "time": 0.08,
+    "at": 0.19
+   },
+   {
+    "type": "math",
+    "name": "t1_x",
+    "op": "mul",
+    "a": "bn",
+    "b": "t1_e"
+   },
+   {
+    "type": "filter",
+    "name": "t1_f",
+    "input": "t1_x",
+    "mode": "lp",
+    "freq": 300,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "t1",
+    "input": "t1_f",
+    "db": -14.935749724493126
+   },
+   {
+    "type": "decay",
+    "name": "c2_e",
+    "time": 0.006,
+    "at": 0.32
+   },
+   {
+    "type": "math",
+    "name": "c2_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "c2_e"
+   },
+   {
+    "type": "filter",
+    "name": "c2_f",
+    "input": "c2_x",
+    "mode": "hp",
+    "freq": 3000
+   },
+   {
+    "type": "gain",
+    "name": "c2",
+    "input": "c2_f",
+    "db": -23.151546383555875
+   },
+   {
+    "type": "decay",
+    "name": "t2_e",
+    "time": 0.08,
+    "at": 0.32
+   },
+   {
+    "type": "math",
+    "name": "t2_x",
+    "op": "mul",
+    "a": "bn",
+    "b": "t2_e"
+   },
+   {
+    "type": "filter",
+    "name": "t2_f",
+    "input": "t2_x",
+    "mode": "lp",
+    "freq": 300,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "t2",
+    "input": "t2_f",
+    "db": -21.151546383555875
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "ring_g",
+     "c0",
+     "c1",
+     "c2",
+     "t0",
+     "t1",
+     "t2"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "dry",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "pitch of the metal: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "ring",
+      "field": "f0",
+      "from": 103.1,
+      "to": 264.0,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "ring",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "how long it rings",
+    "game": false,
+    "map": [
+     {
+      "node": "ring",
+      "field": "loss",
+      "from": 0.9,
+      "to": 0.1,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

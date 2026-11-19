@@ -339,12 +339,16 @@ after bed texture whole`), with a material, tags and one to three knobs.
 Before building a layer from nodes, look for one:
 
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`,
-  `approved`): the library's parts and saved sounds plus the 78 built-in
+  `approved`): the library's parts and saved sounds plus the 86 built-in
   parts in `parts/`: the five layers of the approved door slam (`wood_brush`,
   `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock`), 72 the
   listener rated good blind, and `wooden_crate_drop` (a whole crate landing
-  on concrete, built from a spec, rated great). Hits and layers: bodies in
-  wood, metal, glass, ceramic and plastic, cracks, weights, lead-ins and
+  on concrete, built from a spec, rated great), and eight from the metal
+  and stone batch: metal heard as metal (`large_pipe_drop`,
+  `large_metal_container_hit`, `metal_plate_gong_hit`, `metal_bell_hit`,
+  `metal_into_small_glass`) and small stone taps heard as clicks
+  (`small_object_taps`, `mouse_click_tap`, `keyboard_button_hit`). Hits and
+  layers: bodies in wood, metal, glass, ceramic and plastic, cracks, weights, lead-ins and
   whooshes, tails and debris. Beds and textures (roles `bed`, `texture`):
   fire, storm wind, fan, sparks, crickets, underwater bubbles, liquid drops.
   Water: a splash with bubbles (5 to 30 cm), a deep bubble pop (a big
@@ -352,7 +356,8 @@ Before building a layer from nodes, look for one:
   Whole sounds: door creak, engine rev, bird, breath, bells, siren, alarm,
   flute, plucked string, twang, laser, error beep. **Not in the library
   yet** (every attempt was heard as something else, rated lower, or not
-  rated): a metal ring or coin that reads as metal, stone, a footstep, rain,
+  rated): a large rock or stone that reads as stone (a slab was heard as
+  "hitting a rock", ok only; small rocks read as clicks), a footstep, rain,
   a stream, a large splash (0.6 m was rated bad), an electric motor, a
   creature voice. Build those from
   nodes and say they are unheard. Each of those is named and described by what the listener heard
@@ -391,9 +396,14 @@ bus above they pass `layers` (`tests/parts.rs`).
   into a wood `modal` (`noise` 0.6, `noise_width` about 0.15, `tilt` 4,
   `loss` about 3), plus a short crack and a noise thud per knock, through
   `finish`. Pitch it slightly low (lowest mode near 200 Hz).
-- **Metal pipe or bar:** start low: a pipe you drop is big, so the lowest
-  mode near 120-200 Hz (`f0`), not 300+ (heard as a very small pipe), with
-  `noise` about 0.3 and `strike_glide` about 35.
+- **Metal (pipe, bar, lid, bin, tool, coin):** `modal` metal struck by a
+  short noise burst with `noise` 0.4, `noise_width` 0.1 and a **low `loss`
+  (0.3-0.6) so it rings for seconds**; plus a crack and a thud per bounce.
+  All five metal objects built this way were heard as metal (a pipe as
+  "large pipe drop"). The same objects as clean sine modes, even with
+  split, beating pairs, were heard as "digital bell" / "fm bell"; the
+  earlier short rings (0.1-0.4 s) as glass and ceramic. Start a dropped
+  pipe low: lowest mode 120-200 Hz (`f0`), not 300+ (a very small pipe).
 
 **When one node is still right:** ambience and loops (`fire`, `wind`, `water`),
 UI blips, a single texture, or a brief that names one ready-made sound

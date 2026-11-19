@@ -1,0 +1,328 @@
+{
+ "role": "whole",
+ "material": "stone",
+ "description": "heard as \"hitting a keyboard button\" in a blind listen; built as: a rock on concrete as noise bands: a hard 2.2 kHz high-passed crack, band-passed noise at 520 Hz and 1.4 kHz, crackle grit and a low thud, a second hit at 115 ms; first hit at 5 ms",
+ "tags": [
+  "click",
+  "keyboard",
+  "button",
+  "tap",
+  "stone",
+  "hard"
+ ],
+ "origin": "batch 4 (metal and stone by synthesis), cue m07; the listener rated it good blind on 2026-11-18",
+ "doc": {
+  "name": "keyboard_button_hit",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 0.8,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "wn",
+    "color": "white"
+   },
+   {
+    "type": "noise",
+    "name": "bn",
+    "color": "brown"
+   },
+   {
+    "type": "noise",
+    "name": "grit_n",
+    "color": "crackle"
+   },
+   {
+    "type": "decay",
+    "name": "c0_e",
+    "time": 0.004,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "c0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "c0_e"
+   },
+   {
+    "type": "filter",
+    "name": "c0_f",
+    "input": "c0_x",
+    "mode": "hp",
+    "freq": 2200
+   },
+   {
+    "type": "gain",
+    "name": "c0",
+    "input": "c0_f",
+    "db": -2
+   },
+   {
+    "type": "decay",
+    "name": "b0_e",
+    "time": 0.05,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "b0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "b0_e"
+   },
+   {
+    "type": "filter",
+    "name": "b0_hi",
+    "input": "b0_x",
+    "mode": "bp",
+    "freq": 1400,
+    "q": 0.9
+   },
+   {
+    "type": "filter",
+    "name": "b0_lo",
+    "input": "b0_x",
+    "mode": "bp",
+    "freq": 520,
+    "q": 1.1
+   },
+   {
+    "type": "mix",
+    "name": "b0_m",
+    "inputs": [
+     "b0_hi",
+     {
+      "input": "b0_lo",
+      "gain": 0.7
+     }
+    ]
+   },
+   {
+    "type": "gain",
+    "name": "b0",
+    "input": "b0_m",
+    "db": 2
+   },
+   {
+    "type": "decay",
+    "name": "g0_e",
+    "time": 0.06,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "g0_x",
+    "op": "mul",
+    "a": "grit_n",
+    "b": "g0_e"
+   },
+   {
+    "type": "filter",
+    "name": "g0_f",
+    "input": "g0_x",
+    "mode": "hp",
+    "freq": 1800
+   },
+   {
+    "type": "gain",
+    "name": "g0",
+    "input": "g0_f",
+    "db": -6
+   },
+   {
+    "type": "decay",
+    "name": "t0_e",
+    "time": 0.07,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "t0_x",
+    "op": "mul",
+    "a": "bn",
+    "b": "t0_e"
+   },
+   {
+    "type": "filter",
+    "name": "t0_f",
+    "input": "t0_x",
+    "mode": "lp",
+    "freq": 200,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "t0",
+    "input": "t0_f",
+    "db": -12
+   },
+   {
+    "type": "decay",
+    "name": "c1_e",
+    "time": 0.004,
+    "at": 0.115
+   },
+   {
+    "type": "math",
+    "name": "c1_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "c1_e"
+   },
+   {
+    "type": "filter",
+    "name": "c1_f",
+    "input": "c1_x",
+    "mode": "hp",
+    "freq": 2200
+   },
+   {
+    "type": "gain",
+    "name": "c1",
+    "input": "c1_f",
+    "db": -12
+   },
+   {
+    "type": "decay",
+    "name": "b1_e",
+    "time": 0.05,
+    "at": 0.115
+   },
+   {
+    "type": "math",
+    "name": "b1_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "b1_e"
+   },
+   {
+    "type": "filter",
+    "name": "b1_hi",
+    "input": "b1_x",
+    "mode": "bp",
+    "freq": 1400,
+    "q": 0.9
+   },
+   {
+    "type": "filter",
+    "name": "b1_lo",
+    "input": "b1_x",
+    "mode": "bp",
+    "freq": 520,
+    "q": 1.1
+   },
+   {
+    "type": "mix",
+    "name": "b1_m",
+    "inputs": [
+     "b1_hi",
+     {
+      "input": "b1_lo",
+      "gain": 0.7
+     }
+    ]
+   },
+   {
+    "type": "gain",
+    "name": "b1",
+    "input": "b1_m",
+    "db": -8
+   },
+   {
+    "type": "decay",
+    "name": "g1_e",
+    "time": 0.06,
+    "at": 0.115
+   },
+   {
+    "type": "math",
+    "name": "g1_x",
+    "op": "mul",
+    "a": "grit_n",
+    "b": "g1_e"
+   },
+   {
+    "type": "filter",
+    "name": "g1_f",
+    "input": "g1_x",
+    "mode": "hp",
+    "freq": 1800
+   },
+   {
+    "type": "gain",
+    "name": "g1",
+    "input": "g1_f",
+    "db": -16
+   },
+   {
+    "type": "decay",
+    "name": "t1_e",
+    "time": 0.07,
+    "at": 0.115
+   },
+   {
+    "type": "math",
+    "name": "t1_x",
+    "op": "mul",
+    "a": "bn",
+    "b": "t1_e"
+   },
+   {
+    "type": "filter",
+    "name": "t1_f",
+    "input": "t1_x",
+    "mode": "lp",
+    "freq": 200,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "t1",
+    "input": "t1_f",
+    "db": -22
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "c0",
+     "c1",
+     "b0",
+     "b1",
+     "g0",
+     "g1",
+     "t0",
+     "t1"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "dry",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "brightness",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "how bright the crack is",
+    "game": false,
+    "map": [
+     {
+      "node": "c0_f",
+      "field": "freq",
+      "from": 1400,
+      "to": 3450,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -371,3 +371,13 @@ hold, and a band around the whole table is bit-identical to none).
 Honest limits: none of this has been heard. `f0` sets where the table's
 lowest mode is, not what the object is; whether that mode is strong depends on
 `strike_position` (a strike on a node leaves it out).
+
+## Metal that reads as metal (batch 4 listen)
+
+Struck metal is `modal` metal excited by a short noise burst with `noise`
+0.4, `noise_width` 0.1 and a low `loss` (0.3 for a pipe, 0.4-0.6 for a lid,
+a bin, a tool or a coin), so it rings for seconds. All five objects built
+this way were heard as metal; the same objects as clean sine modes (a
+`resonators` table with split, beating pairs) were heard as "digital bell".
+Earlier rings of 0.1-0.4 s read as glass or ceramic. Details:
+`docs/history/labels/batch4_findings.md`.

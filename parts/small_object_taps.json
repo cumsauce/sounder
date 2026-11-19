@@ -1,0 +1,230 @@
+{
+ "role": "whole",
+ "material": "stone",
+ "description": "heard as \"tapping small object\" in a blind listen; built as: two pebbles knocked together three times: noise bursts into `modal` stone f0 3400, loss 2.5, noise 0.35, plus a 5 kHz click; first tap at 5 ms",
+ "tags": [
+  "stone",
+  "pebble",
+  "tap",
+  "click",
+  "small",
+  "knock"
+ ],
+ "origin": "batch 4 (metal and stone by synthesis), cue m12 / m11; the listener rated it good blind on 2026-11-18",
+ "doc": {
+  "name": "small_object_taps",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 1.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "wn",
+    "color": "white"
+   },
+   {
+    "type": "noise",
+    "name": "bn",
+    "color": "brown"
+   },
+   {
+    "type": "decay",
+    "name": "s0_e",
+    "time": 0.0006,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "s0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "s0_e"
+   },
+   {
+    "type": "gain",
+    "name": "s0",
+    "input": "s0_x",
+    "gain": 1.0
+   },
+   {
+    "type": "decay",
+    "name": "s1_e",
+    "time": 0.0006,
+    "at": 0.34
+   },
+   {
+    "type": "math",
+    "name": "s1_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "s1_e"
+   },
+   {
+    "type": "gain",
+    "name": "s1",
+    "input": "s1_x",
+    "gain": 1.0
+   },
+   {
+    "type": "decay",
+    "name": "s2_e",
+    "time": 0.0006,
+    "at": 0.66
+   },
+   {
+    "type": "math",
+    "name": "s2_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "s2_e"
+   },
+   {
+    "type": "gain",
+    "name": "s2",
+    "input": "s2_x",
+    "gain": 1.0
+   },
+   {
+    "type": "mix",
+    "name": "strikes",
+    "inputs": [
+     "s0",
+     "s1",
+     "s2"
+    ]
+   },
+   {
+    "type": "modal",
+    "name": "clack",
+    "excite": "strikes",
+    "material": "stone",
+    "f0": 3400,
+    "loss": 2.5,
+    "noise": 0.35,
+    "tilt": 2,
+    "modes": 24
+   },
+   {
+    "type": "gain",
+    "name": "clack_g",
+    "input": "clack",
+    "db": 0
+   },
+   {
+    "type": "decay",
+    "name": "c0_e",
+    "time": 0.002,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "c0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "c0_e"
+   },
+   {
+    "type": "filter",
+    "name": "c0_f",
+    "input": "c0_x",
+    "mode": "hp",
+    "freq": 5000
+   },
+   {
+    "type": "gain",
+    "name": "c0",
+    "input": "c0_f",
+    "db": -8
+   },
+   {
+    "type": "decay",
+    "name": "c1_e",
+    "time": 0.002,
+    "at": 0.34
+   },
+   {
+    "type": "math",
+    "name": "c1_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "c1_e"
+   },
+   {
+    "type": "filter",
+    "name": "c1_f",
+    "input": "c1_x",
+    "mode": "hp",
+    "freq": 5000
+   },
+   {
+    "type": "gain",
+    "name": "c1",
+    "input": "c1_f",
+    "db": -8
+   },
+   {
+    "type": "decay",
+    "name": "c2_e",
+    "time": 0.002,
+    "at": 0.66
+   },
+   {
+    "type": "math",
+    "name": "c2_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "c2_e"
+   },
+   {
+    "type": "filter",
+    "name": "c2_f",
+    "input": "c2_x",
+    "mode": "hp",
+    "freq": 5000
+   },
+   {
+    "type": "gain",
+    "name": "c2",
+    "input": "c2_f",
+    "db": -8
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "clack_g",
+     "c0",
+     "c1",
+     "c2"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "dry",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "pitch of the taps: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "clack",
+      "field": "f0",
+      "from": 2100,
+      "to": 5500,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

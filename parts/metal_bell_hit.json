@@ -1,0 +1,229 @@
+{
+ "role": "whole",
+ "material": "metal",
+ "description": "heard as \"hitting a metal bell\" in a blind listen; built as: a heavy wrench dropped on concrete, one bounce: `modal` metal bar f0 620, noise 0.4, noise_width 0.1, loss 0.6, two cracks and a thud; first hit at 5 ms",
+ "tags": [
+  "metal",
+  "bell",
+  "wrench",
+  "tool",
+  "drop",
+  "clank"
+ ],
+ "origin": "batch 4 (metal and stone by synthesis), cue m02 / m06; the listener rated it good blind on 2026-11-18",
+ "doc": {
+  "name": "metal_bell_hit",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 1.6,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "wn",
+    "color": "white"
+   },
+   {
+    "type": "noise",
+    "name": "bn",
+    "color": "brown"
+   },
+   {
+    "type": "decay",
+    "name": "s0_e",
+    "time": 0.002,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "s0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "s0_e"
+   },
+   {
+    "type": "gain",
+    "name": "s0",
+    "input": "s0_x",
+    "gain": 1.0
+   },
+   {
+    "type": "decay",
+    "name": "s1_e",
+    "time": 0.002,
+    "at": 0.14
+   },
+   {
+    "type": "math",
+    "name": "s1_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "s1_e"
+   },
+   {
+    "type": "gain",
+    "name": "s1",
+    "input": "s1_x",
+    "gain": 0.35
+   },
+   {
+    "type": "mix",
+    "name": "strikes",
+    "inputs": [
+     "s0",
+     "s1"
+    ]
+   },
+   {
+    "type": "modal",
+    "name": "ring",
+    "excite": "strikes",
+    "material": "metal",
+    "shape": "bar",
+    "f0": 620,
+    "loss": 0.6,
+    "noise": 0.4,
+    "noise_width": 0.1,
+    "tilt": 3,
+    "modes": 64
+   },
+   {
+    "type": "gain",
+    "name": "ring_g",
+    "input": "ring",
+    "db": -2
+   },
+   {
+    "type": "decay",
+    "name": "crk_e",
+    "time": 0.008,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "crk_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "crk_e"
+   },
+   {
+    "type": "filter",
+    "name": "crk_f",
+    "input": "crk_x",
+    "mode": "hp",
+    "freq": 2500
+   },
+   {
+    "type": "gain",
+    "name": "crk",
+    "input": "crk_f",
+    "db": -4
+   },
+   {
+    "type": "decay",
+    "name": "crk2_e",
+    "time": 0.006,
+    "at": 0.14
+   },
+   {
+    "type": "math",
+    "name": "crk2_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "crk2_e"
+   },
+   {
+    "type": "filter",
+    "name": "crk2_f",
+    "input": "crk2_x",
+    "mode": "hp",
+    "freq": 2500
+   },
+   {
+    "type": "gain",
+    "name": "crk2",
+    "input": "crk2_f",
+    "db": -13
+   },
+   {
+    "type": "decay",
+    "name": "thd_e",
+    "time": 0.06,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "thd_x",
+    "op": "mul",
+    "a": "bn",
+    "b": "thd_e"
+   },
+   {
+    "type": "filter",
+    "name": "thd_f",
+    "input": "thd_x",
+    "mode": "lp",
+    "freq": 350,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "thd",
+    "input": "thd_f",
+    "db": -10
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "ring_g",
+     "crk",
+     "crk2",
+     "thd"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "dry",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "pitch of the metal: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "ring",
+      "field": "f0",
+      "from": 387.5,
+      "to": 992.0,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "ring",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "how long it rings",
+    "game": false,
+    "map": [
+     {
+      "node": "ring",
+      "field": "loss",
+      "from": 1.8,
+      "to": 0.2,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,148 @@
+{
+ "role": "body",
+ "material": "metal",
+ "description": "heard as \"medium metal plate/gong hit\" in a blind listen; built as: a metal pot lid struck with a spoon: `modal` metal plate f0 310, noise 0.4, noise_width 0.1, loss 0.4, and a bright crack; strikes at 5 ms",
+ "tags": [
+  "metal",
+  "plate",
+  "lid",
+  "gong",
+  "pan",
+  "strike"
+ ],
+ "origin": "batch 4 (metal and stone by synthesis), cue m17 / m08; the listener rated it good blind on 2026-11-18",
+ "doc": {
+  "name": "metal_plate_gong_hit",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.2,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "wn",
+    "color": "white"
+   },
+   {
+    "type": "noise",
+    "name": "bn",
+    "color": "brown"
+   },
+   {
+    "type": "decay",
+    "name": "s0_e",
+    "time": 0.0015,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "s0_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "s0_e"
+   },
+   {
+    "type": "gain",
+    "name": "s0",
+    "input": "s0_x",
+    "gain": 1.0
+   },
+   {
+    "type": "mix",
+    "name": "strikes",
+    "inputs": [
+     "s0"
+    ]
+   },
+   {
+    "type": "modal",
+    "name": "ring",
+    "excite": "strikes",
+    "material": "metal",
+    "shape": "plate",
+    "f0": 310,
+    "loss": 0.4,
+    "noise": 0.4,
+    "noise_width": 0.1,
+    "tilt": 3,
+    "modes": 64
+   },
+   {
+    "type": "decay",
+    "name": "crk_e",
+    "time": 0.004,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "crk_x",
+    "op": "mul",
+    "a": "wn",
+    "b": "crk_e"
+   },
+   {
+    "type": "filter",
+    "name": "crk_f",
+    "input": "crk_x",
+    "mode": "hp",
+    "freq": 4000
+   },
+   {
+    "type": "gain",
+    "name": "crk",
+    "input": "crk_f",
+    "db": -6
+   },
+   {
+    "type": "mix",
+    "name": "dry",
+    "inputs": [
+     "ring",
+     "crk"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "dry",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pitch",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "pitch of the metal: higher is smaller",
+    "game": false,
+    "map": [
+     {
+      "node": "ring",
+      "field": "f0",
+      "from": 193.8,
+      "to": 496.0,
+      "curve": "exp"
+     }
+    ]
+   },
+   {
+    "name": "ring",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "how long it rings",
+    "game": false,
+    "map": [
+     {
+      "node": "ring",
+      "field": "loss",
+      "from": 1.2,
+      "to": 0.133,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}
