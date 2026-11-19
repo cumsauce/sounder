@@ -1,0 +1,55 @@
+{
+ "role": "whole",
+ "material": "stone",
+ "description": "one all-purpose footstep (heel and toe, no surface texture), picked best of 6; built as: `step` on gravel with `grit` 0, speed 1.6; the earlier gravel take was heard as \"really good footsteps\"",
+ "tags": [
+  "footstep",
+  "step",
+  "walk",
+  "generic",
+  "all-purpose",
+  "shoe"
+ ],
+ "origin": "batch 13; picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "all_purpose_step",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 0.8,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "step",
+    "name": "src",
+    "surface": "gravel",
+    "speed": 1.6,
+    "grit": 0.0,
+    "at": 0.005,
+    "seed": 1
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pace",
+    "value": 0.5,
+    "doc": "how fast the foot comes down",
+    "map": [
+     {
+      "node": "src",
+      "field": "speed",
+      "from": 0.6,
+      "to": 2.0,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -14,8 +14,9 @@
 //! what a listener heard can be changed: `grit` scales the grains and scuff
 //! (gravel without its grit was called "perfect all-purpose footsteps"); the
 //! ball of the foot rings 3 x shorter than the heel (on concrete it was
-//! heard "too resonant, wood-y"); grass is the gravel step's body with dull
-//! grains and blades brushing the shoe (foley's thin plant plate was not
+//! heard "too resonant, wood-y"); grass is soil (foley's earth, softer than
+//! gravel: the gravel body was heard "too hard") with dull grains and the
+//! blades crunching at the heel and toe (foley's thin plant plate was not
 //! heard as grass).
 
 use std::f32::consts::{PI, TAU};
@@ -64,7 +65,7 @@ impl StepSurface {
         match self {
             StepSurface::Concrete => Material::Stone,
             StepSurface::Gravel => Material::Granular,
-            StepSurface::Grass => Material::Granular,
+            StepSurface::Grass => Material::Earth,
             StepSurface::Dirt => Material::Earth,
             StepSurface::Wood => Material::Wood,
             StepSurface::Metal => Material::Metal,
@@ -407,8 +408,11 @@ fn footstep(rng: &mut Rng, surface: StepSurface, speed: f32, grit: f32, sr: u32)
     match surface {
         // Blades brushing the shoe going in and coming out.
         StepSurface::Grass => {
-            for _ in 0..4 + (rng.unit() * 4.0) as usize {
-                let at = ((0.01 + 0.18 * rng.unit()) * sr) as usize;
+            // Most of the crunch is the heel pressing the blades down; a
+            // little more as the ball of the foot lands.
+            for k in 0..4 + (rng.unit() * 4.0) as usize {
+                let base = if k % 3 == 2 { roll } else { 0.0 };
+                let at = ((base + 0.035 * rng.unit()) * sr) as usize;
                 let seconds = 0.03 + 0.06 * rng.unit();
                 let c = 2500.0 + 3500.0 * rng.unit();
                 noise_burst(rng, &mut out, at, seconds, c, 0.35, sr);

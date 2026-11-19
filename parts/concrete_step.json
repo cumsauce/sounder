@@ -1,0 +1,55 @@
+{
+ "role": "whole",
+ "material": "stone",
+ "description": "one footstep on concrete, picked best of 6; built as: `step` concrete, speed 1, grit 0.5",
+ "tags": [
+  "footstep",
+  "step",
+  "walk",
+  "concrete",
+  "pavement",
+  "stone"
+ ],
+ "origin": "batch 13; picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "concrete_step",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 0.8,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "step",
+    "name": "src",
+    "surface": "concrete",
+    "speed": 1.0,
+    "grit": 0.5,
+    "at": 0.005,
+    "seed": 1
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "pace",
+    "value": 0.5,
+    "doc": "how fast the foot comes down",
+    "map": [
+     {
+      "node": "src",
+      "field": "speed",
+      "from": 0.6,
+      "to": 2.0,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}
