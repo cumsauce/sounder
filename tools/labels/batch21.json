@@ -1,0 +1,4668 @@
+[
+ {
+  "id": "s01",
+  "family": "testers",
+  "group": "scifi_door",
+  "design": "scifi_door_b",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "noise",
+     "name": "hs_n",
+     "color": "pink"
+    },
+    {
+     "type": "filter",
+     "name": "hs_f",
+     "input": "hs_n",
+     "mode": "hp",
+     "freq": 2500
+    },
+    {
+     "type": "env",
+     "name": "hs_e",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.006,
+       1
+      ],
+      [
+       0.12,
+       0.35
+      ],
+      [
+       0.3,
+       0.25
+      ],
+      [
+       0.6,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "hs",
+     "op": "mul",
+     "a": "hs_f",
+     "b": "hs_e"
+    },
+    {
+     "type": "gain",
+     "name": "hs_g",
+     "input": "hs",
+     "db": 8
+    },
+    {
+     "type": "env",
+     "name": "sv_f",
+     "points": [
+      [
+       0,
+       150
+      ],
+      [
+       0.35,
+       180
+      ],
+      [
+       0.7,
+       460
+      ],
+      [
+       1.2,
+       520
+      ],
+      [
+       1.36,
+       470
+      ],
+      [
+       1.55,
+       140
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "osc",
+     "name": "sv_o",
+     "shape": "sine",
+     "freq": "sv_f"
+    },
+    {
+     "type": "lfo",
+     "name": "gear",
+     "freq": 85,
+     "range": [
+      0.5,
+      1
+     ]
+    },
+    {
+     "type": "math",
+     "name": "sv_gr",
+     "op": "mul",
+     "a": "sv_o",
+     "b": "gear"
+    },
+    {
+     "type": "noise",
+     "name": "mn",
+     "color": "pink"
+    },
+    {
+     "type": "math",
+     "name": "mn_f",
+     "op": "mul",
+     "a": "sv_f",
+     "b": 3
+    },
+    {
+     "type": "filter",
+     "name": "mn_bp",
+     "input": "mn",
+     "mode": "bp",
+     "freq": "mn_f",
+     "q": 4
+    },
+    {
+     "type": "mix",
+     "name": "sv_m",
+     "inputs": [
+      {
+       "input": "sv_gr",
+       "gain": 0.7
+      },
+      {
+       "input": "mn_bp",
+       "gain": 0.5
+      }
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "env",
+     "name": "sv_e",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.3,
+       0
+      ],
+      [
+       0.5,
+       1
+      ],
+      [
+       1.36,
+       1
+      ],
+      [
+       1.55,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "sv",
+     "op": "mul",
+     "a": "sv_m",
+     "b": "sv_e"
+    },
+    {
+     "type": "gain",
+     "name": "sv_g",
+     "input": "sv",
+     "db": -10
+    },
+    {
+     "type": "click",
+     "name": "latch",
+     "kind": "lock",
+     "size": 0.9,
+     "hardness": 0.6,
+     "noise": 0.75,
+     "at": 1.33
+    },
+    {
+     "type": "gain",
+     "name": "latch_g",
+     "input": "latch",
+     "db": -8
+    },
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "white"
+    },
+    {
+     "type": "decay",
+     "name": "hit_e",
+     "time": 0.006,
+     "at": 1.36
+    },
+    {
+     "type": "math",
+     "name": "hit_burst",
+     "op": "mul",
+     "a": "n",
+     "b": "hit_e"
+    },
+    {
+     "type": "modal",
+     "name": "plate",
+     "excite": "hit_burst",
+     "material": "metal",
+     "shape": "plate",
+     "f0": 95,
+     "loss": 1.2,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "tilt": 3,
+     "gain_db": -2
+    },
+    {
+     "type": "noise",
+     "name": "thd_n",
+     "color": "brown"
+    },
+    {
+     "type": "decay",
+     "name": "thd_e",
+     "time": 0.3,
+     "at": 1.36
+    },
+    {
+     "type": "math",
+     "name": "thd_raw",
+     "op": "mul",
+     "a": "thd_n",
+     "b": "thd_e"
+    },
+    {
+     "type": "filter",
+     "name": "thd",
+     "input": "thd_raw",
+     "mode": "lp",
+     "freq": 180,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "thd_g",
+     "input": "thd",
+     "db": 2
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "hs_g",
+      "sv_g",
+      "latch_g",
+      "plate",
+      "thd_g"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "dry",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "peak_db": -2,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "duration": 2.2,
+   "macros": [
+    {
+     "name": "hiss",
+     "value": 0.5,
+     "doc": "seal hiss level",
+     "map": [
+      {
+       "node": "hs_g",
+       "field": "db",
+       "from": -6,
+       "to": 12
+      }
+     ]
+    },
+    {
+     "name": "servo_pitch",
+     "value": 0.5,
+     "doc": "servo whine pitch",
+     "map": [
+      {
+       "node": "sv_f",
+       "field": "points",
+       "index": 3,
+       "key": "y",
+       "from": 350,
+       "to": 700
+      }
+     ]
+    },
+    {
+     "name": "weight",
+     "value": 0.5,
+     "doc": "clunk thud level",
+     "map": [
+      {
+       "node": "thd_g",
+       "field": "db",
+       "from": -4,
+       "to": 8
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "s02",
+  "family": "testers",
+  "group": "zipper",
+  "design": "zipper_a",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "impulse",
+     "name": "imp",
+     "at": [
+      0.00968,
+      0.02635,
+      0.0434,
+      0.05967,
+      0.076,
+      0.0927,
+      0.10948,
+      0.12538,
+      0.14124,
+      0.15636,
+      0.17237,
+      0.18757,
+      0.20282,
+      0.21798,
+      0.23322,
+      0.24906,
+      0.26379,
+      0.27848,
+      0.29305,
+      0.30678,
+      0.32123,
+      0.3358,
+      0.34998,
+      0.36405,
+      0.37788,
+      0.39058,
+      0.40473,
+      0.41821,
+      0.43127,
+      0.44401,
+      0.45737,
+      0.46977,
+      0.48352,
+      0.49604,
+      0.50813,
+      0.52018,
+      0.53312,
+      0.54479,
+      0.5571,
+      0.56887,
+      0.58015,
+      0.59158,
+      0.60322,
+      0.6143,
+      0.62513,
+      0.63632,
+      0.64782,
+      0.65765,
+      0.66828,
+      0.67947,
+      0.68941,
+      0.69995
+     ]
+    },
+    {
+     "type": "resonators",
+     "name": "tooth",
+     "input": "imp",
+     "modes": [
+      [
+       4650.0,
+       0.004,
+       1
+      ],
+      [
+       7050.0,
+       0.003,
+       0.7
+      ],
+      [
+       10350.0,
+       0.002,
+       0.4
+      ]
+     ]
+    },
+    {
+     "type": "gain",
+     "name": "tooth_g",
+     "input": "tooth",
+     "db": -14
+    },
+    {
+     "type": "noise",
+     "name": "rn",
+     "color": "pink"
+    },
+    {
+     "type": "wander",
+     "name": "rf",
+     "rate": 14,
+     "range": [
+      2700.0,
+      6750.0
+     ],
+     "seed": 5
+    },
+    {
+     "type": "filter",
+     "name": "rbp",
+     "input": "rn",
+     "mode": "bp",
+     "freq": "rf",
+     "q": 0.8
+    },
+    {
+     "type": "wander",
+     "name": "ra",
+     "rate": 25,
+     "range": [
+      0.2,
+      1
+     ],
+     "seed": 6
+    },
+    {
+     "type": "env",
+     "name": "rus_env",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.03,
+       0.8
+      ],
+      [
+       0.55,
+       1
+      ],
+      [
+       0.72,
+       0.4
+      ],
+      [
+       0.8,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "rm1",
+     "op": "mul",
+     "a": "rbp",
+     "b": "ra"
+    },
+    {
+     "type": "math",
+     "name": "rm",
+     "op": "mul",
+     "a": "rm1",
+     "b": "rus_env"
+    },
+    {
+     "type": "gain",
+     "name": "rus_g",
+     "input": "rm",
+     "db": -10
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "tooth_g",
+      "rus_g"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "dry",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "macros": [
+    {
+     "name": "rustle",
+     "value": 0.5,
+     "doc": "fabric level",
+     "map": [
+      {
+       "node": "rus_g",
+       "field": "db",
+       "from": -22,
+       "to": -2
+      }
+     ]
+    },
+    {
+     "name": "tooth_level",
+     "value": 0.5,
+     "doc": "teeth level",
+     "map": [
+      {
+       "node": "tooth_g",
+       "field": "db",
+       "from": -24,
+       "to": -6
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "s03",
+  "family": "testers",
+  "group": "zipper",
+  "design": "zipper_b",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "impulse",
+     "name": "imp",
+     "at": [
+      0.00968,
+      0.02635,
+      0.0434,
+      0.05967,
+      0.076,
+      0.0927,
+      0.10948,
+      0.12538,
+      0.14124,
+      0.15636,
+      0.17237,
+      0.18757,
+      0.20282,
+      0.21798,
+      0.23322,
+      0.24906,
+      0.26379,
+      0.27848,
+      0.29305,
+      0.30678,
+      0.32123,
+      0.3358,
+      0.34998,
+      0.36405,
+      0.37788,
+      0.39058,
+      0.40473,
+      0.41821,
+      0.43127,
+      0.44401,
+      0.45737,
+      0.46977,
+      0.48352,
+      0.49604,
+      0.50813,
+      0.52018,
+      0.53312,
+      0.54479,
+      0.5571,
+      0.56887,
+      0.58015,
+      0.59158,
+      0.60322,
+      0.6143,
+      0.62513,
+      0.63632,
+      0.64782,
+      0.65765,
+      0.66828,
+      0.67947,
+      0.68941,
+      0.69995
+     ]
+    },
+    {
+     "type": "resonators",
+     "name": "tooth",
+     "input": "imp",
+     "modes": [
+      [
+       6200.0,
+       0.004,
+       1
+      ],
+      [
+       9400.0,
+       0.003,
+       0.7
+      ],
+      [
+       13800.0,
+       0.002,
+       0.4
+      ]
+     ]
+    },
+    {
+     "type": "gain",
+     "name": "tooth_g",
+     "input": "tooth",
+     "db": -14
+    },
+    {
+     "type": "noise",
+     "name": "rn",
+     "color": "pink"
+    },
+    {
+     "type": "wander",
+     "name": "rf",
+     "rate": 14,
+     "range": [
+      3600.0,
+      9000.0
+     ],
+     "seed": 5
+    },
+    {
+     "type": "filter",
+     "name": "rbp",
+     "input": "rn",
+     "mode": "bp",
+     "freq": "rf",
+     "q": 0.8
+    },
+    {
+     "type": "wander",
+     "name": "ra",
+     "rate": 25,
+     "range": [
+      0.2,
+      1
+     ],
+     "seed": 6
+    },
+    {
+     "type": "env",
+     "name": "rus_env",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.03,
+       0.8
+      ],
+      [
+       0.55,
+       1
+      ],
+      [
+       0.72,
+       0.4
+      ],
+      [
+       0.8,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "rm1",
+     "op": "mul",
+     "a": "rbp",
+     "b": "ra"
+    },
+    {
+     "type": "math",
+     "name": "rm",
+     "op": "mul",
+     "a": "rm1",
+     "b": "rus_env"
+    },
+    {
+     "type": "gain",
+     "name": "rus_g",
+     "input": "rm",
+     "db": -10
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "tooth_g",
+      "rus_g"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "dry",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "macros": [
+    {
+     "name": "rustle",
+     "value": 0.5,
+     "doc": "fabric level",
+     "map": [
+      {
+       "node": "rus_g",
+       "field": "db",
+       "from": -22,
+       "to": -2
+      }
+     ]
+    },
+    {
+     "name": "tooth_level",
+     "value": 0.5,
+     "doc": "teeth level",
+     "map": [
+      {
+       "node": "tooth_g",
+       "field": "db",
+       "from": -24,
+       "to": -6
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "s04",
+  "family": "testers",
+  "group": "scifi_door",
+  "design": "scifi_door_b",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "noise",
+     "name": "hs_n",
+     "color": "pink"
+    },
+    {
+     "type": "filter",
+     "name": "hs_f",
+     "input": "hs_n",
+     "mode": "hp",
+     "freq": 2500
+    },
+    {
+     "type": "env",
+     "name": "hs_e",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.006,
+       1
+      ],
+      [
+       0.12,
+       0.35
+      ],
+      [
+       0.3,
+       0.25
+      ],
+      [
+       0.6,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "hs",
+     "op": "mul",
+     "a": "hs_f",
+     "b": "hs_e"
+    },
+    {
+     "type": "gain",
+     "name": "hs_g",
+     "input": "hs",
+     "db": 8
+    },
+    {
+     "type": "env",
+     "name": "sv_f",
+     "points": [
+      [
+       0,
+       150
+      ],
+      [
+       0.35,
+       180
+      ],
+      [
+       0.7,
+       460
+      ],
+      [
+       1.2,
+       520
+      ],
+      [
+       1.36,
+       470
+      ],
+      [
+       1.55,
+       140
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "osc",
+     "name": "sv_o",
+     "shape": "sine",
+     "freq": "sv_f"
+    },
+    {
+     "type": "lfo",
+     "name": "gear",
+     "freq": 85,
+     "range": [
+      0.5,
+      1
+     ]
+    },
+    {
+     "type": "math",
+     "name": "sv_gr",
+     "op": "mul",
+     "a": "sv_o",
+     "b": "gear"
+    },
+    {
+     "type": "noise",
+     "name": "mn",
+     "color": "pink"
+    },
+    {
+     "type": "math",
+     "name": "mn_f",
+     "op": "mul",
+     "a": "sv_f",
+     "b": 3
+    },
+    {
+     "type": "filter",
+     "name": "mn_bp",
+     "input": "mn",
+     "mode": "bp",
+     "freq": "mn_f",
+     "q": 4
+    },
+    {
+     "type": "mix",
+     "name": "sv_m",
+     "inputs": [
+      {
+       "input": "sv_gr",
+       "gain": 0.7
+      },
+      {
+       "input": "mn_bp",
+       "gain": 0.5
+      }
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "env",
+     "name": "sv_e",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.3,
+       0
+      ],
+      [
+       0.5,
+       1
+      ],
+      [
+       1.36,
+       1
+      ],
+      [
+       1.55,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "sv",
+     "op": "mul",
+     "a": "sv_m",
+     "b": "sv_e"
+    },
+    {
+     "type": "gain",
+     "name": "sv_g",
+     "input": "sv",
+     "db": -10
+    },
+    {
+     "type": "click",
+     "name": "latch",
+     "kind": "lock",
+     "size": 0.9,
+     "hardness": 0.6,
+     "noise": 0.75,
+     "at": 1.33
+    },
+    {
+     "type": "gain",
+     "name": "latch_g",
+     "input": "latch",
+     "db": -8
+    },
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "white"
+    },
+    {
+     "type": "decay",
+     "name": "hit_e",
+     "time": 0.006,
+     "at": 1.36
+    },
+    {
+     "type": "math",
+     "name": "hit_burst",
+     "op": "mul",
+     "a": "n",
+     "b": "hit_e"
+    },
+    {
+     "type": "modal",
+     "name": "plate",
+     "excite": "hit_burst",
+     "material": "metal",
+     "shape": "plate",
+     "f0": 95,
+     "loss": 1.2,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "tilt": 3,
+     "gain_db": -2
+    },
+    {
+     "type": "noise",
+     "name": "thd_n",
+     "color": "brown"
+    },
+    {
+     "type": "decay",
+     "name": "thd_e",
+     "time": 0.3,
+     "at": 1.36
+    },
+    {
+     "type": "math",
+     "name": "thd_raw",
+     "op": "mul",
+     "a": "thd_n",
+     "b": "thd_e"
+    },
+    {
+     "type": "filter",
+     "name": "thd",
+     "input": "thd_raw",
+     "mode": "lp",
+     "freq": 180,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "thd_g",
+     "input": "thd",
+     "db": 2
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "hs_g",
+      "sv_g",
+      "latch_g",
+      "plate",
+      "thd_g"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "dry",
+     "peak_db": -2,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "duration": 2.2,
+   "macros": [
+    {
+     "name": "hiss",
+     "value": 0.5,
+     "doc": "seal hiss level",
+     "map": [
+      {
+       "node": "hs_g",
+       "field": "db",
+       "from": -6,
+       "to": 12
+      }
+     ]
+    },
+    {
+     "name": "servo_pitch",
+     "value": 0.5,
+     "doc": "servo whine pitch",
+     "map": [
+      {
+       "node": "sv_f",
+       "field": "points",
+       "index": 3,
+       "key": "y",
+       "from": 350,
+       "to": 700
+      }
+     ]
+    },
+    {
+     "name": "weight",
+     "value": 0.5,
+     "doc": "clunk thud level",
+     "map": [
+      {
+       "node": "thd_g",
+       "field": "db",
+       "from": -4,
+       "to": 8
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "s05",
+  "family": "testers",
+  "group": "scifi_door",
+  "design": "scifi_door_a",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "noise",
+     "name": "hs_n",
+     "color": "pink"
+    },
+    {
+     "type": "filter",
+     "name": "hs_f",
+     "input": "hs_n",
+     "mode": "hp",
+     "freq": 2500
+    },
+    {
+     "type": "env",
+     "name": "hs_e",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.006,
+       1
+      ],
+      [
+       0.12,
+       0.35
+      ],
+      [
+       0.3,
+       0.25
+      ],
+      [
+       0.6,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "hs",
+     "op": "mul",
+     "a": "hs_f",
+     "b": "hs_e"
+    },
+    {
+     "type": "gain",
+     "name": "hs_g",
+     "input": "hs",
+     "db": 8
+    },
+    {
+     "type": "env",
+     "name": "sv_f",
+     "points": [
+      [
+       0,
+       150
+      ],
+      [
+       0.35,
+       180
+      ],
+      [
+       0.7,
+       460
+      ],
+      [
+       1.2,
+       520
+      ],
+      [
+       1.36,
+       470
+      ],
+      [
+       1.75,
+       140
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "osc",
+     "name": "sv_o",
+     "shape": "sine",
+     "freq": "sv_f"
+    },
+    {
+     "type": "lfo",
+     "name": "gear",
+     "freq": 85,
+     "range": [
+      0.5,
+      1
+     ]
+    },
+    {
+     "type": "math",
+     "name": "sv_gr",
+     "op": "mul",
+     "a": "sv_o",
+     "b": "gear"
+    },
+    {
+     "type": "noise",
+     "name": "mn",
+     "color": "pink"
+    },
+    {
+     "type": "math",
+     "name": "mn_f",
+     "op": "mul",
+     "a": "sv_f",
+     "b": 3
+    },
+    {
+     "type": "filter",
+     "name": "mn_bp",
+     "input": "mn",
+     "mode": "bp",
+     "freq": "mn_f",
+     "q": 4
+    },
+    {
+     "type": "mix",
+     "name": "sv_m",
+     "inputs": [
+      {
+       "input": "sv_gr",
+       "gain": 0.7
+      },
+      {
+       "input": "mn_bp",
+       "gain": 0.5
+      }
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "env",
+     "name": "sv_e",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.3,
+       0
+      ],
+      [
+       0.5,
+       1
+      ],
+      [
+       1.36,
+       1
+      ],
+      [
+       1.75,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "sv",
+     "op": "mul",
+     "a": "sv_m",
+     "b": "sv_e"
+    },
+    {
+     "type": "gain",
+     "name": "sv_g",
+     "input": "sv",
+     "db": -10
+    },
+    {
+     "type": "click",
+     "name": "latch",
+     "kind": "lock",
+     "size": 0.9,
+     "hardness": 0.6,
+     "noise": 0.75,
+     "at": 1.33
+    },
+    {
+     "type": "gain",
+     "name": "latch_g",
+     "input": "latch",
+     "db": -8
+    },
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "white"
+    },
+    {
+     "type": "decay",
+     "name": "hit_e",
+     "time": 0.006,
+     "at": 1.36
+    },
+    {
+     "type": "math",
+     "name": "hit_burst",
+     "op": "mul",
+     "a": "n",
+     "b": "hit_e"
+    },
+    {
+     "type": "modal",
+     "name": "plate",
+     "excite": "hit_burst",
+     "material": "metal",
+     "shape": "plate",
+     "f0": 95,
+     "loss": 1.2,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "tilt": 3,
+     "gain_db": -2
+    },
+    {
+     "type": "noise",
+     "name": "thd_n",
+     "color": "brown"
+    },
+    {
+     "type": "decay",
+     "name": "thd_e",
+     "time": 0.3,
+     "at": 1.36
+    },
+    {
+     "type": "math",
+     "name": "thd_raw",
+     "op": "mul",
+     "a": "thd_n",
+     "b": "thd_e"
+    },
+    {
+     "type": "filter",
+     "name": "thd",
+     "input": "thd_raw",
+     "mode": "lp",
+     "freq": 180,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "thd_g",
+     "input": "thd",
+     "db": 2
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "hs_g",
+      "sv_g",
+      "latch_g",
+      "plate",
+      "thd_g"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "dry",
+     "peak_db": -2,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "duration": 2.2,
+   "macros": [
+    {
+     "name": "hiss",
+     "value": 0.5,
+     "doc": "seal hiss level",
+     "map": [
+      {
+       "node": "hs_g",
+       "field": "db",
+       "from": -6,
+       "to": 12
+      }
+     ]
+    },
+    {
+     "name": "servo_pitch",
+     "value": 0.5,
+     "doc": "servo whine pitch",
+     "map": [
+      {
+       "node": "sv_f",
+       "field": "points",
+       "index": 3,
+       "key": "y",
+       "from": 350,
+       "to": 700
+      }
+     ]
+    },
+    {
+     "name": "weight",
+     "value": 0.5,
+     "doc": "clunk thud level",
+     "map": [
+      {
+       "node": "thd_g",
+       "field": "db",
+       "from": -4,
+       "to": 8
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "s06",
+  "family": "testers",
+  "group": "vending_can",
+  "design": "vending_can_a",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "env",
+     "name": "rpm_e",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.08,
+       1
+      ],
+      [
+       0.5,
+       1
+      ],
+      [
+       0.65,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "rpm",
+     "op": "mul",
+     "a": "rpm_e",
+     "b": 3500
+    },
+    {
+     "type": "motor",
+     "name": "mot_raw",
+     "rpm": "rpm",
+     "poles": 4,
+     "gear_teeth": 18,
+     "load": 0.4,
+     "whine": 0.25
+    },
+    {
+     "type": "gain",
+     "name": "mot_g",
+     "input": "mot_raw",
+     "db": 0
+    },
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "white"
+    },
+    {
+     "type": "pattern",
+     "name": "hits",
+     "start": 0.8,
+     "every": 0.11,
+     "count": 4,
+     "jitter": 0.01,
+     "values": {
+      "min": 0.4,
+      "max": 0.9
+     },
+     "seed": 2
+    },
+    {
+     "type": "voices",
+     "name": "clunks",
+     "events": "hits",
+     "length": 0.4,
+     "max": 8,
+     "map": {
+      "size": "0.9 + $rand * 0.2"
+     },
+     "patch": [
+      {
+       "type": "impulse",
+       "name": "t",
+       "at": [
+        0.0
+       ]
+      },
+      {
+       "type": "decay",
+       "name": "e",
+       "time": 0.01,
+       "at": 0.0
+      },
+      {
+       "type": "noise",
+       "name": "pn",
+       "color": "white"
+      },
+      {
+       "type": "math",
+       "name": "b",
+       "op": "mul",
+       "a": "pn",
+       "b": "e"
+      },
+      {
+       "type": "gain",
+       "name": "bs",
+       "input": "b",
+       "gain": "$value"
+      },
+      {
+       "type": "modal",
+       "name": "can",
+       "excite": "bs",
+       "material": "metal",
+       "shape": "tube",
+       "f0": "=450*$size",
+       "loss": 0.6,
+       "noise": 0.4,
+       "noise_width": 0.1
+      }
+     ]
+    },
+    {
+     "type": "gain",
+     "name": "clunks_g",
+     "input": "clunks",
+     "db": -14
+    },
+    {
+     "type": "decay",
+     "name": "l_e",
+     "time": 0.012,
+     "at": 1.3
+    },
+    {
+     "type": "math",
+     "name": "l_b",
+     "op": "mul",
+     "a": "n",
+     "b": "l_e"
+    },
+    {
+     "type": "modal",
+     "name": "l_can",
+     "excite": "l_b",
+     "material": "metal",
+     "shape": "tube",
+     "f0": 380,
+     "loss": 0.5,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "gain_db": -4
+    },
+    {
+     "type": "noise",
+     "name": "thd_n",
+     "color": "brown"
+    },
+    {
+     "type": "decay",
+     "name": "thd_e",
+     "time": 0.12,
+     "at": 1.3
+    },
+    {
+     "type": "math",
+     "name": "thd_r",
+     "op": "mul",
+     "a": "thd_n",
+     "b": "thd_e"
+    },
+    {
+     "type": "filter",
+     "name": "thd",
+     "input": "thd_r",
+     "mode": "lp",
+     "freq": 300,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "thd_g",
+     "input": "thd",
+     "db": 2
+    },
+    {
+     "type": "filter",
+     "name": "l_crk",
+     "input": "l_b",
+     "mode": "hp",
+     "freq": 3000
+    },
+    {
+     "type": "gain",
+     "name": "l_crk_g",
+     "input": "l_crk",
+     "db": -14
+    },
+    {
+     "type": "bounce",
+     "name": "rb",
+     "first": 0.09,
+     "restitution": 0.8,
+     "min_interval": 0.015,
+     "start": 1.5,
+     "jitter": 0.2,
+     "seed": 5
+    },
+    {
+     "type": "voices",
+     "name": "rattle",
+     "events": "rb",
+     "length": 0.15,
+     "max": 16,
+     "patch": [
+      {
+       "type": "impulse",
+       "name": "t",
+       "at": [
+        0.0
+       ]
+      },
+      {
+       "type": "decay",
+       "name": "e",
+       "time": 0.006,
+       "at": 0.0
+      },
+      {
+       "type": "noise",
+       "name": "pn",
+       "color": "white"
+      },
+      {
+       "type": "math",
+       "name": "b",
+       "op": "mul",
+       "a": "pn",
+       "b": "e"
+      },
+      {
+       "type": "modal",
+       "name": "r",
+       "excite": "b",
+       "material": "metal",
+       "shape": "bar",
+       "f0": "=900+$rand*500",
+       "loss": 1.2,
+       "noise": 0.4,
+       "noise_width": 0.1
+      }
+     ]
+    },
+    {
+     "type": "gain",
+     "name": "rattle_g",
+     "input": "rattle",
+     "db": -16
+    },
+    {
+     "type": "decay",
+     "name": "sp_e",
+     "time": 0.004,
+     "at": 0.68
+    },
+    {
+     "type": "math",
+     "name": "sp_b",
+     "op": "mul",
+     "a": "n",
+     "b": "sp_e"
+    },
+    {
+     "type": "modal",
+     "name": "spring",
+     "excite": "sp_b",
+     "material": "metal",
+     "shape": "string",
+     "f0": 210,
+     "loss": 0.35,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "tilt": 2,
+     "gain_db": -10
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      {
+       "input": "mot_g",
+       "gain": 1
+      },
+      {
+       "input": "clunks_g",
+       "gain": 1
+      },
+      {
+       "input": "l_can",
+       "gain": 1
+      },
+      {
+       "input": "thd_g",
+       "gain": 1
+      },
+      {
+       "input": "l_crk_g",
+       "gain": 1
+      },
+      {
+       "input": "rattle_g",
+       "gain": 1
+      },
+      {
+       "input": "spring",
+       "gain": 1
+      }
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "finish",
+     "name": "bus",
+     "input": "dry",
+     "punch": 0.3,
+     "glue": 0.2
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "bus",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "duration": 3.3,
+   "macros": [
+    {
+     "name": "rattle",
+     "value": 0.5,
+     "doc": "level of the settling rattle",
+     "map": [
+      {
+       "node": "dry",
+       "field": "inputs",
+       "index": 5,
+       "key": "gain",
+       "from": 0.1,
+       "to": 1.5
+      }
+     ]
+    },
+    {
+     "name": "motor",
+     "value": 0.15,
+     "doc": "motor whir level",
+     "map": [
+      {
+       "node": "dry",
+       "field": "inputs",
+       "index": 0,
+       "key": "gain",
+       "from": 0.2,
+       "to": 1.5
+      }
+     ],
+     "default": 0.15
+    },
+    {
+     "name": "weight",
+     "value": 0.5,
+     "doc": "tray landing thump",
+     "map": [
+      {
+       "node": "dry",
+       "field": "inputs",
+       "index": 3,
+       "key": "gain",
+       "from": 0.2,
+       "to": 2
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "s07",
+  "family": "testers",
+  "group": "vending_can",
+  "design": "vending_can_b",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "env",
+     "name": "rpm_e",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.08,
+       1
+      ],
+      [
+       0.5,
+       1
+      ],
+      [
+       0.65,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "rpm",
+     "op": "mul",
+     "a": "rpm_e",
+     "b": 3500
+    },
+    {
+     "type": "motor",
+     "name": "mot_raw",
+     "rpm": "rpm",
+     "poles": 4,
+     "gear_teeth": 18,
+     "load": 0.4,
+     "whine": 0.25
+    },
+    {
+     "type": "gain",
+     "name": "mot_g",
+     "input": "mot_raw",
+     "db": 0
+    },
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "white"
+    },
+    {
+     "type": "pattern",
+     "name": "hits",
+     "start": 0.8,
+     "every": 0.11,
+     "count": 4,
+     "jitter": 0.01,
+     "values": {
+      "min": 0.4,
+      "max": 0.9
+     },
+     "seed": 2
+    },
+    {
+     "type": "voices",
+     "name": "clunks",
+     "events": "hits",
+     "length": 0.4,
+     "max": 8,
+     "map": {
+      "size": "0.9 + $rand * 0.2"
+     },
+     "patch": [
+      {
+       "type": "impulse",
+       "name": "t",
+       "at": [
+        0.0
+       ]
+      },
+      {
+       "type": "decay",
+       "name": "e",
+       "time": 0.01,
+       "at": 0.0
+      },
+      {
+       "type": "noise",
+       "name": "pn",
+       "color": "white"
+      },
+      {
+       "type": "math",
+       "name": "b",
+       "op": "mul",
+       "a": "pn",
+       "b": "e"
+      },
+      {
+       "type": "gain",
+       "name": "bs",
+       "input": "b",
+       "gain": "$value"
+      },
+      {
+       "type": "modal",
+       "name": "can",
+       "excite": "bs",
+       "material": "metal",
+       "shape": "tube",
+       "f0": "=450*$size",
+       "loss": 0.6,
+       "noise": 0.4,
+       "noise_width": 0.1
+      }
+     ]
+    },
+    {
+     "type": "gain",
+     "name": "clunks_g",
+     "input": "clunks",
+     "db": -14
+    },
+    {
+     "type": "decay",
+     "name": "l_e",
+     "time": 0.012,
+     "at": 1.3
+    },
+    {
+     "type": "math",
+     "name": "l_b",
+     "op": "mul",
+     "a": "n",
+     "b": "l_e"
+    },
+    {
+     "type": "modal",
+     "name": "l_can",
+     "excite": "l_b",
+     "material": "metal",
+     "shape": "tube",
+     "f0": 380,
+     "loss": 0.5,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "gain_db": -4
+    },
+    {
+     "type": "noise",
+     "name": "thd_n",
+     "color": "brown"
+    },
+    {
+     "type": "decay",
+     "name": "thd_e",
+     "time": 0.12,
+     "at": 1.3
+    },
+    {
+     "type": "math",
+     "name": "thd_r",
+     "op": "mul",
+     "a": "thd_n",
+     "b": "thd_e"
+    },
+    {
+     "type": "filter",
+     "name": "thd",
+     "input": "thd_r",
+     "mode": "lp",
+     "freq": 300,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "thd_g",
+     "input": "thd",
+     "db": 2
+    },
+    {
+     "type": "filter",
+     "name": "l_crk",
+     "input": "l_b",
+     "mode": "hp",
+     "freq": 3000
+    },
+    {
+     "type": "gain",
+     "name": "l_crk_g",
+     "input": "l_crk",
+     "db": -14
+    },
+    {
+     "type": "bounce",
+     "name": "rb",
+     "first": 0.09,
+     "restitution": 0.8,
+     "min_interval": 0.015,
+     "start": 1.5,
+     "jitter": 0.2,
+     "seed": 5
+    },
+    {
+     "type": "voices",
+     "name": "rattle",
+     "events": "rb",
+     "length": 0.15,
+     "max": 16,
+     "patch": [
+      {
+       "type": "impulse",
+       "name": "t",
+       "at": [
+        0.0
+       ]
+      },
+      {
+       "type": "decay",
+       "name": "e",
+       "time": 0.006,
+       "at": 0.0
+      },
+      {
+       "type": "noise",
+       "name": "pn",
+       "color": "white"
+      },
+      {
+       "type": "math",
+       "name": "b",
+       "op": "mul",
+       "a": "pn",
+       "b": "e"
+      },
+      {
+       "type": "modal",
+       "name": "r",
+       "excite": "b",
+       "material": "metal",
+       "shape": "bar",
+       "f0": "=900+$rand*500",
+       "loss": 1.2,
+       "noise": 0.4,
+       "noise_width": 0.1
+      }
+     ]
+    },
+    {
+     "type": "gain",
+     "name": "rattle_g",
+     "input": "rattle",
+     "db": -16
+    },
+    {
+     "type": "decay",
+     "name": "sp_e",
+     "time": 0.004,
+     "at": 0.68
+    },
+    {
+     "type": "math",
+     "name": "sp_b",
+     "op": "mul",
+     "a": "n",
+     "b": "sp_e"
+    },
+    {
+     "type": "modal",
+     "name": "spring",
+     "excite": "sp_b",
+     "material": "metal",
+     "shape": "string",
+     "f0": 210,
+     "loss": 0.35,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "tilt": 2,
+     "gain_db": -6
+    },
+    {
+     "type": "decay",
+     "name": "bg_e",
+     "time": 0.006,
+     "at": 0.72
+    },
+    {
+     "type": "math",
+     "name": "bg_b",
+     "op": "mul",
+     "a": "n",
+     "b": "bg_e"
+    },
+    {
+     "type": "modal",
+     "name": "bang",
+     "excite": "bg_b",
+     "material": "metal",
+     "shape": "plate",
+     "f0": 320,
+     "loss": 0.6,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "gain_db": -8
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      {
+       "input": "mot_g",
+       "gain": 1
+      },
+      {
+       "input": "clunks_g",
+       "gain": 1
+      },
+      {
+       "input": "l_can",
+       "gain": 1
+      },
+      {
+       "input": "thd_g",
+       "gain": 1
+      },
+      {
+       "input": "l_crk_g",
+       "gain": 1
+      },
+      {
+       "input": "rattle_g",
+       "gain": 1
+      },
+      {
+       "input": "spring",
+       "gain": 1
+      },
+      {
+       "input": "bang",
+       "gain": 1
+      }
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "finish",
+     "name": "bus",
+     "input": "dry",
+     "punch": 0.3,
+     "glue": 0.2
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "bus",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "duration": 3.3,
+   "macros": [
+    {
+     "name": "rattle",
+     "value": 0.5,
+     "doc": "level of the settling rattle",
+     "map": [
+      {
+       "node": "dry",
+       "field": "inputs",
+       "index": 5,
+       "key": "gain",
+       "from": 0.1,
+       "to": 1.5
+      }
+     ]
+    },
+    {
+     "name": "motor",
+     "value": 0.15,
+     "doc": "motor whir level",
+     "map": [
+      {
+       "node": "dry",
+       "field": "inputs",
+       "index": 0,
+       "key": "gain",
+       "from": 0.2,
+       "to": 1.5
+      }
+     ],
+     "default": 0.15
+    },
+    {
+     "name": "weight",
+     "value": 0.5,
+     "doc": "tray landing thump",
+     "map": [
+      {
+       "node": "dry",
+       "field": "inputs",
+       "index": 3,
+       "key": "gain",
+       "from": 0.2,
+       "to": 2
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "s08",
+  "family": "testers",
+  "group": "vending_can",
+  "design": "vending_can_b",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "env",
+     "name": "rpm_e",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.08,
+       1
+      ],
+      [
+       0.5,
+       1
+      ],
+      [
+       0.65,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "rpm",
+     "op": "mul",
+     "a": "rpm_e",
+     "b": 3500
+    },
+    {
+     "type": "motor",
+     "name": "mot_raw",
+     "rpm": "rpm",
+     "poles": 4,
+     "gear_teeth": 18,
+     "load": 0.4,
+     "whine": 0.25
+    },
+    {
+     "type": "gain",
+     "name": "mot_g",
+     "input": "mot_raw",
+     "db": 0
+    },
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "white"
+    },
+    {
+     "type": "pattern",
+     "name": "hits",
+     "start": 0.8,
+     "every": 0.11,
+     "count": 4,
+     "jitter": 0.01,
+     "values": {
+      "min": 0.4,
+      "max": 0.9
+     },
+     "seed": 2
+    },
+    {
+     "type": "voices",
+     "name": "clunks",
+     "events": "hits",
+     "length": 0.4,
+     "max": 8,
+     "map": {
+      "size": "0.9 + $rand * 0.2"
+     },
+     "patch": [
+      {
+       "type": "impulse",
+       "name": "t",
+       "at": [
+        0.0
+       ]
+      },
+      {
+       "type": "decay",
+       "name": "e",
+       "time": 0.01,
+       "at": 0.0
+      },
+      {
+       "type": "noise",
+       "name": "pn",
+       "color": "white"
+      },
+      {
+       "type": "math",
+       "name": "b",
+       "op": "mul",
+       "a": "pn",
+       "b": "e"
+      },
+      {
+       "type": "gain",
+       "name": "bs",
+       "input": "b",
+       "gain": "$value"
+      },
+      {
+       "type": "modal",
+       "name": "can",
+       "excite": "bs",
+       "material": "metal",
+       "shape": "tube",
+       "f0": "=450*$size",
+       "loss": 0.6,
+       "noise": 0.4,
+       "noise_width": 0.1
+      }
+     ]
+    },
+    {
+     "type": "gain",
+     "name": "clunks_g",
+     "input": "clunks",
+     "db": -14
+    },
+    {
+     "type": "decay",
+     "name": "l_e",
+     "time": 0.012,
+     "at": 1.3
+    },
+    {
+     "type": "math",
+     "name": "l_b",
+     "op": "mul",
+     "a": "n",
+     "b": "l_e"
+    },
+    {
+     "type": "modal",
+     "name": "l_can",
+     "excite": "l_b",
+     "material": "metal",
+     "shape": "tube",
+     "f0": 380,
+     "loss": 0.5,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "gain_db": -4
+    },
+    {
+     "type": "noise",
+     "name": "thd_n",
+     "color": "brown"
+    },
+    {
+     "type": "decay",
+     "name": "thd_e",
+     "time": 0.12,
+     "at": 1.3
+    },
+    {
+     "type": "math",
+     "name": "thd_r",
+     "op": "mul",
+     "a": "thd_n",
+     "b": "thd_e"
+    },
+    {
+     "type": "filter",
+     "name": "thd",
+     "input": "thd_r",
+     "mode": "lp",
+     "freq": 300,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "thd_g",
+     "input": "thd",
+     "db": 2
+    },
+    {
+     "type": "filter",
+     "name": "l_crk",
+     "input": "l_b",
+     "mode": "hp",
+     "freq": 3000
+    },
+    {
+     "type": "gain",
+     "name": "l_crk_g",
+     "input": "l_crk",
+     "db": -14
+    },
+    {
+     "type": "bounce",
+     "name": "rb",
+     "first": 0.09,
+     "restitution": 0.8,
+     "min_interval": 0.015,
+     "start": 1.5,
+     "jitter": 0.2,
+     "seed": 5
+    },
+    {
+     "type": "voices",
+     "name": "rattle",
+     "events": "rb",
+     "length": 0.15,
+     "max": 16,
+     "patch": [
+      {
+       "type": "impulse",
+       "name": "t",
+       "at": [
+        0.0
+       ]
+      },
+      {
+       "type": "decay",
+       "name": "e",
+       "time": 0.006,
+       "at": 0.0
+      },
+      {
+       "type": "noise",
+       "name": "pn",
+       "color": "white"
+      },
+      {
+       "type": "math",
+       "name": "b",
+       "op": "mul",
+       "a": "pn",
+       "b": "e"
+      },
+      {
+       "type": "modal",
+       "name": "r",
+       "excite": "b",
+       "material": "metal",
+       "shape": "bar",
+       "f0": "=900+$rand*500",
+       "loss": 1.2,
+       "noise": 0.4,
+       "noise_width": 0.1
+      }
+     ]
+    },
+    {
+     "type": "gain",
+     "name": "rattle_g",
+     "input": "rattle",
+     "db": -16
+    },
+    {
+     "type": "decay",
+     "name": "sp_e",
+     "time": 0.004,
+     "at": 0.68
+    },
+    {
+     "type": "math",
+     "name": "sp_b",
+     "op": "mul",
+     "a": "n",
+     "b": "sp_e"
+    },
+    {
+     "type": "modal",
+     "name": "spring",
+     "excite": "sp_b",
+     "material": "metal",
+     "shape": "string",
+     "f0": 210,
+     "loss": 0.35,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "tilt": 2,
+     "gain_db": -6
+    },
+    {
+     "type": "decay",
+     "name": "bg_e",
+     "time": 0.006,
+     "at": 0.72
+    },
+    {
+     "type": "math",
+     "name": "bg_b",
+     "op": "mul",
+     "a": "n",
+     "b": "bg_e"
+    },
+    {
+     "type": "modal",
+     "name": "bang",
+     "excite": "bg_b",
+     "material": "metal",
+     "shape": "plate",
+     "f0": 320,
+     "loss": 0.6,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "gain_db": -8
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      {
+       "input": "mot_g",
+       "gain": 1
+      },
+      {
+       "input": "clunks_g",
+       "gain": 1
+      },
+      {
+       "input": "l_can",
+       "gain": 1
+      },
+      {
+       "input": "thd_g",
+       "gain": 1
+      },
+      {
+       "input": "l_crk_g",
+       "gain": 1
+      },
+      {
+       "input": "rattle_g",
+       "gain": 1
+      },
+      {
+       "input": "spring",
+       "gain": 1
+      },
+      {
+       "input": "bang",
+       "gain": 1
+      }
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "finish",
+     "name": "bus",
+     "input": "dry",
+     "punch": 0.3,
+     "glue": 0.2
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "bus",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "duration": 3.3,
+   "macros": [
+    {
+     "name": "rattle",
+     "value": 0.5,
+     "doc": "level of the settling rattle",
+     "map": [
+      {
+       "node": "dry",
+       "field": "inputs",
+       "index": 5,
+       "key": "gain",
+       "from": 0.1,
+       "to": 1.5
+      }
+     ]
+    },
+    {
+     "name": "motor",
+     "value": 0.15,
+     "doc": "motor whir level",
+     "map": [
+      {
+       "node": "dry",
+       "field": "inputs",
+       "index": 0,
+       "key": "gain",
+       "from": 0.2,
+       "to": 1.5
+      }
+     ],
+     "default": 0.15
+    },
+    {
+     "name": "weight",
+     "value": 0.5,
+     "doc": "tray landing thump",
+     "map": [
+      {
+       "node": "dry",
+       "field": "inputs",
+       "index": 3,
+       "key": "gain",
+       "from": 0.2,
+       "to": 2
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "s09",
+  "family": "testers",
+  "group": "vending_can",
+  "design": "vending_can_a",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "env",
+     "name": "rpm_e",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.08,
+       1
+      ],
+      [
+       0.5,
+       1
+      ],
+      [
+       0.65,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "rpm",
+     "op": "mul",
+     "a": "rpm_e",
+     "b": 3500
+    },
+    {
+     "type": "motor",
+     "name": "mot_raw",
+     "rpm": "rpm",
+     "poles": 4,
+     "gear_teeth": 18,
+     "load": 0.4,
+     "whine": 0.25
+    },
+    {
+     "type": "gain",
+     "name": "mot_g",
+     "input": "mot_raw",
+     "db": 0
+    },
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "white"
+    },
+    {
+     "type": "pattern",
+     "name": "hits",
+     "start": 0.8,
+     "every": 0.11,
+     "count": 4,
+     "jitter": 0.01,
+     "values": {
+      "min": 0.4,
+      "max": 0.9
+     },
+     "seed": 2
+    },
+    {
+     "type": "voices",
+     "name": "clunks",
+     "events": "hits",
+     "length": 0.4,
+     "max": 8,
+     "map": {
+      "size": "0.9 + $rand * 0.2"
+     },
+     "patch": [
+      {
+       "type": "impulse",
+       "name": "t",
+       "at": [
+        0.0
+       ]
+      },
+      {
+       "type": "decay",
+       "name": "e",
+       "time": 0.01,
+       "at": 0.0
+      },
+      {
+       "type": "noise",
+       "name": "pn",
+       "color": "white"
+      },
+      {
+       "type": "math",
+       "name": "b",
+       "op": "mul",
+       "a": "pn",
+       "b": "e"
+      },
+      {
+       "type": "gain",
+       "name": "bs",
+       "input": "b",
+       "gain": "$value"
+      },
+      {
+       "type": "modal",
+       "name": "can",
+       "excite": "bs",
+       "material": "metal",
+       "shape": "tube",
+       "f0": "=450*$size",
+       "loss": 0.6,
+       "noise": 0.4,
+       "noise_width": 0.1
+      }
+     ]
+    },
+    {
+     "type": "gain",
+     "name": "clunks_g",
+     "input": "clunks",
+     "db": -14
+    },
+    {
+     "type": "decay",
+     "name": "l_e",
+     "time": 0.012,
+     "at": 1.3
+    },
+    {
+     "type": "math",
+     "name": "l_b",
+     "op": "mul",
+     "a": "n",
+     "b": "l_e"
+    },
+    {
+     "type": "modal",
+     "name": "l_can",
+     "excite": "l_b",
+     "material": "metal",
+     "shape": "tube",
+     "f0": 380,
+     "loss": 0.5,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "gain_db": -4
+    },
+    {
+     "type": "noise",
+     "name": "thd_n",
+     "color": "brown"
+    },
+    {
+     "type": "decay",
+     "name": "thd_e",
+     "time": 0.12,
+     "at": 1.3
+    },
+    {
+     "type": "math",
+     "name": "thd_r",
+     "op": "mul",
+     "a": "thd_n",
+     "b": "thd_e"
+    },
+    {
+     "type": "filter",
+     "name": "thd",
+     "input": "thd_r",
+     "mode": "lp",
+     "freq": 300,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "thd_g",
+     "input": "thd",
+     "db": 2
+    },
+    {
+     "type": "filter",
+     "name": "l_crk",
+     "input": "l_b",
+     "mode": "hp",
+     "freq": 3000
+    },
+    {
+     "type": "gain",
+     "name": "l_crk_g",
+     "input": "l_crk",
+     "db": -14
+    },
+    {
+     "type": "bounce",
+     "name": "rb",
+     "first": 0.09,
+     "restitution": 0.8,
+     "min_interval": 0.015,
+     "start": 1.5,
+     "jitter": 0.2,
+     "seed": 5
+    },
+    {
+     "type": "voices",
+     "name": "rattle",
+     "events": "rb",
+     "length": 0.15,
+     "max": 16,
+     "patch": [
+      {
+       "type": "impulse",
+       "name": "t",
+       "at": [
+        0.0
+       ]
+      },
+      {
+       "type": "decay",
+       "name": "e",
+       "time": 0.006,
+       "at": 0.0
+      },
+      {
+       "type": "noise",
+       "name": "pn",
+       "color": "white"
+      },
+      {
+       "type": "math",
+       "name": "b",
+       "op": "mul",
+       "a": "pn",
+       "b": "e"
+      },
+      {
+       "type": "modal",
+       "name": "r",
+       "excite": "b",
+       "material": "metal",
+       "shape": "bar",
+       "f0": "=900+$rand*500",
+       "loss": 1.2,
+       "noise": 0.4,
+       "noise_width": 0.1
+      }
+     ]
+    },
+    {
+     "type": "gain",
+     "name": "rattle_g",
+     "input": "rattle",
+     "db": -16
+    },
+    {
+     "type": "decay",
+     "name": "sp_e",
+     "time": 0.004,
+     "at": 0.68
+    },
+    {
+     "type": "math",
+     "name": "sp_b",
+     "op": "mul",
+     "a": "n",
+     "b": "sp_e"
+    },
+    {
+     "type": "modal",
+     "name": "spring",
+     "excite": "sp_b",
+     "material": "metal",
+     "shape": "string",
+     "f0": 210,
+     "loss": 0.35,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "tilt": 2,
+     "gain_db": -10
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      {
+       "input": "mot_g",
+       "gain": 1
+      },
+      {
+       "input": "clunks_g",
+       "gain": 1
+      },
+      {
+       "input": "l_can",
+       "gain": 1
+      },
+      {
+       "input": "thd_g",
+       "gain": 1
+      },
+      {
+       "input": "l_crk_g",
+       "gain": 1
+      },
+      {
+       "input": "rattle_g",
+       "gain": 1
+      },
+      {
+       "input": "spring",
+       "gain": 1
+      }
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "finish",
+     "name": "bus",
+     "input": "dry",
+     "punch": 0.3,
+     "glue": 0.2
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "bus",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "duration": 3.3,
+   "macros": [
+    {
+     "name": "rattle",
+     "value": 0.5,
+     "doc": "level of the settling rattle",
+     "map": [
+      {
+       "node": "dry",
+       "field": "inputs",
+       "index": 5,
+       "key": "gain",
+       "from": 0.1,
+       "to": 1.5
+      }
+     ]
+    },
+    {
+     "name": "motor",
+     "value": 0.15,
+     "doc": "motor whir level",
+     "map": [
+      {
+       "node": "dry",
+       "field": "inputs",
+       "index": 0,
+       "key": "gain",
+       "from": 0.2,
+       "to": 1.5
+      }
+     ],
+     "default": 0.15
+    },
+    {
+     "name": "weight",
+     "value": 0.5,
+     "doc": "tray landing thump",
+     "map": [
+      {
+       "node": "dry",
+       "field": "inputs",
+       "index": 3,
+       "key": "gain",
+       "from": 0.2,
+       "to": 2
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "s10",
+  "family": "testers",
+  "group": "zipper",
+  "design": "zipper_a",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "impulse",
+     "name": "imp",
+     "at": [
+      0.00968,
+      0.02635,
+      0.0434,
+      0.05967,
+      0.076,
+      0.0927,
+      0.10948,
+      0.12538,
+      0.14124,
+      0.15636,
+      0.17237,
+      0.18757,
+      0.20282,
+      0.21798,
+      0.23322,
+      0.24906,
+      0.26379,
+      0.27848,
+      0.29305,
+      0.30678,
+      0.32123,
+      0.3358,
+      0.34998,
+      0.36405,
+      0.37788,
+      0.39058,
+      0.40473,
+      0.41821,
+      0.43127,
+      0.44401,
+      0.45737,
+      0.46977,
+      0.48352,
+      0.49604,
+      0.50813,
+      0.52018,
+      0.53312,
+      0.54479,
+      0.5571,
+      0.56887,
+      0.58015,
+      0.59158,
+      0.60322,
+      0.6143,
+      0.62513,
+      0.63632,
+      0.64782,
+      0.65765,
+      0.66828,
+      0.67947,
+      0.68941,
+      0.69995
+     ]
+    },
+    {
+     "type": "resonators",
+     "name": "tooth",
+     "input": "imp",
+     "modes": [
+      [
+       4650.0,
+       0.004,
+       1
+      ],
+      [
+       7050.0,
+       0.003,
+       0.7
+      ],
+      [
+       10350.0,
+       0.002,
+       0.4
+      ]
+     ]
+    },
+    {
+     "type": "gain",
+     "name": "tooth_g",
+     "input": "tooth",
+     "db": -14
+    },
+    {
+     "type": "noise",
+     "name": "rn",
+     "color": "pink"
+    },
+    {
+     "type": "wander",
+     "name": "rf",
+     "rate": 14,
+     "range": [
+      2700.0,
+      6750.0
+     ],
+     "seed": 5
+    },
+    {
+     "type": "filter",
+     "name": "rbp",
+     "input": "rn",
+     "mode": "bp",
+     "freq": "rf",
+     "q": 0.8
+    },
+    {
+     "type": "wander",
+     "name": "ra",
+     "rate": 25,
+     "range": [
+      0.2,
+      1
+     ],
+     "seed": 6
+    },
+    {
+     "type": "env",
+     "name": "rus_env",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.03,
+       0.8
+      ],
+      [
+       0.55,
+       1
+      ],
+      [
+       0.72,
+       0.4
+      ],
+      [
+       0.8,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "rm1",
+     "op": "mul",
+     "a": "rbp",
+     "b": "ra"
+    },
+    {
+     "type": "math",
+     "name": "rm",
+     "op": "mul",
+     "a": "rm1",
+     "b": "rus_env"
+    },
+    {
+     "type": "gain",
+     "name": "rus_g",
+     "input": "rm",
+     "db": -10
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "tooth_g",
+      "rus_g"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "dry",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "macros": [
+    {
+     "name": "rustle",
+     "value": 0.5,
+     "doc": "fabric level",
+     "map": [
+      {
+       "node": "rus_g",
+       "field": "db",
+       "from": -22,
+       "to": -2
+      }
+     ]
+    },
+    {
+     "name": "tooth_level",
+     "value": 0.5,
+     "doc": "teeth level",
+     "map": [
+      {
+       "node": "tooth_g",
+       "field": "db",
+       "from": -24,
+       "to": -6
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "s11",
+  "family": "testers",
+  "group": "ice_glass",
+  "design": "ice_glass_b",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "pattern",
+     "name": "drops",
+     "start": 0.05,
+     "every": 0.4,
+     "count": 3,
+     "jitter": 0.03,
+     "values": {
+      "min": 0.6,
+      "max": 1
+     },
+     "seed": 2
+    },
+    {
+     "type": "voices",
+     "name": "hits",
+     "events": "drops",
+     "length": 1.0,
+     "max": 8,
+     "map": {
+      "f1": "1500 + $rand * 500",
+      "f2": "2800 + $rand * 1200",
+      "lossg": "1.2 * $ringp",
+      "g1": "0.06 + $rand * 0.03",
+      "g2": "0.04 + $rand * 0.02"
+     },
+     "patch": [
+      {
+       "type": "noise",
+       "name": "n",
+       "color": "white"
+      },
+      {
+       "type": "decay",
+       "name": "be",
+       "time": 0.003,
+       "at": 0.005
+      },
+      {
+       "type": "decay",
+       "name": "be2",
+       "time": 0.003,
+       "at": "=0.005 + $g1"
+      },
+      {
+       "type": "math",
+       "name": "be2s",
+       "op": "mul",
+       "a": "be2",
+       "b": 0.4
+      },
+      {
+       "type": "decay",
+       "name": "be3",
+       "time": 0.003,
+       "at": "=0.005 + $g1 + $g2"
+      },
+      {
+       "type": "math",
+       "name": "be3s",
+       "op": "mul",
+       "a": "be3",
+       "b": 0.18
+      },
+      {
+       "type": "math",
+       "name": "bes",
+       "op": "add",
+       "a": "be2s",
+       "b": "be3s"
+      },
+      {
+       "type": "math",
+       "name": "beall",
+       "op": "add",
+       "a": "be",
+       "b": "bes"
+      },
+      {
+       "type": "math",
+       "name": "burst",
+       "op": "mul",
+       "a": "n",
+       "b": "beall"
+      },
+      {
+       "type": "modal",
+       "name": "tumbler",
+       "excite": "burst",
+       "material": "glass",
+       "shape": "shell",
+       "f0": "=$f1",
+       "loss": "=$lossg",
+       "noise": 0.3,
+       "noise_width": 0.1,
+       "tilt": 2,
+       "gain_db": 0
+      },
+      {
+       "type": "modal",
+       "name": "cube",
+       "excite": "burst",
+       "material": "ice",
+       "shape": "plate",
+       "f0": "=$f2",
+       "loss": 0.4,
+       "noise": 0.5,
+       "noise_width": 0.2,
+       "tilt": 3,
+       "gain_db": -8
+      },
+      {
+       "type": "decay",
+       "name": "ce",
+       "time": 0.012,
+       "at": 0.005
+      },
+      {
+       "type": "math",
+       "name": "cr",
+       "op": "mul",
+       "a": "n",
+       "b": "ce"
+      },
+      {
+       "type": "filter",
+       "name": "crf",
+       "input": "cr",
+       "mode": "hp",
+       "freq": 3500
+      },
+      {
+       "type": "gain",
+       "name": "crg",
+       "input": "crf",
+       "db": -16
+      },
+      {
+       "type": "mix",
+       "name": "vm",
+       "inputs": [
+        "tumbler",
+        "cube",
+        "crg"
+       ],
+       "to": "mono"
+      },
+      {
+       "type": "gain",
+       "name": "vg",
+       "input": "vm",
+       "gain": "=0.5+$value*0.5"
+      }
+     ]
+    },
+    {
+     "type": "finish",
+     "name": "bus",
+     "input": "hits",
+     "punch": 0.2,
+     "glue": 0.2
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "bus",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "params": {
+    "ringp": 1
+   },
+   "macros": [
+    {
+     "name": "ring",
+     "value": 0.5,
+     "doc": "how long the glass rings",
+     "map": [
+      {
+       "param": "ringp",
+       "from": 0.4,
+       "to": 2.0,
+       "curve": "exp"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "s12",
+  "family": "testers",
+  "group": "ice_glass",
+  "design": "ice_glass_b",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "pattern",
+     "name": "drops",
+     "start": 0.05,
+     "every": 0.4,
+     "count": 3,
+     "jitter": 0.03,
+     "values": {
+      "min": 0.6,
+      "max": 1
+     },
+     "seed": 2
+    },
+    {
+     "type": "voices",
+     "name": "hits",
+     "events": "drops",
+     "length": 1.0,
+     "max": 8,
+     "map": {
+      "f1": "1500 + $rand * 500",
+      "f2": "2800 + $rand * 1200",
+      "lossg": "1.2 * $ringp",
+      "g1": "0.06 + $rand * 0.03",
+      "g2": "0.04 + $rand * 0.02"
+     },
+     "patch": [
+      {
+       "type": "noise",
+       "name": "n",
+       "color": "white"
+      },
+      {
+       "type": "decay",
+       "name": "be",
+       "time": 0.003,
+       "at": 0.005
+      },
+      {
+       "type": "decay",
+       "name": "be2",
+       "time": 0.003,
+       "at": "=0.005 + $g1"
+      },
+      {
+       "type": "math",
+       "name": "be2s",
+       "op": "mul",
+       "a": "be2",
+       "b": 0.4
+      },
+      {
+       "type": "decay",
+       "name": "be3",
+       "time": 0.003,
+       "at": "=0.005 + $g1 + $g2"
+      },
+      {
+       "type": "math",
+       "name": "be3s",
+       "op": "mul",
+       "a": "be3",
+       "b": 0.18
+      },
+      {
+       "type": "math",
+       "name": "bes",
+       "op": "add",
+       "a": "be2s",
+       "b": "be3s"
+      },
+      {
+       "type": "math",
+       "name": "beall",
+       "op": "add",
+       "a": "be",
+       "b": "bes"
+      },
+      {
+       "type": "math",
+       "name": "burst",
+       "op": "mul",
+       "a": "n",
+       "b": "beall"
+      },
+      {
+       "type": "modal",
+       "name": "tumbler",
+       "excite": "burst",
+       "material": "glass",
+       "shape": "shell",
+       "f0": "=$f1",
+       "loss": "=$lossg",
+       "noise": 0.3,
+       "noise_width": 0.1,
+       "tilt": 2,
+       "gain_db": 0
+      },
+      {
+       "type": "modal",
+       "name": "cube",
+       "excite": "burst",
+       "material": "ice",
+       "shape": "plate",
+       "f0": "=$f2",
+       "loss": 0.4,
+       "noise": 0.5,
+       "noise_width": 0.2,
+       "tilt": 3,
+       "gain_db": -8
+      },
+      {
+       "type": "decay",
+       "name": "ce",
+       "time": 0.012,
+       "at": 0.005
+      },
+      {
+       "type": "math",
+       "name": "cr",
+       "op": "mul",
+       "a": "n",
+       "b": "ce"
+      },
+      {
+       "type": "filter",
+       "name": "crf",
+       "input": "cr",
+       "mode": "hp",
+       "freq": 3500
+      },
+      {
+       "type": "gain",
+       "name": "crg",
+       "input": "crf",
+       "db": -16
+      },
+      {
+       "type": "mix",
+       "name": "vm",
+       "inputs": [
+        "tumbler",
+        "cube",
+        "crg"
+       ],
+       "to": "mono"
+      },
+      {
+       "type": "gain",
+       "name": "vg",
+       "input": "vm",
+       "gain": "=0.5+$value*0.5"
+      }
+     ]
+    },
+    {
+     "type": "finish",
+     "name": "bus",
+     "input": "hits",
+     "punch": 0.2,
+     "glue": 0.2
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "bus",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "params": {
+    "ringp": 1
+   },
+   "macros": [
+    {
+     "name": "ring",
+     "value": 0.5,
+     "doc": "how long the glass rings",
+     "map": [
+      {
+       "param": "ringp",
+       "from": 0.4,
+       "to": 2.0,
+       "curve": "exp"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "s13",
+  "family": "testers",
+  "group": "ice_glass",
+  "design": "ice_glass_a",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "pattern",
+     "name": "drops",
+     "start": 0.05,
+     "every": 0.4,
+     "count": 3,
+     "jitter": 0.03,
+     "values": {
+      "min": 0.6,
+      "max": 1
+     },
+     "seed": 2
+    },
+    {
+     "type": "voices",
+     "name": "hits",
+     "events": "drops",
+     "length": 1.0,
+     "max": 8,
+     "map": {
+      "f1": "1500 + $rand * 500",
+      "f2": "2800 + $rand * 1200",
+      "lossg": "1.2 * $ringp",
+      "g1": "0.06 + $rand * 0.03",
+      "g2": "0.04 + $rand * 0.02"
+     },
+     "patch": [
+      {
+       "type": "noise",
+       "name": "n",
+       "color": "white"
+      },
+      {
+       "type": "decay",
+       "name": "be",
+       "time": 0.003,
+       "at": 0.005
+      },
+      {
+       "type": "decay",
+       "name": "be2",
+       "time": 0.003,
+       "at": "=0.005 + $g1"
+      },
+      {
+       "type": "math",
+       "name": "be2s",
+       "op": "mul",
+       "a": "be2",
+       "b": 0.4
+      },
+      {
+       "type": "math",
+       "name": "beall",
+       "op": "add",
+       "a": "be",
+       "b": "be2s"
+      },
+      {
+       "type": "math",
+       "name": "burst",
+       "op": "mul",
+       "a": "n",
+       "b": "beall"
+      },
+      {
+       "type": "modal",
+       "name": "tumbler",
+       "excite": "burst",
+       "material": "glass",
+       "shape": "shell",
+       "f0": "=$f1",
+       "loss": "=$lossg",
+       "noise": 0.3,
+       "noise_width": 0.1,
+       "tilt": 2,
+       "gain_db": 0
+      },
+      {
+       "type": "modal",
+       "name": "cube",
+       "excite": "burst",
+       "material": "ice",
+       "shape": "plate",
+       "f0": "=$f2",
+       "loss": 0.4,
+       "noise": 0.5,
+       "noise_width": 0.2,
+       "tilt": 3,
+       "gain_db": -8
+      },
+      {
+       "type": "decay",
+       "name": "ce",
+       "time": 0.012,
+       "at": 0.005
+      },
+      {
+       "type": "math",
+       "name": "cr",
+       "op": "mul",
+       "a": "n",
+       "b": "ce"
+      },
+      {
+       "type": "filter",
+       "name": "crf",
+       "input": "cr",
+       "mode": "hp",
+       "freq": 3500
+      },
+      {
+       "type": "gain",
+       "name": "crg",
+       "input": "crf",
+       "db": -16
+      },
+      {
+       "type": "mix",
+       "name": "vm",
+       "inputs": [
+        "tumbler",
+        "cube",
+        "crg"
+       ],
+       "to": "mono"
+      },
+      {
+       "type": "gain",
+       "name": "vg",
+       "input": "vm",
+       "gain": "=0.5+$value*0.5"
+      }
+     ]
+    },
+    {
+     "type": "finish",
+     "name": "bus",
+     "input": "hits",
+     "punch": 0.2,
+     "glue": 0.2
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "bus",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "params": {
+    "ringp": 1
+   },
+   "macros": [
+    {
+     "name": "ring",
+     "value": 0.5,
+     "doc": "how long the glass rings",
+     "map": [
+      {
+       "param": "ringp",
+       "from": 0.4,
+       "to": 2.0,
+       "curve": "exp"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "s14",
+  "family": "testers",
+  "group": "scifi_door",
+  "design": "scifi_door_a",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "noise",
+     "name": "hs_n",
+     "color": "pink"
+    },
+    {
+     "type": "filter",
+     "name": "hs_f",
+     "input": "hs_n",
+     "mode": "hp",
+     "freq": 2500
+    },
+    {
+     "type": "env",
+     "name": "hs_e",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.006,
+       1
+      ],
+      [
+       0.12,
+       0.35
+      ],
+      [
+       0.3,
+       0.25
+      ],
+      [
+       0.6,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "hs",
+     "op": "mul",
+     "a": "hs_f",
+     "b": "hs_e"
+    },
+    {
+     "type": "gain",
+     "name": "hs_g",
+     "input": "hs",
+     "db": 8
+    },
+    {
+     "type": "env",
+     "name": "sv_f",
+     "points": [
+      [
+       0,
+       150
+      ],
+      [
+       0.35,
+       180
+      ],
+      [
+       0.7,
+       460
+      ],
+      [
+       1.2,
+       520
+      ],
+      [
+       1.36,
+       470
+      ],
+      [
+       1.75,
+       140
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "osc",
+     "name": "sv_o",
+     "shape": "sine",
+     "freq": "sv_f"
+    },
+    {
+     "type": "lfo",
+     "name": "gear",
+     "freq": 85,
+     "range": [
+      0.5,
+      1
+     ]
+    },
+    {
+     "type": "math",
+     "name": "sv_gr",
+     "op": "mul",
+     "a": "sv_o",
+     "b": "gear"
+    },
+    {
+     "type": "noise",
+     "name": "mn",
+     "color": "pink"
+    },
+    {
+     "type": "math",
+     "name": "mn_f",
+     "op": "mul",
+     "a": "sv_f",
+     "b": 3
+    },
+    {
+     "type": "filter",
+     "name": "mn_bp",
+     "input": "mn",
+     "mode": "bp",
+     "freq": "mn_f",
+     "q": 4
+    },
+    {
+     "type": "mix",
+     "name": "sv_m",
+     "inputs": [
+      {
+       "input": "sv_gr",
+       "gain": 0.7
+      },
+      {
+       "input": "mn_bp",
+       "gain": 0.5
+      }
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "env",
+     "name": "sv_e",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.3,
+       0
+      ],
+      [
+       0.5,
+       1
+      ],
+      [
+       1.36,
+       1
+      ],
+      [
+       1.75,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "sv",
+     "op": "mul",
+     "a": "sv_m",
+     "b": "sv_e"
+    },
+    {
+     "type": "gain",
+     "name": "sv_g",
+     "input": "sv",
+     "db": -10
+    },
+    {
+     "type": "click",
+     "name": "latch",
+     "kind": "lock",
+     "size": 0.9,
+     "hardness": 0.6,
+     "noise": 0.75,
+     "at": 1.33
+    },
+    {
+     "type": "gain",
+     "name": "latch_g",
+     "input": "latch",
+     "db": -8
+    },
+    {
+     "type": "noise",
+     "name": "n",
+     "color": "white"
+    },
+    {
+     "type": "decay",
+     "name": "hit_e",
+     "time": 0.006,
+     "at": 1.36
+    },
+    {
+     "type": "math",
+     "name": "hit_burst",
+     "op": "mul",
+     "a": "n",
+     "b": "hit_e"
+    },
+    {
+     "type": "modal",
+     "name": "plate",
+     "excite": "hit_burst",
+     "material": "metal",
+     "shape": "plate",
+     "f0": 95,
+     "loss": 1.2,
+     "noise": 0.4,
+     "noise_width": 0.1,
+     "tilt": 3,
+     "gain_db": -2
+    },
+    {
+     "type": "noise",
+     "name": "thd_n",
+     "color": "brown"
+    },
+    {
+     "type": "decay",
+     "name": "thd_e",
+     "time": 0.3,
+     "at": 1.36
+    },
+    {
+     "type": "math",
+     "name": "thd_raw",
+     "op": "mul",
+     "a": "thd_n",
+     "b": "thd_e"
+    },
+    {
+     "type": "filter",
+     "name": "thd",
+     "input": "thd_raw",
+     "mode": "lp",
+     "freq": 180,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "thd_g",
+     "input": "thd",
+     "db": 2
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "hs_g",
+      "sv_g",
+      "latch_g",
+      "plate",
+      "thd_g"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "dry",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "peak_db": -2,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "duration": 2.2,
+   "macros": [
+    {
+     "name": "hiss",
+     "value": 0.5,
+     "doc": "seal hiss level",
+     "map": [
+      {
+       "node": "hs_g",
+       "field": "db",
+       "from": -6,
+       "to": 12
+      }
+     ]
+    },
+    {
+     "name": "servo_pitch",
+     "value": 0.5,
+     "doc": "servo whine pitch",
+     "map": [
+      {
+       "node": "sv_f",
+       "field": "points",
+       "index": 3,
+       "key": "y",
+       "from": 350,
+       "to": 700
+      }
+     ]
+    },
+    {
+     "name": "weight",
+     "value": 0.5,
+     "doc": "clunk thud level",
+     "map": [
+      {
+       "node": "thd_g",
+       "field": "db",
+       "from": -4,
+       "to": 8
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "s15",
+  "family": "testers",
+  "group": "ice_glass",
+  "design": "ice_glass_a",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "pattern",
+     "name": "drops",
+     "start": 0.05,
+     "every": 0.4,
+     "count": 3,
+     "jitter": 0.03,
+     "values": {
+      "min": 0.6,
+      "max": 1
+     },
+     "seed": 2
+    },
+    {
+     "type": "voices",
+     "name": "hits",
+     "events": "drops",
+     "length": 1.0,
+     "max": 8,
+     "map": {
+      "f1": "1500 + $rand * 500",
+      "f2": "2800 + $rand * 1200",
+      "lossg": "1.2 * $ringp",
+      "g1": "0.06 + $rand * 0.03",
+      "g2": "0.04 + $rand * 0.02"
+     },
+     "patch": [
+      {
+       "type": "noise",
+       "name": "n",
+       "color": "white"
+      },
+      {
+       "type": "decay",
+       "name": "be",
+       "time": 0.003,
+       "at": 0.005
+      },
+      {
+       "type": "decay",
+       "name": "be2",
+       "time": 0.003,
+       "at": "=0.005 + $g1"
+      },
+      {
+       "type": "math",
+       "name": "be2s",
+       "op": "mul",
+       "a": "be2",
+       "b": 0.4
+      },
+      {
+       "type": "math",
+       "name": "beall",
+       "op": "add",
+       "a": "be",
+       "b": "be2s"
+      },
+      {
+       "type": "math",
+       "name": "burst",
+       "op": "mul",
+       "a": "n",
+       "b": "beall"
+      },
+      {
+       "type": "modal",
+       "name": "tumbler",
+       "excite": "burst",
+       "material": "glass",
+       "shape": "shell",
+       "f0": "=$f1",
+       "loss": "=$lossg",
+       "noise": 0.3,
+       "noise_width": 0.1,
+       "tilt": 2,
+       "gain_db": 0
+      },
+      {
+       "type": "modal",
+       "name": "cube",
+       "excite": "burst",
+       "material": "ice",
+       "shape": "plate",
+       "f0": "=$f2",
+       "loss": 0.4,
+       "noise": 0.5,
+       "noise_width": 0.2,
+       "tilt": 3,
+       "gain_db": -8
+      },
+      {
+       "type": "decay",
+       "name": "ce",
+       "time": 0.012,
+       "at": 0.005
+      },
+      {
+       "type": "math",
+       "name": "cr",
+       "op": "mul",
+       "a": "n",
+       "b": "ce"
+      },
+      {
+       "type": "filter",
+       "name": "crf",
+       "input": "cr",
+       "mode": "hp",
+       "freq": 3500
+      },
+      {
+       "type": "gain",
+       "name": "crg",
+       "input": "crf",
+       "db": -16
+      },
+      {
+       "type": "mix",
+       "name": "vm",
+       "inputs": [
+        "tumbler",
+        "cube",
+        "crg"
+       ],
+       "to": "mono"
+      },
+      {
+       "type": "gain",
+       "name": "vg",
+       "input": "vm",
+       "gain": "=0.5+$value*0.5"
+      }
+     ]
+    },
+    {
+     "type": "finish",
+     "name": "bus",
+     "input": "hits",
+     "punch": 0.2,
+     "glue": 0.2
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "bus",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "params": {
+    "ringp": 1
+   },
+   "macros": [
+    {
+     "name": "ring",
+     "value": 0.5,
+     "doc": "how long the glass rings",
+     "map": [
+      {
+       "param": "ringp",
+       "from": 0.4,
+       "to": 2.0,
+       "curve": "exp"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "s16",
+  "family": "testers",
+  "group": "zipper",
+  "design": "zipper_b",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "impulse",
+     "name": "imp",
+     "at": [
+      0.00968,
+      0.02635,
+      0.0434,
+      0.05967,
+      0.076,
+      0.0927,
+      0.10948,
+      0.12538,
+      0.14124,
+      0.15636,
+      0.17237,
+      0.18757,
+      0.20282,
+      0.21798,
+      0.23322,
+      0.24906,
+      0.26379,
+      0.27848,
+      0.29305,
+      0.30678,
+      0.32123,
+      0.3358,
+      0.34998,
+      0.36405,
+      0.37788,
+      0.39058,
+      0.40473,
+      0.41821,
+      0.43127,
+      0.44401,
+      0.45737,
+      0.46977,
+      0.48352,
+      0.49604,
+      0.50813,
+      0.52018,
+      0.53312,
+      0.54479,
+      0.5571,
+      0.56887,
+      0.58015,
+      0.59158,
+      0.60322,
+      0.6143,
+      0.62513,
+      0.63632,
+      0.64782,
+      0.65765,
+      0.66828,
+      0.67947,
+      0.68941,
+      0.69995
+     ]
+    },
+    {
+     "type": "resonators",
+     "name": "tooth",
+     "input": "imp",
+     "modes": [
+      [
+       6200.0,
+       0.004,
+       1
+      ],
+      [
+       9400.0,
+       0.003,
+       0.7
+      ],
+      [
+       13800.0,
+       0.002,
+       0.4
+      ]
+     ]
+    },
+    {
+     "type": "gain",
+     "name": "tooth_g",
+     "input": "tooth",
+     "db": -14
+    },
+    {
+     "type": "noise",
+     "name": "rn",
+     "color": "pink"
+    },
+    {
+     "type": "wander",
+     "name": "rf",
+     "rate": 14,
+     "range": [
+      3600.0,
+      9000.0
+     ],
+     "seed": 5
+    },
+    {
+     "type": "filter",
+     "name": "rbp",
+     "input": "rn",
+     "mode": "bp",
+     "freq": "rf",
+     "q": 0.8
+    },
+    {
+     "type": "wander",
+     "name": "ra",
+     "rate": 25,
+     "range": [
+      0.2,
+      1
+     ],
+     "seed": 6
+    },
+    {
+     "type": "env",
+     "name": "rus_env",
+     "points": [
+      [
+       0,
+       0
+      ],
+      [
+       0.03,
+       0.8
+      ],
+      [
+       0.55,
+       1
+      ],
+      [
+       0.72,
+       0.4
+      ],
+      [
+       0.8,
+       0
+      ]
+     ],
+     "curve": "smooth"
+    },
+    {
+     "type": "math",
+     "name": "rm1",
+     "op": "mul",
+     "a": "rbp",
+     "b": "ra"
+    },
+    {
+     "type": "math",
+     "name": "rm",
+     "op": "mul",
+     "a": "rm1",
+     "b": "rus_env"
+    },
+    {
+     "type": "gain",
+     "name": "rus_g",
+     "input": "rm",
+     "db": -10
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "tooth_g",
+      "rus_g"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "dry",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "seed": 1,
+   "macros": [
+    {
+     "name": "rustle",
+     "value": 0.5,
+     "doc": "fabric level",
+     "map": [
+      {
+       "node": "rus_g",
+       "field": "db",
+       "from": -22,
+       "to": -2
+      }
+     ]
+    },
+    {
+     "name": "tooth_level",
+     "value": 0.5,
+     "doc": "teeth level",
+     "map": [
+      {
+       "node": "tooth_g",
+       "field": "db",
+       "from": -24,
+       "to": -6
+      }
+     ]
+    }
+   ]
+  }
+ }
+]

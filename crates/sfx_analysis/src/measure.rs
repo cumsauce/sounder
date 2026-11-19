@@ -937,6 +937,27 @@ fn undo_dead_time(observed: f32, wt: f32) -> f32 {
 /// a fixed-carrier tick, a random-carrier tick and a band-passed noise burst
 /// at 500/s; longer ticks hide each other more, so read low; above ~600/s
 /// the reading saturates (the peaks reading cannot grow any more).
+/// How deep a tick train's envelope must dip, dB (90th over 10th percentile
+/// of the 1 ms envelope where it is within 40 dB of its top).
+const MIN_TICK_DEPTH_DB: f32 = 12.0;
+
+/// The 1 ms envelope's spread, dB: its 90th percentile over its 10th, over the
+/// frames within 40 dB of the loudest.
+fn envelope_depth_db(e: &[f32]) -> f32 {
+    let top = e.iter().copied().fold(0.0f32, f32::max);
+    if top <= 0.0 {
+        return 0.0;
+    }
+    let mut v: Vec<f32> = e.iter().copied().filter(|x| *x > top * 0.01).collect();
+    if v.len() < 10 {
+        return 0.0;
+    }
+    v.sort_by(|a, b| a.total_cmp(b));
+    let lo = v[v.len() / 10].max(1e-12);
+    let hi = v[v.len() * 9 / 10];
+    20.0 * (hi / lo).log10()
+}
+
 pub fn event_rate(x: &[f32], sr: u32, span_s: f32, events: &[FineEvent]) -> EventRate {
     let span = span_s.max(1e-3);
     let counted_per_s = events.len() as f32 / span;
@@ -958,6 +979,16 @@ pub fn event_rate(x: &[f32], sr: u32, span_s: f32, events: &[FineEvent]) -> Even
     // A noise texture (a scrape, a hiss) has envelope wobbles at 100-250 a
     // second but no transient the counter can see and no repetition; dense
     // ticks leave the counter some events or a periodic envelope.
+    // A periodic envelope is a tick train only if it dips deep between the
+    // ticks: a motor's whir or a servo's gear wobble repeats too, but swings
+    // a few dB (85 Hz of 6 dB wobble read as 111 events/s for 3 hits).
+    // Only checked under 200 Hz: faster ticks overlap in a 1 ms envelope, so
+    // even a true 320/s train dips little there.
+    let period_hz = period_hz.filter(|hz| {
+        *hz >= 200.0
+            || counted_per_s >= MIN_COUNTED_FOR_DENSE_PER_S
+            || envelope_depth_db(&e) >= MIN_TICK_DEPTH_DB
+    });
     let dense =
         dense_peaks && (counted_per_s >= MIN_COUNTED_FOR_DENSE_PER_S || period_hz.is_some());
     let mut out = EventRate {

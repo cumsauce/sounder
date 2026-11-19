@@ -152,3 +152,5 @@ What each line of `listen` says. This was moved from AGENTS.md, which keeps a su
 ## Density on a regular train
 
 When the counter's own events form a regular train, `density` uses them: each gap must sit close to its neighbours' median, or at a whole multiple of it, so a speed-up or a missed beat still counts. Missed beats are filled in, and the tenths count the filled train. A resonant tick rings into several envelope peaks, and the peak method read a zipper's teeth 5 x too high. The `listen` line says "a regular train of counted events, missed beats filled in" (`tests/it/onsets.rs`, `a_ringing_speeding_train_with_quiet_teeth_reads_its_tooth_rate`).
+
+A periodic envelope under 200 Hz counts as a tick train only if it dips 12 dB or more between ticks (the 1 ms envelope's 90th over its 10th percentile). A servo's 85 Hz gear wobble of 6 dB had read as 111 events/s for 3 hits (`a_wobbling_tone_is_not_a_tick_train`). Known limit: a continuous motor whose envelope repeats above 200 Hz can still read as a dense train through the envelope-peak method. A vending machine's motor read 158/s for 14 events.

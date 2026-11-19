@@ -674,6 +674,34 @@ mod density {
         assert!((measure(&a, Measure::Density) - d.density.per_s).abs() < 0.05 * d.density.per_s);
     }
 
+    /// A servo whine with an 85 Hz gear wobble (6 dB deep) and two hits: the
+    /// wobble repeats like a train, but it is not events (it read 111/s).
+    #[test]
+    fn a_wobbling_tone_is_not_a_tick_train() {
+        let sr = 48_000.0f32;
+        let n = (1.5 * sr) as usize;
+        let mut x: Vec<f32> = (0..n)
+            .map(|i| {
+                let t = i as f32 / sr;
+                let wob = 0.75 + 0.25 * (std::f32::consts::TAU * 85.0 * t).sin();
+                0.3 * wob * (std::f32::consts::TAU * 1500.0 * t).sin()
+            })
+            .collect();
+        for at in [0.4f32, 1.1] {
+            let i0 = (at * sr) as usize;
+            for i in 0..(0.02 * sr) as usize {
+                let t = i as f32 / sr;
+                x[i0 + i] += (-t / 0.004).exp() * (std::f32::consts::TAU * 3000.0 * t).sin();
+            }
+        }
+        let d = describe(&Audio {
+            sample_rate: 48_000,
+            channels: vec![x],
+        });
+        println!("wobbling tone: {:?}", d.density);
+        assert!(d.density.per_s < 10.0, "{:?}", d.density);
+    }
+
     /// A zipper-like train: teeth that speed up, each a click ringing three
     /// resonances (several envelope peaks per tooth: read 5 x too high from
     /// them), and every fifth tooth quiet enough for the counter to miss
