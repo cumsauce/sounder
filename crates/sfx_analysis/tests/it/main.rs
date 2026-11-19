@@ -3,6 +3,7 @@
 
 #![allow(clippy::unwrap_used)] // helpers outside #[test] fns
 
+mod ambience;
 mod bands;
 mod blast;
 mod common;
