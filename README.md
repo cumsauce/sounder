@@ -34,6 +34,7 @@ src/                  session, history, catalog, export, player.
 src/bin/sounder/      the binary: MCP server (server/) and the window (window/).
 ui/                   the window's page (embedded at build time).
 templates/            sounds `new_sound {template}` starts from.
+parts/                built-in layer-sized sounds `catalog search` offers.
 examples/             worked sounds that render and check themselves.
 tests/                session, server and driver tests.
 mcp_driver.py         proxy / daemon / shell client for the server.

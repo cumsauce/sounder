@@ -467,17 +467,51 @@ fn do_catalog(s: &mut Session, mut a: CatalogArgs) -> R {
     let force = a.force == Some(true);
     match a.action.as_str() {
         "list" => Ok(Out::text(catalog::format_list(&catalog::list(&lib)))),
+        "search" => {
+            if let Some(r) = &a.role
+                && !sounder::parts::ROLES.contains(&r.as_str())
+            {
+                return fail(format!(
+                    "role: \"{r}\": use one of {}",
+                    sounder::parts::ROLES.join(", ")
+                ));
+            }
+            let q = catalog::Query {
+                text: a.text,
+                role: a.role,
+                material: a.material,
+                approved: a.approved,
+            };
+            Ok(Out::text(catalog::format_search(&catalog::search(
+                &catalog::list_with_builtin(&lib),
+                &q,
+            ))))
+        }
         "sources" => Ok(Out::text(s.sources_text())),
         "describe" => {
             let Some(n) = &a.name else {
                 return fail("describe needs name");
             };
-            let entry = catalog::list(&lib).into_iter().find(|e| &e.name == n);
+            let entry = catalog::list_with_builtin(&lib)
+                .into_iter()
+                .find(|e| &e.name == n);
             let doc = plain(catalog::load(&lib, n))?;
             let mut t = format!(
                 "`{n}`: {}\n",
                 entry.as_ref().map_or(String::new(), |e| format!(
-                    "{} [{}]{}",
+                    "{}{} [{}]{}",
+                    match (&e.role, &e.material) {
+                        (Some(r), m) => format!(
+                            "{r} part{}{}: ",
+                            m.as_deref().map(|m| format!(", {m}")).unwrap_or_default(),
+                            if e.approved {
+                                ", approved"
+                            } else {
+                                ", not approved"
+                            }
+                        ),
+                        _ => String::new(),
+                    },
                     e.description,
                     e.tags.join(", "),
                     e.prompt
@@ -501,6 +535,19 @@ fn do_catalog(s: &mut Session, mut a: CatalogArgs) -> R {
             Ok(Out::text(t))
         }
         "save" => {
+            if a.approved.is_some() || a.text.is_some() {
+                return fail(
+                    "save takes description, tags, prompt, role and material; `approved` is set by the human in the window, and `text` is for search",
+                );
+            }
+            if let Some(r) = &a.role
+                && !sounder::parts::ROLES.contains(&r.as_str())
+            {
+                return fail(format!(
+                    "role: \"{r}\": use one of {}",
+                    sounder::parts::ROLES.join(", ")
+                ));
+            }
             let opts = s.render_opts();
             let salt = s.generation();
             let sound = plain(s.sound(a.name.as_deref()))?;
@@ -521,19 +568,37 @@ fn do_catalog(s: &mut Session, mut a: CatalogArgs) -> R {
                 tags: a
                     .tags
                     .unwrap_or_else(|| prior.as_ref().map(|e| e.tags.clone()).unwrap_or_default()),
-                prompt: a.prompt.or_else(|| prior.and_then(|e| e.prompt)),
+                prompt: a
+                    .prompt
+                    .or_else(|| prior.as_ref().and_then(|e| e.prompt.clone())),
                 kind: sound.doc.kind,
                 length,
                 lufs,
                 macros: Vec::new(),
+                role: a
+                    .role
+                    .or_else(|| prior.as_ref().and_then(|e| e.role.clone())),
+                material: a
+                    .material
+                    .or_else(|| prior.as_ref().and_then(|e| e.material.clone())),
+                // Approval is for the exact document the human heard.
+                approved: prior.as_ref().is_some_and(|e| e.approved)
+                    && catalog::load(&lib, &name).is_ok_and(|d| d == sound.doc),
+                builtin: false,
             };
+            let lost_approval = prior.as_ref().is_some_and(|e| e.approved) && !entry.approved;
             plain(catalog::save(&lib, &sound.doc, entry))?;
             sound.unsaved = false;
             sound.catalog_name = Some(name.clone());
             s.mark_dirty();
             Ok(Out::text(format!(
-                "saved `{name}` to {}",
-                lib.join("sounds").display()
+                "saved `{name}` to {}{}",
+                lib.join("sounds").display(),
+                if lost_approval {
+                    "\nNOTE it changed since the human approved it, so it is no longer marked approved: ask them to listen again"
+                } else {
+                    ""
+                }
             )))
         }
         "load" => {
@@ -558,7 +623,7 @@ fn do_catalog(s: &mut Session, mut a: CatalogArgs) -> R {
             Ok(Out::text(plain(s.close_sound(&name, force))?))
         }
         o => fail(format!(
-            "action `{o}`: use list, sources, describe, save, load, delete or close"
+            "action `{o}`: use list, search, sources, describe, save, load, delete or close"
         )),
     }
 }
@@ -850,10 +915,13 @@ impl Tools {
         .await
     }
 
-    /// Saved sounds: action list, sources (the WAVs in the sources folders:
+    /// Saved sounds and parts: action list, search (text / role / material /
+    /// approved: layer-sized parts to assemble with the `sound` node, built-in
+    /// ones included), sources (the WAVs in the sources folders:
     /// recordings and impulse responses nodes find by file name),
     /// describe (name), save (your active sound,
-    /// with description / tags / prompt), load (name; force replaces an open
+    /// with description / tags / prompt, and role / material to make it a
+    /// part), load (name; force replaces an open
     /// one), delete (name), close (an open sound; force drops unsaved work).
     #[tool]
     async fn catalog(
@@ -1014,6 +1082,7 @@ const INSTRUCTIONS: &str = r#"Operating guidance for this sound server:
 - describe_op lists all 122 node types; describe_op {kind: "filter"} gives an example and schema (`type` and `node` also work). Every tool rejects an argument it does not take and lists the ones it does. Check describe_op before guessing a field: wander takes `range: [lo, hi]` (or min and max), ramp `time` (or duration), impulse `at` is a number or a list, ramp defaults to an exp curve, decay `time` is seconds to fall 60 dB (-20 dB takes a third of it).
 - Node families: sources osc (unison sync pm) noise (blue violet velvet crackle) fm wavetable impulse sample; control lfo wander ramp slew sample_hold chaos fbm curve switch pitch_follow centroid_follow; events once pattern poisson bounce burst shatter on_threshold, turned into control by trigger_env event_gate seq notes, or into sound by grains cloud voices; filters filter (slope 12 / 24 / 48) ladder eq onepole comb allpass resonators filterbank vocoder multiband; time delay reverb (model fdn room plate spring) ir convolve; nonlinear shape (oversample) compress (key) limit transient gate sub exciter ringmod; the bus finish (punch tail_db glue warmth weight_db air_db width); modal noise (0..1: each mode becomes a noise band at its frequency, noise_width x f wide; wood: noise 0.6, tilt 4, loss ~1.8; thin metal: noise 0.85, noise_width 0.5, tilt 6; clean modes read as a marimba or a tuned gong; click and footstep (wood) take the same noise: click ~0.75 (a small plastic or metal part), wood footstep ~0.35 with ring ~0.6 and weight ~0.25 (the default board reads slammed), scuff (the roll) and creak (the board) sparingly) and strike_glide (~35 cents: a harder hit); exaggeration subdrop and riser and modal rattle only when the brief asks (rattle on wood reads as plastic); modulation chorus flanger phaser freq_shift; space doppler haas decorrelate pan width; lo-fi crossfade_loop resample tape stutter; spectral pitch_shift (formant) time_stretch spectral (freeze blur gate morph shift stretch smear hps); physical modal (shape plate bar tube membrane string shell; loss, tilt; output normalized) contact friction click, and the ready-made models in the table below, plus air glottis tract syrinx. Start from a model node rather than rebuilding it by hand; for an impact, hit or mechanism it is the body layer of a layered sound (next bullet).
 - From listening: a door slam starts from new_sound {template: "door_slam"} (the approved layered slam with knobs weight, snap, stick, knock, latch; do not rebuild it as a click over one modal); footsteps are gentle, not impacts (weight 0.25-0.4, wood ring < 1, little crack); a knock is pattern -> voices of contact -> wood modal (noise 0.6, noise_width ~0.15, tilt 4) plus a crack and a thud; a dropped metal pipe starts low (f0 120-200 Hz). Keep noise on: a claimed knob tolerates one step against its claim of up to 15 % of its whole move.
+- Parts first: catalog {action: "search", role, material, text, approved} lists layer-sized sounds the human has heard (roles pre crack body weight after bed texture whole; built in: wood_brush, noise_crack, wood_panel_body, low_thump, wood_knock, the approved door slam's layers). Use one with {"type": "sound", "sound": "<name>", "at", "gain_db", "macros"}; hit parts strike 5 ms in. Save a reusable layer with catalog save + role / material. Only the human approves (in the window); saving a changed sound clears its approval.
 - Designed sounds are layers on a dry bus (AGENTS.md "Layering a designed sound", with a door slam, sword clash and UI recipe): pre (friction / noise brush 5-50 ms before the hit, 1.5-5 kHz), crack (noise x fast decay, bp or hp 2-6 kHz, first 5-25 ms), body (modal of the right material struck by a noise burst, or the model node), weight (brown noise x decay through lp slope 24, 60-350 Hz), after (a small second hit, debris, the body's ring); mix mono, then finish {punch 0..1, tail_db, glue 0..1, warmth 0..1, weight_db, air_db; width above 150 Hz on a stereo mix; no reverb} (or by hand: transient, shape tube oversample 4 mix ~0.2, onepole hp 30-40 Hz), output; macros on finish: glue (claim crest -1), punch (claim crest 1, off on noisy layers), tail_db, weight_db. Rules the listener set: dry and mono by default (no reverb unless the brief names a space); impacts are atonal (no sine sub drop, excite modal with noise, wood loss >= 1.2; listen's voiced near 0); click and hard crumple read as metal, keep them out of wood; add the detail before the hit. One node is still right for ambience, loops, UI blips and single textures.
 - Ready-made nodes by brief (briefs not listed: build from osc / noise / filter / env / modal, that is fine): footstep {surface concrete|gravel|grass|wood, weight, pace, shoe, body (pitch), swish} one step (chain it with pattern + sound for a walk) | fire, wind, spark {loop} campfire, gusts, arcs | water {flow}, splash {size, tail, burst} (impact, slap, spray, then rising-pitch bubbles), water also takes tone (shelf at 2 kHz), bubble {radius_mm} drips (voices) | cloth {motion} fabric / foliage rustle, crumple {density to 400/s, size, hardness} paper / foil / plastic, rolling {speed} into modal | shatter into voices of modal: glass, debris | explosion, gunshot {size or caliber, distance} | engine, motor {rpm: ramp}, fan {speed}, clock {rate} | bell {freq, at} telephone bell, ball_bounce bouncing ball, cricket, twang {freq} ruler twang, siren {rate, low, high}, door_creak {force}, jet {speed}, red_alert {at} (ported from Farnell's Pd patches) | tube, string {freq} winds, plucks, bows | click {kind latch|switch|button|lock|clasp} mechanism clicks | thunder {distance, brightness, length, rumble, tail (fade: -40 dB x tail at the end)} | modal {shape, size or f0 (lowest mode, Hz), f_min / f_max band, loss, tilt, thickness, gain_db} struck panels, pipes, bells, keys | vocoder, multiband robot voice, band dynamics | cloud grain swarms | glottis into tract vowels, creature calls.
 - Layers: ready-made nodes sit at different levels, so balance a scene (fire + footstep + click) with a gain node (db) per layer before one mix and one peak_db / lufs on the output; contact and modal also take gain_db (-60..60). Variation: a seed changes only what reads it (noise, wander, poisson, voices $rand, grains, the foley / surface / click nodes). An osc chain, a pattern or bubble or bounce without jitter are the same for every seed (export variations: N then warns "bit-identical"): add pattern / bounce jitter, poisson, voices $rand, bubble jitter, then verify expect variations. mix inputs take names or objects {"input", "gain" (number or node), "pan", "at" seconds}: layer a tail with at, balance with gain.

@@ -265,8 +265,9 @@ pub(crate) struct NewSoundArgs {
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 pub(crate) struct CatalogArgs {
-    /// list, sources (the recordings and impulse responses in the sources
-    /// folders), describe, save, load, delete or close.
+    /// list, search (parts and saved sounds by `text` / `role` / `material`
+    /// / `approved`), sources (the recordings and impulse responses in the
+    /// sources folders), describe, save, load, delete or close.
     pub(crate) action: String,
     /// The sound (save: defaults to your active sound).
     #[serde(default)]
@@ -285,6 +286,22 @@ pub(crate) struct CatalogArgs {
     /// load over an open sound / close with unsaved work.
     #[serde(default)]
     pub(crate) force: Option<bool>,
+    /// search: words that must all appear in the name, description, tags,
+    /// role or material.
+    #[serde(default)]
+    pub(crate) text: Option<String>,
+    /// save: the layer this sound fills when used as a part (pre, crack,
+    /// body, weight, after, bed, texture, whole). search: only that role.
+    #[serde(default)]
+    pub(crate) role: Option<String>,
+    /// save: what it is made of (wood, metal, glass, water, ...; `any` for a
+    /// layer that fits every material). search: that material or `any`.
+    #[serde(default)]
+    pub(crate) material: Option<String>,
+    /// search only: true for sounds the human approved by ear, false for the
+    /// rest. Approval is set by the human in the window, never by `save`.
+    #[serde(default)]
+    pub(crate) approved: Option<bool>,
 }
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]

@@ -1,0 +1,67 @@
+//! Built-in parts: layer-sized sounds an agent assembles with the `sound`
+//! node instead of rebuilding them (a wood body, a noise crack, a low thump).
+//! Embedded at build time from `parts/`; `catalog search` lists them beside
+//! the library's own sounds, and a library sound of the same name wins.
+
+use serde::Deserialize;
+use sfx_graph::SoundDoc;
+
+use crate::catalog::CatalogEntry;
+
+/// The roles a part can fill in a layered sound (`catalog save` `role`).
+pub const ROLES: &[&str] = &[
+    "pre", "crack", "body", "weight", "after", "bed", "texture", "whole",
+];
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Part {
+    pub role: String,
+    pub material: String,
+    pub description: String,
+    pub tags: Vec<String>,
+    /// Where it came from and what was approved by ear.
+    pub origin: String,
+    pub doc: SoundDoc,
+}
+
+const FILES: &[&str] = &[
+    include_str!("../parts/wood_brush.json"),
+    include_str!("../parts/noise_crack.json"),
+    include_str!("../parts/wood_panel_body.json"),
+    include_str!("../parts/low_thump.json"),
+    include_str!("../parts/wood_knock.json"),
+];
+
+/// Every built-in part. A file that does not parse is a bug in the repo
+/// (`tests/parts.rs` parses each), so it is skipped here, not a panic.
+pub fn builtin() -> Vec<Part> {
+    FILES
+        .iter()
+        .filter_map(|s| serde_json::from_str(s).ok())
+        .collect()
+}
+
+pub fn find(name: &str) -> Option<Part> {
+    builtin().into_iter().find(|p| p.doc.name == name)
+}
+
+impl Part {
+    /// The catalog entry a search shows for this part.
+    pub fn entry(&self) -> CatalogEntry {
+        CatalogEntry {
+            name: self.doc.name.clone(),
+            description: self.description.clone(),
+            tags: self.tags.clone(),
+            prompt: None,
+            kind: self.doc.kind,
+            length: 0.0,
+            lufs: 0.0,
+            macros: self.doc.macros.iter().map(|m| m.name.clone()).collect(),
+            role: Some(self.role.clone()),
+            material: Some(self.material.clone()),
+            approved: true,
+            builtin: true,
+        }
+    }
+}

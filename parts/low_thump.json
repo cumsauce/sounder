@@ -1,0 +1,82 @@
+{
+ "role": "weight",
+ "material": "any",
+ "description": "band-limited brown noise under 200 Hz that falls over about 0.4 s: weight under a hit without a pitched sub; strikes at 5 ms",
+ "tags": [
+  "weight",
+  "low",
+  "thump",
+  "thud",
+  "impact"
+ ],
+ "origin": "a layer of the door_slam template, which the listener approved as a whole",
+ "doc": {
+  "name": "low_thump",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "thd_n",
+    "color": "brown"
+   },
+   {
+    "type": "decay",
+    "name": "thd_e",
+    "time": 0.4366,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "thd_raw",
+    "op": "mul",
+    "a": "thd_n",
+    "b": "thd_e"
+   },
+   {
+    "type": "filter",
+    "name": "thd",
+    "input": "thd_raw",
+    "mode": "lp",
+    "freq": 192.3732,
+    "slope": 24
+   },
+   {
+    "type": "gain",
+    "name": "thd_g",
+    "input": "thd",
+    "db": -6.5
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "thd_g",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "length",
+    "value": 0.3393,
+    "default": 0.3393,
+    "doc": "how long the thump takes to fall",
+    "game": false,
+    "map": [
+     {
+      "node": "thd_e",
+      "field": "time",
+      "from": 0.25,
+      "to": 0.8
+     }
+    ],
+    "claim": [
+     "decay",
+     1
+    ]
+   }
+  ]
+ }
+}

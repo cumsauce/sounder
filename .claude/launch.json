@@ -24,6 +24,15 @@
         "ui"
       ],
       "port": 8766
+    },
+    {
+      "name": "window-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "sleep 100000 | target/debug/sounder --headless --dev-ui 8767"
+      ],
+      "port": 8767
     }
   ]
 }

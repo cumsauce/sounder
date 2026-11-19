@@ -1,0 +1,123 @@
+{
+ "role": "body",
+ "material": "wood",
+ "description": "a noise-struck wooden panel with a band of body noise under it: the atonal body of a door, a crate or a table hit; strikes at 5 ms",
+ "tags": [
+  "wood",
+  "panel",
+  "door",
+  "crate",
+  "impact",
+  "body"
+ ],
+ "origin": "a layer of the door_slam template, which the listener approved as a whole",
+ "doc": {
+  "name": "wood_panel_body",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "hit_n",
+    "color": "pink"
+   },
+   {
+    "type": "decay",
+    "name": "hit_e",
+    "time": 0.012,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "hit_burst",
+    "op": "mul",
+    "a": "hit_n",
+    "b": "hit_e"
+   },
+   {
+    "type": "modal",
+    "name": "panel",
+    "excite": "hit_burst",
+    "material": "wood",
+    "size": 0.5,
+    "loss": 1.6929,
+    "modes": 96,
+    "strike_position": 0.31,
+    "gain_db": -10.6896
+   },
+   {
+    "type": "decay",
+    "name": "body_e",
+    "time": 0.5881,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "body_raw",
+    "op": "mul",
+    "a": "hit_n",
+    "b": "body_e"
+   },
+   {
+    "type": "filter",
+    "name": "body_bp",
+    "input": "body_raw",
+    "mode": "bp",
+    "freq": 344.4499,
+    "q": 0.5
+   },
+   {
+    "type": "gain",
+    "name": "body_g",
+    "input": "body_bp",
+    "db": 6.3509
+   },
+   {
+    "type": "mix",
+    "name": "body_mix",
+    "inputs": [
+     "panel",
+     "body_g"
+    ],
+    "to": "mono"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "body_mix",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "size",
+    "value": 0.375,
+    "default": 0.375,
+    "doc": "object size: larger is lower (the panel and the body noise band move together)",
+    "game": false,
+    "map": [
+     {
+      "node": "panel",
+      "field": "size",
+      "from": 0.35,
+      "to": 0.75
+     },
+     {
+      "node": "body_bp",
+      "field": "freq",
+      "from": 438.0,
+      "to": 230.0,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ]
+   }
+  ]
+ }
+}

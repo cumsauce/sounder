@@ -97,6 +97,7 @@ the window never recomputes them.
 | `play` | `{from?, span?, loop?}` | start playback of the (solo) render; `from` seconds, `span` `[t0, t1]` the region (the page's Play / Loop it): with `loop` false play the span once and stop at `t1`, with `loop` true loop it |
 | `stop` / `seek` | `{}` / `{t}` | |
 | `catalog_list` / `catalog_load` | `{}` / `{name}` | saved sounds (`[{name, kind}]`, bare names also accepted; the switcher shows the ones not open); load opens it, then the page calls `select_sound` |
+| `catalog_approve` | `{name, approved}` | the human's verdict by ear on a saved sound (default `approved: true`); returns the catalog entries. Agents have no call that sets it |
 
 The page has no call for params (`$name`: shown read-only in the Sound tab) and
 auditioning a tile in the All-sounds grid is `select_sound {doc}` then `play`

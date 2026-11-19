@@ -28,6 +28,19 @@ pub struct CatalogEntry {
     /// Macro names (knobs) it carries.
     #[serde(default)]
     pub macros: Vec<String>,
+    /// The layer it fills in a designed sound (`parts::ROLES`): set on a
+    /// part, absent on an ordinary saved sound.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub material: Option<String>,
+    /// The human approved it by ear (only the window sets this; saving a
+    /// changed document clears it).
+    #[serde(default)]
+    pub approved: bool,
+    /// Shipped with the tool (`parts/`), not saved in this library.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub builtin: bool,
 }
 
 fn sounds_dir(lib: &Path) -> PathBuf {
@@ -83,6 +96,109 @@ pub fn save(lib: &Path, doc: &SoundDoc, mut entry: CatalogEntry) -> Result<(), S
     write_index(lib, &entries)
 }
 
+/// Sets or clears the human's approval of a saved sound.
+pub fn set_approved(lib: &Path, name: &str, approved: bool) -> Result<(), String> {
+    let mut entries = list(lib);
+    let Some(e) = entries.iter_mut().find(|e| e.name == name) else {
+        return Err(format!(
+            "no saved sound `{name}`: save it to the catalog first"
+        ));
+    };
+    e.approved = approved;
+    write_index(lib, &entries)
+}
+
+/// The library's sounds plus the built-in parts a library sound does not
+/// shadow.
+pub fn list_with_builtin(lib: &Path) -> Vec<CatalogEntry> {
+    let mut v = list(lib);
+    for p in crate::parts::builtin() {
+        if !v.iter().any(|e| e.name == p.doc.name) {
+            v.push(p.entry());
+        }
+    }
+    v
+}
+
+/// What `catalog search` filters on. Every word of `text` must appear in
+/// the name, description, tags, role or material (case-insensitive).
+#[derive(Clone, Debug, Default)]
+pub struct Query {
+    pub text: Option<String>,
+    pub role: Option<String>,
+    pub material: Option<String>,
+    pub approved: Option<bool>,
+}
+
+pub fn search(entries: &[CatalogEntry], q: &Query) -> Vec<CatalogEntry> {
+    let words: Vec<String> = q
+        .text
+        .as_deref()
+        .unwrap_or("")
+        .split_whitespace()
+        .map(str::to_lowercase)
+        .collect();
+    let mut hits: Vec<CatalogEntry> = entries
+        .iter()
+        .filter(|e| {
+            let hay = format!(
+                "{} {} {} {} {}",
+                e.name,
+                e.description,
+                e.tags.join(" "),
+                e.role.as_deref().unwrap_or(""),
+                e.material.as_deref().unwrap_or("")
+            )
+            .to_lowercase();
+            words.iter().all(|w| hay.contains(w))
+                && q.role.as_ref().is_none_or(|r| e.role.as_ref() == Some(r))
+                && q.material
+                    .as_ref()
+                    .is_none_or(|m| e.material.as_deref().is_some_and(|x| x == m || x == "any"))
+                && q.approved.is_none_or(|a| e.approved == a)
+        })
+        .cloned()
+        .collect();
+    // Approved first, then by name.
+    hits.sort_by(|a, b| b.approved.cmp(&a.approved).then(a.name.cmp(&b.name)));
+    hits
+}
+
+pub fn format_search(hits: &[CatalogEntry]) -> String {
+    if hits.is_empty() {
+        return "no match (catalog search with no arguments lists every part and saved sound)"
+            .into();
+    }
+    let mut out = format!(
+        "{} match(es); use one as a layer with {{\"type\": \"sound\", \"name\": \"x\", \"sound\": \"<name>\", \"at\": s, \"gain_db\": dB, \"macros\": {{knob: 0..1}}}}\n",
+        hits.len()
+    );
+    for e in hits {
+        out += &format!(
+            "- `{}` [{}{}{}{}]: {}{}\n",
+            e.name,
+            e.role.as_deref().unwrap_or("sound"),
+            e.material
+                .as_deref()
+                .map(|m| format!(", {m}"))
+                .unwrap_or_default(),
+            if e.approved {
+                ", approved"
+            } else {
+                ", not approved"
+            },
+            if e.builtin { ", built in" } else { "" },
+            e.description,
+            if e.macros.is_empty() {
+                String::new()
+            } else {
+                format!(" (knobs: {})", e.macros.join(", "))
+            }
+        );
+    }
+    out
+}
+
 pub fn load(lib: &Path, name: &str) -> Result<SoundDoc, String> {
     if name.is_empty()
         || !name
@@ -94,6 +210,11 @@ pub fn load(lib: &Path, name: &str) -> Result<SoundDoc, String> {
         ));
     }
     let path = sounds_dir(lib).join(format!("{name}.json"));
+    if !path.exists()
+        && let Some(p) = crate::parts::find(name)
+    {
+        return Ok(p.doc);
+    }
     let bytes = std::fs::read(&path).map_err(|_| {
         let names: Vec<String> = list(lib).into_iter().map(|e| e.name).collect();
         format!(
@@ -129,8 +250,14 @@ pub fn format_list(entries: &[CatalogEntry]) -> String {
     let mut out = format!("{} saved sound(s)\n", entries.len());
     for e in entries {
         out += &format!(
-            "- `{}`: {} [{}] {:?}, {:.2} s, {:.1} LUFS{}\n",
+            "- `{}`{}: {} [{}] {:?}, {:.2} s, {:.1} LUFS{}\n",
             e.name,
+            match (&e.role, e.approved) {
+                (Some(r), true) => format!(" ({r} part, approved)"),
+                (Some(r), false) => format!(" ({r} part)"),
+                (None, true) => " (approved)".into(),
+                (None, false) => String::new(),
+            },
             e.description,
             e.tags.join(", "),
             e.kind,

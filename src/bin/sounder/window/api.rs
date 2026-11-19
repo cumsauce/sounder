@@ -204,6 +204,15 @@ fn run(s: &mut Session, sh: &Arc<Shared>, name: &str, a: &Value) -> Result<Value
             let lib = s.library_dir()?;
             Ok(serde_json::to_value(catalog::list(&lib)).unwrap_or(json!([])))
         }
+        "catalog_approve" => {
+            // The human's verdict by ear; agents have no call that sets it.
+            let n = str_arg(a, "name")?.to_string();
+            let approved = a.get("approved").and_then(|v| v.as_bool()).unwrap_or(true);
+            let lib = s.library_dir()?;
+            catalog::set_approved(&lib, &n, approved)?;
+            s.mark_dirty();
+            Ok(serde_json::to_value(catalog::list(&lib)).unwrap_or(json!([])))
+        }
         "catalog_load" => {
             let n = str_arg(a, "name")?.to_string();
             let lib = s.library_dir()?;
@@ -221,7 +230,7 @@ fn run(s: &mut Session, sh: &Arc<Shared>, name: &str, a: &Value) -> Result<Value
             state(s, sh, Some(&opened))
         }
         other => Err(format!(
-            "unknown window call `{other}` (state, select_sound, move_knob, reset_knobs, set_field, set_seed, add_annotation, jump, solo, play, stop, seek, catalog_list, catalog_load)"
+            "unknown window call `{other}` (state, select_sound, move_knob, reset_knobs, set_field, set_seed, add_annotation, jump, solo, play, stop, seek, catalog_list, catalog_load, catalog_approve)"
         )),
     }
 }
@@ -739,6 +748,10 @@ mod tests {
                 length: 0.3,
                 lufs: -20.0,
                 macros: vec![],
+                role: None,
+                material: None,
+                approved: false,
+                builtin: false,
             };
             sounder::catalog::save(&lib, &doc, entry).unwrap();
             s.close_sound("zap", true).unwrap();

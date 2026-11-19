@@ -600,10 +600,16 @@ impl Session {
                 }
             }
         }
+        for p in crate::parts::builtin() {
+            if !names.contains(&p.doc.name) {
+                names.push(p.doc.name);
+            }
+        }
         SoundSource::new(names, move |n| {
             docs.get(n)
                 .cloned()
                 .or_else(|| lib.as_ref().and_then(|l| crate::catalog::load(l, n).ok()))
+                .or_else(|| crate::parts::find(n).map(|p| p.doc))
         })
     }
 

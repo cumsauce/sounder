@@ -46,7 +46,8 @@ modeler's `MODELER_*`.
 
 1. `summary` — what is open, what the human asked for (open comments).
 2. `new_sound` (or `sound_ops` with `sound: "name"`), then `sound_ops` to build.
-   Look at "Which ready-made node for which sound" first: a brief that fits a
+   Run `catalog search` for parts first (see "Parts"), then
+   look at "Which ready-made node for which sound": a brief that fits a
    ready-made node starts from that node, not a rebuilt graph. For an impact,
    a hit or a mechanism, read "Layering a designed sound": the node is the
    body layer, and a designed sound adds the pre, crack, weight and after
@@ -77,7 +78,7 @@ modeler's `MODELER_*`.
 | `extract_modes` | strongest partials of a WAV as a ready `resonators` node; `residual: "x.wav"` also writes what they miss and returns a rebuild |
 | `play` | plays on the speakers for the human (the window, or `--headless --audio`); a plain headless server answers with an error saying so |
 | `new_sound` | opens a sound beside the others (`kind`, `duration` 0..600 s, `seed` can be set at once, so a loop is one call; `template` starts from an approved sound: `door_slam`; a loop with no `duration` is an error naming the field); an open name is refused |
-| `catalog` | `list sources describe save load delete close` (`sources`: the WAVs in the sources folders); the sound is `name` or `doc` (both given and different is an error) |
+| `catalog` | `list search sources describe save load delete close` (`search`: parts and saved sounds by `text` / `role` / `material` / `approved`; `sources`: the WAVs in the sources folders; `save` takes `role` / `material` to make a part); the sound is `name` or `doc` (both given and different is an error) |
 | `export` | Ogg Vorbis files (default; `format: "wav"` for WAV) + `<name>.sfx.json` manifest |
 | `undo redo jump history` | the history tree; one `sound_ops` call is one step |
 | `add_annotation` | comment on a node / region, or `resolve` / `reopen` one |
@@ -287,6 +288,35 @@ Measured targets for a heavy wooden impact (the real slam): crest about 16 dB
 Check a hit with `verify {checks: ["layers"]}` (the `impact` preset: energy
 by role, voiced, ringing partials, crest, no reverb; see "Senses"): every
 FAIL names the layer to add.
+
+### Parts: assemble from layers the human has heard
+
+A **part** is a small saved sound that fills one role (`pre crack body weight
+after bed texture whole`), with a material, tags and one to three knobs.
+Before building a layer from nodes, look for one:
+
+- `catalog {action: "search", role: "body", material: "wood"}` (also `text`,
+  `approved`): the library's parts and saved sounds plus the built-in parts
+  in `parts/` (`wood_brush`, `noise_crack`, `wood_panel_body`, `low_thump`,
+  `wood_knock`: the layers of the approved door slam). Approved ones come
+  first. `catalog describe` shows a part's nodes and knobs.
+- Use it with a `sound` node: `{"type": "sound", "name": "body", "sound":
+  "wood_panel_body", "at": 0.045, "gain_db": 0, "macros": {"size": 0.6}}`. A
+  hit part strikes 5 ms after its start; `wood_brush` ends at 50 ms, so the
+  hit goes at `at: 0.045`. Parts carry no loudness target, so their levels
+  are the balance they were approved at: move them with `gain_db`, then
+  `mix`, `finish`, `output` as for any layered sound.
+- `catalog load` a part to edit a copy; a library sound with a built-in's
+  name is used instead of the built-in.
+- Save a layer worth reusing with `catalog {action: "save", role: "crack",
+  material: "metal", description: ..., tags: [...]}`. Give it no `lufs` /
+  `peak_db` target and put its event at 5 ms.
+- **Approval is the human's.** Only the window sets `approved`; saving a
+  changed document clears it and the result says so. A part that is not
+  approved is a draft: say so when you use one.
+
+The five built-in parts were approved as one sound, not each alone.
+Reassembled with the bus above they pass `layers` (`tests/parts.rs`).
 
 **From the round 6 listen (testers' sounds, judged by ear):**
 - **Door slam:** `new_sound` with `template: "door_slam"` (the recipe below, approved by ear, ready to tune); keep
@@ -993,6 +1023,7 @@ oil"), not which task set it.
 | a change made after listening | a section in that node's doc and tests in that node's module, not a new file |
 | a rule or recipe every agent needs | this file, kept short; the MCP `instructions` string in step |
 | notes on how something was built, a plan, a round report | `docs/history/` (summaries only) |
+| a part every project should have | `parts/<name>.json` and its line in `src/parts.rs`; parts for one project are `catalog save` with a `role` |
 | a script you will run again | `tools/`; a one-off script stays out of git |
 
 - **Not in git:** generated audio and images, exports (`assets/`), the sound

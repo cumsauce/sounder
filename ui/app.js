@@ -441,17 +441,23 @@ $('#gridbtn').onclick = () => { if (P.playing) act('stop', {}); S.view = 'grid';
 $('#docbtn').onclick = () => { if (S.view === 'grid') { S.view = 'doc'; renderAll(); return; } const p = $('#docpop'); p.hidden = !p.hidden; if (!p.hidden) { renderDocList(); $('#docq').focus(); loadCatalog(); } };
 let CATALOG = [];
 async function loadCatalog() { try { const r = await sounder.call('catalog_list', {}); CATALOG = (Array.isArray(r) ? r : (r && r.sounds) || []).map(x => typeof x === 'string' ? { name: x } : x); renderDocList(); } catch (e) { /* the saved list is optional */ } }
+// The human's verdict by ear on a saved sound: agents search for approved parts.
+function apTag(name) {
+  const c = CATALOG.find(x => x.name === name); if (!c) return '';
+  return `<span class="ap ${c.approved ? 'on' : ''}" data-approve="${esc(name)}" data-on="${c.approved ? 1 : 0}" title="${c.approved ? 'You approved this by ear. Click to withdraw.' : 'Mark as approved by ear: agents prefer approved parts'}">${c.approved ? 'approved' : 'approve'}</span>`;
+}
 function renderDocList() {
   const q = $('#docq').value.toLowerCase();
   const open = ST.sounds.filter(d => d.name.includes(q)).map(d => {
-    return `<div class="docrow ${d.name === ST.doc ? 'on' : ''}" data-doc="${esc(d.name)}">${ic(d.kind === 'loop' ? 'loop' : 'wave')}<span style="display:flex;gap:6px;align-items:center">${esc(d.name)}${d.open_comments ? `<span class="pinc" style="font:600 10px var(--sans);background:var(--warn);color:#1b1600;border-radius:99px;padding:0 5px" title="${d.open_comments} open comments">${d.open_comments}</span>` : ''}${d.working ? `<i class="dot live" style="background:${agentColor(d.by)}" title="${esc(d.by)} is editing"></i>` : ''}${d.saved ? '' : '<span style="color:var(--warn)" title="unsaved">●</span>'}</span><span class="r">${esc(d.by)} · ${esc(d.ago)}</span></div>`; }).join('');
+    return `<div class="docrow ${d.name === ST.doc ? 'on' : ''}" data-doc="${esc(d.name)}">${ic(d.kind === 'loop' ? 'loop' : 'wave')}<span style="display:flex;gap:6px;align-items:center">${esc(d.name)}${d.open_comments ? `<span class="pinc" style="font:600 10px var(--sans);background:var(--warn);color:#1b1600;border-radius:99px;padding:0 5px" title="${d.open_comments} open comments">${d.open_comments}</span>` : ''}${d.working ? `<i class="dot live" style="background:${agentColor(d.by)}" title="${esc(d.by)} is editing"></i>` : ''}${d.saved ? '' : '<span style="color:var(--warn)" title="unsaved">●</span>'}${d.saved ? apTag(d.name) : ''}</span><span class="r">${esc(d.by)} · ${esc(d.ago)}</span></div>`; }).join('');
   const openNames = new Set(ST.sounds.map(d => d.name));
   const saved = CATALOG.filter(c => !openNames.has(c.name) && c.name.includes(q));
-  $('#doclist').innerHTML = open + (saved.length ? `<div class="h" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:8px 8px 4px">Saved</div>` + saved.map(c => `<div class="docrow" data-load="${esc(c.name)}">${ic(c.kind === 'loop' ? 'loop' : 'wave')}<span>${esc(c.name)}</span><span class="r">open</span></div>`).join('') : '');
+  $('#doclist').innerHTML = open + (saved.length ? `<div class="h" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:8px 8px 4px">Saved</div>` + saved.map(c => `<div class="docrow" data-load="${esc(c.name)}">${ic(c.kind === 'loop' ? 'loop' : 'wave')}<span style="display:flex;gap:6px;align-items:center">${esc(c.name)}${c.role ? `<span style="color:var(--faint);font-size:11px">${esc(c.role)}</span>` : ''}${apTag(c.name)}</span><span class="r">open</span></div>`).join('') : '');
 }
 $('#docq').oninput = renderDocList;
 async function openSound(name) { S.view = 'doc'; try { await sounder.call('select_sound', { doc: name }); } catch (e) { toast(errText(e)); } pullState(name); }
 $('#doclist').onclick = async e => {
+  const ap = e.target.closest('[data-approve]'); if (ap) { e.stopPropagation(); try { const r = await sounder.call('catalog_approve', { name: ap.dataset.approve, approved: ap.dataset.on !== '1' }); if (Array.isArray(r)) CATALOG = r; renderDocList(); } catch (er) { toast(errText(er)); } return; }
   const l = e.target.closest('[data-load]'); if (l) { $('#docpop').hidden = true; try { await sounder.call('catalog_load', { name: l.dataset.load }); await openSound(l.dataset.load); } catch (er) { toast(errText(er)); } return; }
   const r = e.target.closest('[data-doc]'); if (r) { $('#docpop').hidden = true; openSound(r.dataset.doc); } };
 $('#playbtn').onclick = toggle;

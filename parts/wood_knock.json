@@ -1,0 +1,80 @@
+{
+ "role": "after",
+ "material": "wood",
+ "description": "a small low-passed wooden second hit: a door settling in its frame, a lid landing; strikes at 5 ms",
+ "tags": [
+  "wood",
+  "knock",
+  "settle",
+  "second hit"
+ ],
+ "origin": "a layer of the door_slam template, which the listener approved as a whole",
+ "doc": {
+  "name": "wood_knock",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "contact",
+    "name": "knock_c",
+    "speed": 1,
+    "mass": 0.3,
+    "material": "wood",
+    "hardness": 0.6,
+    "at": 0.005
+   },
+   {
+    "type": "modal",
+    "name": "knock_m",
+    "excite": "knock_c",
+    "material": "wood",
+    "size": 0.5389,
+    "loss": 3,
+    "gain_db": 0
+   },
+   {
+    "type": "filter",
+    "name": "knock",
+    "input": "knock_m",
+    "mode": "lp",
+    "freq": 3500
+   },
+   {
+    "type": "gain",
+    "name": "knock_g",
+    "input": "knock",
+    "db": -7.5
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "knock_g",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "size",
+    "value": 0.3969,
+    "default": 0.3969,
+    "doc": "size of the knocking piece: larger is lower",
+    "game": false,
+    "map": [
+     {
+      "node": "knock_m",
+      "field": "size",
+      "from": 0.4,
+      "to": 0.75
+     }
+    ],
+    "claim": [
+     "centroid",
+     -1
+    ]
+   }
+  ]
+ }
+}

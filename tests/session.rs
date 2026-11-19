@@ -350,6 +350,10 @@ fn catalog_roundtrip_and_closing() {
             length: 0.2,
             lufs: -20.0,
             macros: vec![],
+            role: None,
+            material: None,
+            approved: false,
+            builtin: false,
         },
     )
     .unwrap();
@@ -536,6 +540,10 @@ fn sound_nodes_reach_open_and_saved_sounds_and_follow_edits() {
             length: 0.2,
             lufs: -30.0,
             macros: vec![],
+            role: None,
+            material: None,
+            approved: false,
+            builtin: false,
         },
     )
     .unwrap();
@@ -628,6 +636,10 @@ fn saved_sounds_that_are_not_open_are_listed_as_recent() {
         length: 0.4,
         lufs: -18.0,
         macros: vec![],
+        role: None,
+        material: None,
+        approved: false,
+        builtin: false,
     };
     sounder::catalog::save(&lib, &doc, entry("old_one")).unwrap();
     // Open: not in `recent`.

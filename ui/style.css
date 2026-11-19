@@ -268,3 +268,7 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
   .overview { grid-template-columns: 1fr; overflow: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .dot.live { animation: none; } }
+
+.ap { font: 600 10px var(--sans); border: 1px solid var(--line); border-radius: 99px; padding: 0 6px; color: var(--faint); cursor: pointer; }
+.ap:hover { color: var(--fg); }
+.ap.on { color: var(--ok, #6fcf97); border-color: currentColor; }

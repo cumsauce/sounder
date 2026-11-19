@@ -1,0 +1,133 @@
+{
+ "role": "pre",
+ "material": "wood",
+ "description": "a door or lid brushing its frame for 40 ms before a hit; ends at 50 ms, so place the hit at 0.045 s after it starts",
+ "tags": [
+  "wood",
+  "friction",
+  "scrape",
+  "anticipation",
+  "door"
+ ],
+ "origin": "a layer of the door_slam template, which the listener approved as a whole",
+ "doc": {
+  "name": "wood_brush",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "env",
+    "name": "scr_env",
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      0.008,
+      0
+     ],
+     [
+      0.02,
+      1
+     ],
+     [
+      0.042,
+      0.7
+     ],
+     [
+      0.05,
+      0
+     ]
+    ],
+    "curve": "smooth"
+   },
+   {
+    "type": "math",
+    "name": "scr_speed",
+    "op": "mul",
+    "a": "scr_env",
+    "b": 1.4
+   },
+   {
+    "type": "friction",
+    "name": "scr_f",
+    "speed": "scr_speed",
+    "pressure": "scr_env",
+    "roughness": 0.85,
+    "grain": 800
+   },
+   {
+    "type": "noise",
+    "name": "scr_n",
+    "color": "pink"
+   },
+   {
+    "type": "math",
+    "name": "scr_nb",
+    "op": "mul",
+    "a": "scr_n",
+    "b": "scr_env"
+   },
+   {
+    "type": "mix",
+    "name": "scr_m",
+    "inputs": [
+     {
+      "input": "scr_f",
+      "gain": 0.6
+     },
+     {
+      "input": "scr_nb",
+      "gain": 0.5
+     }
+    ]
+   },
+   {
+    "type": "filter",
+    "name": "scr",
+    "input": "scr_m",
+    "mode": "bp",
+    "freq": 1955.8837,
+    "q": 0.6
+   },
+   {
+    "type": "gain",
+    "name": "scr_g",
+    "input": "scr",
+    "db": -10.0
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "scr_g",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "tone",
+    "value": 0.4981,
+    "default": 0.4981,
+    "doc": "how bright the brush is",
+    "game": false,
+    "map": [
+     {
+      "node": "scr",
+      "field": "freq",
+      "from": 1200,
+      "to": 3200,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   }
+  ]
+ }
+}

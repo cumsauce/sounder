@@ -1,0 +1,82 @@
+{
+ "role": "crack",
+ "material": "any",
+ "description": "a short band-passed noise crack, the first 10 ms of a hard hit; strikes at 5 ms",
+ "tags": [
+  "transient",
+  "crack",
+  "snap",
+  "impact"
+ ],
+ "origin": "a layer of the door_slam template, which the listener approved as a whole",
+ "doc": {
+  "name": "noise_crack",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": null,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "noise",
+    "name": "crk_n",
+    "color": "white"
+   },
+   {
+    "type": "decay",
+    "name": "crk_e",
+    "time": 0.008,
+    "at": 0.005
+   },
+   {
+    "type": "math",
+    "name": "crk_raw",
+    "op": "mul",
+    "a": "crk_n",
+    "b": "crk_e"
+   },
+   {
+    "type": "filter",
+    "name": "crk",
+    "input": "crk_raw",
+    "mode": "bp",
+    "freq": 1927.6515,
+    "q": 0.5
+   },
+   {
+    "type": "gain",
+    "name": "crk_g",
+    "input": "crk",
+    "db": -3.0
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "crk_g",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "brightness",
+    "value": 0.4428,
+    "default": 0.4428,
+    "doc": "centre of the crack",
+    "game": false,
+    "map": [
+     {
+      "node": "crk",
+      "field": "freq",
+      "from": 1200,
+      "to": 3500,
+      "curve": "exp"
+     }
+    ],
+    "claim": [
+     "centroid",
+     1
+    ]
+   }
+  ]
+ }
+}
