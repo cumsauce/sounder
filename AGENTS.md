@@ -343,7 +343,7 @@ after bed texture whole`), with a material, tags and one to three knobs.
 Before building a layer from nodes, look for one:
 
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`,
-  `approved`): the library's parts and saved sounds plus the 91 built-in
+  `approved`): the library's parts and saved sounds plus the 102 built-in
   parts in `parts/`: the five layers of the approved door slam (`wood_brush`,
   `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock`), 72 the
   listener rated good blind, and `wooden_crate_drop` (a whole crate landing
@@ -358,6 +358,9 @@ Before building a layer from nodes, look for one:
   fire, storm wind, fan, sparks, crickets, underwater bubbles, liquid drops.
   Water: a splash with bubbles (5 to 30 cm), a deep bubble pop (a big
   splash without its tail).
+  Picked best of their boxes (2026-11-19): creature roar, growl, snarl and
+  whine, a small frog, and the beds surf on shingle, lava, wind in trees,
+  underwater, rain on stone, cave drips.
   Whole sounds: a rattlesnake rattle and scissors snipping (both cicada patches, heard so), door creak, engine rev, bird, breath, bells, siren, alarm,
   flute, plucked string, twang, laser, error beep. **Not in the library
   yet** (every attempt was heard as something else, rated lower, or not

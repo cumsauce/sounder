@@ -1,0 +1,50 @@
+{
+ "role": "bed",
+ "material": "water",
+ "description": "picked as the best take of \"an underwater bed\" in a grouped listen; built as: a `underwater` node",
+ "tags": [
+  "underwater",
+  "submerged",
+  "bubbles",
+  "sea"
+ ],
+ "origin": "batch 9; picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "underwater_bed",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 6.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "underwater",
+    "depth": 4,
+    "bubbles": 3,
+    "pressure": 0.3,
+    "name": "src"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.002
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "bubbles",
+    "value": 0.5,
+    "doc": "how many bubbles",
+    "map": [
+     {
+      "node": "src",
+      "field": "bubbles",
+      "from": 1,
+      "to": 4
+     }
+    ]
+   }
+  ]
+ }
+}

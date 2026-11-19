@@ -1,0 +1,52 @@
+{
+ "role": "bed",
+ "material": "water",
+ "description": "picked as the best take of \"waves on a shingle shore\" in a grouped listen; built as: a `surf` node",
+ "tags": [
+  "surf",
+  "waves",
+  "shore",
+  "sea",
+  "beach",
+  "ocean"
+ ],
+ "origin": "batch 9; picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "surf_shingle",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 20.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "surf",
+    "shore": "shingle",
+    "wave_height": 1,
+    "period": 8,
+    "name": "src"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.002
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "waves",
+    "value": 0.5,
+    "doc": "how big the waves are",
+    "map": [
+     {
+      "node": "src",
+      "field": "wave_height",
+      "from": 0.5,
+      "to": 2.0
+     }
+    ]
+   }
+  ]
+ }
+}

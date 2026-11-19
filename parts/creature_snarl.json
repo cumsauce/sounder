@@ -1,0 +1,50 @@
+{
+ "role": "whole",
+ "material": "organic",
+ "description": "picked as the best take of \"a creature snarl\" in a grouped listen; built as: a `creature` node",
+ "tags": [
+  "snarl",
+  "creature",
+  "animal",
+  "dog"
+ ],
+ "origin": "batch 9; picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "creature_snarl",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.5,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "creature",
+    "call": "snarl",
+    "size": 0.5,
+    "length": 2,
+    "name": "src"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.002
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "size",
+    "value": 0.5,
+    "doc": "how big the beast is",
+    "map": [
+     {
+      "node": "src",
+      "field": "size",
+      "from": 0.3,
+      "to": 0.8
+     }
+    ]
+   }
+  ]
+ }
+}

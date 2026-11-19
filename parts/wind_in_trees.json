@@ -1,0 +1,50 @@
+{
+ "role": "bed",
+ "material": "wood",
+ "description": "picked as the best take of \"wind through leafy trees\" in a grouped listen; built as: a `leaves` node",
+ "tags": [
+  "wind",
+  "leaves",
+  "trees",
+  "rustle",
+  "forest"
+ ],
+ "origin": "batch 9; picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "wind_in_trees",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 5.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "leaves",
+    "wind": 8,
+    "foliage": "leaves",
+    "name": "src"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.002
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "wind",
+    "value": 0.5,
+    "doc": "how hard the wind blows",
+    "map": [
+     {
+      "node": "src",
+      "field": "wind",
+      "from": 4,
+      "to": 14
+     }
+    ]
+   }
+  ]
+ }
+}

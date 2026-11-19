@@ -1,0 +1,50 @@
+{
+ "role": "whole",
+ "material": "organic",
+ "description": "picked as the best take of \"a small frog calling\" in a grouped listen; built as: a `frog` node",
+ "tags": [
+  "frog",
+  "croak",
+  "pond",
+  "night",
+  "amphibian"
+ ],
+ "origin": "batch 10 (rebuilt frog); picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "small_frog",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 6.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "frog",
+    "size": 3,
+    "rate": 1,
+    "name": "src"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.002
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "rate",
+    "value": 0.5,
+    "doc": "calls a second",
+    "map": [
+     {
+      "node": "src",
+      "field": "rate",
+      "from": 0.5,
+      "to": 2.0
+     }
+    ]
+   }
+  ]
+ }
+}

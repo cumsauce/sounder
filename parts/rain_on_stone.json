@@ -1,0 +1,48 @@
+{
+ "role": "bed",
+ "material": "stone",
+ "description": "picked as the best take of \"rain on stone\" in a grouped listen; built as: a `rain` node",
+ "tags": [
+  "rain",
+  "shower",
+  "stone",
+  "pavement"
+ ],
+ "origin": "batch 9 (retuned stone); picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "rain_on_stone",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 5.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "rain",
+    "surface": "stone",
+    "name": "src"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.002
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "rate",
+    "value": 0.5,
+    "doc": "how hard it rains, mm/h",
+    "map": [
+     {
+      "node": "src",
+      "field": "rate",
+      "from": 3,
+      "to": 30
+     }
+    ]
+   }
+  ]
+ }
+}

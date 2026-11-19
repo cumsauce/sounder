@@ -1,0 +1,48 @@
+{
+ "role": "bed",
+ "material": "stone",
+ "description": "picked as the best take of \"drips in a cave\" in a grouped listen; built as: a `cave` node",
+ "tags": [
+  "cave",
+  "drips",
+  "drip",
+  "underground",
+  "echo"
+ ],
+ "origin": "batch 10 (rebuilt cave); picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "cave_drips",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 10.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "cave",
+    "name": "src"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.002
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "drips",
+    "value": 0.5,
+    "doc": "how often it drips",
+    "map": [
+     {
+      "node": "src",
+      "field": "drips",
+      "from": 0.2,
+      "to": 0.9
+     }
+    ]
+   }
+  ]
+ }
+}

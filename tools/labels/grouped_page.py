@@ -16,7 +16,10 @@ TITLES = {"rain": "Rain", "creature": "Creature calls", "leaves": "Wind in plant
           "surf": "Surf on a shore", "frog": "Frogs", "lava": "Lava", "cave": "Cave",
           "underwater": "Underwater",
           "creature_roar": "Creature roar", "creature_growl": "Creature growl",
-          "creature_snarl": "Creature snarl", "creature_whine": "Creature whine"}
+          "creature_snarl": "Creature snarl", "creature_whine": "Creature whine",
+          "footstep_concrete": "Two steps on concrete", "footstep_gravel": "Two steps on gravel",
+          "footstep_grass": "Two steps on grass", "splash_large": "A large splash (something big into water)",
+          "motor": "An electric motor spinning up and down"}
 
 
 def main():

@@ -1,0 +1,48 @@
+{
+ "role": "bed",
+ "material": "stone",
+ "description": "picked as the best take of \"bubbling lava\" in a grouped listen; built as: a `lava` node",
+ "tags": [
+  "lava",
+  "magma",
+  "bubbling",
+  "volcano"
+ ],
+ "origin": "batch 9; picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "lava_bubbling",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 6.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "lava",
+    "size": 20,
+    "name": "src"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.002
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "activity",
+    "value": 0.5,
+    "doc": "how many bubbles burst",
+    "map": [
+     {
+      "node": "src",
+      "field": "activity",
+      "from": 0.5,
+      "to": 2.5
+     }
+    ]
+   }
+  ]
+ }
+}

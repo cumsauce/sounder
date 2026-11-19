@@ -1,0 +1,52 @@
+{
+ "role": "whole",
+ "material": "organic",
+ "description": "picked as the best take of \"a huge creature growl\" in a grouped listen; built as: a `creature` node",
+ "tags": [
+  "growl",
+  "creature",
+  "monster",
+  "animal"
+ ],
+ "origin": "batch 9; picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "creature_growl",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 3.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "creature",
+    "call": "growl",
+    "size": 0.95,
+    "aggression": 1,
+    "roughness": 1,
+    "length": 2.5,
+    "name": "src"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.002
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "aggression",
+    "value": 0.5,
+    "doc": "how menacing",
+    "map": [
+     {
+      "node": "src",
+      "field": "aggression",
+      "from": 0.5,
+      "to": 1.0
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,51 @@
+{
+ "role": "whole",
+ "material": "organic",
+ "description": "picked as the best take of \"a creature whine\" in a grouped listen; built as: a `creature` node",
+ "tags": [
+  "whine",
+  "creature",
+  "animal",
+  "dog",
+  "whimper"
+ ],
+ "origin": "batch 9; picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "creature_whine",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "creature",
+    "call": "whine",
+    "size": 0.4,
+    "length": 1.5,
+    "name": "src"
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "src",
+    "fade_in": 0.002
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "size",
+    "value": 0.5,
+    "doc": "how big the animal is",
+    "map": [
+     {
+      "node": "src",
+      "field": "size",
+      "from": 0.25,
+      "to": 0.7
+     }
+    ]
+   }
+  ]
+ }
+}
