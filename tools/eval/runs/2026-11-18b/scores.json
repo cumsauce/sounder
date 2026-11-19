@@ -1,0 +1,72 @@
+[
+ {
+  "id": "e01",
+  "cue": "c09",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e02",
+  "cue": "c07",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e03",
+  "cue": "c18",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e04",
+  "cue": "c01",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e05",
+  "cue": "c04",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e06",
+  "cue": "c02",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e07",
+  "cue": "c14",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e08",
+  "cue": "c19",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e09",
+  "cue": "c17",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e10",
+  "cue": "c11",
+  "rating": "bad",
+  "label": "",
+  "note": "still synthetic"
+ }
+]

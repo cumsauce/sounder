@@ -48,6 +48,8 @@ rated. An agent that builds one must say it is unheard.
 - A large splash: 0.6 m was rated bad with no note on why; 5 to 20 cm is good.
 - An electric motor ("digital engine simulation"), a creature voice ("low
   grumble", OK only).
+- A sword whoosh built from band-passed noise reads as "an artificial sweep"
+  (bad in both eval runs); set aside by the listener.
 - Rated OK and left out: pressure release, engine idle, granular shimmer,
   power-up, tape drone, a fast whoosh, a finger snap, one stone hit.
 
@@ -101,8 +103,9 @@ rated. An agent that builds one must say it is unheard.
    each built by a fresh agent from AGENTS.md alone and rated blind against
    the brief. Baseline: 7 good, 2 ok, 1 bad (16 of 20): the pipe read as a
    sheet, the footstep's heel and toe too far apart, the whoosh as an
-   artificial sweep. All three are fixed in the node or the docs; the next
-   run measures the fixes.
+   artificial sweep. Run 2 after the fixes, rated blind beside it: 9 good,
+   1 bad (18 points against 17); the pipe went from ok to good. The whoosh
+   failed both times and is set aside (dropped from the briefs).
 5. Fill the remaining library gaps above as they come up.
 
 ## Local state, not in git

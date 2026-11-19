@@ -31,3 +31,6 @@ about 104 bytes): use `/tmp/sounder-eval.sock`, not a scratch folder.
 Runs:
 - `runs/2026-11-18/`: the baseline, on the build with specs, the metal and
   stone recipes and 89 parts. Rating page: "Sound Brief Ratings".
+- `runs/2026-11-18b/`: run 2, after the baseline's fixes, rated blind beside
+  the baseline ("Sound Brief Ratings, Round Two"): 18 points against 17.
+  The whoosh (e10) failed in both and is dropped from `briefs.json`.

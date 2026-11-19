@@ -7,6 +7,5 @@
  {"id": "e06", "name": "campfire", "brief": "A small campfire crackling, a 4 second seamless loop."},
  {"id": "e07", "name": "splash", "brief": "A stone the size of a fist thrown into a pond: the splash and the bubbles after it."},
  {"id": "e08", "name": "door_knock", "brief": "Three firm knocks with knuckles on a wooden front door."},
- {"id": "e09", "name": "coin", "brief": "A single coin dropped onto a wooden table, bouncing and settling."},
- {"id": "e10", "name": "whoosh", "brief": "A fast whoosh of a sword swung through the air past the listener."}
+ {"id": "e09", "name": "coin", "brief": "A single coin dropped onto a wooden table, bouncing and settling."}
 ]

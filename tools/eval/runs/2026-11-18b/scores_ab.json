@@ -1,0 +1,162 @@
+[
+ {
+  "cue": "c01",
+  "id": "e04",
+  "run": "2026-11-18b",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c02",
+  "id": "e06",
+  "run": "2026-11-18b",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c03",
+  "id": "e03",
+  "run": "2026-11-18",
+  "rating": "ok",
+  "label": "sheet of metal falling and bouncing",
+  "note": ""
+ },
+ {
+  "cue": "c04",
+  "id": "e05",
+  "run": "2026-11-18b",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c05",
+  "id": "e06",
+  "run": "2026-11-18",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c06",
+  "id": "e09",
+  "run": "2026-11-18",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c07",
+  "id": "e02",
+  "run": "2026-11-18b",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c08",
+  "id": "e08",
+  "run": "2026-11-18",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c09",
+  "id": "e01",
+  "run": "2026-11-18b",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c10",
+  "id": "e01",
+  "run": "2026-11-18",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c11",
+  "id": "e10",
+  "run": "2026-11-18b",
+  "rating": "bad",
+  "label": "",
+  "note": "still synthetic"
+ },
+ {
+  "cue": "c12",
+  "id": "e07",
+  "run": "2026-11-18",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c13",
+  "id": "e04",
+  "run": "2026-11-18",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c14",
+  "id": "e07",
+  "run": "2026-11-18b",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c15",
+  "id": "e05",
+  "run": "2026-11-18",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c16",
+  "id": "e02",
+  "run": "2026-11-18",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c17",
+  "id": "e09",
+  "run": "2026-11-18b",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c18",
+  "id": "e03",
+  "run": "2026-11-18b",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c19",
+  "id": "e08",
+  "run": "2026-11-18b",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "cue": "c20",
+  "id": "e10",
+  "run": "2026-11-18",
+  "rating": "bad",
+  "label": "",
+  "note": ""
+ }
+]
