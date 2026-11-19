@@ -52,7 +52,7 @@ modeler's `MODELER_*`.
    a hit or a mechanism, read "Layering a designed sound": the node is the
    body layer, and a designed sound adds the pre, crack, weight and after
    layers on a dry bus.
-   `describe_op` lists the 122 node types; `describe_op {kind: "filter"}` gives
+   `describe_op` lists the 136 node types; `describe_op {kind: "filter"}` gives
    one's example and schema (`type` and `node` are aliases of `kind`). To
    remove a node put `{"type": "delete", "name": "x"}` in `ops` (one item per
    node; a top-level `delete` is not a field and errors).
@@ -190,7 +190,7 @@ expression exactly as if it began with `=`, so a `voices` patch needs no leading
 a node. The error for an unknown node name shows the hint (`write expressions
 with a leading `=`, e.g. "=1.5 * $value"`).
 
-Families (122 types; groups marked * have a section in
+Families (136 types; groups marked * have a section in
 `docs/nodes/README.md`):
 
 - sources: `osc noise impulse sample` and `fm wavetable`*; control `lfo wander
@@ -509,7 +509,7 @@ Round-1 testers built every footstep from primitives and never tried `fire` or
 sounds starts from one node (the body layer) plus a few knobs. **Building from primitives is still
 fine** (and right for anything not listed: a laser, a UI blip, a whoosh, a
 drone); `describe_op {kind}` gives each node's fields and an example, and the
-sections below give the measured limits. None of these has been heard: pick by
+sections below give the measured limits. None of these has been heard (the 14 ports from rain to `two_tone` are new and unheard too): pick by
 the brief, then `listen`, `verify` and let the human's macros do the rest.
 
 | Brief | Node | Start with | Fits |
@@ -539,6 +539,12 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 | a creaking door, a hinge | `door_creak` | `force` (signal; creaks over 0.3) | Farnell's stick-slip hinge through wood resonances and a square panel |
 | a jet engine, a turbine | `jet` | `speed` (signal 0.1..1, spools up through a 0.2 Hz low-pass) | Farnell's jet: turbine tones and a clipped, swept burner roar |
 | a sci-fi alarm, red alert | `red_alert` | `at` (whoop times), `pitch` | Farnell's klaxon: a rising buzz through feedback delays and a formant horn |
+| rain on a leaf, water, a window, the ground | `rain` | `surface` leaf / water / window / ground, `intensity` (drops/s), `loop` | Farnell's RAIN patches; quiet: set `peak_db` / `lufs` |
+| a stream, a brook; pouring into a vessel | `stream`; `pour` | `flow`, `depth`, `range`, `layers`, `loop`; `fill_time`, `vessel`, `bubbles` | Farnell's waterflow and pour1; `pour` needs a `duration` of `fill_time` + 1.5 s |
+| a helicopter; a rocket motor | `helicopter`; `rocket` | `rotor_rate`, `engine`, `tail`, `distance` (signals); `thrust`, `ignition`, `burn` | Farnell's heli1 and rocket.pd; set a `duration` |
+| a roar, a growl; a housefly; cicadas | `roar`; `fly`; `cicada` | `size`, `aggression`, `vowel`, `length`; `freq`, `res`, `flutter`; `kind` buzz / rattle / call, `pitch`, `rate` | Farnell's MAMMALS and INSECTS; `fly` and `cicada` never decay: set a `duration` |
+| a chattering robot, a beam-up shimmer, a sci-fi torpedo, a hand-held beam | `droid`, `transporter`, `torpedo`, `phaser_beam` | `chatter`, `pitch`, `mood`; `chime`, `reverb`; `sweep`, `ring`; `mode` kill / stun; each a `length` | Farnell's R2D2 and SCIFI patches |
+| a telephone: dial, busy, ringback, touch tones, rotary; a two-tone alarm | `phone_tone`; `two_tone` | `kind`, `digits`, `line` 0..1, `tempo`; `low`, `high`, `rate`, `shape` | Farnell's PHONETONES, DTMF, ALARMS |
 | thunder, a distant storm | `thunder` | `distance`, `brightness`, `length`, `duration` | foley's N-wave and rumble; `brightness` tilts above 100 Hz, `length` stretches the rumble; a `duration` that fits |
 | a struck object: panel, bell, pipe, keys, a door's thud | `modal` fed by `contact`, `impulse` or a noise burst | `shape` plate / bar / tube / membrane / string / shell, `material`, `size`, `thickness`, `loss`, `tilt`; **`noise` for real wood (0.6, `tilt` 4) and metal (pipe, bar, lid, tool, coin: 0.4, `noise_width` 0.1, `loss` 0.3-0.6; 0.85 with `noise_width` 0.5 reads as a thin sheet)** (clean modes read as a tuned instrument) | normalized; `size` and `thickness` are pitch knobs (small thin objects: `thickness` 0.0015 instead of a custom material); `loss` 0.5 rings twice as long; `tilt` flattens a one-mode plate |
 | a larger-than-life hit (cinematic, trailer, a game's heavy impact) | `subdrop` under it, `riser` into it | `from` / `to` / `decay`, `drive`; `at` (the hit), `length`, `shape` | tonal on purpose: add them to a layered hit only when the brief asks for exaggeration (a realistic slam with a sine sub read as a tuned drum) |

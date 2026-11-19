@@ -38,12 +38,12 @@ mod lofi;
 mod blast;
 
 mod farnell;
+mod farnell_creatures;
+mod farnell_liquid;
 mod farnell_phone;
 mod farnell_rain;
-mod farnell_creatures;
-mod farnell_vehicles;
 mod farnell_scifi;
-mod farnell_liquid;
+mod farnell_vehicles;
 mod machines;
 
 mod elements;
@@ -103,12 +103,12 @@ pub use lofi::*;
 pub use blast::*;
 
 pub use farnell::*;
+pub use farnell_creatures::*;
+pub use farnell_liquid::*;
 pub use farnell_phone::*;
 pub use farnell_rain::*;
-pub use farnell_creatures::*;
-pub use farnell_vehicles::*;
 pub use farnell_scifi::*;
-pub use farnell_liquid::*;
+pub use farnell_vehicles::*;
 pub use machines::*;
 
 pub use elements::*;
