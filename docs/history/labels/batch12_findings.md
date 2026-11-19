@@ -16,3 +16,7 @@ What changed after this (`step` now runs its own copy of foley's contact code):
 - concrete: speed 1, grit 0.5, in a room (s10). Saved as `concrete_step`.
 - all-purpose: gravel, grit 0, speed 1.6, dry (s02). Saved as `all_purpose_step`.
 - grass: all bad (take A, speed 1.6 in a room, closest): "the grass crunch would be closer to first impact; the ground sounds a bit too hard (too high freq with first hit?)". The fix was soil (foley's earth) instead of the gravel body, with the blade crunch moved into the first 35 ms of the heel and the toe.
+
+## Batch 14 pick
+
+grass: speed 0.8, dry (s08): "still a bit heavy sounding but otherwise good". Saved as `grass_step` with a 120 Hz high-pass under a `weight` knob (250 Hz light, 40 Hz heavy). The high-pass is unheard.

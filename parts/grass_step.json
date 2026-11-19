@@ -1,0 +1,62 @@
+{
+ "role": "whole",
+ "material": "organic",
+ "description": "one footstep on grass, picked best of 8 (\"still a bit heavy sounding but otherwise good\"); built as: `step` grass, speed 0.8, then a 120 Hz high-pass (added after the listen to lighten it, unheard)",
+ "tags": [
+  "footstep",
+  "step",
+  "walk",
+  "grass",
+  "lawn",
+  "soil"
+ ],
+ "origin": "batch 14; picked best of its box on 2026-11-19",
+ "doc": {
+  "name": "grass_step",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 0.8,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "step",
+    "name": "src",
+    "surface": "grass",
+    "speed": 0.8,
+    "grit": 1.0,
+    "at": 0.005,
+    "seed": 1
+   },
+   {
+    "type": "filter",
+    "name": "light",
+    "input": "src",
+    "mode": "hp",
+    "freq": 120
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "light",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "weight",
+    "value": 0.5,
+    "doc": "how heavy the step sounds (the high-pass under it)",
+    "map": [
+     {
+      "node": "light",
+      "field": "freq",
+      "from": 250,
+      "to": 40,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -343,7 +343,7 @@ after bed texture whole`), with a material, tags and one to three knobs.
 Before building a layer from nodes, look for one:
 
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`,
-  `approved`): the library's parts and saved sounds plus the 106 built-in
+  `approved`): the library's parts and saved sounds plus the 107 built-in
   parts in `parts/`: the five layers of the approved door slam (`wood_brush`,
   `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock`), 72 the
   listener rated good blind, and `wooden_crate_drop` (a whole crate landing
@@ -362,13 +362,13 @@ Before building a layer from nodes, look for one:
   whine, a small frog, and the beds surf on shingle, lava, wind in trees,
   underwater, rain on stone, cave drips; a small geared motor
   (`small_motor_spin`), a close-up splash (`splash_close`), and footsteps
-  from `step`: `all_purpose_step` (no surface) and `concrete_step`.
+  from `step`: `all_purpose_step` (no surface), `concrete_step` and `grass_step`.
   Whole sounds: a rattlesnake rattle and scissors snipping (both cicada patches, heard so), door creak, engine rev, bird, breath, bells, siren, alarm,
   flute, plucked string, twang, laser, error beep. **Not in the library
   yet** (every attempt was heard as something else, rated lower, or not
-  rated): a footstep on concrete, gravel or grass (2026-11-19: concrete heard as a
-  snare / wooden drum, gravel as pitter-patter, not crunch, grass as hitting
-  grass, too heavy; wood steps from four
+  rated): a gravel footstep with its crunch (the `footstep` node's concrete, gravel and
+  grass failed; `step` gives `concrete_step`, `grass_step`,
+  `all_purpose_step`; wood steps from four
   `footstep` nodes rated good), rain (the `rain` node is new and unheard),
   a stream, a large splash heard from a distance (only `splash_close` passed), a
   creature voice. Build those from
@@ -523,7 +523,7 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 |---|---|---|---|
 | **a door slam** | `new_sound` `template: "door_slam"` | knobs `weight`, `snap`, `stick`, `knock`, `latch` (a click latch, off at 0) | the layered slam the listener approved (brush, crack, noise-struck wood body, noise weight, knock, dry bus), copied whole and editable. Two rounds of testers given only the recipe built a click over one `modal` instead, heard as weak: **start from the template**, then tune the knobs |
 | a footstep, a walk | `footstep` | `surface` concrete / gravel / grass / wood, `weight`, `pace`, `shoe`, `body` (pitch apart from weight), `swish` (swish against ticks), on wood: `ring` (0.25..2, the board's ring; the default puts 84 % of the energy under 200 Hz and reads slammed, try 0.6 with `weight` 0.25), `noise` about 0.35 (the default board rings pitched, voiced 0.84), `scuff` (the roll between heel and toe) and `creak` (the board under the weight), both sparingly | one heel + toe step with the surface's texture. A walk is several steps: `pattern` + `sound` instances, or a few `footstep` nodes with different `seed` / `at` in a `mix` |
-| footsteps on concrete, gravel, grass, dirt, snow, carpet (foley's model) | `step` | `surface`, `speed` m/s (1 a walk), `grit` 0..2, `at` a list for a walk | a Hertz heel strike on the surface's modes, scuff, ball of the foot; grains, swish, snow crackle. Heard: gravel good ("really good footsteps"; `grit` 0 is the all-purpose step), concrete picked (`concrete_step`, `all_purpose_step` are parts); grass heard "too hard", rebuilt on soil with the crunch at the heel, unheard |
+| footsteps on concrete, gravel, grass, dirt, snow, carpet (foley's model) | `step` | `surface`, `speed` m/s (1 a walk), `grit` 0..2, `at` a list for a walk | a Hertz heel strike on the surface's modes, scuff, ball of the foot; grains, swish, snow crackle. Heard: gravel good ("really good footsteps"; `grit` 0 is the all-purpose step), concrete picked (`concrete_step`, `all_purpose_step` are parts); grass on soil with the crunch at the heel picked ("a bit heavy"; `grass_step` lightens it with a high-pass) |
 | fire, a campfire, crackle | `fire` | `size`, `intensity`, `crackle`, `loop` | roar + hiss + Poisson pops; loops by itself in a `kind: loop` document |
 | wind, a gale, howling | `wind` | `speed` (signal), `gust`, `whistle`, `loop` | five moving bands (+ an Aeolian tone); a `ramp` on `speed` is a rising gale |
 | electric arcs, sparks | `spark` | `rate` (snaps/s), `buzz`, `body` | a beating transformer hum, gated arcing chirps and formant snaps (Farnell) |
