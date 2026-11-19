@@ -39,6 +39,7 @@ mod blast;
 
 mod farnell;
 mod farnell_phone;
+mod farnell_rain;
 mod machines;
 
 mod elements;
@@ -99,6 +100,7 @@ pub use blast::*;
 
 pub use farnell::*;
 pub use farnell_phone::*;
+pub use farnell_rain::*;
 pub use machines::*;
 
 pub use elements::*;

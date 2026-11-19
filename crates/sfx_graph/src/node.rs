@@ -366,6 +366,7 @@ node_types! {
     "red_alert" => RedAlert,
     "phone_tone" => PhoneTone,
     "two_tone" => TwoTone,
+    "rain" => Rain,
 
     "fire" => Fire,
     "wind" => Wind,
