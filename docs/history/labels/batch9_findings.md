@@ -26,3 +26,5 @@ A pick means "the best of these", not a rating.
 
 - `cave`: foley's five fixed-pitch sine voices dripped up to 25 times a second, a beeping texture. Now 0.4-4 drips a second, mostly into pools: Minnaert bubbles of 1.5-5 mm with a rising pitch and a tick. The rest tick on wet rock. All of it runs through a dark FDN echo of 1.5-4 s set by `depth`, pre-rolled 2 s so the echo is full at the start.
 - `frog`: a croak of its own replaces foley's `frog`. Each call is pitched ±12 %, each note ±6 %, falling 4-15 % through the note. The pulses are rasping noise clicks, and the sac is broad (Q 3, was 8).
+
+Batch 10 picks: cave, the default (depth 1, drips 0.5), dry (s03), over the shallow-wet and deep-sparse takes. Frog, the small 3 cm frog, dressed (s11), over the mid, bull and chorus takes. Neither box was marked all bad.
