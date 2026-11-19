@@ -551,10 +551,7 @@ mod sets {
     }
 
     fn doc(nodes: Vec<Value>) -> SoundDoc {
-        let mut d = SoundDoc::named("t");
-        d.nodes = nodes;
-        d.duration = Some(1.0);
-        d
+        crate::common::bare_doc(nodes, Some(1.0))
     }
 
     fn render(nodes: Vec<Value>) -> Audio {

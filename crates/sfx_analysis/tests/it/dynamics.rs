@@ -3,14 +3,6 @@
 use crate::common::*;
 use serde_json::{Value, json};
 
-fn peak(x: &[f32]) -> f32 {
-    x.iter().fold(0.0, |m, v| m.max(v.abs()))
-}
-
-fn peak_db(x: &[f32]) -> f32 {
-    20.0 * peak(x).max(1e-9).log10()
-}
-
 fn crest_db(x: &[f32]) -> f32 {
     peak_db(x) - rms_db(x)
 }

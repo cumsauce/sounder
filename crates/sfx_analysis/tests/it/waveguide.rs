@@ -7,37 +7,22 @@ use sfx_graph::{RenderOpts, SoundDoc};
 
 const C: f32 = 343.0;
 
-fn merged(mut base: Value, extra: Value) -> Value {
-    base.as_object_mut()
-        .unwrap()
-        .extend(extra.as_object().unwrap().clone());
-    base
-}
-
 fn tube(extra: Value) -> Vec<Value> {
-    vec![merged(
+    vec![with_fields(
         json!({"type": "tube", "name": "t", "length": 0.6, "pressure": 0.8, "seed": 1}),
         extra,
     )]
 }
 
 fn string(extra: Value) -> Vec<Value> {
-    vec![merged(
+    vec![with_fields(
         json!({"type": "string", "name": "s", "freq": 220, "seed": 1}),
         extra,
     )]
 }
 
-/// The error a document with these nodes fails to render with (the node
-/// is named `x`).
 fn render_error(node: Value) -> String {
-    let mut d = SoundDoc::named("test");
-    d.nodes = vec![
-        merged(node, json!({"name": "x"})),
-        json!({"type": "output", "name": "out", "input": "x"}),
-    ];
-    d.duration = Some(0.2);
-    d.render(&RenderOpts::default()).unwrap_err()
+    crate::common::render_error(vec![with_fields(node, json!({"name": "x"}))], "x", 0.2)
 }
 
 fn tail(x: &[f32], from: f32) -> &[f32] {
@@ -46,18 +31,6 @@ fn tail(x: &[f32], from: f32) -> &[f32] {
 
 fn peak_abs(x: &[f32]) -> f32 {
     x.iter().fold(0.0, |m, v| m.max(v.abs()))
-}
-
-/// Spectral centroid, Hz.
-fn centroid(x: &[f32]) -> f32 {
-    let s = spectrum(x, SR);
-    let (mut num, mut den) = (0.0f64, 0.0f64);
-    for (f, d) in &s {
-        let p = 10f64.powf(f64::from(*d) / 10.0);
-        num += f64::from(*f) * p;
-        den += p;
-    }
-    (num / den.max(1e-30)) as f32
 }
 
 /// The strongest spectral peak within +-3 % of `hz`, parabolic-interpolated
@@ -255,7 +228,7 @@ fn tube_bore_darkens_the_tone() {
     for bore in [0.004f32, 0.02, 0.08] {
         let x = node_audio(tube(json!({"excite": "noise", "bore": bore})), "t", 2.0);
         assert_finite(&x, "tube");
-        c.push(centroid(tail(&x, 0.5)));
+        c.push(spectrum_centroid(tail(&x, 0.5)));
     }
     println!(
         "noise-driven tube, bore 4, 20, 80 mm: centroid {:.0}, {:.0}, {:.0} Hz",
@@ -517,8 +490,8 @@ fn string_pluck_and_strike_differ_and_seeds_differ() {
     let other = node_audio(string(json!({"excite": "pluck", "seed": 2})), "s", 1.0);
     println!(
         "centroid pluck {:.0} Hz, strike {:.0} Hz; peak {:.3}, {:.3}",
-        centroid(&pluck),
-        centroid(&strike),
+        spectrum_centroid(&pluck),
+        spectrum_centroid(&strike),
         peak_abs(&pluck),
         peak_abs(&strike)
     );

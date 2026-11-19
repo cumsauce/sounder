@@ -2,6 +2,7 @@ mod models {
     //! The foley physical-model nodes: bubble, air, glottis, tract, syrinx,
     //! thunder. Numbers in comments are what these tests measured.
 
+    use crate::common::*;
     use serde_json::{Value, json};
     use sfx_analysis::stft::stft;
     use sfx_analysis::{describe, pitch};
@@ -69,18 +70,6 @@ mod models {
         }
     }
 
-    /// Spectral centroid of the whole signal, Hz.
-    fn centroid(x: &[f32]) -> f32 {
-        let s = stft(x, SR, 2048, 1024);
-        let mean = s.mean(0..s.frames.len());
-        let total: f32 = mean.iter().sum();
-        mean.iter()
-            .enumerate()
-            .map(|(b, p)| s.hz(b) * p)
-            .sum::<f32>()
-            / total.max(1e-20)
-    }
-
     #[test]
     fn air_loses_highs_and_level_monotonically() {
         // Measured (white noise in): centroid 11.9 kHz at 1 m and 10 m (air
@@ -97,7 +86,7 @@ mod models {
                 "a",
                 1.0,
             );
-            let (c, l) = (centroid(&x), rms_db(&x));
+            let (c, l) = (stft_centroid(&x), rms_db(&x));
             eprintln!("air {d} m: centroid {c:.0} Hz, rms {l:.1} dB");
             if let Some((pc, pl)) = prev {
                 assert!(
@@ -203,7 +192,7 @@ mod models {
         assert!(rms_db(&x[n(4.4)..n(8.0)]) > -45.0);
         // Low: well under a few hundred Hz after the crack.
         let body = &x[n(4.4)..n(12.0)];
-        let c = centroid(body);
+        let c = stft_centroid(body);
         let d = describe(&Audio::mono(SR, x.clone()));
         eprintln!(
             "thunder: centroid {c:.0} Hz, peak {:.1} dB, audible {:.1}-{:.1} s, decay20 {:?}",
@@ -225,7 +214,7 @@ mod models {
             "t",
             6.0,
         );
-        let cn = centroid(&near);
+        let cn = stft_centroid(&near);
         let pk = describe(&Audio::mono(SR, near.clone())).peak_db;
         eprintln!("thunder 150 m centroid {cn:.0}, peak {pk:.1} dB");
         assert!(cn > c, "{cn} vs {c}");
@@ -345,18 +334,6 @@ mod voice {
     use sfx_analysis::measure::roughness_pct;
     use sfx_graph::{RenderOpts, SoundDoc};
 
-    /// FNV-1a over the bit patterns of every sample.
-    fn hash(x: &[f32]) -> u64 {
-        let mut h = 0xcbf2_9ce4_8422_2325u64;
-        for v in x {
-            for b in v.to_bits().to_le_bytes() {
-                h ^= u64::from(b);
-                h = h.wrapping_mul(0x0100_0000_01b3);
-            }
-        }
-        h
-    }
-
     /// (label, nodes, node to hash) for the default-output pins.
     fn pins() -> Vec<(&'static str, Vec<Value>, &'static str)> {
         let g = |extra: Value| {
@@ -444,7 +421,7 @@ mod voice {
     #[test]
     fn defaults_are_bit_identical_to_before() {
         for (label, nodes, node) in pins() {
-            let h = hash(&node_audio(&nodes, node, 0.5));
+            let h = fnv(&node_audio(&nodes, node, 0.5));
             eprintln!("PIN {label}: {h:#018x}");
             let want = PINNED.iter().find(|(l, _)| *l == label).unwrap().1;
             assert_eq!(h, want, "{label}: default output changed");
@@ -461,18 +438,6 @@ mod voice {
             o[k] = v.clone();
         }
         o
-    }
-
-    /// Power-weighted mean frequency of `x`, Hz.
-    fn centroid(x: &[f32]) -> f32 {
-        let s = spectrum(x, SR);
-        let (mut num, mut den) = (0.0f64, 0.0f64);
-        for (f, d) in s {
-            let p = 10f64.powf(f64::from(d) / 10.0);
-            num += f64::from(f) * p;
-            den += p;
-        }
-        (num / den.max(1e-30)) as f32
     }
 
     /// The 20 to 150 Hz envelope share (S8a `roughness`) of `nodes`, read from
@@ -528,7 +493,7 @@ mod voice {
         let plain = json!({"type": "glottis", "name": "g", "f0": 140, "natural": false,
         "roughness": 0, "subharmonic": 0, "fry": 0});
         let x = node_audio([plain], "g", 0.5);
-        assert_eq!(hash(&x), pin("glottis default"), "glottis fields at 0");
+        assert_eq!(fnv(&x), pin("glottis default"), "glottis fields at 0");
         let t = node_audio(
             [
                 json!({"type": "glottis", "name": "g", "f0": 140, "natural": false}),
@@ -538,7 +503,7 @@ mod voice {
             "t",
             0.5,
         );
-        assert_eq!(hash(&t), pin("tract default"), "tract fields at 0");
+        assert_eq!(fnv(&t), pin("tract default"), "tract fields at 0");
     }
 
     #[test]
@@ -567,8 +532,8 @@ mod voice {
                 0.4,
             )
         };
-        assert_eq!(hash(&make(4)), hash(&make(4)));
-        assert_ne!(hash(&make(4)), hash(&make(5)));
+        assert_eq!(fnv(&make(4)), fnv(&make(4)));
+        assert_ne!(fnv(&make(4)), fnv(&make(5)));
     }
 
     #[test]
@@ -679,7 +644,7 @@ mod voice {
                 "t",
                 1.0,
             );
-            let c = centroid(&x);
+            let c = spectrum_centroid(&x);
             eprintln!(
                 "frication freq {f}: centroid {c:.0} Hz, rms {:.1} dB",
                 rms_db(&x)
@@ -721,7 +686,7 @@ mod voice {
         );
         let q = x.len() / 4;
         let (a, b) = (&x[..q], &x[3 * q..]);
-        let (ca, cb) = (centroid(a), centroid(b));
+        let (ca, cb) = (spectrum_centroid(a), spectrum_centroid(b));
         let (ra, rb) = (rms_db(a), rms_db(b));
         eprintln!(
             "frication ramps: first quarter centroid {ca:.0} Hz rms {ra:.1}, last {cb:.0} Hz rms {rb:.1}"
@@ -1073,19 +1038,8 @@ mod thunder_brightness {
 
     use crate::common::*;
     use serde_json::{Value, json};
-    use sfx_analysis::stft::stft;
-    use sfx_graph::{RenderOpts, SoundDoc};
 
-    fn fnv(x: &[f32]) -> u64 {
-        let mut h = 0xcbf2_9ce4_8422_2325u64;
-        for v in x {
-            for b in v.to_bits().to_le_bytes() {
-                h ^= u64::from(b);
-                h = h.wrapping_mul(0x0000_0100_0000_01b3);
-            }
-        }
-        h
-    }
+    use sfx_graph::{RenderOpts, SoundDoc};
 
     fn thunder(extra: Value) -> Vec<f32> {
         let mut t = json!({"type": "thunder", "name": "t", "distance": 600, "seed": 3});
@@ -1093,17 +1047,6 @@ mod thunder_brightness {
             .unwrap()
             .extend(extra.as_object().unwrap().clone());
         node_audio(vec![t], "t", 12.0)
-    }
-
-    fn centroid(x: &[f32]) -> f32 {
-        let s = stft(x, SR, 2048, 1024);
-        let mean = s.mean(0..s.frames.len());
-        let total: f32 = mean.iter().sum();
-        mean.iter()
-            .enumerate()
-            .map(|(b, p)| s.hz(b) * p)
-            .sum::<f32>()
-            / total.max(1e-20)
     }
 
     /// (first, last) seconds where the 100 ms rms is within 30 dB of the
@@ -1214,7 +1157,7 @@ mod thunder_brightness {
         for b in [0.0f32, 0.25, 0.5, 0.75, 1.0] {
             let x = thunder(json!({"brightness": b}));
             assert_finite(&x, "thunder");
-            let c = centroid(&x);
+            let c = stft_centroid(&x);
             let above = band_db(&x, SR, 100.0, 20_000.0) - band_db(&x, SR, 1.0, 100.0);
             let pk = x.iter().fold(0.0f32, |m, v| m.max(v.abs()));
             println!(
@@ -1247,7 +1190,7 @@ mod thunder_brightness {
         let (first0, last0) = audible_s(&base);
         println!(
             "length 1: audible {first0:.2}-{last0:.2} s, centroid {:.0} Hz",
-            centroid(&base)
+            stft_centroid(&base)
         );
         let mut prev = last0;
         for (l, lo, hi) in [(2.0f32, 1.5, 2.4), (3.0, 2.2, 3.5)] {
@@ -1255,7 +1198,7 @@ mod thunder_brightness {
             assert_finite(&x, "thunder");
             let (first, last) = audible_s(&x);
             let rumble = (last - first) / (last0 - first0);
-            let c = centroid(&x);
+            let c = stft_centroid(&x);
             println!(
                 "length {l}: audible {first:.2}-{last:.2} s ({rumble:.2}x the rumble), centroid {c:.0} Hz, rms {:.1} dB",
                 rms_db(&x)
@@ -1268,7 +1211,7 @@ mod thunder_brightness {
             assert!(last > prev, "{last} vs {prev}");
             prev = last;
             // The spectrum stays: the stretch is not a resample.
-            let c0 = centroid(&base);
+            let c0 = stft_centroid(&base);
             assert!((c / c0 - 1.0).abs() < 0.4, "centroid {c} vs {c0}");
         }
         let short = thunder(json!({"length": 0.5}));
@@ -1326,17 +1269,6 @@ mod thunder_rumble {
 
     use crate::common::*;
     use serde_json::{Value, json};
-
-    fn fnv(x: &[f32]) -> u64 {
-        let mut h = 0xcbf2_9ce4_8422_2325u64;
-        for v in x {
-            for b in v.to_bits().to_le_bytes() {
-                h ^= u64::from(b);
-                h = h.wrapping_mul(0x0100_0000_01b3);
-            }
-        }
-        h
-    }
 
     fn thunder(base: Value, extra: Value, secs: f32) -> Vec<f32> {
         let mut n = json!({"type": "thunder", "name": "t"});

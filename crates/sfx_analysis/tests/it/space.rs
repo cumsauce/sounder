@@ -6,21 +6,6 @@ mod reverb_ir {
     use crate::common::*;
     use serde_json::{Value, json};
     use sfx_graph::node::parse_body;
-    use sfx_graph::{RenderOpts, SoundDoc};
-
-    /// FNV-1a over the bit patterns of every sample of every channel.
-    fn fnv(channels: &[Vec<f32>]) -> u64 {
-        let mut h = 0xcbf2_9ce4_8422_2325u64;
-        for c in channels {
-            for v in c {
-                for b in v.to_bits().to_le_bytes() {
-                    h ^= u64::from(b);
-                    h = h.wrapping_mul(0x0000_0100_0000_01b3);
-                }
-            }
-        }
-        h
-    }
 
     /// A click and a noise burst, so the tail has broadband content.
     fn source() -> Vec<Value> {
@@ -59,12 +44,12 @@ mod reverb_ir {
         let mut out = Vec::new();
         for (label, extra) in cases {
             let a = render(with(extra.clone()), 1.5);
-            out.push((label, fnv(&a.channels)));
+            out.push((label, fnv_channels(&a.channels)));
             // The wet port, through a unity gain.
             let mut nodes = with(extra);
             nodes.push(json!({"type": "gain", "name": "tail", "input": "verb.wet", "gain": 1.0}));
             let b = render(nodes, 1.5);
-            out.push((label, fnv(&b.channels)));
+            out.push((label, fnv_channels(&b.channels)));
         }
         out
     }
@@ -92,7 +77,7 @@ mod reverb_ir {
         // `model: "fdn"` written out is the default.
         let a = render(with(json!({"model": "fdn"})), 1.5);
         let b = render(with(json!({})), 1.5);
-        assert_eq!(fnv(&a.channels), fnv(&b.channels));
+        assert_eq!(fnv_channels(&a.channels), fnv_channels(&b.channels));
     }
 
     // ------------------------------------------------------------ measurement
@@ -576,12 +561,7 @@ mod reverb_ir {
     }
 
     fn render_error(nodes: Vec<Value>) -> String {
-        let mut d = SoundDoc::named("test");
-        d.nodes = nodes;
-        d.nodes
-            .push(json!({"type": "output", "name": "out", "input": "last"}));
-        d.duration = Some(0.1);
-        d.render(&RenderOpts::default()).unwrap_err()
+        crate::common::render_error(nodes, "last", 0.1)
     }
 
     #[test]
@@ -723,16 +703,7 @@ mod motion {
     }
 
     fn render_error(nodes: Vec<Value>) -> String {
-        let mut d = SoundDoc::named("test");
-        d.nodes = nodes;
-        d.nodes
-            .push(json!({"type": "output", "name": "out", "input": "m"}));
-        d.duration = Some(0.5);
-        d.render(&opts()).unwrap_err().to_string()
-    }
-
-    fn sine(hz: f32, amp: f32) -> Value {
-        json!({"type": "osc", "name": "src", "freq": hz, "amp": amp})
+        crate::common::render_error(nodes, "m", 0.5)
     }
 
     fn node(extra: Value, ty: &str) -> Vec<Value> {
@@ -740,7 +711,7 @@ mod motion {
         m.as_object_mut()
             .unwrap()
             .extend(extra.as_object().unwrap().clone());
-        vec![sine(1000.0, 0.5), m]
+        vec![sine_src(1000.0, 0.5), m]
     }
 
     fn secs(x: &[f32], a: f32, b: f32) -> &[f32] {
@@ -889,7 +860,7 @@ mod motion {
         // The distance is as heard at each moment, so a ramp 100 -> 0 m over 1 s
         // (100 m/s) moves the heard phase at 1 + 100 / 343: 1291.5 Hz.
         let nodes = vec![
-            sine(1000.0, 0.5),
+            sine_src(1000.0, 0.5),
             json!({"type": "ramp", "name": "d", "from": 100, "to": 0, "time": 1.0, "curve": "linear"}),
             json!({"type": "doppler", "name": "m", "input": "src", "distance": "d", "air": false}),
         ];
@@ -934,7 +905,7 @@ mod motion {
         }
         // A distance signal far out of range is clamped.
         let nodes = vec![
-            sine(1000.0, 0.5),
+            sine_src(1000.0, 0.5),
             json!({"type": "ramp", "name": "d", "from": -1.0e9, "to": 1.0e9, "time": 0.2, "curve": "linear"}),
             json!({"type": "doppler", "name": "m", "input": "src", "distance": "d"}),
         ];
@@ -978,7 +949,7 @@ mod motion {
         }
         // A start so far away the delay line would pass the cap.
         let nodes = vec![
-            sine(1000.0, 0.5),
+            sine_src(1000.0, 0.5),
             json!({"type": "doppler", "name": "m", "input": "src", "speed": 300, "at": 60}),
         ];
         let e = render_error(nodes);
@@ -989,7 +960,7 @@ mod motion {
         );
         // Stereo into a panned doppler.
         let e = render_error(vec![
-            sine(1000.0, 0.5),
+            sine_src(1000.0, 0.5),
             json!({"type": "pan", "name": "st", "input": "src", "pan": 0.0}),
             json!({"type": "doppler", "name": "m", "input": "st"}),
         ]);
@@ -1075,7 +1046,7 @@ mod motion {
             "{e}"
         );
         let e = render_error(vec![
-            sine(1000.0, 0.5),
+            sine_src(1000.0, 0.5),
             json!({"type": "pan", "name": "st", "input": "src", "pan": 0.0}),
             json!({"type": "haas", "name": "m", "input": "st"}),
         ]);
@@ -1267,7 +1238,7 @@ mod motion {
         println!("{e}");
         assert!(e.contains("amount: 1.5: give a number from 0 to 1"), "{e}");
         let e = render_error(vec![
-            sine(1000.0, 0.5),
+            sine_src(1000.0, 0.5),
             json!({"type": "pan", "name": "st", "input": "src", "pan": 0.0}),
             json!({"type": "decorrelate", "name": "m", "input": "st"}),
         ]);

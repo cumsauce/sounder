@@ -4,7 +4,6 @@ mod shape {
 
     use crate::common::*;
     use serde_json::{Value, json};
-    use sfx_graph::{RenderOpts, SoundDoc};
 
     fn tone(hz: f32, amp: f32) -> Vec<Value> {
         vec![
@@ -319,13 +318,7 @@ mod shape {
     }
 
     fn render_err(nodes: Vec<Value>) -> String {
-        let mut d = SoundDoc::named("e");
-        d.nodes = nodes;
-        d.duration = Some(0.1);
-        match d.render(&RenderOpts::default()) {
-            Ok(_) => panic!("rendered, expected an error"),
-            Err(e) => e.to_string(),
-        }
+        crate::common::render_error_raw(nodes, 0.1)
     }
 
     fn shape_with(extra: Value) -> Vec<Value> {
@@ -427,7 +420,6 @@ mod ringmod {
     use crate::common::*;
     use serde_json::{Value, json};
     use sfx_graph::node::parse_body;
-    use sfx_graph::{RenderOpts, SoundDoc};
 
     /// A 1 kHz sine of amplitude 0.5 (-9.03 dB in the kit's convention).
     fn src() -> Value {
@@ -443,14 +435,8 @@ mod ringmod {
         vec![src(), r]
     }
 
-    /// The error a document with these nodes fails to render with.
     fn render_error(nodes: Vec<Value>) -> String {
-        let mut d = SoundDoc::named("test");
-        d.nodes = nodes;
-        d.nodes
-            .push(json!({"type": "output", "name": "out", "input": "rm"}));
-        d.duration = Some(0.1);
-        d.render(&RenderOpts::default()).unwrap_err()
+        crate::common::render_error(nodes, "rm", 0.1)
     }
 
     #[test]

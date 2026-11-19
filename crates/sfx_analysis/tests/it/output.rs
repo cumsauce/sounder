@@ -2,15 +2,9 @@ mod stage {
     //! The output stage: lufs / peak_db targets, the truthful missed-target
     //! warning, normalizing up from very quiet, and the fade-in warning.
 
+    use crate::common::*;
     use serde_json::{Value, json};
     use sfx_graph::{Kind, RenderOpts, Rendered, SoundDoc};
-
-    fn doc(nodes: Vec<Value>, duration: Option<f32>) -> SoundDoc {
-        let mut d = SoundDoc::named("t");
-        d.nodes = nodes;
-        d.duration = duration;
-        d
-    }
 
     fn render(d: &SoundDoc) -> Result<Rendered, String> {
         d.render(&RenderOpts::default())
@@ -22,20 +16,12 @@ mod stage {
 
     /// FNV-1a over the bit patterns of every sample, channel by channel.
     fn hash(r: &Rendered) -> u64 {
-        let mut h = 0xcbf2_9ce4_8422_2325u64;
-        for c in &r.audio.channels {
-            for x in c {
-                for b in x.to_bits().to_le_bytes() {
-                    h = (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3);
-                }
-            }
-        }
-        h
+        fnv_channels(&r.audio.channels)
     }
 
     /// The `laser` example's graph (examples/laser.rs).
     fn laser() -> SoundDoc {
-        doc(
+        bare_doc(
             vec![
                 json!({"type": "ramp", "name": "sweep", "from": 2000, "to": 200, "time": 0.25, "curve": "exp"}),
                 json!({"type": "osc", "name": "tone", "shape": "saw", "freq": "sweep"}),
@@ -61,7 +47,7 @@ mod stage {
         c.nodes[6] = json!({"type": "output", "name": "out", "input": "lp"});
         let c = ok(&c);
         // A peaky sound that misses its lufs target (only the warning changes).
-        let d = doc(
+        let d = bare_doc(
             vec![
                 json!({"type": "impulse", "name": "i"}),
                 json!({"type": "output", "name": "out", "input": "i", "lufs": -14}),
@@ -102,7 +88,7 @@ mod stage {
     const DELAYED_LASER_BEFORE: u64 = 13_838_043_244_579_427_677;
 
     fn noise_at(db: f32, output: Value, duration: f32) -> SoundDoc {
-        doc(
+        bare_doc(
             vec![
                 json!({"type": "noise", "name": "n", "seed": 4}),
                 json!({"type": "gain", "name": "q", "input": "n", "db": db}),
@@ -117,7 +103,7 @@ mod stage {
     }
 
     fn train(output: Value) -> SoundDoc {
-        doc(
+        bare_doc(
             vec![
                 json!({"type": "impulse", "name": "i", "at": [0.1, 0.3, 0.5, 0.7]}),
                 output,
@@ -192,7 +178,7 @@ mod stage {
     #[test]
     fn a_hot_miss_that_the_limiter_caused_says_so() {
         // A sine (crest 3 dB) at 0 LUFS needs peaks over 0 dBFS.
-        let d = doc(
+        let d = bare_doc(
             vec![
                 json!({"type": "osc", "name": "s", "shape": "sine", "freq": 1000}),
                 json!({"type": "output", "name": "out", "input": "s", "lufs": 0}),
@@ -256,7 +242,7 @@ mod stage {
 
     #[test]
     fn true_silence_stays_silent_and_finite() {
-        let d = doc(
+        let d = bare_doc(
             vec![
                 json!({"type": "noise", "name": "n"}),
                 json!({"type": "gain", "name": "q", "input": "n", "gain": 0}),
@@ -294,7 +280,7 @@ mod stage {
 
     #[test]
     fn the_normalize_node_also_lifts_a_quiet_sound() {
-        let d = doc(
+        let d = bare_doc(
             vec![
                 json!({"type": "noise", "name": "n"}),
                 json!({"type": "gain", "name": "q", "input": "n", "db": -85}),
@@ -309,7 +295,7 @@ mod stage {
     }
 
     fn click_at(t: f32, output: Value) -> Rendered {
-        ok(&doc(
+        ok(&bare_doc(
             vec![
                 json!({"type": "impulse", "name": "i", "at": [t]}),
                 json!({"type": "decay", "name": "e", "time": 0.05}),
@@ -342,7 +328,7 @@ mod stage {
         );
 
         // Same graph with the noise burst delayed: use a pure impulse at 5 ms.
-        let late = ok(&doc(
+        let late = ok(&bare_doc(
             vec![
                 json!({"type": "impulse", "name": "i", "at": [0.005]}),
                 json!({"type": "output", "name": "out", "input": "i"}),
@@ -350,7 +336,7 @@ mod stage {
             Some(0.2),
         ));
         assert!(has(&late, "fade-in").is_none(), "{:?}", late.warnings);
-        let early = ok(&doc(
+        let early = ok(&bare_doc(
             vec![
                 json!({"type": "impulse", "name": "i", "at": [0.0]}),
                 json!({"type": "output", "name": "out", "input": "i"}),
@@ -376,7 +362,7 @@ mod stage {
 
     #[test]
     fn a_loop_has_no_fade_in_to_warn_about() {
-        let mut d = doc(
+        let mut d = bare_doc(
             vec![
                 json!({"type": "noise", "name": "n"}),
                 json!({"type": "output", "name": "out", "input": "n"}),
@@ -390,7 +376,7 @@ mod stage {
 
     /// A noise burst that starts at full level at t = 0.
     fn burst_at_zero(output: Value) -> SoundDoc {
-        doc(
+        bare_doc(
             vec![
                 json!({"type": "decay", "name": "e", "time": 0.05}),
                 json!({"type": "noise", "name": "n", "seed": 3}),
@@ -431,7 +417,7 @@ mod stage {
     fn a_hit_wholly_inside_the_fade_is_not_boosted_without_limit() {
         // A single impulse at sample 0 is zeroed by any fade-in: silence stays
         // silence, finite.
-        let r = ok(&doc(
+        let r = ok(&bare_doc(
             vec![
                 json!({"type": "impulse", "name": "i", "at": [0.0]}),
                 json!({"type": "output", "name": "out", "input": "i", "peak_db": -3}),
@@ -444,7 +430,7 @@ mod stage {
     #[test]
     fn the_squash_warning_is_silent_when_peak_db_normalizes_the_input() {
         let hot = |output: Value| {
-            doc(
+            bare_doc(
                 vec![
                     json!({"type": "noise", "name": "n", "seed": 4}),
                     json!({"type": "gain", "name": "q", "input": "n", "db": 12}),
@@ -628,7 +614,7 @@ mod stage {
             for ceiling in [-1.0f32, -6.0] {
                 // Amplitude 1 dB over the ceiling: the limiter must act.
                 let amp = 10f32.powf((ceiling + 1.0) / 20.0);
-                let r = ok(&doc(
+                let r = ok(&bare_doc(
                     vec![
                         json!({"type": "osc", "name": "s", "freq": freq, "phase": phase, "amp": amp}),
                         json!({"type": "output", "name": "out", "input": "s", "fade_in": 0,
@@ -647,7 +633,7 @@ mod stage {
         }
         // Exactly at the ceiling (amplitude = ceiling): the same bound.
         let amp = 10f32.powf(-1.0 / 20.0);
-        let r = ok(&doc(
+        let r = ok(&bare_doc(
             vec![
                 json!({"type": "osc", "name": "s", "freq": 1000, "amp": amp}),
                 json!({"type": "output", "name": "out", "input": "s", "fade_in": 0, "fade_out": 0}),
@@ -661,7 +647,7 @@ mod stage {
 
     /// Noise bursts, 1 % of every 0.2 s at full level over a floor 22 dB down.
     fn burst_train(output: Value) -> SoundDoc {
-        doc(
+        bare_doc(
             vec![
                 json!({"type": "noise", "name": "n", "seed": 9}),
                 json!({"type": "expr", "name": "env", "inputs": {}, "state": {},
@@ -701,7 +687,7 @@ mod stage {
 
     #[test]
     fn a_stereo_sound_is_limited_on_the_true_peak_of_either_channel() {
-        let r = ok(&doc(
+        let r = ok(&bare_doc(
             vec![
                 json!({"type": "osc", "name": "s", "freq": 12000, "phase": 0.125, "amp": 1.2}),
                 json!({"type": "pan", "name": "p", "input": "s", "pan": 0.5}),
@@ -718,7 +704,7 @@ mod stage {
         // -6 dBFS amplitude: under both ceilings (and the sample-peak limiter did
         // not touch it either), so the limiter is a pass-through.
         let mk = |ceiling: f32| {
-            hash(&ok(&doc(
+            hash(&ok(&bare_doc(
                 vec![
                     json!({"type": "noise", "name": "n", "seed": 5}),
                     json!({"type": "gain", "name": "q", "input": "n", "db": -12}),

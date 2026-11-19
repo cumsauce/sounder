@@ -10,13 +10,6 @@ mod rolling_cloth_footstep {
     use sfx_graph::node::parse_body;
     use sfx_graph::{Audio, RenderOpts, SoundDoc};
 
-    fn with(mut node: Value, extra: Value) -> Value {
-        node.as_object_mut()
-            .unwrap()
-            .extend(extra.as_object().unwrap().clone());
-        node
-    }
-
     fn desc(x: &[f32]) -> Descriptors {
         describe(&Audio::mono(SR, x.to_vec()))
     }
@@ -25,17 +18,8 @@ mod rolling_cloth_footstep {
         desc(x).centroid_all_hz
     }
 
-    fn peak_db(x: &[f32]) -> f32 {
-        20.0 * x.iter().fold(0f32, |a, b| a.max(b.abs())).max(1e-9).log10()
-    }
-
     fn render_error(node: Value) -> String {
-        let mut d = SoundDoc::named("test");
-        d.nodes = vec![node];
-        d.nodes
-            .push(json!({"type": "output", "name": "out", "input": "n"}));
-        d.duration = Some(0.5);
-        d.render(&RenderOpts::default()).unwrap_err()
+        crate::common::render_error(vec![node], "n", 0.5)
     }
 
     fn render_with_seed(nodes: &[Value], duration: f32, seed: u64) -> Vec<f32> {
@@ -57,7 +41,7 @@ mod rolling_cloth_footstep {
     // ------------------------------------------------------------------ rolling
 
     fn rolling(extra: Value) -> Value {
-        with(
+        with_fields(
             json!({"type": "rolling", "name": "n", "speed": 1.0, "seed": 1}),
             extra,
         )
@@ -207,7 +191,7 @@ mod rolling_cloth_footstep {
     // -------------------------------------------------------------------- cloth
 
     fn cloth(extra: Value) -> Value {
-        with(
+        with_fields(
             json!({"type": "cloth", "name": "n", "motion": 1.0, "seed": 1}),
             extra,
         )
@@ -324,7 +308,7 @@ mod rolling_cloth_footstep {
     // ----------------------------------------------------------------- footstep
 
     fn step(surface: &str, extra: Value) -> Value {
-        with(
+        with_fields(
             json!({"type": "footstep", "name": "n", "surface": surface, "seed": 1}),
             extra,
         )
@@ -661,17 +645,6 @@ mod rolling_cloth_footstep {
 
     // ------------------------------------------------------------ R2-G: body, swish
 
-    fn fnv(x: &[f32]) -> u64 {
-        let mut h = 0xcbf2_9ce4_8422_2325u64;
-        for v in x {
-            for b in v.to_bits().to_le_bytes() {
-                h ^= u64::from(b);
-                h = h.wrapping_mul(0x0000_0100_0000_01b3);
-            }
-        }
-        h
-    }
-
     /// The nine renders recorded before `body` and `swish` existed.
     fn baseline_cases() -> Vec<(String, Value)> {
         let mut v = Vec::new();
@@ -977,12 +950,7 @@ mod crumple {
     }
 
     fn render_error(node: Value) -> String {
-        let mut d = SoundDoc::named("test");
-        d.nodes = vec![node];
-        d.nodes
-            .push(json!({"type": "output", "name": "out", "input": "n"}));
-        d.duration = Some(0.5);
-        d.render(&RenderOpts::default()).unwrap_err()
+        crate::common::render_error(vec![node], "n", 0.5)
     }
 
     #[test]
@@ -1259,18 +1227,6 @@ mod click {
         node_audio(click(kind, extra), "c", 0.4)
     }
 
-    /// Power-weighted mean frequency of the whole click, Hz (one FFT over all
-    /// of it; the descriptors' frame-based centroid reads a 30 ms click through
-    /// windows longer than the click).
-    fn centroid(x: &[f32]) -> f32 {
-        let s = spectrum(x, SR);
-        let (num, den) = s.iter().fold((0.0f64, 0.0f64), |(n, d), (f, db)| {
-            let p = 10f64.powf(f64::from(*db) / 10.0);
-            (n + f64::from(*f) * p, d + p)
-        });
-        (num / den.max(1e-30)) as f32
-    }
-
     /// Seconds from the start to the last sample within 50 dB of the peak.
     fn length_s(x: &[f32]) -> f32 {
         let peak = x.iter().fold(0.0f32, |m, v| m.max(v.abs()));
@@ -1311,7 +1267,7 @@ mod click {
             let ms = i as f32 / SR as f32 * 1000.0;
             println!(
                 "{kind}: second transient at {ms:.2} ms; centroid {:.0} Hz; length {:.1} ms; peak {:.3}",
-                centroid(&two),
+                spectrum_centroid(&two),
                 length_s(&two) * 1000.0,
                 two.iter().fold(0.0f32, |m, v| m.max(v.abs())),
             );
@@ -1324,7 +1280,7 @@ mod click {
     #[test]
     fn switch_is_bright_and_short() {
         let x = audio("switch", json!({}));
-        let c = centroid(&x);
+        let c = spectrum_centroid(&x);
         let l = length_s(&x) * 1000.0;
         println!("switch: centroid {c:.0} Hz, length (to -50 dB) {l:.1} ms");
         assert!((2000.0..=6000.0).contains(&c), "centroid {c}");
@@ -1336,7 +1292,7 @@ mod click {
         for kind in KINDS {
             let cs: Vec<f32> = [0.1, 0.3, 0.5, 0.7, 0.9]
                 .iter()
-                .map(|s| centroid(&audio(kind, json!({"size": s}))))
+                .map(|s| spectrum_centroid(&audio(kind, json!({"size": s}))))
                 .collect();
             println!("{kind}: centroid at size .1 .3 .5 .7 .9: {cs:.0?} Hz");
             assert!(
@@ -1350,7 +1306,7 @@ mod click {
     fn harder_is_brighter() {
         let cs: Vec<f32> = [0.0, 0.35, 0.7, 1.0]
             .iter()
-            .map(|h| centroid(&audio("latch", json!({"hardness": h}))))
+            .map(|h| spectrum_centroid(&audio("latch", json!({"hardness": h}))))
             .collect();
         println!("latch: centroid at hardness 0 .35 .7 1: {cs:.0?} Hz");
         assert!(cs.windows(2).all(|w| w[1] > w[0]), "{cs:?}");
@@ -1501,7 +1457,7 @@ mod click {
             a.channels[0].len(),
             d.peak_db,
             d.onsets.iter().map(|o| o.t).collect::<Vec<_>>(),
-            centroid(&a.channels[0])
+            spectrum_centroid(&a.channels[0])
         );
         assert_eq!(a.channels[0].len(), (0.25 * SR as f32) as usize);
         assert_finite(&a.channels[0], "recipe");

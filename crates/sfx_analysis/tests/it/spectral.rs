@@ -1,6 +1,7 @@
 mod offline {
     //! The phase-3 offline pitch / time / spectral nodes, measured.
 
+    use crate::common::*;
     use serde_json::{Value, json};
     use sfx_analysis::pitch::{cents, yin};
     use sfx_analysis::stft::distance;
@@ -24,10 +25,6 @@ mod offline {
         assert!(!v.is_empty(), "no voiced frames");
         v.sort_by(|a, b| a.total_cmp(b));
         v[v.len() / 2]
-    }
-
-    fn rms(x: &[f32]) -> f32 {
-        (x.iter().map(|v| v * v).sum::<f32>() / x.len().max(1) as f32).sqrt()
     }
 
     fn db(x: f32) -> f32 {
@@ -267,16 +264,7 @@ mod modes {
             ],
             o => panic!("{}", o.kind()),
         };
-        let mut h = 0xcbf29ce484222325u64;
-        for c in chans {
-            for v in c {
-                for b in v.to_bits().to_le_bytes() {
-                    h ^= u64::from(b);
-                    h = h.wrapping_mul(0x100000001b3);
-                }
-            }
-        }
-        h
+        fnv_channels(&chans)
     }
 
     /// A fixed test signal: a decaying two-partial tone plus noise, mono, and a
@@ -391,21 +379,8 @@ mod modes {
         r
     }
 
-    fn sine(hz: f32, amp: f32) -> Value {
-        json!({"type": "osc", "name": "src", "freq": hz, "amp": amp})
-    }
-
     fn render_error(nodes: Vec<Value>) -> String {
-        let mut d = SoundDoc::named("test");
-        d.nodes = nodes;
-        d.nodes
-            .push(json!({"type": "output", "name": "out", "input": "x"}));
-        d.duration = Some(0.1);
-        d.render(&RenderOpts::default()).unwrap_err()
-    }
-
-    fn rms(x: &[f32]) -> f32 {
-        (x.iter().map(|v| v * v).sum::<f32>() / x.len().max(1) as f32).sqrt()
+        crate::common::render_error(nodes, "x", 0.1)
     }
 
     // ------------------------------------------------------------------ shift
@@ -414,7 +389,7 @@ mod modes {
     fn shift_moves_a_sine_by_hz_and_keeps_its_level() {
         for (hz, want) in [(300.0f32, 1300.0f32), (-300.0, 700.0), (7.5, 1007.5)] {
             let x = node_audio(
-                vec![sine(1000.0, 0.5), spec("shift", json!({"hz": hz}))],
+                vec![sine_src(1000.0, 0.5), spec("shift", json!({"hz": hz}))],
                 "x",
                 1.0,
             );
@@ -456,7 +431,7 @@ mod modes {
         // 20 kHz up 6 kHz would pass Nyquist; 5 kHz down 8 kHz would pass 0 Hz.
         for (f, hz) in [(20_000.0f32, 6000.0f32), (5000.0, -8000.0)] {
             let x = node_audio(
-                vec![sine(f, 0.5), spec("shift", json!({"hz": hz}))],
+                vec![sine_src(f, 0.5), spec("shift", json!({"hz": hz}))],
                 "x",
                 0.5,
             );
@@ -472,7 +447,7 @@ mod modes {
     #[test]
     fn shift_takes_a_signal() {
         let nodes = vec![
-            sine(1000.0, 0.5),
+            sine_src(1000.0, 0.5),
             json!({"type": "ramp", "name": "r", "from": 0, "to": 600, "time": 1.0, "curve": "linear"}),
             spec("shift", json!({"hz": "r"})),
         ];
@@ -808,7 +783,7 @@ mod modes {
     fn new_modes_run_on_both_channels() {
         for (what, node) in all_modes() {
             let nodes = vec![
-                sine(440.0, 0.5),
+                sine_src(440.0, 0.5),
                 json!({"type": "pan", "name": "st", "input": "src", "pan": 0.5}),
                 {
                     let mut n = node.clone();
@@ -835,7 +810,8 @@ mod modes {
 
     #[test]
     fn errors_name_the_field_and_the_fix() {
-        let e = |extra: Value, mode: &str| render_error(vec![sine(440.0, 0.5), spec(mode, extra)]);
+        let e =
+            |extra: Value, mode: &str| render_error(vec![sine_src(440.0, 0.5), spec(mode, extra)]);
         let cases = [
             (e(json!({"hz": 30000}), "shift"), "hz: 30000"),
             (e(json!({}), "shift"), "shift needs `hz`"),
@@ -879,7 +855,7 @@ mod modes {
     #[test]
     fn a_port_name_that_does_not_exist_is_refused() {
         let nodes = vec![
-            sine(440.0, 0.5),
+            sine_src(440.0, 0.5),
             spec("hps", json!({})),
             json!({"type": "gain", "name": "g", "input": "x.nope", "gain": 1}),
         ];

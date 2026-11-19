@@ -5,8 +5,8 @@ mod model {
     use crate::common::*;
     use serde_json::{Value, json};
     use sfx_analysis::measure::measure;
+    use sfx_graph::Measure;
     use sfx_graph::node::parse_body;
-    use sfx_graph::{Measure, RenderOpts, SoundDoc};
 
     /// An `engine` named `eng` with extra fields.
     fn engine(extra: Value) -> Vec<Value> {
@@ -27,16 +27,7 @@ mod model {
     }
 
     fn render_error(nodes: Vec<Value>) -> String {
-        let mut d = SoundDoc::named("test");
-        d.nodes = nodes;
-        d.duration = Some(0.1);
-        let last = d.nodes.last().unwrap()["name"]
-            .as_str()
-            .unwrap()
-            .to_string();
-        d.nodes
-            .push(json!({"type": "output", "name": "out", "input": last}));
-        d.render(&RenderOpts::default()).unwrap_err()
+        crate::common::render_error_last(nodes, 0.1)
     }
 
     /// The engine's pitch as a listener would name it: the lowest spectral peak

@@ -13,13 +13,6 @@ fn pat(every: f32, count: u32) -> Value {
     json!({"type": "pattern", "name": "ev", "every": every, "count": count})
 }
 
-fn with(mut node: Value, extra: Value) -> Value {
-    node.as_object_mut()
-        .unwrap()
-        .extend(extra.as_object().unwrap().clone());
-    node
-}
-
 /// An event node's (or port's) stream.
 fn events(nodes: Vec<Value>, name: &str, duration: f32) -> Vec<Event> {
     let mut d = SoundDoc::named("test");
@@ -40,16 +33,7 @@ fn events(nodes: Vec<Value>, name: &str, duration: f32) -> Vec<Event> {
 }
 
 fn render_error(nodes: Vec<Value>, read: &str) -> String {
-    render_error_for(nodes, read, 0.1)
-}
-
-fn render_error_for(nodes: Vec<Value>, read: &str, duration: f32) -> String {
-    let mut d = SoundDoc::named("test");
-    d.nodes = nodes;
-    d.nodes
-        .push(json!({"type": "output", "name": "out", "input": read}));
-    d.duration = Some(duration);
-    d.render(&RenderOpts::default()).unwrap_err()
+    crate::common::render_error(nodes, read, 0.1)
 }
 
 fn idx(t: f32) -> usize {
@@ -60,7 +44,7 @@ fn idx(t: f32) -> usize {
 fn trigger_env_peaks_at_each_event_with_its_value() {
     for retrigger in ["restart", "add"] {
         let nodes = vec![
-            with(
+            with_fields(
                 pat(0.1, 5),
                 json!({"values": {"min": 0.3, "max": 1.7}, "seed": 4}),
             ),
@@ -102,7 +86,7 @@ fn trigger_env_attack_decay_and_curves() {
         node_audio(
             vec![
                 json!({"type": "once", "name": "ev", "at": 0.1}),
-                with(
+                with_fields(
                     json!({"type": "trigger_env", "name": "env", "events": "ev"}),
                     extra,
                 ),
@@ -145,7 +129,7 @@ fn trigger_env_attack_decay_and_curves() {
 
     let v = node_audio(
         vec![
-            with(pat(0.1, 2), json!({"values": {"min": 3.0, "max": 3.0}})),
+            with_fields(pat(0.1, 2), json!({"values": {"min": 3.0, "max": 3.0}})),
             json!({"type": "trigger_env", "name": "env", "events": "ev", "attack": 0,
                    "scale_by_value": false}),
         ],
@@ -232,7 +216,7 @@ fn event_gate_is_one_for_length_after_each_event() {
 fn seq_nodes(extra: Value) -> Vec<Value> {
     vec![
         pat(0.1, 7),
-        with(
+        with_fields(
             json!({"type": "seq", "name": "s", "events": "ev", "values": [100, 200, 300]}),
             extra,
         ),
@@ -295,7 +279,7 @@ fn seq_glides_from_the_current_value() {
 }
 
 fn notes_nodes(extra: Value) -> Vec<Value> {
-    vec![with(
+    vec![with_fields(
         json!({"type": "notes", "name": "n", "notes": [["A4", 1], ["C5", 1]], "bpm": 120}),
         extra,
     )]
@@ -354,7 +338,7 @@ fn notes_hold_pitches_and_gate_and_emit_events() {
 #[test]
 fn notes_names_semitones_rests_root_and_glide() {
     let hz = |notes: Value, extra: Value| {
-        let n = with(
+        let n = with_fields(
             json!({"type": "notes", "name": "n", "notes": notes, "bpm": 60}),
             extra,
         );
@@ -440,7 +424,7 @@ fn notes_events_drive_a_trigger_env() {
 
 fn all_four() -> Vec<Value> {
     vec![
-        with(
+        with_fields(
             pat(0.07, 9),
             json!({"values": {"min": 0.4, "max": 1.0}, "jitter": 0.01}),
         ),
@@ -471,11 +455,11 @@ fn sequence_nodes_are_finite_at_the_extremes() {
     for extra in sets {
         for (curve, retrigger) in [("exp", "restart"), ("linear", "add"), ("smooth", "restart")] {
             let nodes = [
-                with(
+                with_fields(
                     pat(0.01, 20),
                     json!({"values": {"min": -1.0e6, "max": 1.0e6}}),
                 ),
-                with(
+                with_fields(
                     json!({"type": "trigger_env", "name": "e", "events": "ev", "curve": curve,
                            "retrigger": retrigger}),
                     extra.clone(),
@@ -525,7 +509,7 @@ fn sequence_errors_say_the_field_value_and_fix() {
     let env = |extra: Value| {
         vec![
             ev.clone(),
-            with(
+            with_fields(
                 json!({"type": "trigger_env", "name": "x", "events": "ev"}),
                 extra,
             ),
@@ -541,7 +525,7 @@ fn sequence_errors_say_the_field_value_and_fix() {
         assert!(e.contains(want), "{e}");
     }
     // A stream of 200k events times a long envelope is refused with the limit.
-    let e = render_error_for(
+    let e = crate::common::render_error(
         vec![
             json!({"type": "pattern", "name": "ev", "every": 0.00001, "count": 150000}),
             json!({"type": "trigger_env", "name": "x", "events": "ev", "decay": 10, "retrigger": "add"}),
@@ -592,7 +576,7 @@ fn sequence_errors_say_the_field_value_and_fix() {
     assert!(e.contains("shuffle") && e.contains("cycle"), "{e}");
     let notes = |extra: Value| {
         render_error(
-            vec![with(json!({"type": "notes", "name": "x"}), extra)],
+            vec![with_fields(json!({"type": "notes", "name": "x"}), extra)],
             "x",
         )
     };

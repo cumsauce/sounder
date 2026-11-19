@@ -57,14 +57,6 @@ mod model {
         measure(&Audio::mono(SR, x.to_vec()), Measure::Crest)
     }
 
-    fn peak(x: &[f32]) -> f32 {
-        x.iter().fold(0.0f32, |m, v| m.max(v.abs()))
-    }
-
-    fn peak_db(x: &[f32]) -> f32 {
-        20.0 * peak(x).max(1e-9).log10()
-    }
-
     /// Seconds to the first sample at or above `frac` of the peak.
     fn first_above(x: &[f32], frac: f32) -> f32 {
         let lim = frac * peak(x);
@@ -86,12 +78,7 @@ mod model {
     }
 
     fn render_error(nodes: Vec<Value>) -> String {
-        let mut d = SoundDoc::named("test");
-        d.nodes = nodes;
-        d.nodes
-            .push(json!({"type": "output", "name": "out", "input": "x"}));
-        d.duration = Some(0.5);
-        d.render(&RenderOpts::default()).unwrap_err()
+        crate::common::render_error(nodes, "x", 0.5)
     }
 
     // ------------------------------------------------------------- explosion

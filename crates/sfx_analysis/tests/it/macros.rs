@@ -890,10 +890,6 @@ mod patch_paths {
         vec![c]
     }
 
-    fn peak(x: &[f32]) -> f32 {
-        x.iter().fold(0.0f32, |m, v| m.max(v.abs()))
-    }
-
     #[test]
     fn contact_gain_db_lowers_the_peak_by_that_many_db() {
         let base = node_audio(strike(json!({})), "c", 0.1);

@@ -2,27 +2,9 @@
 
 use crate::common::*;
 use serde_json::{Value, json};
-use sfx_graph::{RenderOpts, SoundDoc};
-
-fn sine(hz: f32, amp: f32, secs: f32) -> Vec<f32> {
-    (0..(secs * SR as f32) as usize)
-        .map(|i| {
-            amp * (std::f64::consts::TAU * f64::from(hz) * i as f64 / f64::from(SR)).sin() as f32
-        })
-        .collect()
-}
 
 fn render_err(nodes: Vec<Value>) -> String {
-    let mut d = SoundDoc::named("test");
-    d.nodes = nodes;
-    d.duration = Some(0.2);
-    match d.render(&RenderOpts {
-        cached: false,
-        ..RenderOpts::default()
-    }) {
-        Ok(_) => panic!("expected an error"),
-        Err(e) => e.to_string(),
-    }
+    crate::common::render_error_raw(nodes, 0.2)
 }
 
 /// A constant-amplitude tone through `node` (a JSON body with `input`
@@ -38,7 +20,7 @@ fn tone_gain(node: Value, hz: f32) -> f32 {
     let name = nodes[2]["name"].as_str().unwrap().to_string();
     let y = node_audio(&nodes, &name, secs);
     let half = y.len() / 2;
-    let x = sine(hz, 0.1, secs);
+    let x = sine_samples(hz, 0.1, secs);
     rms_db(&y[half..]) - rms_db(&x[half..])
 }
 

@@ -111,16 +111,7 @@ mod model {
     }
 
     fn render_error(nodes: Vec<Value>) -> String {
-        let mut d = SoundDoc::named("test");
-        d.nodes = nodes;
-        let last = d.nodes.last().unwrap()["name"]
-            .as_str()
-            .unwrap()
-            .to_string();
-        d.nodes
-            .push(json!({"type": "output", "name": "out", "input": last}));
-        d.duration = Some(0.5);
-        d.render(&RenderOpts::default()).unwrap_err()
+        crate::common::render_error_last(nodes, 0.5)
     }
 
     #[test]
@@ -899,13 +890,6 @@ mod after_listening {
     use serde_json::{Value, json};
     use sfx_analysis::describe;
 
-    fn mono(x: &[f32]) -> sfx_graph::Audio {
-        sfx_graph::Audio {
-            sample_rate: SR,
-            channels: vec![x.to_vec()],
-        }
-    }
-
     fn one(kind: &str, fields: Value) -> Vec<Value> {
         let mut n = json!({"type": kind, "name": "n"});
         n.as_object_mut()
@@ -964,7 +948,7 @@ mod after_listening {
                 3.0,
             );
             assert_finite(&x, "water");
-            let d = describe(&mono(&x));
+            let d = describe(&mono_audio(&x));
             let cv = hf_env_cv(&x, 3000.0);
             let low_mid = share(&x, 300.0, 1200.0);
             println!(
@@ -998,7 +982,7 @@ mod after_listening {
                 2.5,
             );
             assert_finite(&x, "splash");
-            let d = describe(&mono(&x));
+            let d = describe(&mono_audio(&x));
             let first = &x[..(0.02 * SR as f32) as usize];
             let thump = share(&x, 0.0, 250.0);
             let slap = share(first, 1000.0, 6000.0);
@@ -1062,13 +1046,6 @@ mod tail_tone {
         o.extend(base.as_object().unwrap().clone());
         o.extend(extra.as_object().unwrap().clone());
         vec![n]
-    }
-
-    fn mono(x: &[f32]) -> sfx_graph::Audio {
-        sfx_graph::Audio {
-            sample_rate: SR,
-            channels: vec![x.to_vec()],
-        }
     }
 
     /// Seconds from the first sound until the 10 ms RMS envelope is under `db`
@@ -1245,7 +1222,7 @@ mod tail_tone {
             let a = x.iter().position(|v| *v != 0.0).unwrap();
             let peak = x.iter().fold(0.0f32, |m, v| m.max(v.abs()));
             let end = x.iter().rposition(|v| v.abs() > 1e-3 * peak).unwrap();
-            let desc = describe(&mono(&x));
+            let desc = describe(&mono_audio(&x));
             let d = desc.decay20_s.unwrap_or(0.0);
             let d60 = desc.decay60_s.unwrap_or(0.0);
             println!(

@@ -9,10 +9,7 @@ use sfx_graph::{Buf, Ctx, Params, RenderOpts, SoundDoc, SoundSource, evaluate};
 const SR: usize = 48_000;
 
 fn doc(nodes: Vec<Value>, secs: f32) -> SoundDoc {
-    let mut d = SoundDoc::named("t");
-    d.nodes = nodes;
-    d.duration = Some(secs);
-    d
+    crate::common::bare_doc(nodes, Some(secs))
 }
 
 /// A click: an impulse into a damped resonator (distinct onsets).

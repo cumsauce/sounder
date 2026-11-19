@@ -7,19 +7,8 @@ use sfx_analysis::{CheckCx, Expect, run};
 use sfx_graph::node::parse_body;
 use sfx_graph::{Kind, RenderOpts, SoundDoc};
 
-/// The error a document with these nodes fails to render with (the last
-/// node is read by the output).
 fn render_error(nodes: Vec<Value>, duration: f32) -> String {
-    let mut d = SoundDoc::named("test");
-    let last = nodes.last().unwrap()["name"].as_str().unwrap().to_string();
-    d.nodes = nodes;
-    d.nodes
-        .push(json!({"type": "output", "name": "out", "input": last}));
-    d.duration = Some(duration);
-    match d.render(&RenderOpts::default()) {
-        Err(e) => e,
-        Ok(_) => panic!("rendered, but an error was expected"),
-    }
+    crate::common::render_error_last(nodes, duration)
 }
 
 // ------------------------------------------------------------ crossfade_loop
@@ -81,10 +70,6 @@ fn with_xfade(mut nodes: Vec<Value>, fade: Value) -> Vec<Value> {
     nodes
 }
 
-fn rms(x: &[f32]) -> f32 {
-    rms_db(x)
-}
-
 /// The 2 s loops used below: brown noise at many seeds (a low-passed noise
 /// whose end is rarely near its start) and slowly modulated band-passed
 /// noise (a `wander` moves the centre frequency).
@@ -116,7 +101,7 @@ fn crossfade_loop_makes_noise_loops_pass_loop_seam() {
         dc_new += usize::from(
             after.2.contains(&"dc".to_string()) && !before.2.contains(&"dc".to_string()),
         );
-        worst_level = worst_level.max((rms(&before.3) - rms(&after.3)).abs());
+        worst_level = worst_level.max((rms_db(&before.3) - rms_db(&after.3)).abs());
     }
     println!(
         "brown noise, 40 seeds, 2 s loop, default fade: {fail_before} fail loop_seam before, {fail_after} after; worst whole-sound rms change {worst_level:.2} dB; `dc` newly fails on {dc_new}"
@@ -160,7 +145,7 @@ fn crossfade_loop_makes_noise_loops_pass_loop_seam() {
             .zip(&after.3[f..n - f])
             .all(|(a, b)| a.to_bits() == b.to_bits())
     );
-    let (rb, ra) = (rms(&before.3), rms(&after.3));
+    let (rb, ra) = (rms_db(&before.3), rms_db(&after.3));
     println!(
         "  whole-sound rms {rb:.2} -> {ra:.2} dB; middle (not within 0.25 s of the ends) identical"
     );
@@ -206,7 +191,7 @@ fn crossfade_loop_is_equal_power_and_wraps_into_the_neighbouring_sample() {
     // The wrap: y[n-1] is the sample just before y[0]'s source.
     assert_eq!(y[n - 1], raw[n - f - 1]);
     assert_eq!(y[0], raw[n - f]);
-    let (mid, head, tail) = (rms(&y[f..n - f]), rms(&y[..f]), rms(&y[n - f..]));
+    let (mid, head, tail) = (rms_db(&y[f..n - f]), rms_db(&y[..f]), rms_db(&y[n - f..]));
     // Uncorrelated halves of white noise keep their power through the fade.
     println!(
         "white noise, fade 0.25 s: rms middle {mid:.2} dB, first 0.25 s {head:.2} dB, last 0.25 s {tail:.2} dB; y[0] = x[n-F], y[n-1] = x[n-F-1] exactly"
@@ -270,13 +255,9 @@ fn crossfade_loop_stereo_is_bit_identical_finite_and_errors_explain() {
 
 // ----------------------------------------------------------------- resample
 
-fn sine(hz: f32, amp: f32) -> Value {
-    json!({"type": "osc", "name": "src", "freq": hz, "amp": amp})
-}
-
 fn resampled(hz: f32, rate: Value, anti: bool) -> Vec<f32> {
     let nodes = vec![
-        sine(hz, 0.5),
+        sine_src(hz, 0.5),
         json!({"type": "resample", "name": "rs", "input": "src", "rate": rate, "antialias": anti}),
     ];
     node_audio(nodes, "rs", 1.0)
@@ -316,7 +297,7 @@ fn resample_hold_makes_images_and_antialias_removes_them() {
 #[test]
 fn resample_holds_exactly_and_takes_a_swept_rate() {
     // 12000 Hz at 48 kHz: every 4 samples are one value, the first of each.
-    let raw = node_audio([sine(1000.0, 0.5)], "src", 0.2);
+    let raw = node_audio([sine_src(1000.0, 0.5)], "src", 0.2);
     let held = resampled_len(1000.0, json!(12000), 0.2);
     assert!(
         held.chunks(4)
@@ -362,7 +343,7 @@ fn resample_holds_exactly_and_takes_a_swept_rate() {
 
 fn resampled_len(hz: f32, rate: Value, secs: f32) -> Vec<f32> {
     let nodes = vec![
-        sine(hz, 0.5),
+        sine_src(hz, 0.5),
         json!({"type": "resample", "name": "rs", "input": "src", "rate": rate}),
     ];
     node_audio(nodes, "rs", secs)
@@ -391,7 +372,7 @@ fn resample_is_finite_at_the_extremes_and_errors_explain() {
     ] {
         let e = render_error(
             vec![
-                sine(100.0, 0.5),
+                sine_src(100.0, 0.5),
                 json!({"type": "resample", "name": "rs", "input": "src", "rate": rate}),
             ],
             0.1,
@@ -461,7 +442,7 @@ fn tape_nodes(extra: Value) -> Vec<Value> {
     t.as_object_mut()
         .unwrap()
         .extend(extra.as_object().unwrap().clone());
-    vec![sine(1000.0, 0.5), t]
+    vec![sine_src(1000.0, 0.5), t]
 }
 
 #[test]
@@ -503,8 +484,8 @@ fn tape_flutter_is_fast_and_wow_flutter_off_is_clean() {
     // With wow, flutter, drive and hiss off the tape is a one sample delay
     // and a high tone: the level moves under 0.1 dB.
     let clean = node_audio(tape_nodes(json!({})), "tp", 0.5);
-    let raw = node_audio([sine(1000.0, 0.5)], "src", 0.5);
-    let d = rms(&clean[100..]) - rms(&raw[100..]);
+    let raw = node_audio([sine_src(1000.0, 0.5)], "src", 0.5);
+    let d = rms_db(&clean[100..]) - rms_db(&raw[100..]);
     let lag = clean[100..]
         .iter()
         .zip(&raw[99..])
@@ -522,17 +503,17 @@ fn tape_drive_hiss_and_tone() {
     // limited to tanh(d a) / d.
     let quiet = node_audio(
         vec![
-            sine(1000.0, 0.01),
+            sine_src(1000.0, 0.01),
             tape_nodes(json!({"drive": 4}))[1].clone(),
         ],
         "tp",
         0.3,
     );
-    let raw = node_audio([sine(1000.0, 0.01)], "src", 0.3);
-    let g = rms(&quiet[200..]) - rms(&raw[200..]);
+    let raw = node_audio([sine_src(1000.0, 0.01)], "src", 0.3);
+    let g = rms_db(&quiet[200..]) - rms_db(&raw[200..]);
     let loud = node_audio(
         vec![
-            sine(1000.0, 0.9),
+            sine_src(1000.0, 0.9),
             tape_nodes(json!({"drive": 4}))[1].clone(),
         ],
         "tp",
@@ -556,7 +537,7 @@ fn tape_drive_hiss_and_tone() {
     };
     let wide = node_audio(zero(json!({"hiss_db": -40})), "tp", 1.0);
     let narrow = node_audio(zero(json!({"hiss_db": -40, "tone": 2400})), "tp", 1.0);
-    let (w, n) = (rms(&wide[1000..]), rms(&narrow[1000..]));
+    let (w, n) = (rms_db(&wide[1000..]), rms_db(&narrow[1000..]));
     println!(
         "hiss -40 dB: rms {w:.2} dB with tone 21600 Hz, {n:.2} dB with tone 2400 Hz (want about -40.5 and -49.5)"
     );
@@ -569,11 +550,14 @@ fn tape_drive_hiss_and_tone() {
     assert_eq!(s1, s1b);
     // Tone: a 2 kHz corner, 12 dB/oct: -3 dB at 2 kHz, about -24 dB at 8 kHz.
     let level = |hz: f32| {
-        let mut nodes = vec![sine(hz, 0.5), tape_nodes(json!({"tone": 2000}))[1].clone()];
+        let mut nodes = vec![
+            sine_src(hz, 0.5),
+            tape_nodes(json!({"tone": 2000}))[1].clone(),
+        ];
         nodes[1]["input"] = json!("src");
         let y = node_audio(nodes, "tp", 0.5);
-        let raw = node_audio([sine(hz, 0.5)], "src", 0.5);
-        rms(&y[2000..]) - rms(&raw[2000..])
+        let raw = node_audio([sine_src(hz, 0.5)], "src", 0.5);
+        rms_db(&y[2000..]) - rms_db(&raw[2000..])
     };
     let (a, b, c) = (level(200.0), level(2000.0), level(8000.0));
     println!("tone 2000 Hz: 200 Hz {a:.2} dB, 2 kHz {b:.2} dB, 8 kHz {c:.2} dB");
@@ -634,7 +618,7 @@ fn tape_is_bit_identical_stereo_finite_at_the_extremes_and_errors_explain() {
         t.as_object_mut()
             .unwrap()
             .extend(extra.as_object().unwrap().clone());
-        let e = render_error(vec![sine(100.0, 0.5), t], 0.1);
+        let e = render_error(vec![sine_src(100.0, 0.5), t], 0.1);
         println!("tape error: {e}");
         assert!(e.contains(want), "{e}");
     }
@@ -852,7 +836,7 @@ fn lofi_recipes_render() {
     )
     .unwrap();
     let x = node_audio(&crunch, "crunch", 0.5);
-    println!("recipe resample: rms {:.2} dB", rms(&x));
+    println!("recipe resample: rms {:.2} dB", rms_db(&x));
     assert_finite(&x, "crunch");
 
     // An old cassette: a held chord.
@@ -866,7 +850,7 @@ fn lofi_recipes_render() {
     )
     .unwrap();
     let x = node_audio(&cassette, "old", 2.0);
-    println!("recipe tape: rms {:.2} dB", rms(&x));
+    println!("recipe tape: rms {:.2} dB", rms_db(&x));
     assert_finite(&x, "old");
 
     // A skipping record: the last 80 ms repeat 3 times at 0.6 s and 1.3 s.
@@ -880,6 +864,6 @@ fn lofi_recipes_render() {
     )
     .unwrap();
     let x = node_audio(&skip, "skip", 2.0);
-    println!("recipe stutter: rms {:.2} dB", rms(&x));
+    println!("recipe stutter: rms {:.2} dB", rms_db(&x));
     assert_finite(&x, "skip");
 }

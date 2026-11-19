@@ -4,7 +4,6 @@
 use crate::common::*;
 use serde_json::{Value, json};
 use sfx_graph::node::parse_body;
-use sfx_graph::{RenderOpts, SoundDoc};
 
 fn white() -> Value {
     json!({"type": "noise", "name": "src", "amp": 0.3})
@@ -24,12 +23,7 @@ fn node(ty: &str, n: &str, extra: Value) -> Value {
 }
 
 fn render_error(nodes: Vec<Value>, read: &str) -> String {
-    let mut d = SoundDoc::named("test");
-    d.nodes = nodes;
-    d.nodes
-        .push(json!({"type": "output", "name": "out", "input": read}));
-    d.duration = Some(0.1);
-    d.render(&RenderOpts::default()).unwrap_err()
+    crate::common::render_error(nodes, read, 0.1)
 }
 
 /// RMS in dB of the second half (after the filters have settled).

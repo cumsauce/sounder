@@ -743,6 +743,7 @@ mod additions {
 mod known_signals {
     //! The senses read known signals correctly.
 
+    use crate::common::*;
     use serde_json::{Value, json};
     use sfx_analysis::checks::{Expect, clicks};
     use sfx_analysis::{CheckCx, Column, View, describe, listen_png, run};
@@ -754,13 +755,6 @@ mod known_signals {
         (0..(secs * SR as f32) as usize)
             .map(|i| amp * (std::f32::consts::TAU * hz * i as f32 / SR as f32).sin())
             .collect()
-    }
-
-    fn doc(nodes: Vec<Value>, duration: Option<f32>) -> SoundDoc {
-        let mut d = SoundDoc::named("t");
-        d.nodes = nodes;
-        d.duration = duration;
-        d
     }
 
     fn check(d: &SoundDoc, e: Expect) -> Vec<sfx_analysis::CheckResult> {
@@ -829,7 +823,7 @@ mod known_signals {
 
     #[test]
     fn white_noise_is_flat() {
-        let d = doc(
+        let d = bare_doc(
             vec![
                 json!({"type": "noise", "name": "n", "amp": 0.3}),
                 json!({"type": "output", "name": "out", "input": "n"}),
@@ -863,7 +857,7 @@ mod known_signals {
 
     #[test]
     fn silent_edges_fails_on_a_buffer_cut_mid_wave() {
-        let cut = doc(
+        let cut = bare_doc(
             vec![
                 json!({"type": "osc", "name": "o", "freq": 440, "phase": 0.25, "amp": 0.5}),
                 json!({"type": "output", "name": "out", "input": "o", "fade_in": 0, "fade_out": 0}),
@@ -878,7 +872,7 @@ mod known_signals {
             r[0].detail
         );
         // The output's default fades fix it.
-        let faded = doc(
+        let faded = bare_doc(
             vec![
                 json!({"type": "osc", "name": "o", "freq": 440, "phase": 0.25, "amp": 0.5}),
                 json!({"type": "output", "name": "out", "input": "o"}),
@@ -901,7 +895,7 @@ mod known_signals {
     #[test]
     fn loop_seam_passes_a_periodic_loop_and_fails_a_broken_one() {
         let mk = |hz: f32| {
-            let mut d = doc(
+            let mut d = bare_doc(
                 vec![
                     json!({"type": "osc", "name": "o", "freq": hz, "amp": 0.5}),
                     json!({"type": "output", "name": "out", "input": "o"}),
@@ -922,7 +916,7 @@ mod known_signals {
 
     #[test]
     fn pitch_bands_onsets_and_duration_checks() {
-        let d = doc(
+        let d = bare_doc(
             vec![
                 json!({"type": "impulse", "name": "i", "at": [0.0, 0.3, 0.6]}),
                 json!({"type": "resonators", "name": "r", "input": "i", "modes": [[440, 0.2, 0.5]]}),
@@ -953,7 +947,7 @@ mod known_signals {
 
     #[test]
     fn defaults_and_variations_and_rebuild() {
-        let d = doc(
+        let d = bare_doc(
             vec![
                 json!({"type": "noise", "name": "n", "color": "pink"}),
                 json!({"type": "wander", "name": "w", "rate": 12, "range": [400, 2500]}),
@@ -973,7 +967,7 @@ mod known_signals {
         );
         assert!(v[0].pass, "{:?}", v[0]);
         // A sound with no randomness has identical seeds: fails min_distance.
-        let fixed = doc(
+        let fixed = bare_doc(
             vec![
                 json!({"type": "osc", "name": "o", "freq": 300}),
                 json!({"type": "decay", "name": "e", "time": 0.2}),
@@ -1071,7 +1065,7 @@ mod known_signals {
     #[test]
     fn the_macros_check_keeps_names_honest() {
         use sfx_graph::Measure;
-        let mut d = doc(
+        let mut d = bare_doc(
             vec![
                 json!({"type": "noise", "name": "n", "color": "white", "amp": 0.3}),
                 json!({"type": "decay", "name": "e", "time": 0.3}),

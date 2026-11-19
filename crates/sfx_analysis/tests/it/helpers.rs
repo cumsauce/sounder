@@ -4,14 +4,6 @@ use crate::common::*;
 use serde_json::json;
 use sfx_graph::dsp::Oversampler;
 
-fn sine(hz: f32, amp: f32, secs: f32) -> Vec<f32> {
-    (0..(secs * SR as f32) as usize)
-        .map(|i| {
-            amp * (std::f64::consts::TAU * f64::from(hz) * i as f64 / f64::from(SR)).sin() as f32
-        })
-        .collect()
-}
-
 fn tone_nodes() -> Vec<serde_json::Value> {
     vec![
         json!({"type": "osc", "name": "tone", "shape": "sine", "freq": 1000}),
@@ -59,9 +51,9 @@ fn render_panics_with_the_graph_error() {
 
 #[test]
 fn spectrum_and_peaks_find_the_partials() {
-    let x: Vec<f32> = sine(700.0, 0.5, 1.0)
+    let x: Vec<f32> = sine_samples(700.0, 0.5, 1.0)
         .iter()
-        .zip(sine(1300.0, 0.25, 1.0))
+        .zip(sine_samples(1300.0, 0.25, 1.0))
         .map(|(a, b)| a + b)
         .collect();
     let s = spectrum(&x, SR);
@@ -82,7 +74,7 @@ fn spectrum_and_peaks_find_the_partials() {
 
 #[test]
 fn rms_db_reads_levels() {
-    let x = sine(440.0, 1.0, 1.0);
+    let x = sine_samples(440.0, 1.0, 1.0);
     assert!((rms_db(&x) - (-3.01)).abs() < 0.01);
     assert_eq!(rms_db(&[]), -120.0);
     assert_eq!(rms_db(&vec![0.0; 100]), -120.0);
@@ -90,12 +82,15 @@ fn rms_db_reads_levels() {
 
 #[test]
 fn alias_db_tells_a_clean_tone_from_a_folded_one() {
-    let clean = sine(5000.0, 0.8, 1.0);
+    let clean = sine_samples(5000.0, 0.8, 1.0);
     let c = alias_db(&clean, SR, 5000.0);
     let clip = |v: f32| (v * 8.0).clamp(-1.0, 1.0);
-    let hard: Vec<f32> = sine(5000.0, 1.0, 1.0).iter().map(|v| clip(*v)).collect();
+    let hard: Vec<f32> = sine_samples(5000.0, 1.0, 1.0)
+        .iter()
+        .map(|v| clip(*v))
+        .collect();
     let mut os = Oversampler::new(8).unwrap();
-    let soft: Vec<f32> = sine(5000.0, 1.0, 1.0)
+    let soft: Vec<f32> = sine_samples(5000.0, 1.0, 1.0)
         .iter()
         .map(|v| os.process(*v, clip))
         .collect();

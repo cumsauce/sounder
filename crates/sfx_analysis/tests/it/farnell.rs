@@ -7,22 +7,9 @@
 use crate::common::*;
 use serde_json::{Value, json};
 use sfx_analysis::describe;
-use sfx_graph::{RenderOpts, SoundDoc};
-
-fn mono(x: &[f32]) -> sfx_graph::Audio {
-    sfx_graph::Audio {
-        sample_rate: SR,
-        channels: vec![x.to_vec()],
-    }
-}
 
 fn render_error(nodes: Vec<Value>) -> String {
-    let mut d = SoundDoc::named("test");
-    d.nodes = nodes;
-    d.nodes
-        .push(json!({"type": "output", "name": "out", "input": "n"}));
-    d.duration = Some(0.1);
-    d.render(&RenderOpts::default()).unwrap_err()
+    crate::common::render_error(nodes, "n", 0.1)
 }
 
 fn one(ty: &str, extra: Value) -> Vec<Value> {
@@ -53,7 +40,7 @@ fn bell_partials_sit_on_the_patch_ratios() {
 
 #[test]
 fn bell_strikes_where_asked_and_rings_longer_with_ring() {
-    let a = describe(&mono(&node_audio(
+    let a = describe(&mono_audio(&node_audio(
         one("bell", json!({"at": [0.05, 1.0]})),
         "n",
         2.0,
@@ -77,7 +64,7 @@ fn bell_strikes_where_asked_and_rings_longer_with_ring() {
 fn ball_bounces_speed_up_and_fade() {
     let x = node_audio(one("ball_bounce", json!({})), "n", 4.0);
     assert_finite(&x, "ball");
-    let d = describe(&mono(&x));
+    let d = describe(&mono_audio(&x));
     let t: Vec<f32> = d.onsets.iter().map(|o| o.t).collect();
     println!("ball onsets {t:?}");
     assert!(t.len() >= 8, "{t:?}");
@@ -101,7 +88,7 @@ fn cricket_chirps_every_period_at_its_pitch() {
         "{p}"
     );
     // A chirp every 41 x 17 ms = 0.697 s.
-    let d = describe(&mono(&x));
+    let d = describe(&mono_audio(&x));
     // Chirp starts: onsets more than 0.3 s after the one before (the
     // pulses inside a chirp are a few tens of ms apart).
     let mut starts: Vec<f32> = Vec::new();
@@ -166,7 +153,7 @@ fn siren_sweeps_between_low_and_high() {
     // The horn's band-pass sits at 1.5 kHz; the sweep moves the fundamental
     // between 300 and 1100 Hz, so the first and last quarters of a slow
     // sweep differ in pitch.
-    let d = describe(&mono(&x));
+    let d = describe(&mono_audio(&x));
     let p: Vec<f32> = d.pitch_tenths.iter().flatten().copied().collect();
     println!("siren pitch by tenth {:?}", d.pitch_tenths);
     let (lo, hi) = (
@@ -180,12 +167,12 @@ fn siren_sweeps_between_low_and_high() {
 fn door_creaks_only_when_pushed() {
     let still = node_audio(one("door_creak", json!({"force": 0.2})), "n", 1.0);
     assert!(rms_db(&still) < -100.0, "{}", rms_db(&still));
-    let slow = describe(&mono(&node_audio(
+    let slow = describe(&mono_audio(&node_audio(
         one("door_creak", json!({"force": 0.4, "seed": 2})),
         "n",
         2.0,
     )));
-    let fast = describe(&mono(&node_audio(
+    let fast = describe(&mono_audio(&node_audio(
         one("door_creak", json!({"force": 0.9, "seed": 2})),
         "n",
         2.0,
@@ -203,7 +190,7 @@ fn jet_rises_in_pitch_and_level_with_speed() {
     let hi = node_audio(one("jet", json!({"speed": 0.9})), "n", 8.0);
     assert_finite(&hi, "jet");
     let tail = |x: &[f32]| x[(6.0 * SR as f32) as usize..].to_vec();
-    let c = |x: Vec<f32>| describe(&mono(&x)).centroid_all_hz;
+    let c = |x: Vec<f32>| describe(&mono_audio(&x)).centroid_all_hz;
     let (cl, ch) = (c(tail(&lo)), c(tail(&hi)));
     println!("jet centroid at speed 0.3 / 0.9: {cl:.0} / {ch:.0} Hz");
     assert!(ch > cl * 1.5);
@@ -215,7 +202,7 @@ fn jet_rises_in_pitch_and_level_with_speed() {
 fn red_alert_whoops_where_asked_and_rises() {
     let x = node_audio(one("red_alert", json!({"at": [0.01, 1.3]})), "n", 2.6);
     assert_finite(&x, "red_alert");
-    let d = describe(&mono(&x));
+    let d = describe(&mono_audio(&x));
     let t: Vec<f32> = d.onsets.iter().map(|o| o.t).collect();
     println!("red alert onsets {t:?}");
     assert!(t.iter().any(|v| (v - 0.01).abs() < 0.03));

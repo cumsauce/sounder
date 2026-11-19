@@ -33,15 +33,7 @@ fn crest_db(x: &[f32]) -> f32 {
 }
 
 fn render_err(nodes: Vec<Value>) -> String {
-    let mut d = SoundDoc::named("test");
-    d.nodes = nodes;
-    d.nodes
-        .push(json!({"type": "output", "name": "_out", "input": "f"}));
-    d.duration = Some(0.6);
-    match d.render(&RenderOpts::default()) {
-        Ok(_) => panic!("expected an error"),
-        Err(e) => e,
-    }
+    crate::common::render_error(nodes, "f", 0.6)
 }
 
 #[test]

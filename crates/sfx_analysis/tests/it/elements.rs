@@ -29,14 +29,8 @@ mod model {
         node("spark", extra)
     }
 
-    /// The error a document with these nodes fails to render with.
     fn render_error(nodes: Vec<Value>) -> String {
-        let mut d = SoundDoc::named("test");
-        d.nodes = nodes;
-        d.nodes
-            .push(json!({"type": "output", "name": "out", "input": "n"}));
-        d.duration = Some(0.1);
-        d.render(&RenderOpts::default()).unwrap_err()
+        crate::common::render_error(nodes, "n", 0.1)
     }
 
     fn lufs(nodes: Vec<Value>, secs: f32) -> f32 {

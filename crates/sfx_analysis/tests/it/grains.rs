@@ -157,12 +157,7 @@ fn freq_in(x: &[f32], start_s: f32, len_s: f32) -> f32 {
 }
 
 fn render_error(nodes: Vec<Value>, last: &str) -> String {
-    let mut d = SoundDoc::named("t");
-    d.nodes = nodes;
-    d.nodes
-        .push(json!({"type": "output", "name": "_out", "input": last}));
-    d.duration = Some(1.0);
-    d.render(&RenderOpts::default()).unwrap_err()
+    crate::common::render_error(nodes, last, 1.0)
 }
 
 fn grains(extra: Value) -> Vec<Value> {

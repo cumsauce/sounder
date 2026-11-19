@@ -5,7 +5,6 @@ use crate::common::*;
 use serde_json::{Value, json};
 use sfx_analysis::stft::db;
 use sfx_graph::node::parse_body;
-use sfx_graph::{RenderOpts, SoundDoc};
 
 fn noise() -> Value {
     json!({"type": "noise", "name": "src", "seed": 5, "amp": 0.3})
@@ -25,12 +24,7 @@ fn fx(src: Value, ty: &str, extra: Value) -> Vec<Value> {
 }
 
 fn render_error(nodes: Vec<Value>) -> String {
-    let mut d = SoundDoc::named("test");
-    d.nodes = nodes;
-    d.nodes
-        .push(json!({"type": "output", "name": "out", "input": "fx"}));
-    d.duration = Some(0.1);
-    d.render(&RenderOpts::default()).unwrap_err()
+    crate::common::render_error(nodes, "fx", 0.1)
 }
 
 /// Mean power spectrum (dB per bin) over consecutive blocks of `block`

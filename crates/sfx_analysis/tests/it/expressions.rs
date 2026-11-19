@@ -1,24 +1,18 @@
 //! A string in a signal field that contains `$` or is arithmetic on
 //! numbers is an expression exactly as if it started with `=`.
 
+use crate::common::*;
 use serde_json::{Value, json};
 use sfx_graph::{Buf, Ctx, Params, RenderOpts, SoundDoc, evaluate};
 
 fn doc(nodes: Vec<Value>, secs: f32) -> SoundDoc {
-    let mut d = SoundDoc::named("t");
-    d.nodes = nodes;
-    d.duration = Some(secs);
-    d
+    crate::common::bare_doc(nodes, Some(secs))
 }
 
 fn render(nodes: Vec<Value>) -> Result<Vec<f32>, String> {
     let d = doc(nodes, 1.0);
     let r = d.render(&RenderOpts::default())?;
     Ok(r.audio.channels[0].clone())
-}
-
-fn peak(x: &[f32]) -> f32 {
-    x.iter().fold(0.0f32, |a, b| a.max(b.abs()))
 }
 
 /// The three round-3 examples, each inside a `voices` patch.

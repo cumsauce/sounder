@@ -10,7 +10,7 @@
 
 use realfft::RealFftPlanner;
 use serde_json::{Value, json};
-use sfx_analysis::stft::{db, hann};
+use sfx_analysis::stft::{db, hann, stft};
 use sfx_graph::{Audio, Buf, RenderOpts, SoundDoc};
 
 /// The sample rate of every document these helpers build.
@@ -223,4 +223,135 @@ pub fn assert_finite(x: &[f32], what: &str) {
     if let Some(i) = x.iter().position(|v| !v.is_finite()) {
         panic!("{what}: sample {i} is {}", x[i]);
     }
+}
+
+/// The error of rendering `nodes` plus an `output` reading `input`, for
+/// `duration` seconds. Panics when the render succeeds.
+pub fn render_error(nodes: Vec<Value>, input: &str, duration: f32) -> String {
+    let mut d = SoundDoc::named("test");
+    d.nodes = nodes;
+    d.nodes
+        .push(json!({"type": "output", "name": "out", "input": input}));
+    d.duration = Some(duration);
+    d.render(&RenderOpts::default()).unwrap_err()
+}
+
+/// The error of rendering `nodes` exactly as given (no `output` added) for
+/// `duration` seconds. Panics when the render succeeds.
+pub fn render_error_raw(nodes: Vec<Value>, duration: f32) -> String {
+    let mut d = SoundDoc::named("test");
+    d.nodes = nodes;
+    d.duration = Some(duration);
+    match d.render(&RenderOpts::default()) {
+        Ok(_) => panic!("expected an error"),
+        Err(e) => e.to_string(),
+    }
+}
+
+/// A document of `nodes` with an optional `duration` and nothing added.
+pub fn bare_doc(nodes: Vec<Value>, duration: Option<f32>) -> SoundDoc {
+    let mut d = SoundDoc::named("t");
+    d.nodes = nodes;
+    d.duration = duration;
+    d
+}
+
+/// `node` with every field of the object `extra` set on it.
+pub fn with_fields(mut node: Value, extra: Value) -> Value {
+    node.as_object_mut()
+        .unwrap()
+        .extend(extra.as_object().unwrap().clone());
+    node
+}
+
+/// An `osc` node named `src` at `hz` with amplitude `amp`.
+pub fn sine_src(hz: f32, amp: f32) -> Value {
+    json!({"type": "osc", "name": "src", "freq": hz, "amp": amp})
+}
+
+/// `secs` seconds of a sine at `hz` with amplitude `amp`, at `SR`.
+pub fn sine_samples(hz: f32, amp: f32, secs: f32) -> Vec<f32> {
+    (0..(secs * SR as f32) as usize)
+        .map(|i| {
+            amp * (std::f64::consts::TAU * f64::from(hz) * i as f64 / f64::from(SR)).sin() as f32
+        })
+        .collect()
+}
+
+/// `x` as a mono `Audio` at `SR`.
+pub fn mono_audio(x: &[f32]) -> Audio {
+    Audio {
+        sample_rate: SR,
+        channels: vec![x.to_vec()],
+    }
+}
+
+/// Power-weighted mean frequency of the whole-signal `spectrum` of `x`.
+pub fn spectrum_centroid(x: &[f32]) -> f32 {
+    let (mut num, mut den) = (0.0f64, 0.0f64);
+    for (f, d) in spectrum(x, SR) {
+        let p = 10f64.powf(f64::from(d) / 10.0);
+        num += f64::from(f) * p;
+        den += p;
+    }
+    (num / den.max(1e-30)) as f32
+}
+
+/// Centroid (Hz) of the mean power over a 2048 / 1024 STFT of `x`.
+pub fn stft_centroid(x: &[f32]) -> f32 {
+    let s = stft(x, SR, 2048, 1024);
+    let mean = s.mean(0..s.frames.len());
+    let total: f32 = mean.iter().sum();
+    mean.iter()
+        .enumerate()
+        .map(|(b, p)| s.hz(b) * p)
+        .sum::<f32>()
+        / total.max(1e-20)
+}
+
+/// FNV-1a over the little-endian bit patterns of every sample of `x`.
+pub fn fnv(x: &[f32]) -> u64 {
+    let mut h = 0xcbf2_9ce4_8422_2325u64;
+    for v in x {
+        for b in v.to_bits().to_le_bytes() {
+            h ^= u64::from(b);
+            h = h.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    }
+    h
+}
+
+/// Largest absolute sample.
+pub fn peak(x: &[f32]) -> f32 {
+    x.iter().fold(0.0f32, |m, v| m.max(v.abs()))
+}
+
+/// Sample peak in dBFS (silence reads -180).
+pub fn peak_db(x: &[f32]) -> f32 {
+    20.0 * peak(x).max(1e-9).log10()
+}
+
+/// Linear RMS of `x` (0 for an empty slice).
+pub fn rms(x: &[f32]) -> f32 {
+    (x.iter().map(|v| v * v).sum::<f32>() / x.len().max(1) as f32).sqrt()
+}
+
+/// Like `render_error`, with the `output` reading the last of `nodes`.
+pub fn render_error_last(nodes: Vec<Value>, duration: f32) -> String {
+    let last = nodes.last().unwrap()["name"].as_str().unwrap().to_string();
+    render_error(nodes, &last, duration)
+}
+
+/// FNV-1a over the bit patterns of every sample, channel by channel.
+pub fn fnv_channels(channels: &[Vec<f32>]) -> u64 {
+    let mut h = 0xcbf2_9ce4_8422_2325u64;
+    for c in channels {
+        for v in c {
+            for b in v.to_bits().to_le_bytes() {
+                h ^= u64::from(b);
+                h = h.wrapping_mul(0x0000_0100_0000_01b3);
+            }
+        }
+    }
+    h
 }

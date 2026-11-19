@@ -2,6 +2,7 @@ mod basics {
     //! `modal`, `contact` and `friction`: size and material move the ring the way
     //! physics says, the contact pulse follows Hertz, friction follows speed.
 
+    use crate::common::*;
     use serde_json::{Value, json};
     use sfx_analysis::describe;
     use sfx_graph::{Buf, RenderOpts, SoundDoc, wav};
@@ -145,10 +146,6 @@ mod basics {
         assert!((b / 200.0 - 1.0).abs() < 0.05, "{b}");
     }
 
-    fn rms(x: &[f32]) -> f32 {
-        (x.iter().map(|v| v * v).sum::<f32>() / x.len() as f32).sqrt()
-    }
-
     #[test]
     fn friction_pressure_scales_level() {
         let lo = rms(&audio_of(&friction_doc(json!(0.8), 0.25, 0.3), "f"));
@@ -223,31 +220,7 @@ mod shapes {
     }
 
     fn render_error(nodes: Vec<Value>, duration: f32) -> String {
-        let mut d = SoundDoc::named("test");
-        d.nodes = nodes;
-        d.nodes
-            .push(json!({"type": "output", "name": "out", "input": "m"}));
-        d.duration = Some(duration);
-        d.render(&RenderOpts::default()).unwrap_err()
-    }
-
-    fn fnv(x: &[f32]) -> u64 {
-        let mut h = 0xcbf2_9ce4_8422_2325u64;
-        for v in x {
-            for b in v.to_bits().to_le_bytes() {
-                h ^= u64::from(b);
-                h = h.wrapping_mul(0x0100_0000_01b3);
-            }
-        }
-        h
-    }
-
-    fn peak_db(x: &[f32]) -> f32 {
-        20.0 * x
-            .iter()
-            .fold(0.0f32, |m, v| m.max(v.abs()))
-            .max(1e-9)
-            .log10()
+        crate::common::render_error(nodes, "m", duration)
     }
 
     /// The size range the error hint gives for a material and shape.

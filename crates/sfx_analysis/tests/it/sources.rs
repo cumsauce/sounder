@@ -5,7 +5,6 @@ mod osc_noise {
     use crate::common::*;
     use serde_json::{Value, json};
     use sfx_analysis::pitch::yin;
-    use sfx_graph::{RenderOpts, SoundDoc};
 
     /// Power per Hz in `lo..hi`, dB.
     fn psd_db(x: &[f32], lo: f32, hi: f32) -> f32 {
@@ -17,13 +16,7 @@ mod osc_noise {
     }
 
     fn render_err(nodes: Vec<Value>) -> String {
-        let mut d = SoundDoc::named("test");
-        d.nodes = nodes;
-        d.duration = Some(0.1);
-        match d.render(&RenderOpts::default()) {
-            Ok(_) => panic!("expected an error"),
-            Err(e) => e.to_string(),
-        }
+        crate::common::render_error_raw(nodes, 0.1)
     }
 
     fn synced_saw(from: f32, to: f32) -> Vec<f32> {
@@ -421,7 +414,6 @@ mod fm_wavetable {
 
     use crate::common::*;
     use serde_json::{Value, json};
-    use sfx_graph::SoundDoc;
 
     /// Bessel J_k(x) by the integral (1/pi) int_0^pi cos(k t - x sin t) dt
     /// (Simpson, 2000 intervals: exact to ~1e-12 for these orders).
@@ -457,30 +449,8 @@ mod fm_wavetable {
         vec![v]
     }
 
-    fn centroid(x: &[f32]) -> f32 {
-        let s = spectrum(x, SR);
-        let (mut num, mut den) = (0.0f64, 0.0f64);
-        for (f, d) in s {
-            let p = 10f64.powf(f64::from(d) / 10.0);
-            num += f64::from(f) * p;
-            den += p;
-        }
-        (num / den.max(1e-30)) as f32
-    }
-
     fn render_err(nodes: &[Value]) -> String {
-        let mut d = SoundDoc::named("test");
-        d.nodes = nodes.to_vec();
-        d.nodes
-            .push(json!({"type": "output", "name": "_out", "input": "x"}));
-        d.duration = Some(0.1);
-        match d.render(&sfx_graph::RenderOpts {
-            cached: false,
-            ..Default::default()
-        }) {
-            Ok(_) => panic!("expected an error"),
-            Err(e) => e.to_string(),
-        }
+        crate::common::render_error(nodes.to_vec(), "x", 0.1)
     }
 
     #[test]
@@ -609,7 +579,7 @@ mod fm_wavetable {
                 0.5,
             );
             assert_finite(&x, shape);
-            cents.push((shape, centroid(&x)));
+            cents.push((shape, spectrum_centroid(&x)));
         }
         println!("fm mod_shape centroids: {cents:?}");
         for i in 0..cents.len() {
@@ -777,7 +747,7 @@ mod fm_wavetable {
                 "x",
                 1.0,
             );
-            let c = centroid(&x);
+            let c = spectrum_centroid(&x);
             line.push(c);
             assert!(c > last, "morph {m}: centroid {c} not above {last}");
             last = c;
@@ -791,7 +761,9 @@ mod fm_wavetable {
         ];
         let y = node_audio(&nodes, "x", 2.0);
         let q = y.len() / 4;
-        let cs: Vec<f32> = (0..4).map(|i| centroid(&y[i * q..(i + 1) * q])).collect();
+        let cs: Vec<f32> = (0..4)
+            .map(|i| spectrum_centroid(&y[i * q..(i + 1) * q]))
+            .collect();
         println!("wavetable morph ramp, centroid per quarter: {cs:?}");
         assert!(cs.windows(2).all(|w| w[1] > w[0]), "{cs:?}");
     }

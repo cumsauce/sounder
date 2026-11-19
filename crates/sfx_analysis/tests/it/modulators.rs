@@ -6,15 +6,9 @@ mod chaos_curve_follow {
     use serde_json::{Value, json};
     use sfx_analysis::checks::clicks;
     use sfx_graph::node::parse_body;
-    use sfx_graph::{RenderOpts, SoundDoc};
 
     fn render_error(nodes: Vec<Value>, read: &str) -> String {
-        let mut d = SoundDoc::named("test");
-        d.nodes = nodes;
-        d.nodes
-            .push(json!({"type": "output", "name": "out", "input": read}));
-        d.duration = Some(0.2);
-        d.render(&RenderOpts::default()).unwrap_err()
+        crate::common::render_error(nodes, read, 0.2)
     }
 
     fn minmax(x: &[f32]) -> (f32, f32) {
