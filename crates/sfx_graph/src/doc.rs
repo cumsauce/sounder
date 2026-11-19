@@ -407,6 +407,25 @@ impl SoundDoc {
                     p.name, p.ty
                 ));
             }
+            if p.ty == "modal" {
+                let mat = p
+                    .body
+                    .get("material")
+                    .and_then(|m| m.as_str())
+                    .unwrap_or("");
+                if (mat == "wood" || mat == "metal") && p.body.get("noise").is_none() {
+                    // Clean modes were heard as a marimba / tuned gong / digital bell in every listen.
+                    let hint = if mat == "wood" {
+                        "0.6 (tilt 4)"
+                    } else {
+                        "0.4 (noise_width 0.1, loss 0.3-0.6)"
+                    };
+                    w.push(format!(
+                        "node `{}`: a {mat} modal with no `noise` has clean modes, heard as a tuned instrument: try noise {hint}",
+                        p.name
+                    ));
+                }
+            }
             for (field, v) in hz_fields(&p.body) {
                 if v > 0.5 * sr {
                     w.push(format!(

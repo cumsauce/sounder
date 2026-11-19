@@ -426,50 +426,12 @@ brief asks for more weight or detail. When a project has reference recordings
 the distance is a coarse gate (about 10 dB is the spread between real
 recordings of one event), not a judge.
 
-A heavy wooden door slam (`slam_b2` in Phase 0; macros: `stick` -> `scr_g`
-db, `weight` -> `thd_g` db, `snap` -> `crk_g` db, `knock` -> `knock_g` db):
-
-<!-- recipe 0.8 -->
-```json
-[
-  {"type": "env", "name": "scr_env", "points": [[0, 0], [0.008, 0], [0.02, 1], [0.042, 0.7], [0.05, 0]], "curve": "smooth"},
-  {"type": "math", "name": "scr_speed", "op": "mul", "a": "scr_env", "b": 1.4},
-  {"type": "friction", "name": "scr_f", "speed": "scr_speed", "pressure": "scr_env", "roughness": 0.85, "grain": 800},
-  {"type": "noise", "name": "scr_n", "color": "pink"},
-  {"type": "math", "name": "scr_nb", "op": "mul", "a": "scr_n", "b": "scr_env"},
-  {"type": "mix", "name": "scr_m", "inputs": [{"input": "scr_f", "gain": 0.6}, {"input": "scr_nb", "gain": 0.5}]},
-  {"type": "filter", "name": "scr", "input": "scr_m", "mode": "bp", "freq": 1956, "q": 0.6},
-  {"type": "gain", "name": "scr_g", "input": "scr", "db": -10},
-  {"type": "noise", "name": "crk_n", "color": "white"},
-  {"type": "decay", "name": "crk_e", "time": 0.008, "at": 0.05},
-  {"type": "math", "name": "crk_raw", "op": "mul", "a": "crk_n", "b": "crk_e"},
-  {"type": "filter", "name": "crk", "input": "crk_raw", "mode": "bp", "freq": 1928, "q": 0.5},
-  {"type": "gain", "name": "crk_g", "input": "crk", "db": -3},
-  {"type": "noise", "name": "hit_n", "color": "pink"},
-  {"type": "decay", "name": "hit_e", "time": 0.012, "at": 0.05},
-  {"type": "math", "name": "hit_burst", "op": "mul", "a": "hit_n", "b": "hit_e"},
-  {"type": "modal", "name": "panel", "excite": "hit_burst", "material": "wood", "size": 0.5, "loss": 1.69, "modes": 96, "strike_position": 0.31, "gain_db": -10.7},
-  {"type": "decay", "name": "body_e", "time": 0.59, "at": 0.05},
-  {"type": "math", "name": "body_raw", "op": "mul", "a": "hit_n", "b": "body_e"},
-  {"type": "filter", "name": "body_bp", "input": "body_raw", "mode": "bp", "freq": 344, "q": 0.5},
-  {"type": "gain", "name": "body_g", "input": "body_bp", "db": 6.35},
-  {"type": "noise", "name": "thd_n", "color": "brown"},
-  {"type": "decay", "name": "thd_e", "time": 0.44, "at": 0.05},
-  {"type": "math", "name": "thd_raw", "op": "mul", "a": "thd_n", "b": "thd_e"},
-  {"type": "filter", "name": "thd", "input": "thd_raw", "mode": "lp", "freq": 192, "slope": 24},
-  {"type": "gain", "name": "thd_g", "input": "thd", "db": -6.6},
-  {"type": "contact", "name": "knock_c", "speed": 1, "mass": 0.3, "material": "wood", "hardness": 0.6, "at": 0.078},
-  {"type": "modal", "name": "knock_m", "excite": "knock_c", "material": "wood", "size": 0.54, "loss": 3},
-  {"type": "filter", "name": "knock", "input": "knock_m", "mode": "lp", "freq": 3500},
-  {"type": "gain", "name": "knock_g", "input": "knock", "db": -7.4},
-  {"type": "mix", "name": "dry", "inputs": ["scr_g", "crk_g", "panel", "body_g", "thd_g", "knock_g"], "to": "mono"},
-  {"type": "transient", "name": "punch", "input": "dry", "attack_db": 3.1, "sustain_db": -6},
-  {"type": "shape", "name": "warm", "input": "punch", "mode": "tube", "drive": 1.5, "oversample": 4, "mix": 0.25},
-  {"type": "onepole", "name": "dc", "input": "warm", "mode": "hp", "freq": 30},
-  {"type": "eq", "name": "tone", "input": "dc", "bands": [{"mode": "peak", "freq": 200, "gain_db": 5.6, "q": 0.8}, {"mode": "lp", "freq": 10000}]},
-  {"type": "output", "name": "out", "input": "tone", "lufs": -28}
-]
-```
+The heavy wooden door slam (`slam_b2` in Phase 0) is the `door_slam` template:
+`new_sound {template: "door_slam"}` or `catalog describe` it for the graph
+(brush `scr_g`, crack `crk_g`, noise-struck wood `panel`, band-passed noise
+body `body_g`, brown-noise weight `thd_g`, knock `knock_g`, then `transient`
+3.1 dB, `shape` tube mix 0.25, `onepole` hp 30, `eq` peak 200 Hz +5.6 dB,
+`output` lufs -28).
 
 A sword clash (metal, so here the body **should** ring and be inharmonic:
 two `modal` bars a non-integer ratio apart; macro: `ring` -> both bars'
@@ -861,44 +823,7 @@ until it fits; you read their moves in `summary`.
   `SOUNDER_HEARING_PYTHON`, else `~/.local/share/sounder-hearing/venv`;
   without one the line says the hint is off. `SOUNDER_HEARING=off` turns it
   off.
-- `listen reference: "file.wav"` (relative to the project or a sources folder, or absolute): the
-  reference is resampled to the sound's rate, moved so its first onset (30 dB
-  under its peak) meets the sound's, and scaled to the sound's integrated
-  loudness (the shift and the gain are reported). The image is [sound,
-  reference, difference]; the text gives the multi-resolution STFT distance
-  (windows 256 / 1024 / 4096, dB, 0 = identical), the 5 biggest band x time
-  cells that differ by 3 dB or more in words ("0-20% of the sound: 2.8-5.7 kHz
-  is 31 dB quieter than the reference"; segments are fifths of the sound), and
-  length / attack / decay / centroid differences. A reference with nothing
-  above its Nyquist counts the sound's top end as a difference (it says so).
-  Not with seeds, sweep or diff. This is the distance, not a taste verdict.
-  Reading the picture: x is time, y log frequency, colour dB from -90 (black)
-  to 0.
-- `listen reference_set: "door_slam"`: a **reference set** is a folder of
-  recordings of one kind of sound, `<project>/refs/<set>/` (at least two
-  WAVs; a path with a `/` names any folder). One recording is a poor target:
-  in Phase 0 a real door slam sat 10.4 dB from two other real slams, further
-  than a good synthetic one, so a distance below about 10 dB ranks nothing.
-  A set gives the distance to each recording, the nearest against the set's
-  own spread (the mean distance between its recordings), and eight features
-  against the span the recordings cover: `weight` / `body` / `crack` energy
-  (under 200 Hz / 200 Hz-2 kHz / above 2 kHz), `crest`, `tail` (to -20 dB),
-  `centroid`, `voiced`, `ringing` partials. A feature passes inside [min,
-  max] widened by a quarter of the span, at least a floor (3 % for shares,
-  1 % crack, 3 dB crest: the crest of a noise hit moves several dB with the
-  seed, 20 ms tail, 10 % centroid, 0.05 voiced). The image compares with the
-  nearest. `verify expect reference_set {set, [max_distance]}` reports each
-  feature (`reference_set weight` ...) and the nearest. Measured against
-  three CC0 door slams (406635, 571797, 724124; they sit 10.06 dB from each
-  other): the round-0 build is outside on weight (86 % against 12-39 %),
-  body, tail, centroid and voiced, and 13.3 dB from the nearest; the
-  layered build the listener called a tuned drum is outside on crest (28.3
-  dB against 16-24), centroid and ringing (3 against 0-2); the approved one
-  is inside on all eight, 6.9 dB from the nearest. Limits: a few recordings
-  make a thin range; the ringing count reads noise partials in band-passed
-  noise (a synthetic noise set spanned 0-4), so it catches less against
-  noisy sets; sets are for comparison only (keep `refs/` out of git and out
-  of shipped sounds unless the licence allows).
+- `listen reference: "file.wav"` compares with one recording (aligned at the first onset, loudness-matched): an STFT distance in dB (about 10 dB is the spread between real recordings of one event: a coarse gate, not a judge) and the biggest band x time differences in words. `listen reference_set: "door_slam"` compares with a folder `<project>/refs/<set>/` of at least two WAVs: the distance to each, the set's own spread, and eight features (weight, body, crack, crest, tail, centroid, voiced, ringing) against the span the recordings cover; `verify expect reference_set {set, [max_distance]}` checks them. Details and measurements: `docs/senses.md`.
 - `verify` / `expect` checks: `peak_db` `true_peak_db` `lufs` `duration`
   `silent_edges` `clicks` `dc` `finite` `loop_seam` `bands` `pitch` `onsets`
   `variations` `rebuild` `reference` `reference_set` `macros` `layers` `spec`, and the synthesis checks
@@ -960,14 +885,9 @@ until it fits; you read their moves in `summary`.
     within 40 dB of the loudest: silence between hits is not counted), and `dry` (no `reverb` or
     `convolve` node, patches included). A field given beside the preset
     replaces the preset's (`tail_ms {min, max}`, the time to -20 dB, has no
-    preset value). Each FAIL names the role and the layer to add. Measured on
-    the Phase 0 door slams (`tests/it/layers.rs`, fixtures in
-    `tests/fixtures/phase0/`): the round-0 build fails weight (86 %), body
-    (5.7 %) and crest (24.9 dB); the first layered one, which the listener
-    heard as a tuned drum with a reverb tail, fails ringing (75, 329, 457 Hz
-    at 0.65-0.98 s), crest (28.3 dB) and dry; the approved one passes, and
-    so does the real recording (38.5 / 55.9 / 5.6 %, voiced 0.15, one
-    partial ringing, crest 21.4 dB). Not a default: a UI blip or a drone has
+    preset value). Each FAIL names the role and the layer to add. The
+    approved slam and the real recording pass; the round-0 and tuned-drum
+    builds fail (`tests/it/layers.rs`). Not a default: a UI blip or a drone has
     no weight or crack. `summary` warns when 80 % of a oneshot's energy sits
     in one role band, and `listen`'s energy shares line names the roles.
   `aliasing`, `inharmonicity`, `modulation` and `roughness` cannot be named in
@@ -975,52 +895,14 @@ until it fits; you read their moves in `summary`.
   when the STFT distance to the WAV (aligned and loudness-matched as in
   `listen reference`) exceeds `max_distance` dB, and then names the biggest
   band differences. `variations` needs a node that reads the seed.
-- `extract_modes` fits each partial in the time domain (candidates from a long
-  spectrum, then peeling: demodulate the recording minus the other modes,
-  line-fit the log envelope and the phase), so decays of fast modes, close
-  pairs and the gains are good. A gain is the amplitude the mode has at the
-  hit in the recording's own scale: a unit `impulse` into the node reproduces
-  the recording's level. Measured (`tests/it/reference.rs`): a rebuilt five-mode
-  hit with a noise tick sits 0.69 dB (STFT distance) from its original and
-  within 0.1 dB in level; a hard case (30 ms and 20 ms modes, a pair 25 Hz
-  apart) 1.21 dB; a rebuild with the modes shifted 10 % sits 13 dB away.
-  `residual: "name.wav"` (a file name) also writes the **residual** into the
-  sources folder: the recording from 5 ms before its onset minus the modes
-  as the `resonators` play them from an impulse at that time. It returns the
-  rebuild (`impulse` at the lead-in time, the `resonators`, a `sample` of the
-  residual from 0, a `mix`), which sums back to the recording: on the
-  five-mode hit 0.22 dB from the original, against 4.85 dB for the modes
-  alone (2 modes: 0.22 against 10.44 dB; `the_residual_restores_what_the_modes_miss`).
-  The residual holds the hit's noise, rattle and room, and also what the
-  fitted partials get wrong, so retuning the modes later leaves their old
-  partials in it: keep the modes' pitch and edit their decay and level, or
-  re-extract. A recording with under 5 ms before its hit needs the output's
-  `fade_in: 0.0005` (the tool says so). **Noisy recordings** (a slam, a
-  noisy hit) are not modal: peeled one by one, their partials grow to cancel
-  each other (gains in the thousands on band-passed noise peaking at 0.9),
-  and the `resonators`, which start every partial at the impulse, would play
-  them far louder than the recording (a real door slam: 46 dB). Two guards:
-  each peeled amplitude is capped at the recording's peak, and when the
-  peeled partials still play over 6 dB louder than the recording the tool
-  falls back to an **envelope fit** and says so ("NOTE the recording is not
-  modal"): its strongest spectral peaks at least 15 % apart, each with the
-  decay of the recording's own envelope around it, levelled so the rebuild
-  peaks at the recording's peak. That is a tonal sketch, not the object's
-  modes: the real door slam gave 8 peaks at 89-424 Hz, modes alone 16.75 dB
-  from the recording (no crack above 2.8 kHz), modes + residual 0.37 dB.
-  Band-passed noise: 0.0 dB over its peak, against 85 dB before
-  (`a_non_modal_recording_gets_an_envelope_fit`); a clean struck object keeps
-  the modal fit (0.2 dB). The residual of an envelope fit also carries the
-  sketch's negative (a peak of 1.10 against the noise's 0.89), so change the
-  sketch's decays and the residual stops cancelling them.
-
+- `extract_modes` fits a WAV's strongest partials as a ready `resonators` node (time-domain peeling; a rebuilt five-mode hit sits 0.69 dB from its original). A noisy recording (a slam) is not modal: the tool falls back to an envelope fit and says so ("NOTE the recording is not modal"), a tonal sketch rather than the object's modes. `residual` writes what the modes miss, but sounds are sample-free: use it only to study a recording. Details: `docs/senses.md`.
 Warnings in `summary`: a node nothing reads, a frequency above Nyquist, a
 silent output, DC over -40 dB, an output whose input is squashed by the
 ceiling limiter, a sound that never decays, one that is mostly silence, an
 `output.lufs` the render missed (with the numbers and the cause), the default
 fade-in cutting a first hit (it suggests `fade_in` 0.0005; not given for
 a `fade_in` of 1 ms or less or when the target is met), a field driven by a
-macro (your value is ignored).
+macro (your value is ignored). A wood or metal `modal` with no `noise` (clean modes: a tuned instrument).
 
 ## Source material: recordings and impulse responses
 
