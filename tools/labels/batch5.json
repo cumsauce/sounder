@@ -1,0 +1,4981 @@
+[
+ {
+  "id": "s01",
+  "family": "stone",
+  "design": "hammer_on_stone",
+  "dressed": true,
+  "doc": {
+   "sound": "s01",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown"
+    },
+    {
+     "type": "noise",
+     "name": "gn",
+     "color": "crackle"
+    },
+    {
+     "type": "decay",
+     "name": "w0_e",
+     "time": 0.12,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "w0_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w0_e"
+    },
+    {
+     "type": "filter",
+     "name": "w0_f",
+     "input": "w0_x",
+     "mode": "lp",
+     "freq": 220,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w0",
+     "input": "w0_f",
+     "db": -6
+    },
+    {
+     "type": "decay",
+     "name": "c0_e",
+     "time": 0.006,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "c0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c0_e"
+    },
+    {
+     "type": "filter",
+     "name": "c0_f",
+     "input": "c0_x",
+     "mode": "hp",
+     "freq": 2500
+    },
+    {
+     "type": "gain",
+     "name": "c0",
+     "input": "c0_f",
+     "db": -2
+    },
+    {
+     "type": "decay",
+     "name": "b0_e",
+     "time": 0.05,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "b0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b0_e"
+    },
+    {
+     "type": "filter",
+     "name": "b0_f",
+     "input": "b0_x",
+     "mode": "bp",
+     "freq": 900,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b0",
+     "input": "b0_f",
+     "db": 0
+    },
+    {
+     "type": "decay",
+     "name": "g0_e",
+     "time": 0.05,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "g0_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g0_e"
+    },
+    {
+     "type": "filter",
+     "name": "g0_f",
+     "input": "g0_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g0",
+     "input": "g0_f",
+     "db": -6
+    },
+    {
+     "type": "decay",
+     "name": "m0_e",
+     "time": 0.004,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "m0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "m0_e"
+    },
+    {
+     "type": "modal",
+     "name": "m0_r",
+     "excite": "m0_x",
+     "material": "stone",
+     "f0": 1800,
+     "loss": 1.2,
+     "noise": 0.5,
+     "noise_width": 0.2,
+     "modes": 48
+    },
+    {
+     "type": "gain",
+     "name": "m0",
+     "input": "m0_r",
+     "db": -4
+    },
+    {
+     "type": "decay",
+     "name": "ch0_e",
+     "time": 0.003569824049201083,
+     "at": 0.104
+    },
+    {
+     "type": "math",
+     "name": "ch0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch0_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch0_f",
+     "input": "ch0_x",
+     "mode": "bp",
+     "freq": 3387.4491847213853,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch0",
+     "input": "ch0_f",
+     "db": -28.16437124144913
+    },
+    {
+     "type": "decay",
+     "name": "ch1_e",
+     "time": 0.003671341871618466,
+     "at": 0.132
+    },
+    {
+     "type": "math",
+     "name": "ch1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch1_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch1_f",
+     "input": "ch1_x",
+     "mode": "bp",
+     "freq": 3059.9200301959,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch1",
+     "input": "ch1_f",
+     "db": -25.80875980671684
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "w0",
+      "c0",
+      "b0",
+      "g0",
+      "m0",
+      "ch0",
+      "ch1"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "dry",
+     "model": "room",
+     "size": 0.25,
+     "decay": 0.6,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "duration": 0.8,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s02",
+  "family": "stone",
+  "design": "rocks_knocked",
+  "dressed": false,
+  "doc": {
+   "sound": "s02",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown"
+    },
+    {
+     "type": "noise",
+     "name": "gn",
+     "color": "crackle"
+    },
+    {
+     "type": "decay",
+     "name": "w0_e",
+     "time": 0.12,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "w0_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w0_e"
+    },
+    {
+     "type": "filter",
+     "name": "w0_f",
+     "input": "w0_x",
+     "mode": "lp",
+     "freq": 250,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w0",
+     "input": "w0_f",
+     "db": -6
+    },
+    {
+     "type": "decay",
+     "name": "c0_e",
+     "time": 0.01,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "c0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c0_e"
+    },
+    {
+     "type": "filter",
+     "name": "c0_f",
+     "input": "c0_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c0",
+     "input": "c0_f",
+     "db": -3
+    },
+    {
+     "type": "decay",
+     "name": "b0_e",
+     "time": 0.06,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "b0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b0_e"
+    },
+    {
+     "type": "filter",
+     "name": "b0_f",
+     "input": "b0_x",
+     "mode": "bp",
+     "freq": 650,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b0",
+     "input": "b0_f",
+     "db": 4
+    },
+    {
+     "type": "decay",
+     "name": "g0_e",
+     "time": 0.06,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "g0_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g0_e"
+    },
+    {
+     "type": "filter",
+     "name": "g0_f",
+     "input": "g0_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g0",
+     "input": "g0_f",
+     "db": -3
+    },
+    {
+     "type": "decay",
+     "name": "m0_e",
+     "time": 0.004,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "m0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "m0_e"
+    },
+    {
+     "type": "modal",
+     "name": "m0_r",
+     "excite": "m0_x",
+     "material": "stone",
+     "f0": 750,
+     "loss": 1.8,
+     "noise": 0.5,
+     "noise_width": 0.2,
+     "modes": 48
+    },
+    {
+     "type": "gain",
+     "name": "m0",
+     "input": "m0_r",
+     "db": -6
+    },
+    {
+     "type": "decay",
+     "name": "w1_e",
+     "time": 0.12,
+     "at": 0.45
+    },
+    {
+     "type": "math",
+     "name": "w1_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w1_e"
+    },
+    {
+     "type": "filter",
+     "name": "w1_f",
+     "input": "w1_x",
+     "mode": "lp",
+     "freq": 250,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w1",
+     "input": "w1_f",
+     "db": -8
+    },
+    {
+     "type": "decay",
+     "name": "c1_e",
+     "time": 0.01,
+     "at": 0.45
+    },
+    {
+     "type": "math",
+     "name": "c1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c1_e"
+    },
+    {
+     "type": "filter",
+     "name": "c1_f",
+     "input": "c1_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c1",
+     "input": "c1_f",
+     "db": -5
+    },
+    {
+     "type": "decay",
+     "name": "b1_e",
+     "time": 0.06,
+     "at": 0.45
+    },
+    {
+     "type": "math",
+     "name": "b1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b1_e"
+    },
+    {
+     "type": "filter",
+     "name": "b1_f",
+     "input": "b1_x",
+     "mode": "bp",
+     "freq": 650,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b1",
+     "input": "b1_f",
+     "db": 2
+    },
+    {
+     "type": "decay",
+     "name": "g1_e",
+     "time": 0.06,
+     "at": 0.45
+    },
+    {
+     "type": "math",
+     "name": "g1_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g1_e"
+    },
+    {
+     "type": "filter",
+     "name": "g1_f",
+     "input": "g1_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g1",
+     "input": "g1_f",
+     "db": -5
+    },
+    {
+     "type": "decay",
+     "name": "m1_e",
+     "time": 0.004,
+     "at": 0.45
+    },
+    {
+     "type": "math",
+     "name": "m1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "m1_e"
+    },
+    {
+     "type": "modal",
+     "name": "m1_r",
+     "excite": "m1_x",
+     "material": "stone",
+     "f0": 750,
+     "loss": 1.8,
+     "noise": 0.5,
+     "noise_width": 0.2,
+     "modes": 48
+    },
+    {
+     "type": "gain",
+     "name": "m1",
+     "input": "m1_r",
+     "db": -8
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "w0",
+      "c0",
+      "b0",
+      "g0",
+      "m0",
+      "w1",
+      "c1",
+      "b1",
+      "g1",
+      "m1"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "dry",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "duration": 1.0,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s03",
+  "family": "stone",
+  "design": "slab",
+  "dressed": false,
+  "doc": {
+   "sound": "s03",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown"
+    },
+    {
+     "type": "noise",
+     "name": "gn",
+     "color": "crackle"
+    },
+    {
+     "type": "decay",
+     "name": "w0_e",
+     "time": 0.35,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "w0_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w0_e"
+    },
+    {
+     "type": "filter",
+     "name": "w0_f",
+     "input": "w0_x",
+     "mode": "lp",
+     "freq": 140,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w0",
+     "input": "w0_f",
+     "db": 0
+    },
+    {
+     "type": "decay",
+     "name": "c0_e",
+     "time": 0.012,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "c0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c0_e"
+    },
+    {
+     "type": "filter",
+     "name": "c0_f",
+     "input": "c0_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c0",
+     "input": "c0_f",
+     "db": -6
+    },
+    {
+     "type": "decay",
+     "name": "b0_e",
+     "time": 0.14,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "b0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b0_e"
+    },
+    {
+     "type": "filter",
+     "name": "b0_f",
+     "input": "b0_x",
+     "mode": "bp",
+     "freq": 420,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b0",
+     "input": "b0_f",
+     "db": 4
+    },
+    {
+     "type": "decay",
+     "name": "g0_e",
+     "time": 0.12,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "g0_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g0_e"
+    },
+    {
+     "type": "filter",
+     "name": "g0_f",
+     "input": "g0_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g0",
+     "input": "g0_f",
+     "db": 0
+    },
+    {
+     "type": "decay",
+     "name": "ch0_e",
+     "time": 0.0025239823001829654,
+     "at": 0.147
+    },
+    {
+     "type": "math",
+     "name": "ch0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch0_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch0_f",
+     "input": "ch0_x",
+     "mode": "bp",
+     "freq": 2371.3249450424682,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch0",
+     "input": "ch0_f",
+     "db": -22.873193328510506
+    },
+    {
+     "type": "decay",
+     "name": "ch1_e",
+     "time": 0.0020121086529039725,
+     "at": 0.18
+    },
+    {
+     "type": "math",
+     "name": "ch1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch1_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch1_f",
+     "input": "ch1_x",
+     "mode": "bp",
+     "freq": 1951.7137289102639,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch1",
+     "input": "ch1_f",
+     "db": -20.892624518304824
+    },
+    {
+     "type": "decay",
+     "name": "ch2_e",
+     "time": 0.0037856311059905443,
+     "at": 0.205
+    },
+    {
+     "type": "math",
+     "name": "ch2_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch2_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch2_f",
+     "input": "ch2_x",
+     "mode": "bp",
+     "freq": 2484.1783410146313,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch2",
+     "input": "ch2_f",
+     "db": -20.752576148630624
+    },
+    {
+     "type": "decay",
+     "name": "ch3_e",
+     "time": 0.002734378466211416,
+     "at": 0.261
+    },
+    {
+     "type": "math",
+     "name": "ch3_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch3_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch3_f",
+     "input": "ch3_x",
+     "mode": "bp",
+     "freq": 3795.1012119232005,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch3",
+     "input": "ch3_f",
+     "db": -21.75079602472807
+    },
+    {
+     "type": "decay",
+     "name": "ch4_e",
+     "time": 0.002275772017922948,
+     "at": 0.292
+    },
+    {
+     "type": "math",
+     "name": "ch4_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch4_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch4_f",
+     "input": "ch4_x",
+     "mode": "bp",
+     "freq": 3197.761196830669,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch4",
+     "input": "ch4_f",
+     "db": -20.963949084428652
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "w0",
+      "c0",
+      "b0",
+      "g0",
+      "ch0",
+      "ch1",
+      "ch2",
+      "ch3",
+      "ch4"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "dry",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "duration": 1.2,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s04",
+  "family": "stone",
+  "design": "boulder_drop",
+  "dressed": true,
+  "doc": {
+   "sound": "s04",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown"
+    },
+    {
+     "type": "noise",
+     "name": "gn",
+     "color": "crackle"
+    },
+    {
+     "type": "decay",
+     "name": "w0_e",
+     "time": 0.6,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "w0_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w0_e"
+    },
+    {
+     "type": "filter",
+     "name": "w0_f",
+     "input": "w0_x",
+     "mode": "lp",
+     "freq": 110,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w0",
+     "input": "w0_f",
+     "db": 2
+    },
+    {
+     "type": "decay",
+     "name": "c0_e",
+     "time": 0.015,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "c0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c0_e"
+    },
+    {
+     "type": "filter",
+     "name": "c0_f",
+     "input": "c0_x",
+     "mode": "hp",
+     "freq": 1500
+    },
+    {
+     "type": "gain",
+     "name": "c0",
+     "input": "c0_f",
+     "db": -8
+    },
+    {
+     "type": "decay",
+     "name": "b0_e",
+     "time": 0.2,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "b0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b0_e"
+    },
+    {
+     "type": "filter",
+     "name": "b0_f",
+     "input": "b0_x",
+     "mode": "bp",
+     "freq": 320,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b0",
+     "input": "b0_f",
+     "db": 3
+    },
+    {
+     "type": "decay",
+     "name": "g0_e",
+     "time": 0.25,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "g0_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g0_e"
+    },
+    {
+     "type": "filter",
+     "name": "g0_f",
+     "input": "g0_x",
+     "mode": "bp",
+     "freq": 2000,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g0",
+     "input": "g0_f",
+     "db": 2
+    },
+    {
+     "type": "decay",
+     "name": "ch0_e",
+     "time": 0.0040606791079318225,
+     "at": 0.164
+    },
+    {
+     "type": "math",
+     "name": "ch0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch0_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch0_f",
+     "input": "ch0_x",
+     "mode": "bp",
+     "freq": 2838.6451548689956,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch0",
+     "input": "ch0_f",
+     "db": -17.803410722116997
+    },
+    {
+     "type": "decay",
+     "name": "ch1_e",
+     "time": 0.002300646837645092,
+     "at": 0.223
+    },
+    {
+     "type": "math",
+     "name": "ch1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch1_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch1_f",
+     "input": "ch1_x",
+     "mode": "bp",
+     "freq": 3401.5791703727327,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch1",
+     "input": "ch1_f",
+     "db": -14.510457717225488
+    },
+    {
+     "type": "decay",
+     "name": "ch2_e",
+     "time": 0.0042310426291133005,
+     "at": 0.257
+    },
+    {
+     "type": "math",
+     "name": "ch2_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch2_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch2_f",
+     "input": "ch2_x",
+     "mode": "bp",
+     "freq": 2126.7437459824614,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch2",
+     "input": "ch2_f",
+     "db": -14.189129942416933
+    },
+    {
+     "type": "decay",
+     "name": "ch3_e",
+     "time": 0.0037940722160325034,
+     "at": 0.279
+    },
+    {
+     "type": "math",
+     "name": "ch3_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch3_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch3_f",
+     "input": "ch3_x",
+     "mode": "bp",
+     "freq": 1926.5016993160841,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch3",
+     "input": "ch3_f",
+     "db": -18.982333835184296
+    },
+    {
+     "type": "decay",
+     "name": "ch4_e",
+     "time": 0.004659436747019518,
+     "at": 0.34
+    },
+    {
+     "type": "math",
+     "name": "ch4_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch4_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch4_f",
+     "input": "ch4_x",
+     "mode": "bp",
+     "freq": 3480.2552361820885,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch4",
+     "input": "ch4_f",
+     "db": -21.111602699398265
+    },
+    {
+     "type": "decay",
+     "name": "ch5_e",
+     "time": 0.00234211033909911,
+     "at": 0.387
+    },
+    {
+     "type": "math",
+     "name": "ch5_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch5_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch5_f",
+     "input": "ch5_x",
+     "mode": "bp",
+     "freq": 3322.909610205693,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch5",
+     "input": "ch5_f",
+     "db": -18.850710326887878
+    },
+    {
+     "type": "decay",
+     "name": "ch6_e",
+     "time": 0.0040311295607587914,
+     "at": 0.44
+    },
+    {
+     "type": "math",
+     "name": "ch6_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch6_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch6_f",
+     "input": "ch6_x",
+     "mode": "bp",
+     "freq": 3186.1431461963293,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch6",
+     "input": "ch6_f",
+     "db": -21.94233660394071
+    },
+    {
+     "type": "decay",
+     "name": "ch7_e",
+     "time": 0.003965972936035827,
+     "at": 0.474
+    },
+    {
+     "type": "math",
+     "name": "ch7_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch7_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch7_f",
+     "input": "ch7_x",
+     "mode": "bp",
+     "freq": 2736.685981535542,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch7",
+     "input": "ch7_f",
+     "db": -21.508948251985075
+    },
+    {
+     "type": "decay",
+     "name": "ch8_e",
+     "time": 0.004098574493837163,
+     "at": 0.496
+    },
+    {
+     "type": "math",
+     "name": "ch8_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch8_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch8_f",
+     "input": "ch8_x",
+     "mode": "bp",
+     "freq": 3092.206862944059,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch8",
+     "input": "ch8_f",
+     "db": -19.584129703178995
+    },
+    {
+     "type": "decay",
+     "name": "ch9_e",
+     "time": 0.0035894803974520955,
+     "at": 0.519
+    },
+    {
+     "type": "math",
+     "name": "ch9_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch9_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch9_f",
+     "input": "ch9_x",
+     "mode": "bp",
+     "freq": 1609.6235781044593,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch9",
+     "input": "ch9_f",
+     "db": -15.606375598226702
+    },
+    {
+     "type": "decay",
+     "name": "ch10_e",
+     "time": 0.002651446703809091,
+     "at": 0.576
+    },
+    {
+     "type": "math",
+     "name": "ch10_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch10_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch10_f",
+     "input": "ch10_x",
+     "mode": "bp",
+     "freq": 3118.262154974973,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch10",
+     "input": "ch10_f",
+     "db": -18.059682058985416
+    },
+    {
+     "type": "decay",
+     "name": "ch11_e",
+     "time": 0.0024945223472323044,
+     "at": 0.622
+    },
+    {
+     "type": "math",
+     "name": "ch11_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch11_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch11_f",
+     "input": "ch11_x",
+     "mode": "bp",
+     "freq": 3753.554394383582,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch11",
+     "input": "ch11_f",
+     "db": -16.181787739614943
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "w0",
+      "c0",
+      "b0",
+      "g0",
+      "ch0",
+      "ch1",
+      "ch2",
+      "ch3",
+      "ch4",
+      "ch5",
+      "ch6",
+      "ch7",
+      "ch8",
+      "ch9",
+      "ch10",
+      "ch11"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "dry",
+     "model": "room",
+     "size": 0.25,
+     "decay": 0.6,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "duration": 1.8,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s05",
+  "family": "stone",
+  "design": "rock_drop",
+  "dressed": false,
+  "doc": {
+   "sound": "s05",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown"
+    },
+    {
+     "type": "noise",
+     "name": "gn",
+     "color": "crackle"
+    },
+    {
+     "type": "decay",
+     "name": "w0_e",
+     "time": 0.15,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "w0_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w0_e"
+    },
+    {
+     "type": "filter",
+     "name": "w0_f",
+     "input": "w0_x",
+     "mode": "lp",
+     "freq": 230,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w0",
+     "input": "w0_f",
+     "db": -4
+    },
+    {
+     "type": "decay",
+     "name": "c0_e",
+     "time": 0.01,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "c0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c0_e"
+    },
+    {
+     "type": "filter",
+     "name": "c0_f",
+     "input": "c0_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c0",
+     "input": "c0_f",
+     "db": -4
+    },
+    {
+     "type": "decay",
+     "name": "b0_e",
+     "time": 0.07,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "b0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b0_e"
+    },
+    {
+     "type": "filter",
+     "name": "b0_f",
+     "input": "b0_x",
+     "mode": "bp",
+     "freq": 700,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b0",
+     "input": "b0_f",
+     "db": 4
+    },
+    {
+     "type": "decay",
+     "name": "g0_e",
+     "time": 0.08,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "g0_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g0_e"
+    },
+    {
+     "type": "filter",
+     "name": "g0_f",
+     "input": "g0_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g0",
+     "input": "g0_f",
+     "db": 0
+    },
+    {
+     "type": "decay",
+     "name": "m0_e",
+     "time": 0.004,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "m0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "m0_e"
+    },
+    {
+     "type": "modal",
+     "name": "m0_r",
+     "excite": "m0_x",
+     "material": "stone",
+     "f0": 900,
+     "loss": 2.0,
+     "noise": 0.5,
+     "noise_width": 0.2,
+     "modes": 48
+    },
+    {
+     "type": "gain",
+     "name": "m0",
+     "input": "m0_r",
+     "db": -8
+    },
+    {
+     "type": "decay",
+     "name": "w1_e",
+     "time": 0.15,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "w1_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w1_e"
+    },
+    {
+     "type": "filter",
+     "name": "w1_f",
+     "input": "w1_x",
+     "mode": "lp",
+     "freq": 230,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w1",
+     "input": "w1_f",
+     "db": -16
+    },
+    {
+     "type": "decay",
+     "name": "c1_e",
+     "time": 0.01,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "c1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c1_e"
+    },
+    {
+     "type": "filter",
+     "name": "c1_f",
+     "input": "c1_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c1",
+     "input": "c1_f",
+     "db": -16
+    },
+    {
+     "type": "decay",
+     "name": "b1_e",
+     "time": 0.07,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "b1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b1_e"
+    },
+    {
+     "type": "filter",
+     "name": "b1_f",
+     "input": "b1_x",
+     "mode": "bp",
+     "freq": 700,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b1",
+     "input": "b1_f",
+     "db": -8
+    },
+    {
+     "type": "decay",
+     "name": "g1_e",
+     "time": 0.08,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "g1_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g1_e"
+    },
+    {
+     "type": "filter",
+     "name": "g1_f",
+     "input": "g1_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g1",
+     "input": "g1_f",
+     "db": -12
+    },
+    {
+     "type": "decay",
+     "name": "m1_e",
+     "time": 0.004,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "m1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "m1_e"
+    },
+    {
+     "type": "modal",
+     "name": "m1_r",
+     "excite": "m1_x",
+     "material": "stone",
+     "f0": 900,
+     "loss": 2.0,
+     "noise": 0.5,
+     "noise_width": 0.2,
+     "modes": 48
+    },
+    {
+     "type": "gain",
+     "name": "m1",
+     "input": "m1_r",
+     "db": -20
+    },
+    {
+     "type": "decay",
+     "name": "ch0_e",
+     "time": 0.0035628851670911686,
+     "at": 0.212
+    },
+    {
+     "type": "math",
+     "name": "ch0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch0_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch0_f",
+     "input": "ch0_x",
+     "mode": "bp",
+     "freq": 3655.178820800247,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch0",
+     "input": "ch0_f",
+     "db": -25.15619751402142
+    },
+    {
+     "type": "decay",
+     "name": "ch1_e",
+     "time": 0.0025864197582215224,
+     "at": 0.234
+    },
+    {
+     "type": "math",
+     "name": "ch1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch1_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch1_f",
+     "input": "ch1_x",
+     "mode": "bp",
+     "freq": 3041.592929049023,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch1",
+     "input": "ch1_f",
+     "db": -21.059226588186718
+    },
+    {
+     "type": "decay",
+     "name": "ch2_e",
+     "time": 0.0045138727192690865,
+     "at": 0.283
+    },
+    {
+     "type": "math",
+     "name": "ch2_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch2_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch2_f",
+     "input": "ch2_x",
+     "mode": "bp",
+     "freq": 2426.6388209138067,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch2",
+     "input": "ch2_f",
+     "db": -22.989820801300038
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "w0",
+      "c0",
+      "b0",
+      "g0",
+      "m0",
+      "w1",
+      "c1",
+      "b1",
+      "g1",
+      "m1",
+      "ch0",
+      "ch1",
+      "ch2"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "dry",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "duration": 1.0,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s06",
+  "family": "stone",
+  "design": "slab",
+  "dressed": true,
+  "doc": {
+   "sound": "s06",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown"
+    },
+    {
+     "type": "noise",
+     "name": "gn",
+     "color": "crackle"
+    },
+    {
+     "type": "decay",
+     "name": "w0_e",
+     "time": 0.35,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "w0_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w0_e"
+    },
+    {
+     "type": "filter",
+     "name": "w0_f",
+     "input": "w0_x",
+     "mode": "lp",
+     "freq": 140,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w0",
+     "input": "w0_f",
+     "db": 0
+    },
+    {
+     "type": "decay",
+     "name": "c0_e",
+     "time": 0.012,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "c0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c0_e"
+    },
+    {
+     "type": "filter",
+     "name": "c0_f",
+     "input": "c0_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c0",
+     "input": "c0_f",
+     "db": -6
+    },
+    {
+     "type": "decay",
+     "name": "b0_e",
+     "time": 0.14,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "b0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b0_e"
+    },
+    {
+     "type": "filter",
+     "name": "b0_f",
+     "input": "b0_x",
+     "mode": "bp",
+     "freq": 420,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b0",
+     "input": "b0_f",
+     "db": 4
+    },
+    {
+     "type": "decay",
+     "name": "g0_e",
+     "time": 0.12,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "g0_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g0_e"
+    },
+    {
+     "type": "filter",
+     "name": "g0_f",
+     "input": "g0_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g0",
+     "input": "g0_f",
+     "db": 0
+    },
+    {
+     "type": "decay",
+     "name": "ch0_e",
+     "time": 0.0025239823001829654,
+     "at": 0.147
+    },
+    {
+     "type": "math",
+     "name": "ch0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch0_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch0_f",
+     "input": "ch0_x",
+     "mode": "bp",
+     "freq": 2371.3249450424682,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch0",
+     "input": "ch0_f",
+     "db": -22.873193328510506
+    },
+    {
+     "type": "decay",
+     "name": "ch1_e",
+     "time": 0.0020121086529039725,
+     "at": 0.18
+    },
+    {
+     "type": "math",
+     "name": "ch1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch1_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch1_f",
+     "input": "ch1_x",
+     "mode": "bp",
+     "freq": 1951.7137289102639,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch1",
+     "input": "ch1_f",
+     "db": -20.892624518304824
+    },
+    {
+     "type": "decay",
+     "name": "ch2_e",
+     "time": 0.0037856311059905443,
+     "at": 0.205
+    },
+    {
+     "type": "math",
+     "name": "ch2_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch2_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch2_f",
+     "input": "ch2_x",
+     "mode": "bp",
+     "freq": 2484.1783410146313,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch2",
+     "input": "ch2_f",
+     "db": -20.752576148630624
+    },
+    {
+     "type": "decay",
+     "name": "ch3_e",
+     "time": 0.002734378466211416,
+     "at": 0.261
+    },
+    {
+     "type": "math",
+     "name": "ch3_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch3_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch3_f",
+     "input": "ch3_x",
+     "mode": "bp",
+     "freq": 3795.1012119232005,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch3",
+     "input": "ch3_f",
+     "db": -21.75079602472807
+    },
+    {
+     "type": "decay",
+     "name": "ch4_e",
+     "time": 0.002275772017922948,
+     "at": 0.292
+    },
+    {
+     "type": "math",
+     "name": "ch4_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch4_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch4_f",
+     "input": "ch4_x",
+     "mode": "bp",
+     "freq": 3197.761196830669,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch4",
+     "input": "ch4_f",
+     "db": -20.963949084428652
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "w0",
+      "c0",
+      "b0",
+      "g0",
+      "ch0",
+      "ch1",
+      "ch2",
+      "ch3",
+      "ch4"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "dry",
+     "model": "room",
+     "size": 0.25,
+     "decay": 0.6,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "duration": 1.2,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s07",
+  "family": "stone",
+  "design": "brick_drop",
+  "dressed": false,
+  "doc": {
+   "sound": "s07",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown"
+    },
+    {
+     "type": "noise",
+     "name": "gn",
+     "color": "crackle"
+    },
+    {
+     "type": "decay",
+     "name": "w0_e",
+     "time": 0.22,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "w0_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w0_e"
+    },
+    {
+     "type": "filter",
+     "name": "w0_f",
+     "input": "w0_x",
+     "mode": "lp",
+     "freq": 200,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w0",
+     "input": "w0_f",
+     "db": -2
+    },
+    {
+     "type": "decay",
+     "name": "c0_e",
+     "time": 0.01,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "c0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c0_e"
+    },
+    {
+     "type": "filter",
+     "name": "c0_f",
+     "input": "c0_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c0",
+     "input": "c0_f",
+     "db": -5
+    },
+    {
+     "type": "decay",
+     "name": "b0_e",
+     "time": 0.06,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "b0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b0_e"
+    },
+    {
+     "type": "filter",
+     "name": "b0_f",
+     "input": "b0_x",
+     "mode": "bp",
+     "freq": 800,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b0",
+     "input": "b0_f",
+     "db": 4
+    },
+    {
+     "type": "decay",
+     "name": "g0_e",
+     "time": 0.12,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "g0_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g0_e"
+    },
+    {
+     "type": "filter",
+     "name": "g0_f",
+     "input": "g0_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g0",
+     "input": "g0_f",
+     "db": 0
+    },
+    {
+     "type": "decay",
+     "name": "m0_e",
+     "time": 0.004,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "m0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "m0_e"
+    },
+    {
+     "type": "modal",
+     "name": "m0_r",
+     "excite": "m0_x",
+     "material": "stone",
+     "f0": 700,
+     "loss": 2.5,
+     "noise": 0.5,
+     "noise_width": 0.2,
+     "modes": 48
+    },
+    {
+     "type": "gain",
+     "name": "m0",
+     "input": "m0_r",
+     "db": -6
+    },
+    {
+     "type": "decay",
+     "name": "ch0_e",
+     "time": 0.003499132340871282,
+     "at": 0.093
+    },
+    {
+     "type": "math",
+     "name": "ch0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch0_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch0_f",
+     "input": "ch0_x",
+     "mode": "bp",
+     "freq": 3352.907321644554,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch0",
+     "input": "ch0_f",
+     "db": -22.473375008509176
+    },
+    {
+     "type": "decay",
+     "name": "ch1_e",
+     "time": 0.0031770475533135726,
+     "at": 0.138
+    },
+    {
+     "type": "math",
+     "name": "ch1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch1_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch1_f",
+     "input": "ch1_x",
+     "mode": "bp",
+     "freq": 2653.3154238635807,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch1",
+     "input": "ch1_f",
+     "db": -23.935625214018362
+    },
+    {
+     "type": "decay",
+     "name": "ch2_e",
+     "time": 0.002288052466081595,
+     "at": 0.196
+    },
+    {
+     "type": "math",
+     "name": "ch2_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch2_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch2_f",
+     "input": "ch2_x",
+     "mode": "bp",
+     "freq": 3877.576256306363,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch2",
+     "input": "ch2_f",
+     "db": -23.393853616211818
+    },
+    {
+     "type": "decay",
+     "name": "ch3_e",
+     "time": 0.003730425478387357,
+     "at": 0.225
+    },
+    {
+     "type": "math",
+     "name": "ch3_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch3_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch3_f",
+     "input": "ch3_x",
+     "mode": "bp",
+     "freq": 2435.7109941195463,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch3",
+     "input": "ch3_f",
+     "db": -22.468776448560345
+    },
+    {
+     "type": "decay",
+     "name": "ch4_e",
+     "time": 0.0020917221488667283,
+     "at": 0.255
+    },
+    {
+     "type": "math",
+     "name": "ch4_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch4_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch4_f",
+     "input": "ch4_x",
+     "mode": "bp",
+     "freq": 3828.47133050888,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch4",
+     "input": "ch4_f",
+     "db": -23.232608529417227
+    },
+    {
+     "type": "decay",
+     "name": "ch5_e",
+     "time": 0.004290964475666457,
+     "at": 0.278
+    },
+    {
+     "type": "math",
+     "name": "ch5_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch5_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch5_f",
+     "input": "ch5_x",
+     "mode": "bp",
+     "freq": 2929.53663516081,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch5",
+     "input": "ch5_f",
+     "db": -20.456846065986714
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "w0",
+      "c0",
+      "b0",
+      "g0",
+      "m0",
+      "ch0",
+      "ch1",
+      "ch2",
+      "ch3",
+      "ch4",
+      "ch5"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "dry",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "duration": 1.0,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s08",
+  "family": "stone",
+  "design": "hammer_on_stone",
+  "dressed": false,
+  "doc": {
+   "sound": "s08",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown"
+    },
+    {
+     "type": "noise",
+     "name": "gn",
+     "color": "crackle"
+    },
+    {
+     "type": "decay",
+     "name": "w0_e",
+     "time": 0.12,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "w0_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w0_e"
+    },
+    {
+     "type": "filter",
+     "name": "w0_f",
+     "input": "w0_x",
+     "mode": "lp",
+     "freq": 220,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w0",
+     "input": "w0_f",
+     "db": -6
+    },
+    {
+     "type": "decay",
+     "name": "c0_e",
+     "time": 0.006,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "c0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c0_e"
+    },
+    {
+     "type": "filter",
+     "name": "c0_f",
+     "input": "c0_x",
+     "mode": "hp",
+     "freq": 2500
+    },
+    {
+     "type": "gain",
+     "name": "c0",
+     "input": "c0_f",
+     "db": -2
+    },
+    {
+     "type": "decay",
+     "name": "b0_e",
+     "time": 0.05,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "b0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b0_e"
+    },
+    {
+     "type": "filter",
+     "name": "b0_f",
+     "input": "b0_x",
+     "mode": "bp",
+     "freq": 900,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b0",
+     "input": "b0_f",
+     "db": 0
+    },
+    {
+     "type": "decay",
+     "name": "g0_e",
+     "time": 0.05,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "g0_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g0_e"
+    },
+    {
+     "type": "filter",
+     "name": "g0_f",
+     "input": "g0_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g0",
+     "input": "g0_f",
+     "db": -6
+    },
+    {
+     "type": "decay",
+     "name": "m0_e",
+     "time": 0.004,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "m0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "m0_e"
+    },
+    {
+     "type": "modal",
+     "name": "m0_r",
+     "excite": "m0_x",
+     "material": "stone",
+     "f0": 1800,
+     "loss": 1.2,
+     "noise": 0.5,
+     "noise_width": 0.2,
+     "modes": 48
+    },
+    {
+     "type": "gain",
+     "name": "m0",
+     "input": "m0_r",
+     "db": -4
+    },
+    {
+     "type": "decay",
+     "name": "ch0_e",
+     "time": 0.003569824049201083,
+     "at": 0.104
+    },
+    {
+     "type": "math",
+     "name": "ch0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch0_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch0_f",
+     "input": "ch0_x",
+     "mode": "bp",
+     "freq": 3387.4491847213853,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch0",
+     "input": "ch0_f",
+     "db": -28.16437124144913
+    },
+    {
+     "type": "decay",
+     "name": "ch1_e",
+     "time": 0.003671341871618466,
+     "at": 0.132
+    },
+    {
+     "type": "math",
+     "name": "ch1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch1_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch1_f",
+     "input": "ch1_x",
+     "mode": "bp",
+     "freq": 3059.9200301959,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch1",
+     "input": "ch1_f",
+     "db": -25.80875980671684
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "w0",
+      "c0",
+      "b0",
+      "g0",
+      "m0",
+      "ch0",
+      "ch1"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "dry",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "duration": 0.8,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s09",
+  "family": "stone",
+  "design": "brick_drop",
+  "dressed": true,
+  "doc": {
+   "sound": "s09",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown"
+    },
+    {
+     "type": "noise",
+     "name": "gn",
+     "color": "crackle"
+    },
+    {
+     "type": "decay",
+     "name": "w0_e",
+     "time": 0.22,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "w0_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w0_e"
+    },
+    {
+     "type": "filter",
+     "name": "w0_f",
+     "input": "w0_x",
+     "mode": "lp",
+     "freq": 200,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w0",
+     "input": "w0_f",
+     "db": -2
+    },
+    {
+     "type": "decay",
+     "name": "c0_e",
+     "time": 0.01,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "c0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c0_e"
+    },
+    {
+     "type": "filter",
+     "name": "c0_f",
+     "input": "c0_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c0",
+     "input": "c0_f",
+     "db": -5
+    },
+    {
+     "type": "decay",
+     "name": "b0_e",
+     "time": 0.06,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "b0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b0_e"
+    },
+    {
+     "type": "filter",
+     "name": "b0_f",
+     "input": "b0_x",
+     "mode": "bp",
+     "freq": 800,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b0",
+     "input": "b0_f",
+     "db": 4
+    },
+    {
+     "type": "decay",
+     "name": "g0_e",
+     "time": 0.12,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "g0_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g0_e"
+    },
+    {
+     "type": "filter",
+     "name": "g0_f",
+     "input": "g0_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g0",
+     "input": "g0_f",
+     "db": 0
+    },
+    {
+     "type": "decay",
+     "name": "m0_e",
+     "time": 0.004,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "m0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "m0_e"
+    },
+    {
+     "type": "modal",
+     "name": "m0_r",
+     "excite": "m0_x",
+     "material": "stone",
+     "f0": 700,
+     "loss": 2.5,
+     "noise": 0.5,
+     "noise_width": 0.2,
+     "modes": 48
+    },
+    {
+     "type": "gain",
+     "name": "m0",
+     "input": "m0_r",
+     "db": -6
+    },
+    {
+     "type": "decay",
+     "name": "ch0_e",
+     "time": 0.003499132340871282,
+     "at": 0.093
+    },
+    {
+     "type": "math",
+     "name": "ch0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch0_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch0_f",
+     "input": "ch0_x",
+     "mode": "bp",
+     "freq": 3352.907321644554,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch0",
+     "input": "ch0_f",
+     "db": -22.473375008509176
+    },
+    {
+     "type": "decay",
+     "name": "ch1_e",
+     "time": 0.0031770475533135726,
+     "at": 0.138
+    },
+    {
+     "type": "math",
+     "name": "ch1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch1_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch1_f",
+     "input": "ch1_x",
+     "mode": "bp",
+     "freq": 2653.3154238635807,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch1",
+     "input": "ch1_f",
+     "db": -23.935625214018362
+    },
+    {
+     "type": "decay",
+     "name": "ch2_e",
+     "time": 0.002288052466081595,
+     "at": 0.196
+    },
+    {
+     "type": "math",
+     "name": "ch2_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch2_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch2_f",
+     "input": "ch2_x",
+     "mode": "bp",
+     "freq": 3877.576256306363,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch2",
+     "input": "ch2_f",
+     "db": -23.393853616211818
+    },
+    {
+     "type": "decay",
+     "name": "ch3_e",
+     "time": 0.003730425478387357,
+     "at": 0.225
+    },
+    {
+     "type": "math",
+     "name": "ch3_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch3_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch3_f",
+     "input": "ch3_x",
+     "mode": "bp",
+     "freq": 2435.7109941195463,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch3",
+     "input": "ch3_f",
+     "db": -22.468776448560345
+    },
+    {
+     "type": "decay",
+     "name": "ch4_e",
+     "time": 0.0020917221488667283,
+     "at": 0.255
+    },
+    {
+     "type": "math",
+     "name": "ch4_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch4_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch4_f",
+     "input": "ch4_x",
+     "mode": "bp",
+     "freq": 3828.47133050888,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch4",
+     "input": "ch4_f",
+     "db": -23.232608529417227
+    },
+    {
+     "type": "decay",
+     "name": "ch5_e",
+     "time": 0.004290964475666457,
+     "at": 0.278
+    },
+    {
+     "type": "math",
+     "name": "ch5_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch5_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch5_f",
+     "input": "ch5_x",
+     "mode": "bp",
+     "freq": 2929.53663516081,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch5",
+     "input": "ch5_f",
+     "db": -20.456846065986714
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "w0",
+      "c0",
+      "b0",
+      "g0",
+      "m0",
+      "ch0",
+      "ch1",
+      "ch2",
+      "ch3",
+      "ch4",
+      "ch5"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "dry",
+     "model": "room",
+     "size": 0.25,
+     "decay": 0.6,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "duration": 1.0,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s10",
+  "family": "stone",
+  "design": "boulder_drop",
+  "dressed": false,
+  "doc": {
+   "sound": "s10",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown"
+    },
+    {
+     "type": "noise",
+     "name": "gn",
+     "color": "crackle"
+    },
+    {
+     "type": "decay",
+     "name": "w0_e",
+     "time": 0.6,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "w0_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w0_e"
+    },
+    {
+     "type": "filter",
+     "name": "w0_f",
+     "input": "w0_x",
+     "mode": "lp",
+     "freq": 110,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w0",
+     "input": "w0_f",
+     "db": 2
+    },
+    {
+     "type": "decay",
+     "name": "c0_e",
+     "time": 0.015,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "c0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c0_e"
+    },
+    {
+     "type": "filter",
+     "name": "c0_f",
+     "input": "c0_x",
+     "mode": "hp",
+     "freq": 1500
+    },
+    {
+     "type": "gain",
+     "name": "c0",
+     "input": "c0_f",
+     "db": -8
+    },
+    {
+     "type": "decay",
+     "name": "b0_e",
+     "time": 0.2,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "b0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b0_e"
+    },
+    {
+     "type": "filter",
+     "name": "b0_f",
+     "input": "b0_x",
+     "mode": "bp",
+     "freq": 320,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b0",
+     "input": "b0_f",
+     "db": 3
+    },
+    {
+     "type": "decay",
+     "name": "g0_e",
+     "time": 0.25,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "g0_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g0_e"
+    },
+    {
+     "type": "filter",
+     "name": "g0_f",
+     "input": "g0_x",
+     "mode": "bp",
+     "freq": 2000,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g0",
+     "input": "g0_f",
+     "db": 2
+    },
+    {
+     "type": "decay",
+     "name": "ch0_e",
+     "time": 0.0040606791079318225,
+     "at": 0.164
+    },
+    {
+     "type": "math",
+     "name": "ch0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch0_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch0_f",
+     "input": "ch0_x",
+     "mode": "bp",
+     "freq": 2838.6451548689956,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch0",
+     "input": "ch0_f",
+     "db": -17.803410722116997
+    },
+    {
+     "type": "decay",
+     "name": "ch1_e",
+     "time": 0.002300646837645092,
+     "at": 0.223
+    },
+    {
+     "type": "math",
+     "name": "ch1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch1_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch1_f",
+     "input": "ch1_x",
+     "mode": "bp",
+     "freq": 3401.5791703727327,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch1",
+     "input": "ch1_f",
+     "db": -14.510457717225488
+    },
+    {
+     "type": "decay",
+     "name": "ch2_e",
+     "time": 0.0042310426291133005,
+     "at": 0.257
+    },
+    {
+     "type": "math",
+     "name": "ch2_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch2_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch2_f",
+     "input": "ch2_x",
+     "mode": "bp",
+     "freq": 2126.7437459824614,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch2",
+     "input": "ch2_f",
+     "db": -14.189129942416933
+    },
+    {
+     "type": "decay",
+     "name": "ch3_e",
+     "time": 0.0037940722160325034,
+     "at": 0.279
+    },
+    {
+     "type": "math",
+     "name": "ch3_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch3_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch3_f",
+     "input": "ch3_x",
+     "mode": "bp",
+     "freq": 1926.5016993160841,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch3",
+     "input": "ch3_f",
+     "db": -18.982333835184296
+    },
+    {
+     "type": "decay",
+     "name": "ch4_e",
+     "time": 0.004659436747019518,
+     "at": 0.34
+    },
+    {
+     "type": "math",
+     "name": "ch4_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch4_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch4_f",
+     "input": "ch4_x",
+     "mode": "bp",
+     "freq": 3480.2552361820885,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch4",
+     "input": "ch4_f",
+     "db": -21.111602699398265
+    },
+    {
+     "type": "decay",
+     "name": "ch5_e",
+     "time": 0.00234211033909911,
+     "at": 0.387
+    },
+    {
+     "type": "math",
+     "name": "ch5_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch5_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch5_f",
+     "input": "ch5_x",
+     "mode": "bp",
+     "freq": 3322.909610205693,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch5",
+     "input": "ch5_f",
+     "db": -18.850710326887878
+    },
+    {
+     "type": "decay",
+     "name": "ch6_e",
+     "time": 0.0040311295607587914,
+     "at": 0.44
+    },
+    {
+     "type": "math",
+     "name": "ch6_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch6_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch6_f",
+     "input": "ch6_x",
+     "mode": "bp",
+     "freq": 3186.1431461963293,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch6",
+     "input": "ch6_f",
+     "db": -21.94233660394071
+    },
+    {
+     "type": "decay",
+     "name": "ch7_e",
+     "time": 0.003965972936035827,
+     "at": 0.474
+    },
+    {
+     "type": "math",
+     "name": "ch7_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch7_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch7_f",
+     "input": "ch7_x",
+     "mode": "bp",
+     "freq": 2736.685981535542,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch7",
+     "input": "ch7_f",
+     "db": -21.508948251985075
+    },
+    {
+     "type": "decay",
+     "name": "ch8_e",
+     "time": 0.004098574493837163,
+     "at": 0.496
+    },
+    {
+     "type": "math",
+     "name": "ch8_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch8_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch8_f",
+     "input": "ch8_x",
+     "mode": "bp",
+     "freq": 3092.206862944059,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch8",
+     "input": "ch8_f",
+     "db": -19.584129703178995
+    },
+    {
+     "type": "decay",
+     "name": "ch9_e",
+     "time": 0.0035894803974520955,
+     "at": 0.519
+    },
+    {
+     "type": "math",
+     "name": "ch9_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch9_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch9_f",
+     "input": "ch9_x",
+     "mode": "bp",
+     "freq": 1609.6235781044593,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch9",
+     "input": "ch9_f",
+     "db": -15.606375598226702
+    },
+    {
+     "type": "decay",
+     "name": "ch10_e",
+     "time": 0.002651446703809091,
+     "at": 0.576
+    },
+    {
+     "type": "math",
+     "name": "ch10_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch10_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch10_f",
+     "input": "ch10_x",
+     "mode": "bp",
+     "freq": 3118.262154974973,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch10",
+     "input": "ch10_f",
+     "db": -18.059682058985416
+    },
+    {
+     "type": "decay",
+     "name": "ch11_e",
+     "time": 0.0024945223472323044,
+     "at": 0.622
+    },
+    {
+     "type": "math",
+     "name": "ch11_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch11_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch11_f",
+     "input": "ch11_x",
+     "mode": "bp",
+     "freq": 3753.554394383582,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch11",
+     "input": "ch11_f",
+     "db": -16.181787739614943
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "w0",
+      "c0",
+      "b0",
+      "g0",
+      "ch0",
+      "ch1",
+      "ch2",
+      "ch3",
+      "ch4",
+      "ch5",
+      "ch6",
+      "ch7",
+      "ch8",
+      "ch9",
+      "ch10",
+      "ch11"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "dry",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "duration": 1.8,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s11",
+  "family": "stone",
+  "design": "rock_drop",
+  "dressed": true,
+  "doc": {
+   "sound": "s11",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown"
+    },
+    {
+     "type": "noise",
+     "name": "gn",
+     "color": "crackle"
+    },
+    {
+     "type": "decay",
+     "name": "w0_e",
+     "time": 0.15,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "w0_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w0_e"
+    },
+    {
+     "type": "filter",
+     "name": "w0_f",
+     "input": "w0_x",
+     "mode": "lp",
+     "freq": 230,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w0",
+     "input": "w0_f",
+     "db": -4
+    },
+    {
+     "type": "decay",
+     "name": "c0_e",
+     "time": 0.01,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "c0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c0_e"
+    },
+    {
+     "type": "filter",
+     "name": "c0_f",
+     "input": "c0_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c0",
+     "input": "c0_f",
+     "db": -4
+    },
+    {
+     "type": "decay",
+     "name": "b0_e",
+     "time": 0.07,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "b0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b0_e"
+    },
+    {
+     "type": "filter",
+     "name": "b0_f",
+     "input": "b0_x",
+     "mode": "bp",
+     "freq": 700,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b0",
+     "input": "b0_f",
+     "db": 4
+    },
+    {
+     "type": "decay",
+     "name": "g0_e",
+     "time": 0.08,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "g0_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g0_e"
+    },
+    {
+     "type": "filter",
+     "name": "g0_f",
+     "input": "g0_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g0",
+     "input": "g0_f",
+     "db": 0
+    },
+    {
+     "type": "decay",
+     "name": "m0_e",
+     "time": 0.004,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "m0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "m0_e"
+    },
+    {
+     "type": "modal",
+     "name": "m0_r",
+     "excite": "m0_x",
+     "material": "stone",
+     "f0": 900,
+     "loss": 2.0,
+     "noise": 0.5,
+     "noise_width": 0.2,
+     "modes": 48
+    },
+    {
+     "type": "gain",
+     "name": "m0",
+     "input": "m0_r",
+     "db": -8
+    },
+    {
+     "type": "decay",
+     "name": "w1_e",
+     "time": 0.15,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "w1_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w1_e"
+    },
+    {
+     "type": "filter",
+     "name": "w1_f",
+     "input": "w1_x",
+     "mode": "lp",
+     "freq": 230,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w1",
+     "input": "w1_f",
+     "db": -16
+    },
+    {
+     "type": "decay",
+     "name": "c1_e",
+     "time": 0.01,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "c1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c1_e"
+    },
+    {
+     "type": "filter",
+     "name": "c1_f",
+     "input": "c1_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c1",
+     "input": "c1_f",
+     "db": -16
+    },
+    {
+     "type": "decay",
+     "name": "b1_e",
+     "time": 0.07,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "b1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b1_e"
+    },
+    {
+     "type": "filter",
+     "name": "b1_f",
+     "input": "b1_x",
+     "mode": "bp",
+     "freq": 700,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b1",
+     "input": "b1_f",
+     "db": -8
+    },
+    {
+     "type": "decay",
+     "name": "g1_e",
+     "time": 0.08,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "g1_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g1_e"
+    },
+    {
+     "type": "filter",
+     "name": "g1_f",
+     "input": "g1_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g1",
+     "input": "g1_f",
+     "db": -12
+    },
+    {
+     "type": "decay",
+     "name": "m1_e",
+     "time": 0.004,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "m1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "m1_e"
+    },
+    {
+     "type": "modal",
+     "name": "m1_r",
+     "excite": "m1_x",
+     "material": "stone",
+     "f0": 900,
+     "loss": 2.0,
+     "noise": 0.5,
+     "noise_width": 0.2,
+     "modes": 48
+    },
+    {
+     "type": "gain",
+     "name": "m1",
+     "input": "m1_r",
+     "db": -20
+    },
+    {
+     "type": "decay",
+     "name": "ch0_e",
+     "time": 0.0035628851670911686,
+     "at": 0.212
+    },
+    {
+     "type": "math",
+     "name": "ch0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch0_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch0_f",
+     "input": "ch0_x",
+     "mode": "bp",
+     "freq": 3655.178820800247,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch0",
+     "input": "ch0_f",
+     "db": -25.15619751402142
+    },
+    {
+     "type": "decay",
+     "name": "ch1_e",
+     "time": 0.0025864197582215224,
+     "at": 0.234
+    },
+    {
+     "type": "math",
+     "name": "ch1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch1_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch1_f",
+     "input": "ch1_x",
+     "mode": "bp",
+     "freq": 3041.592929049023,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch1",
+     "input": "ch1_f",
+     "db": -21.059226588186718
+    },
+    {
+     "type": "decay",
+     "name": "ch2_e",
+     "time": 0.0045138727192690865,
+     "at": 0.283
+    },
+    {
+     "type": "math",
+     "name": "ch2_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch2_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch2_f",
+     "input": "ch2_x",
+     "mode": "bp",
+     "freq": 2426.6388209138067,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch2",
+     "input": "ch2_f",
+     "db": -22.989820801300038
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "w0",
+      "c0",
+      "b0",
+      "g0",
+      "m0",
+      "w1",
+      "c1",
+      "b1",
+      "g1",
+      "m1",
+      "ch0",
+      "ch1",
+      "ch2"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "dry",
+     "model": "room",
+     "size": 0.25,
+     "decay": 0.6,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "duration": 1.0,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s12",
+  "family": "stone",
+  "design": "rock_drop_dead",
+  "dressed": true,
+  "doc": {
+   "sound": "s12",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown"
+    },
+    {
+     "type": "noise",
+     "name": "gn",
+     "color": "crackle"
+    },
+    {
+     "type": "decay",
+     "name": "w0_e",
+     "time": 0.15,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "w0_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w0_e"
+    },
+    {
+     "type": "filter",
+     "name": "w0_f",
+     "input": "w0_x",
+     "mode": "lp",
+     "freq": 230,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w0",
+     "input": "w0_f",
+     "db": -4
+    },
+    {
+     "type": "decay",
+     "name": "c0_e",
+     "time": 0.01,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "c0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c0_e"
+    },
+    {
+     "type": "filter",
+     "name": "c0_f",
+     "input": "c0_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c0",
+     "input": "c0_f",
+     "db": -4
+    },
+    {
+     "type": "decay",
+     "name": "b0_e",
+     "time": 0.07,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "b0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b0_e"
+    },
+    {
+     "type": "filter",
+     "name": "b0_f",
+     "input": "b0_x",
+     "mode": "bp",
+     "freq": 700,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b0",
+     "input": "b0_f",
+     "db": 4
+    },
+    {
+     "type": "decay",
+     "name": "g0_e",
+     "time": 0.08,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "g0_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g0_e"
+    },
+    {
+     "type": "filter",
+     "name": "g0_f",
+     "input": "g0_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g0",
+     "input": "g0_f",
+     "db": 0
+    },
+    {
+     "type": "decay",
+     "name": "w1_e",
+     "time": 0.15,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "w1_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w1_e"
+    },
+    {
+     "type": "filter",
+     "name": "w1_f",
+     "input": "w1_x",
+     "mode": "lp",
+     "freq": 230,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w1",
+     "input": "w1_f",
+     "db": -16
+    },
+    {
+     "type": "decay",
+     "name": "c1_e",
+     "time": 0.01,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "c1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c1_e"
+    },
+    {
+     "type": "filter",
+     "name": "c1_f",
+     "input": "c1_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c1",
+     "input": "c1_f",
+     "db": -16
+    },
+    {
+     "type": "decay",
+     "name": "b1_e",
+     "time": 0.07,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "b1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b1_e"
+    },
+    {
+     "type": "filter",
+     "name": "b1_f",
+     "input": "b1_x",
+     "mode": "bp",
+     "freq": 700,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b1",
+     "input": "b1_f",
+     "db": -8
+    },
+    {
+     "type": "decay",
+     "name": "g1_e",
+     "time": 0.08,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "g1_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g1_e"
+    },
+    {
+     "type": "filter",
+     "name": "g1_f",
+     "input": "g1_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g1",
+     "input": "g1_f",
+     "db": -12
+    },
+    {
+     "type": "decay",
+     "name": "ch0_e",
+     "time": 0.0037492954059146653,
+     "at": 0.19
+    },
+    {
+     "type": "math",
+     "name": "ch0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch0_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch0_f",
+     "input": "ch0_x",
+     "mode": "bp",
+     "freq": 3719.002702446028,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch0",
+     "input": "ch0_f",
+     "db": -23.45384170206939
+    },
+    {
+     "type": "decay",
+     "name": "ch1_e",
+     "time": 0.002657620823335459,
+     "at": 0.234
+    },
+    {
+     "type": "math",
+     "name": "ch1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch1_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch1_f",
+     "input": "ch1_x",
+     "mode": "bp",
+     "freq": 3226.6062085951016,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch1",
+     "input": "ch1_f",
+     "db": -21.953091375643186
+    },
+    {
+     "type": "decay",
+     "name": "ch2_e",
+     "time": 0.003581024538111311,
+     "at": 0.276
+    },
+    {
+     "type": "math",
+     "name": "ch2_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch2_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch2_f",
+     "input": "ch2_x",
+     "mode": "bp",
+     "freq": 2489.8419768065123,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch2",
+     "input": "ch2_f",
+     "db": -23.69116581180169
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "w0",
+      "c0",
+      "b0",
+      "g0",
+      "w1",
+      "c1",
+      "b1",
+      "g1",
+      "ch0",
+      "ch1",
+      "ch2"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "dry",
+     "model": "room",
+     "size": 0.25,
+     "decay": 0.6,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "duration": 1.0,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s13",
+  "family": "stone",
+  "design": "rock_drop_dead",
+  "dressed": false,
+  "doc": {
+   "sound": "s13",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown"
+    },
+    {
+     "type": "noise",
+     "name": "gn",
+     "color": "crackle"
+    },
+    {
+     "type": "decay",
+     "name": "w0_e",
+     "time": 0.15,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "w0_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w0_e"
+    },
+    {
+     "type": "filter",
+     "name": "w0_f",
+     "input": "w0_x",
+     "mode": "lp",
+     "freq": 230,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w0",
+     "input": "w0_f",
+     "db": -4
+    },
+    {
+     "type": "decay",
+     "name": "c0_e",
+     "time": 0.01,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "c0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c0_e"
+    },
+    {
+     "type": "filter",
+     "name": "c0_f",
+     "input": "c0_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c0",
+     "input": "c0_f",
+     "db": -4
+    },
+    {
+     "type": "decay",
+     "name": "b0_e",
+     "time": 0.07,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "b0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b0_e"
+    },
+    {
+     "type": "filter",
+     "name": "b0_f",
+     "input": "b0_x",
+     "mode": "bp",
+     "freq": 700,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b0",
+     "input": "b0_f",
+     "db": 4
+    },
+    {
+     "type": "decay",
+     "name": "g0_e",
+     "time": 0.08,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "g0_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g0_e"
+    },
+    {
+     "type": "filter",
+     "name": "g0_f",
+     "input": "g0_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g0",
+     "input": "g0_f",
+     "db": 0
+    },
+    {
+     "type": "decay",
+     "name": "w1_e",
+     "time": 0.15,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "w1_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w1_e"
+    },
+    {
+     "type": "filter",
+     "name": "w1_f",
+     "input": "w1_x",
+     "mode": "lp",
+     "freq": 230,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w1",
+     "input": "w1_f",
+     "db": -16
+    },
+    {
+     "type": "decay",
+     "name": "c1_e",
+     "time": 0.01,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "c1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c1_e"
+    },
+    {
+     "type": "filter",
+     "name": "c1_f",
+     "input": "c1_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c1",
+     "input": "c1_f",
+     "db": -16
+    },
+    {
+     "type": "decay",
+     "name": "b1_e",
+     "time": 0.07,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "b1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b1_e"
+    },
+    {
+     "type": "filter",
+     "name": "b1_f",
+     "input": "b1_x",
+     "mode": "bp",
+     "freq": 700,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b1",
+     "input": "b1_f",
+     "db": -8
+    },
+    {
+     "type": "decay",
+     "name": "g1_e",
+     "time": 0.08,
+     "at": 0.13
+    },
+    {
+     "type": "math",
+     "name": "g1_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g1_e"
+    },
+    {
+     "type": "filter",
+     "name": "g1_f",
+     "input": "g1_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g1",
+     "input": "g1_f",
+     "db": -12
+    },
+    {
+     "type": "decay",
+     "name": "ch0_e",
+     "time": 0.0037492954059146653,
+     "at": 0.19
+    },
+    {
+     "type": "math",
+     "name": "ch0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch0_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch0_f",
+     "input": "ch0_x",
+     "mode": "bp",
+     "freq": 3719.002702446028,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch0",
+     "input": "ch0_f",
+     "db": -23.45384170206939
+    },
+    {
+     "type": "decay",
+     "name": "ch1_e",
+     "time": 0.002657620823335459,
+     "at": 0.234
+    },
+    {
+     "type": "math",
+     "name": "ch1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch1_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch1_f",
+     "input": "ch1_x",
+     "mode": "bp",
+     "freq": 3226.6062085951016,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch1",
+     "input": "ch1_f",
+     "db": -21.953091375643186
+    },
+    {
+     "type": "decay",
+     "name": "ch2_e",
+     "time": 0.003581024538111311,
+     "at": 0.276
+    },
+    {
+     "type": "math",
+     "name": "ch2_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "ch2_e"
+    },
+    {
+     "type": "filter",
+     "name": "ch2_f",
+     "input": "ch2_x",
+     "mode": "bp",
+     "freq": 2489.8419768065123,
+     "q": 1.2
+    },
+    {
+     "type": "gain",
+     "name": "ch2",
+     "input": "ch2_f",
+     "db": -23.69116581180169
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "w0",
+      "c0",
+      "b0",
+      "g0",
+      "w1",
+      "c1",
+      "b1",
+      "g1",
+      "ch0",
+      "ch1",
+      "ch2"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "dry",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "duration": 1.0,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s14",
+  "family": "stone",
+  "design": "rocks_knocked",
+  "dressed": true,
+  "doc": {
+   "sound": "s14",
+   "ops": [
+    {
+     "type": "noise",
+     "name": "wn",
+     "color": "white"
+    },
+    {
+     "type": "noise",
+     "name": "bn",
+     "color": "brown"
+    },
+    {
+     "type": "noise",
+     "name": "gn",
+     "color": "crackle"
+    },
+    {
+     "type": "decay",
+     "name": "w0_e",
+     "time": 0.12,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "w0_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w0_e"
+    },
+    {
+     "type": "filter",
+     "name": "w0_f",
+     "input": "w0_x",
+     "mode": "lp",
+     "freq": 250,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w0",
+     "input": "w0_f",
+     "db": -6
+    },
+    {
+     "type": "decay",
+     "name": "c0_e",
+     "time": 0.01,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "c0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c0_e"
+    },
+    {
+     "type": "filter",
+     "name": "c0_f",
+     "input": "c0_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c0",
+     "input": "c0_f",
+     "db": -3
+    },
+    {
+     "type": "decay",
+     "name": "b0_e",
+     "time": 0.06,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "b0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b0_e"
+    },
+    {
+     "type": "filter",
+     "name": "b0_f",
+     "input": "b0_x",
+     "mode": "bp",
+     "freq": 650,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b0",
+     "input": "b0_f",
+     "db": 4
+    },
+    {
+     "type": "decay",
+     "name": "g0_e",
+     "time": 0.06,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "g0_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g0_e"
+    },
+    {
+     "type": "filter",
+     "name": "g0_f",
+     "input": "g0_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g0",
+     "input": "g0_f",
+     "db": -3
+    },
+    {
+     "type": "decay",
+     "name": "m0_e",
+     "time": 0.004,
+     "at": 0.005
+    },
+    {
+     "type": "math",
+     "name": "m0_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "m0_e"
+    },
+    {
+     "type": "modal",
+     "name": "m0_r",
+     "excite": "m0_x",
+     "material": "stone",
+     "f0": 750,
+     "loss": 1.8,
+     "noise": 0.5,
+     "noise_width": 0.2,
+     "modes": 48
+    },
+    {
+     "type": "gain",
+     "name": "m0",
+     "input": "m0_r",
+     "db": -6
+    },
+    {
+     "type": "decay",
+     "name": "w1_e",
+     "time": 0.12,
+     "at": 0.45
+    },
+    {
+     "type": "math",
+     "name": "w1_x",
+     "op": "mul",
+     "a": "bn",
+     "b": "w1_e"
+    },
+    {
+     "type": "filter",
+     "name": "w1_f",
+     "input": "w1_x",
+     "mode": "lp",
+     "freq": 250,
+     "slope": 24
+    },
+    {
+     "type": "gain",
+     "name": "w1",
+     "input": "w1_f",
+     "db": -8
+    },
+    {
+     "type": "decay",
+     "name": "c1_e",
+     "time": 0.01,
+     "at": 0.45
+    },
+    {
+     "type": "math",
+     "name": "c1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "c1_e"
+    },
+    {
+     "type": "filter",
+     "name": "c1_f",
+     "input": "c1_x",
+     "mode": "hp",
+     "freq": 1800
+    },
+    {
+     "type": "gain",
+     "name": "c1",
+     "input": "c1_f",
+     "db": -5
+    },
+    {
+     "type": "decay",
+     "name": "b1_e",
+     "time": 0.06,
+     "at": 0.45
+    },
+    {
+     "type": "math",
+     "name": "b1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "b1_e"
+    },
+    {
+     "type": "filter",
+     "name": "b1_f",
+     "input": "b1_x",
+     "mode": "bp",
+     "freq": 650,
+     "q": 0.8
+    },
+    {
+     "type": "gain",
+     "name": "b1",
+     "input": "b1_f",
+     "db": 2
+    },
+    {
+     "type": "decay",
+     "name": "g1_e",
+     "time": 0.06,
+     "at": 0.45
+    },
+    {
+     "type": "math",
+     "name": "g1_x",
+     "op": "mul",
+     "a": "gn",
+     "b": "g1_e"
+    },
+    {
+     "type": "filter",
+     "name": "g1_f",
+     "input": "g1_x",
+     "mode": "bp",
+     "freq": 2500,
+     "q": 0.7
+    },
+    {
+     "type": "gain",
+     "name": "g1",
+     "input": "g1_f",
+     "db": -5
+    },
+    {
+     "type": "decay",
+     "name": "m1_e",
+     "time": 0.004,
+     "at": 0.45
+    },
+    {
+     "type": "math",
+     "name": "m1_x",
+     "op": "mul",
+     "a": "wn",
+     "b": "m1_e"
+    },
+    {
+     "type": "modal",
+     "name": "m1_r",
+     "excite": "m1_x",
+     "material": "stone",
+     "f0": 750,
+     "loss": 1.8,
+     "noise": 0.5,
+     "noise_width": 0.2,
+     "modes": 48
+    },
+    {
+     "type": "gain",
+     "name": "m1",
+     "input": "m1_r",
+     "db": -8
+    },
+    {
+     "type": "mix",
+     "name": "dry",
+     "inputs": [
+      "w0",
+      "c0",
+      "b0",
+      "g0",
+      "m0",
+      "w1",
+      "c1",
+      "b1",
+      "g1",
+      "m1"
+     ],
+     "to": "mono"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "dry",
+     "model": "room",
+     "size": 0.25,
+     "decay": 0.6,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "peak_db": -3,
+     "fade_in": 0.0005
+    }
+   ],
+   "duration": 1.0,
+   "seed": 1
+  }
+ }
+]
