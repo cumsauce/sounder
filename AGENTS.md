@@ -386,7 +386,7 @@ Start from these. Each was picked best of its box, or rated good blind.
 | machines and alarms | `small_motor_spin`, engine rev, siren, alarm, error beep, laser | |
 | others | rattlesnake rattle and scissors snip (cicada patches heard so), door creak, bird, breath, bells, flute, plucked string, twang | |
 
-**Not in the library** (every attempt was heard as something else, or set aside): footsteps in snow or on ice (`step` has both; two rebuilds each were heard bad), a stream (heard as a gurgling tube), and a large splash heard from a distance. Build those from nodes and say they are unheard.
+**Not in the library** (every attempt was heard as something else, or set aside): a ball or marble rolling (`impact` `slide` over `roughness`: four rounds heard as crackle or crunch, set aside 2026-11-19), footsteps in snow or on ice (`step` has both; two rebuilds each were heard bad), a stream (heard as a gurgling tube), and a large splash heard from a distance. Build those from nodes and say they are unheard.
 
 **From the round 6 listen (testers' sounds, judged by ear):**
 - **Door slam:** `new_sound` with `template: "door_slam"` (the recipe below, approved by ear, ready to tune); keep

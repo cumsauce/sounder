@@ -456,7 +456,8 @@ the contact force follows how the surface moves under it.
   30 dB of the median); with `roughness` 0 it falls silent after landing.
   The batch 23 roll (a pulsed `drive`, lifting the ball) was heard as
   "random cracks": a roll is this, not a drive.
-- A roll is crunchy when the ball hops: every landing is a small impact. A
+- Rolling was set aside after four listens (batches 23-26, none picked: crackle, crunch). What was measured:
+  a roll is crunchy when the ball hops: every landing is a small impact. A
   6 g marble pressed by its weight at 0.45 m/s over `roughness` 2e-5 left
   the board 88 times in 2 s (batch 25, heard as crunch); at 5e-6 it never
   left and the crest after the start fell to 11.8 dB. Start a smooth roll at
