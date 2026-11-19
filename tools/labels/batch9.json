@@ -1,0 +1,1490 @@
+[
+ {
+  "id": "s01",
+  "family": "foley",
+  "design": "leaves_dry",
+  "dressed": true,
+  "doc": {
+   "sound": "s01",
+   "ops": [
+    {
+     "type": "leaves",
+     "wind": 12,
+     "foliage": "dry",
+     "gust": 0.5,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s02",
+  "family": "foley",
+  "design": "creature_roar_big",
+  "dressed": false,
+  "doc": {
+   "sound": "s02",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "roar",
+     "size": 0.9,
+     "aggression": 0.8,
+     "length": 2,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 2.5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s03",
+  "family": "foley",
+  "design": "creature_snarl",
+  "dressed": true,
+  "doc": {
+   "sound": "s03",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "snarl",
+     "size": 0.5,
+     "length": 2,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 2.5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s04",
+  "family": "foley",
+  "design": "rain_metal_roof_v2",
+  "dressed": false,
+  "doc": {
+   "sound": "s04",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "soft",
+     "roof": "metal",
+     "roof_height": 2,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s05",
+  "family": "foley",
+  "design": "rain_water_v2",
+  "dressed": false,
+  "doc": {
+   "sound": "s05",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "water",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s06",
+  "family": "foley",
+  "design": "surf_storm",
+  "dressed": true,
+  "doc": {
+   "sound": "s06",
+   "ops": [
+    {
+     "type": "surf",
+     "shore": "shingle",
+     "wave_height": 2.5,
+     "period": 3,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 15,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s07",
+  "family": "foley",
+  "design": "creature_whine",
+  "dressed": false,
+  "doc": {
+   "sound": "s07",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "whine",
+     "size": 0.4,
+     "length": 1.5,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 2,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s08",
+  "family": "foley",
+  "design": "lava",
+  "dressed": false,
+  "doc": {
+   "sound": "s08",
+   "ops": [
+    {
+     "type": "lava",
+     "size": 20,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s09",
+  "family": "foley",
+  "design": "leaves_trees",
+  "dressed": true,
+  "doc": {
+   "sound": "s09",
+   "ops": [
+    {
+     "type": "leaves",
+     "wind": 8,
+     "foliage": "leaves",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s10",
+  "family": "foley",
+  "design": "rain_stone_v2",
+  "dressed": true,
+  "doc": {
+   "sound": "s10",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "stone",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s11",
+  "family": "foley",
+  "design": "cave_sparse",
+  "dressed": true,
+  "doc": {
+   "sound": "s11",
+   "ops": [
+    {
+     "type": "cave",
+     "drips": 0.3,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 8,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s12",
+  "family": "foley",
+  "design": "lava_big",
+  "dressed": false,
+  "doc": {
+   "sound": "s12",
+   "ops": [
+    {
+     "type": "lava",
+     "size": 150,
+     "activity": 3,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s13",
+  "family": "foley",
+  "design": "leaves_grass",
+  "dressed": true,
+  "doc": {
+   "sound": "s13",
+   "ops": [
+    {
+     "type": "leaves",
+     "wind": 8,
+     "foliage": "grass",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s14",
+  "family": "foley",
+  "design": "lava_big",
+  "dressed": true,
+  "doc": {
+   "sound": "s14",
+   "ops": [
+    {
+     "type": "lava",
+     "size": 150,
+     "activity": 3,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s15",
+  "family": "foley",
+  "design": "lava",
+  "dressed": true,
+  "doc": {
+   "sound": "s15",
+   "ops": [
+    {
+     "type": "lava",
+     "size": 20,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s16",
+  "family": "foley",
+  "design": "creature_whine",
+  "dressed": true,
+  "doc": {
+   "sound": "s16",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "whine",
+     "size": 0.4,
+     "length": 1.5,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 2,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s17",
+  "family": "foley",
+  "design": "surf_sand",
+  "dressed": true,
+  "doc": {
+   "sound": "s17",
+   "ops": [
+    {
+     "type": "surf",
+     "shore": "sand",
+     "wave_height": 1,
+     "period": 8,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 20,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s18",
+  "family": "foley",
+  "design": "creature_growl_huge",
+  "dressed": true,
+  "doc": {
+   "sound": "s18",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "growl",
+     "size": 0.95,
+     "aggression": 1,
+     "roughness": 1,
+     "length": 2.5,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s19",
+  "family": "foley",
+  "design": "underwater",
+  "dressed": false,
+  "doc": {
+   "sound": "s19",
+   "ops": [
+    {
+     "type": "underwater",
+     "depth": 4,
+     "bubbles": 3,
+     "pressure": 0.3,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s20",
+  "family": "foley",
+  "design": "frog_chorus",
+  "dressed": true,
+  "doc": {
+   "sound": "s20",
+   "ops": [
+    {
+     "type": "frog",
+     "size": 6,
+     "rate": 0.5,
+     "chorus": 6,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 10,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s21",
+  "family": "foley",
+  "design": "creature_snarl",
+  "dressed": false,
+  "doc": {
+   "sound": "s21",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "snarl",
+     "size": 0.5,
+     "length": 2,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 2.5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s22",
+  "family": "foley",
+  "design": "rain_water_v2",
+  "dressed": true,
+  "doc": {
+   "sound": "s22",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "water",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s23",
+  "family": "foley",
+  "design": "frog_bull",
+  "dressed": false,
+  "doc": {
+   "sound": "s23",
+   "ops": [
+    {
+     "type": "frog",
+     "size": 15,
+     "rate": 0.3,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 8,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s24",
+  "family": "foley",
+  "design": "rain_metal_roof_v2",
+  "dressed": true,
+  "doc": {
+   "sound": "s24",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "soft",
+     "roof": "metal",
+     "roof_height": 2,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s25",
+  "family": "foley",
+  "design": "frog_chorus",
+  "dressed": false,
+  "doc": {
+   "sound": "s25",
+   "ops": [
+    {
+     "type": "frog",
+     "size": 6,
+     "rate": 0.5,
+     "chorus": 6,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 10,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s26",
+  "family": "foley",
+  "design": "frog_small",
+  "dressed": false,
+  "doc": {
+   "sound": "s26",
+   "ops": [
+    {
+     "type": "frog",
+     "size": 3,
+     "rate": 1,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s27",
+  "family": "foley",
+  "design": "cave_wet",
+  "dressed": false,
+  "doc": {
+   "sound": "s27",
+   "ops": [
+    {
+     "type": "cave",
+     "drips": 1,
+     "depth": 0,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s28",
+  "family": "foley",
+  "design": "creature_roar_small_rough",
+  "dressed": false,
+  "doc": {
+   "sound": "s28",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "roar",
+     "size": 0.3,
+     "roughness": 0.9,
+     "length": 1.2,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s29",
+  "family": "foley",
+  "design": "surf_storm",
+  "dressed": false,
+  "doc": {
+   "sound": "s29",
+   "ops": [
+    {
+     "type": "surf",
+     "shore": "shingle",
+     "wave_height": 2.5,
+     "period": 3,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 15,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s30",
+  "family": "foley",
+  "design": "surf_sand",
+  "dressed": false,
+  "doc": {
+   "sound": "s30",
+   "ops": [
+    {
+     "type": "surf",
+     "shore": "sand",
+     "wave_height": 1,
+     "period": 8,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 20,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s31",
+  "family": "foley",
+  "design": "creature_roar_small_rough",
+  "dressed": true,
+  "doc": {
+   "sound": "s31",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "roar",
+     "size": 0.3,
+     "roughness": 0.9,
+     "length": 1.2,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 1.5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s32",
+  "family": "foley",
+  "design": "cave_wet",
+  "dressed": true,
+  "doc": {
+   "sound": "s32",
+   "ops": [
+    {
+     "type": "cave",
+     "drips": 1,
+     "depth": 0,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s33",
+  "family": "foley",
+  "design": "surf_shingle",
+  "dressed": false,
+  "doc": {
+   "sound": "s33",
+   "ops": [
+    {
+     "type": "surf",
+     "shore": "shingle",
+     "wave_height": 1,
+     "period": 8,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 20,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s34",
+  "family": "foley",
+  "design": "leaves_grass",
+  "dressed": false,
+  "doc": {
+   "sound": "s34",
+   "ops": [
+    {
+     "type": "leaves",
+     "wind": 8,
+     "foliage": "grass",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s35",
+  "family": "foley",
+  "design": "frog_bull",
+  "dressed": true,
+  "doc": {
+   "sound": "s35",
+   "ops": [
+    {
+     "type": "frog",
+     "size": 15,
+     "rate": 0.3,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 8,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s36",
+  "family": "foley",
+  "design": "frog_small",
+  "dressed": true,
+  "doc": {
+   "sound": "s36",
+   "ops": [
+    {
+     "type": "frog",
+     "size": 3,
+     "rate": 1,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s37",
+  "family": "foley",
+  "design": "creature_growl_huge",
+  "dressed": false,
+  "doc": {
+   "sound": "s37",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "growl",
+     "size": 0.95,
+     "aggression": 1,
+     "roughness": 1,
+     "length": 2.5,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 3,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s38",
+  "family": "foley",
+  "design": "creature_roar_big",
+  "dressed": true,
+  "doc": {
+   "sound": "s38",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "roar",
+     "size": 0.9,
+     "aggression": 0.8,
+     "length": 2,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 2.5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s39",
+  "family": "foley",
+  "design": "rain_glass_v2",
+  "dressed": true,
+  "doc": {
+   "sound": "s39",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "glass",
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s40",
+  "family": "foley",
+  "design": "creature_growl",
+  "dressed": true,
+  "doc": {
+   "sound": "s40",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "growl",
+     "size": 0.7,
+     "length": 1.6,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 2,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s41",
+  "family": "foley",
+  "design": "creature_growl",
+  "dressed": false,
+  "doc": {
+   "sound": "s41",
+   "ops": [
+    {
+     "type": "creature",
+     "call": "growl",
+     "size": 0.7,
+     "length": 1.6,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 2,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s42",
+  "family": "foley",
+  "design": "underwater",
+  "dressed": true,
+  "doc": {
+   "sound": "s42",
+   "ops": [
+    {
+     "type": "underwater",
+     "depth": 4,
+     "bubbles": 3,
+     "pressure": 0.3,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 6,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s43",
+  "family": "foley",
+  "design": "rain_glass_v2",
+  "dressed": false,
+  "doc": {
+   "sound": "s43",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "glass",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s44",
+  "family": "foley",
+  "design": "cave_sparse",
+  "dressed": false,
+  "doc": {
+   "sound": "s44",
+   "ops": [
+    {
+     "type": "cave",
+     "drips": 0.3,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "peak_db": -3
+    }
+   ],
+   "duration": 8,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s45",
+  "family": "foley",
+  "design": "rain_stone_v2",
+  "dressed": false,
+  "doc": {
+   "sound": "s45",
+   "ops": [
+    {
+     "type": "rain",
+     "surface": "stone",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -24
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s46",
+  "family": "foley",
+  "design": "surf_shingle",
+  "dressed": true,
+  "doc": {
+   "sound": "s46",
+   "ops": [
+    {
+     "type": "surf",
+     "shore": "shingle",
+     "wave_height": 1,
+     "period": 8,
+     "name": "src"
+    },
+    {
+     "type": "reverb",
+     "name": "room",
+     "input": "src",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 20,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s47",
+  "family": "foley",
+  "design": "leaves_trees",
+  "dressed": false,
+  "doc": {
+   "sound": "s47",
+   "ops": [
+    {
+     "type": "leaves",
+     "wind": 8,
+     "foliage": "leaves",
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ },
+ {
+  "id": "s48",
+  "family": "foley",
+  "design": "leaves_dry",
+  "dressed": false,
+  "doc": {
+   "sound": "s48",
+   "ops": [
+    {
+     "type": "leaves",
+     "wind": 12,
+     "foliage": "dry",
+     "gust": 0.5,
+     "name": "src"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "src",
+     "fade_in": 0.002,
+     "lufs": -26
+    }
+   ],
+   "duration": 5,
+   "seed": 1
+  }
+ }
+]
