@@ -442,7 +442,7 @@ pub struct Footstep {
     pub weight: Option<f32>,
     /// How fast the foot moves: `walk` (default), `run`, `sneak`, or a
     /// number 0..1 (0 sneak, 0.5 walk, 1 run). Sets the heel-to-toe gap
-    /// (140 ms at 0, 105 ms at 0.5, 70 ms at 1, each +-7 % by seed), the level and, on gravel,
+    /// (85 ms at 0, 62 ms at 0.5, 40 ms at 1, each +-7 % by seed), the level and, on gravel,
     /// the crunch spacing.
     #[serde(default)]
     pub pace: Option<Pace>,
@@ -1012,7 +1012,9 @@ impl Eval for Footstep {
         let mut rng = cx.rng(self.seed);
         // Per-step variation, drawn first so every surface sees the same
         // numbers for the same seed: the gap, the two strengths.
-        let gap = (0.14 - 0.07 * pace) * (1.0 + 0.07 * rng.signed());
+        // A listener heard the earlier 105 ms walking gap as "the heel strike is
+        // too far from the toe strike": 40 % shorter.
+        let gap = (0.085 - 0.045 * pace) * (1.0 + 0.07 * rng.signed());
         let level_db = 6.0 * (weight - 0.5) + 4.0 * (pace - 0.5);
         let level = 10f32.powf(level_db / 20.0);
         let heel_a = level * 10f32.powf(1.5 * rng.signed() / 20.0);

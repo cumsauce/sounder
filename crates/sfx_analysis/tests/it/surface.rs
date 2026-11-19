@@ -338,7 +338,7 @@ mod rolling_cloth_footstep {
         );
         assert_eq!(t.len(), 2, "heel and toe: {t:?}");
         let gap = t[1] - t[0];
-        assert!((0.060..=0.150).contains(&gap), "gap {gap}");
+        assert!((0.045..=0.095).contains(&gap), "gap {gap}");
         assert!(d.attack_s < 0.010);
         assert!(
             (800.0..=3000.0).contains(&d.centroid_all_hz),
@@ -427,7 +427,7 @@ mod rolling_cloth_footstep {
             tick > body_db - 30.0,
             "the tick is there: {tick} vs {body_db}"
         );
-        assert!((0.2..=0.5).contains(&audible_s(&d)), "{}", audible_s(&d));
+        assert!((0.15..=0.5).contains(&audible_s(&d)), "{}", audible_s(&d));
     }
 
     #[test]
@@ -465,7 +465,7 @@ mod rolling_cloth_footstep {
             let g = gap(json!(p));
             line += &format!(" pace {p}: {:.0} ms;", g * 1000.0);
             assert!(g < last, "pace {p}: gap {g} !< {last}");
-            assert!((0.055..=0.155).contains(&g), "{g}");
+            assert!((0.035..=0.095).contains(&g), "{g}");
             last = g;
         }
         println!("heel-toe gap:{line}");
@@ -670,16 +670,18 @@ mod rolling_cloth_footstep {
         v
     }
 
+    // Refreshed when the heel-toe gap shortened (a listener heard 105 ms as
+    // too far apart): the timing moved, body and swish defaults did not.
     const BASELINES: [u64; 9] = [
-        0xca4e_df16_3ed1_a572,
-        0xc005_c951_bef1_3afd,
-        0x4a64_bd8a_1697_af30,
-        0xe12c_c77e_9923_4945,
-        0xfc7d_172a_6f70_5a5f,
-        0x5834_23b2_0ed2_2779,
-        0x9e32_1ce3_2bc9_bc29,
-        0x32e7_5c23_5103_3ab7,
-        0x901e_1415_d839_32cb,
+        0x11cd_e649_9e58_3892,
+        0xd8ee_c079_1aef_1c9b,
+        0x4c92_55b0_3602_d6d5,
+        0x760c_9beb_0b82_c02a,
+        0x1964_f0e1_60f0_fa38,
+        0xa806_b894_8a90_4fd8,
+        0x9345_fcaf_cf91_9a67,
+        0x4c94_9f31_d37d_8658,
+        0x7047_5195_3ec4_f094,
     ];
 
     #[test]

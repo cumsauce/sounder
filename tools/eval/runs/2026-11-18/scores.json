@@ -1,0 +1,72 @@
+[
+ {
+  "id": "e01",
+  "cue": "r04",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e02",
+  "cue": "r02",
+  "rating": "ok",
+  "label": "footsteps",
+  "note": "the heel strike is too far from the toe strike in timing"
+ },
+ {
+  "id": "e03",
+  "cue": "r01",
+  "rating": "ok",
+  "label": "steel SHEET not pipe",
+  "note": ""
+ },
+ {
+  "id": "e04",
+  "cue": "r08",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e05",
+  "cue": "r05",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e06",
+  "cue": "r07",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e07",
+  "cue": "r03",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e08",
+  "cue": "r06",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e09",
+  "cue": "r09",
+  "rating": "good",
+  "label": "",
+  "note": ""
+ },
+ {
+  "id": "e10",
+  "cue": "r10",
+  "rating": "bad",
+  "label": "artificial sweep",
+  "note": "sounds like filtered noise/digital"
+ }
+]

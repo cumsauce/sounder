@@ -97,8 +97,12 @@ rated. An agent that builds one must say it is unheard.
 3. **Metal and stone by synthesis:** done (2026-11-18). Five metal parts
    heard as metal, two stone parts heard as a brick or a rock, and a heavy
    slab heard as a wall (fine for a very large stone, the listener said).
-4. **An evaluation set:** fixed briefs built by a fresh agent and rated blind,
-   with a before and after per change. Not started.
+4. **An evaluation set:** done (2026-11-18), `tools/eval/`. Ten fixed briefs,
+   each built by a fresh agent from AGENTS.md alone and rated blind against
+   the brief. Baseline: 7 good, 2 ok, 1 bad (16 of 20): the pipe read as a
+   sheet, the footstep's heel and toe too far apart, the whoosh as an
+   artificial sweep. All three are fixed in the node or the docs; the next
+   run measures the fixes.
 5. Fill the remaining library gaps above as they come up.
 
 ## Local state, not in git

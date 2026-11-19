@@ -700,7 +700,7 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
   bursts with power-law sizes in four bands (cloth, paper, foliage).
 - `footstep` {surface concrete|gravel|grass|wood, [weight 0.5], [pace walk|run|
   sneak or 0..1], [shoe hard|boot|sneaker|bare], [body 1], [swish 0.5], [at 0],
-  [seed]}: one heel and one toe (70-150 ms apart), a finished sound; a default
+  [seed]}: one heel and one toe (40-90 ms apart), a finished sound; a default
   step peaks near -12 dBFS. Build a walk with several nodes or `sound`
   instances. `body` (0.5..2) multiplies the resonant body frequency apart from
   `weight` (wood: all three modes; concrete: the low thud; gravel: the thump;

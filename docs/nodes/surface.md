@@ -126,7 +126,7 @@ its own pulses, noise bursts and resonators (it does not use `modal` or
 |---|---|---|---|---|
 | `surface` | word | required | `concrete` `gravel` `grass` `wood` | The ground. |
 | `weight` | number | `0.5` | 0 .. 1 | Continuous. Louder (+6 dB across the range), longer contact, lower colour; on gravel more clusters and stones, on wood a lower body mode (215 -> 105 Hz). Outside 0..1 is an error. |
-| `pace` | word or number | `walk` | `walk` 0.5, `run` 0.9, `sneak` 0.1, or 0 .. 1 | Heel-toe gap 140 ms at 0, 105 at 0.5, 70 at 1 (+-7 % by seed); level +-2 dB; gravel crunch spacing. A word and its number give identical bits. |
+| `pace` | word or number | `walk` | `walk` 0.5, `run` 0.9, `sneak` 0.1, or 0 .. 1 | Heel-toe gap 85 ms at 0, 62 at 0.5, 40 at 1 (+-7 % by seed; 140 / 105 / 70 before a listener heard the walking gap as too long); level +-2 dB; gravel crunch spacing. A word and its number give identical bits. |
 | `shoe` | word | `sneaker` | `hard` `boot` `sneaker` `bare` | Contact sharpness and click level (concrete centroid: hard 2400, boot 2366, sneaker 2052, bare 1834 Hz). |
 | `at` | number | `0` | seconds >= 0 | When the heel lands; the step runs up to about 0.6 s after. Past the end of the sound is silence, not an error. |
 | `seed` | integer | `0` | | Another step: gap, levels, tuning and stones move. |

@@ -116,7 +116,11 @@ every call.
 - Node names `mono` and `stereo` are reserved (they are `mix`'s `to` words);
   an `ops` item with a bad name or an unknown field errors with the node's
   fields listed.
-- **Names that trip people:** `impulse` takes `at`, a number or a list of
+- **An upsert replaces the whole node.** Re-issuing a node in `ops` writes
+  exactly the fields you give: a field left out goes back to its default
+  (it is not merged). To change one field, send the node with all of its
+  fields (`summary` lists them).
+- **Names that trip people:** `pattern` starts at `start`, not `at`. `impulse` takes `at`, a number or a list of
   times (`"at": [0, 0.1, 0.2]`), default 0. `wander` takes `rate` and
   `range: [lo, hi]` or `min` and `max` together (not both forms; `range`
   omitted is -1..1). `ramp` takes `time` or `duration` (the same field) and
@@ -561,6 +565,7 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 | breaking glass, shards, debris | `shatter` into `voices` | `pieces`, `spread`, `exponent`; a small `modal` per fragment | a crack then power-law fragments; `modal` glass with `loss` and `tilt` per shard |
 | explosion, gunshot, blast | `explosion`, `gunshot` | `size`, `distance`; `caliber`, `barrel`, `suppressed` | finished one-shots, start 2.5 ms in (the default fade-in does not cut them); distance delays and darkens |
 | engine, motor, vehicle | `engine`, `motor` | `rpm` (a `ramp` or `wander`), `cylinders` / `poles`, `load` | rpm-driven pitch; set a `duration` (ramps hold) |
+| a whoosh, a swing, a sword or stick through the air | the part `whoosh_sweep` (`catalog search` `text: "whoosh"`, heard as "whoosh") | `at`, `gain_db`, its knobs | noise band-passed wide (q about 1) and swept up then down over 0.3-0.5 s. Narrow bands (q 2.5-6) were heard as "an artificial sweep, filtered noise": keep the band wide |
 | a pipe, a flute, a string, a bow | `tube`, `string` | `length` / `freq`, `excite`, `pressure` | waveguides: winds, plucks, strikes, bowed notes |
 | a latch, a switch, a button, a lock, a buckle | `click` | `kind` latch / switch / button / lock / clasp, `size`, `hardness`, `noise` about 0.75 for a small plastic or metal part (the listener's setting; the default rings pitched, voiced 0.33-0.78) | one or two transients through small resonators; a hit at t = 0: `fade_in` 0.0005 |
 | a telephone bell, a ringing bell | `bell` | `freq` (750), `at` (strike time or list), `ring` | Farnell's telephone bell: partial groups, a strike and the bell body; 3.6 dB from the patch played by Pd |
@@ -572,7 +577,7 @@ the brief, then `listen`, `verify` and let the human's macros do the rest.
 | a jet engine, a turbine | `jet` | `speed` (signal 0.1..1, spools up through a 0.2 Hz low-pass) | Farnell's jet: turbine tones and a clipped, swept burner roar |
 | a sci-fi alarm, red alert | `red_alert` | `at` (whoop times), `pitch` | Farnell's klaxon: a rising buzz through feedback delays and a formant horn |
 | thunder, a distant storm | `thunder` | `distance`, `brightness`, `length`, `duration` | foley's N-wave and rumble; `brightness` tilts above 100 Hz, `length` stretches the rumble; a `duration` that fits |
-| a struck object: panel, bell, pipe, keys, a door's thud | `modal` fed by `contact`, `impulse` or a noise burst | `shape` plate / bar / tube / membrane / string / shell, `material`, `size`, `thickness`, `loss`, `tilt`; **`noise` for real wood (0.6, `tilt` 4) and metal (0.85, `noise_width` 0.5, `tilt` 6)** (clean modes read as a tuned instrument) | normalized; `size` and `thickness` are pitch knobs (small thin objects: `thickness` 0.0015 instead of a custom material); `loss` 0.5 rings twice as long; `tilt` flattens a one-mode plate |
+| a struck object: panel, bell, pipe, keys, a door's thud | `modal` fed by `contact`, `impulse` or a noise burst | `shape` plate / bar / tube / membrane / string / shell, `material`, `size`, `thickness`, `loss`, `tilt`; **`noise` for real wood (0.6, `tilt` 4) and metal (pipe, bar, lid, tool, coin: 0.4, `noise_width` 0.1, `loss` 0.3-0.6; 0.85 with `noise_width` 0.5 reads as a thin sheet)** (clean modes read as a tuned instrument) | normalized; `size` and `thickness` are pitch knobs (small thin objects: `thickness` 0.0015 instead of a custom material); `loss` 0.5 rings twice as long; `tilt` flattens a one-mode plate |
 | a larger-than-life hit (cinematic, trailer, a game's heavy impact) | `subdrop` under it, `riser` into it | `from` / `to` / `decay`, `drive`; `at` (the hit), `length`, `shape` | tonal on purpose: add them to a layered hit only when the brief asks for exaggeration (a realistic slam with a sine sub read as a tuned drum) |
 | a robot voice, speech-like texture, band dynamics | `vocoder`, `multiband`, `filterbank` | a pitched `carrier` + a noisy `modulator`; `crossovers` + `bands` | see "Bands and vocoder" in `docs/nodes/README.md` |
 | a swarm, a swell, a granular wash | `cloud`, `grains` | `source`, `density` (signal), `size`, `pitch_spread` | grains from any node or WAV |
@@ -660,8 +665,8 @@ Rules that matter before you open those files:
 - A cycle in the graph is legal only through a `delay` node; a loop's gain stays under 1.
 - An event stream (`pattern poisson bounce burst once on_threshold shatter`) is not audio: turn it into sound with `voices` or `grains`, into control with `trigger_env`, `event_gate` or `seq`.
 - `voices` renders its `patch` once per event (`$value`, `$index`, `$rand`, `$t`; `max` is an error when exceeded); `sound` instances another document.
-- Loops get `loop_seam`: put `crossfade_loop` last, after any filter; `fire`, `wind`, `spark`, `water` render periodic in a `kind: loop` document.
-- `modal` takes `size` or `f0` (not both), is normalized, and needs `noise` for real wood (0.6) and metal (0.85) or it reads as a tuned instrument.
+- Loops get `loop_seam`: put `crossfade_loop` last, after any filter; `fire`, `wind`, `spark`, `water` render periodic in a `kind: loop` document, but a `fire` loop failed the seam on one of four seeds: run `verify {seeds: 4}` and add `crossfade_loop` if one fails.
+- `modal` takes `size` or `f0` (not both), is normalized, and needs `noise` for real wood (0.6) and metal (0.4 with `noise_width` 0.1 and a low `loss`; 0.85 reads as a thin sheet) or it reads as a tuned instrument.
 - `pitch_shift`, `time_stretch`, `spectral` are offline: the output is exactly the document's length, so a stretched sound needs a `duration`.
 
 ## Macros: knobs for the human
