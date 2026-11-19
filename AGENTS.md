@@ -674,10 +674,12 @@ until it fits; you read their moves in `summary`.
   **An `output.lufs` target renormalizes the level, so a "loudness" /
   "volume" macro with claim `lufs` cannot move**: use a `peak_db` target (then
   map a `gain` before the output) or claim another measure, or leave the
-  claim off. `decay`, `swing` and `crest` read the whole sound:
-  they are unreliable on a very short or multi-hit sound (several separate
-  hits), so give those a `density`, `attack`, `spacing` or `ring` claim, or
-  leave the claim off, rather than rename the knob to fit. `flatness` is the
+  claim off. When the whole output fails a claim (a loud layer masks the
+  knob, or a multi-hit sound's `decay` jumps between hits), `verify` also
+  measures it on the knob's own layer (the node its `map` writes, followed
+  down to the `mix`) and passes it if it holds there, saying "measured on
+  `node`"; `decay`, `swing` and `crest` stay unreliable on a very short
+  sound, so give those a `density`, `attack`, `spacing` or `ring` claim. `flatness` is the
   full-band measure; to check a "high flatness" (grit, hiss) knob by hand read
   `listen`'s whole-sound flatness lines (full-band, and the occupied band, the
   middle 80 % of the energy: a band-limited texture reads low full-band and
