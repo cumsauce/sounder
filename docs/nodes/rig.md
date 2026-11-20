@@ -97,3 +97,48 @@ sample, 1 at its peak.
   (about 35 dB by 0.6 s). Without the cap and with `"point"` damping, it
   bounced like rubber instead (0.26 s gaps for `bounce` 0.3).
 - Each mode keeps a buffer as long as the sound.
+
+## Waveguide bodies and the air joint
+
+A body with `waveguide` is a string or a tube as a digital waveguide: two
+delay lines of velocity waves, reflected at the ends, stepped once per rig
+substep (`crates/sfx_graph/src/nodes/rig_waveguide.rs`). It does not
+translate and takes no `material`.
+
+- `kind: "string"` (default): fixed at both ends; `f0`, or `length` with
+  `tension` (N; f0 = sqrt(T L / m) / 2L with the body's `mass` as the
+  string's). Wave impedance 2 m f0.
+- `kind: "tube"`: `length` (or `f0`), `ends` `open` (c / 2L), `closed`
+  (closed at 0, open at 1: c / 4L), `stopped` (both closed, c / 2L),
+  `radius` (0.02 m; impedance rho c A). `mass` is ignored.
+- `decay` (s for the lowest frequency to fall 60 dB; string 3, tube 0.8),
+  `damping` 0..1 (0.3; a one-pole low-pass in the loop, 16 kHz at 0 down to
+  320 Hz at 1; its delay is taken off the line so the tuning holds).
+- A joint's `at_a` / `at_b` is a point 0..1 along it: the joint reads the
+  velocity there (and its integral, leaking at about 5 Hz, as the
+  displacement) and pushes F / 4Z into both lines. A contact cannot push it
+  further than the overlap in one substep (a stiff striker meets the string
+  at its impedance, not at its Hertz stiffness).
+- It radiates from end 1: the velocity at an open end, the force at a fixed
+  one, through a DC blocker near 15 Hz.
+- `kind: "air"` joint (`a` any body, `b` a tube; `strength` 0..20, default
+  1): `a`'s vibration velocity at `at_a` (its rigid motion left out: a
+  falling body does not blow) drives end 0 of the tube, and the air pushes
+  back on `a` with -strength x Z x (the pressure wave at end 0). A drum skin
+  over its shell, a struck pipe's air column, a body radiating into a
+  resonator.
+
+Measured (`tests/it/rig.rs`): a struck string rings at its f0 within 2 % (110
+and 330 Hz, and from length and tension); a 0.5 m tube's lowest partial is
+343 Hz open and 171.5 Hz closed within 3 %; a stick on a 900 Hz skin with an
+air joint (strength 2) into a closed 0.8 m tube raises the 90-125 Hz band
+against the skin's band by over 10 dB against strength 0. A spring of up to
+2e5 N/m on a 2 g string stays finite. Not heard yet: batch 29
+(`tools/labels/gen29.py`).
+
+A contact that touches a waveguide damps the full speed at the touch (as
+`damp: "point"`): a waveguide has no rigid motion for `body` damping to act
+on, and counts as held for the rebound cap.
+
+Listen page for batch 29: https://claude.ai/artifact/VTX9qodU1K7Fbbx8eBCLSE
+(`picks` collection).

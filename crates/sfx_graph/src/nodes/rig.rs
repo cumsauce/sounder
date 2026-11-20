@@ -13,6 +13,7 @@ use serde::Deserialize;
 use super::modal::{
     DEFAULT_NOISE_WIDTH, MaterialSpec, Modal, ModalShape, add_noise_band, level_gain,
 };
+use super::rig_waveguide::{RigWaveguide, WgBody};
 use crate::buf::{Buf, Sig};
 use crate::node::{Cx, Describe, Eval, In, Outs};
 
@@ -69,6 +70,10 @@ pub struct RigBody {
     /// radiates; a point mass is silent.
     #[serde(default)]
     pub level_db: Option<f32>,
+    /// A waveguide body (default none): a string or a tube; see
+    /// `docs/nodes/rig.md`. Not with `material`.
+    #[serde(default)]
+    pub waveguide: Option<RigWaveguide>,
 }
 
 /// Which kind of joint.
@@ -81,6 +86,9 @@ pub enum JointKind {
     /// A spring and damper; with a `gap` it only pulls past the gap (a loose
     /// part rattling on its fixing).
     Spring,
+    /// `a`'s velocity at `at_a` drives end 0 of the tube `b`, and the air
+    /// pushes back on `a` (`strength`).
+    Air,
 }
 
 /// One joint of a rig, between body `a` (above) and body `b` (below; or
@@ -144,6 +152,9 @@ pub struct RigJoint {
     /// (default 0.1, 0.001..10).
     #[serde(default)]
     pub stribeck: Option<f32>,
+    /// Air: the coupling, 0..20 (default 1).
+    #[serde(default)]
+    pub strength: Option<f32>,
 }
 
 /// Bodies and joints stepped together.
@@ -174,7 +185,7 @@ pub struct Rig {
 
 impl Describe for Rig {
     const BLURB: &'static str = "bodies (point masses, modal objects) joined by contacts and springs (a gap makes a rattle), stepped together per sample: a hammer on a plate with a loose screw, a ball on a drum; vertical motion; port `force` is the summed contact force; peaks at -6 dBFS";
-    const WORDS: &'static [&'static str] = &["kind", "a", "b", "damp"];
+    const WORDS: &'static [&'static str] = &["kind", "a", "b", "damp", "ends"];
     fn example() -> serde_json::Value {
         serde_json::json!({
             "bodies": [
@@ -211,6 +222,7 @@ struct Live {
     noise: Option<f32>,
     noise_width: f32,
     level: f32,
+    wg: Option<WgBody>,
 }
 
 /// A joint while it runs: indices (None = ground) and the coupling weights
@@ -236,6 +248,8 @@ struct Join {
     slide: Option<Sig>,
     friction: Option<(f32, f32)>,
     vc: f32,
+    ta: Option<usize>,
+    tb: Option<usize>,
 }
 
 fn modal_of(b: &RigBody, pos: f32, seed: u64) -> Option<Modal> {
@@ -324,6 +338,12 @@ impl Eval for Rig {
                     b.name
                 ));
             }
+            if b.waveguide.is_some() && b.material.is_some() {
+                return Err(format!(
+                    "body `{}`: a waveguide body takes no material",
+                    b.name
+                ));
+            }
             if b.modes.is_some_and(|m| !(1..=64).contains(&m)) {
                 return Err(format!("body `{}`: modes: give 1..64", b.name));
             }
@@ -366,7 +386,7 @@ impl Eval for Rig {
                 .max(1e-12);
             bodies.push(Live {
                 mass: b.mass,
-                fixed: b.fixed,
+                fixed: b.fixed || b.waveguide.is_some(),
                 y: 0.0,
                 vy: b.velocity.unwrap_or(0.0),
                 w2: modes.iter().map(|m| (2.0 * PI * m.0).powi(2)).collect(),
@@ -387,6 +407,10 @@ impl Eval for Rig {
                 noise,
                 noise_width: noise_width.unwrap_or(DEFAULT_NOISE_WIDTH),
                 level: 10f32.powf(b.level_db.unwrap_or(0.0) / 20.0),
+                wg: match &b.waveguide {
+                    Some(w) => Some(w.live(&b.name, b.mass)?),
+                    None => None,
+                },
             });
             drives.push(match &b.drive {
                 Some(d) => Some(
@@ -456,6 +480,16 @@ impl Eval for Rig {
                     shortest = shortest.min(hertz_time(m_eff, radius, e_star, v_in));
                     4.0 / 3.0 * e_star * radius.sqrt()
                 }
+                JointKind::Air => {
+                    if !b.is_some_and(|b| bodies[b].wg.as_ref().is_some_and(|w| w.is_tube())) {
+                        return Err(format!("joint {n}: air: b must be a tube body"));
+                    }
+                    let s = j.strength.unwrap_or(1.0);
+                    if !(s.is_finite() && (0.0..=20.0).contains(&s)) {
+                        return Err(format!("joint {n}: strength {s}: give 0..20"));
+                    }
+                    s
+                }
                 JointKind::Spring => {
                     let k = j.stiffness.unwrap_or(1e4);
                     if !(k.is_finite() && k > 0.0 && k <= 1e9) {
@@ -509,6 +543,8 @@ impl Eval for Rig {
             if !(0.0..=0.98).contains(&bounce) {
                 return Err(format!("joint {n}: bounce {bounce}: give 0..0.98"));
             }
+            let ta = bodies[a].wg.as_mut().map(|w| w.tap(pa));
+            let tb = b.and_then(|b| bodies[b].wg.as_mut().map(|w| w.tap(pb)));
             joins.push(Join {
                 kind: j.kind,
                 a,
@@ -523,10 +559,13 @@ impl Eval for Rig {
                 touching: false,
                 v_in: 0.0,
                 apart: usize::MAX / 2,
-                point_damp,
+                // A waveguide has no rigid motion: damp the speed at the touch.
+                point_damp: point_damp || ta.is_some() || tb.is_some(),
                 slide,
                 friction,
                 vc,
+                ta,
+                tb,
             });
         }
         let min_os = self.oversample.unwrap_or(4);
@@ -543,6 +582,11 @@ impl Eval for Rig {
         }
         let os = os.min(64);
         let dt = 1.0 / (cx.sr * os as f32);
+        for b in bodies.iter_mut() {
+            if let Some(w) = b.wg.as_mut() {
+                w.start(dt)?;
+            }
+        }
         let at = self.at.unwrap_or(0.0);
         if !(at.is_finite() && at >= 0.0) {
             return Err(format!("at: {at}: give seconds >= 0"));
@@ -554,13 +598,19 @@ impl Eval for Rig {
             .map(|b| vec![vec![0.0; n]; b.modes.len()])
             .collect();
         let mut contact = vec![0.0f32; n];
+        let mut guided = vec![0.0f32; n];
         let mut forces = vec![0.0f32; bodies.len()];
         let mut modal_f: Vec<Vec<f32>> = bodies.iter().map(|b| vec![0.0; b.modes.len()]).collect();
         let mut drag_f: Vec<Vec<f32>> = bodies.iter().map(|b| vec![0.0; b.modes.len()]).collect();
         let tangential =
             |b: &Live, w: &[f32]| -> f32 { b.vt.iter().zip(w).map(|(v, w)| v * w).sum() };
-        let disp = |b: &Live, w: &[f32]| -> (f32, f32) {
+        let disp = |b: &Live, w: &[f32], tap: Option<usize>| -> (f32, f32) {
             let (mut u, mut ud) = (b.y, b.vy);
+            if let (Some(g), Some(t)) = (&b.wg, tap) {
+                let (gu, gv) = g.at(t);
+                u += gu;
+                ud += gv;
+            }
             for ((q, v), w) in b.q.iter().zip(&b.v).zip(w) {
                 u += w * q;
                 ud += w * v;
@@ -581,13 +631,14 @@ impl Eval for Rig {
                     .iter_mut()
                     .for_each(|f| f.iter_mut().for_each(|x| *x = 0.0));
                 for j in joins.iter_mut() {
-                    let (ua, va) = disp(&bodies[j.a], &j.wa);
+                    let (ua, va) = disp(&bodies[j.a], &j.wa, j.ta);
                     let (ub, vb) = match j.b {
-                        Some(b) => disp(&bodies[b], &j.wb),
+                        Some(b) => disp(&bodies[b], &j.wb, j.tb),
                         None => (0.0, 0.0),
                     };
                     // `a` sits `gap` above `b` at rest positions.
                     let sep = ua + j.gap - ub;
+                    let vy_a = bodies[j.a].vy;
                     let rate = va - vb;
                     // The bodies' own motion, without their vibration: the
                     // contact's damping acts on this, so a bounce loses
@@ -646,6 +697,26 @@ impl Eval for Rig {
                             let engaged = stretch != 0.0;
                             -(j.k * stretch) - if engaged { j.damping * rate } else { 0.0 }
                         }
+                        JointKind::Air => match j.b.and_then(|b| bodies[b].wg.as_mut()) {
+                            // Its vibration only: a body falling does not blow.
+                            Some(w) => w.air(va - vy_a, j.k),
+                            None => 0.0,
+                        },
+                    };
+                    // A waveguide side gives way at its wave impedance: a
+                    // contact stiffer than that cannot push it further
+                    // than the overlap in one substep.
+                    let f = match j.kind {
+                        JointKind::Contact => {
+                            let give = |b: &Live, t: Option<usize>| match (&b.wg, t) {
+                                (Some(w), Some(_)) => w.give(-sep, dt),
+                                _ => f32::INFINITY,
+                            };
+                            let g = give(&bodies[j.a], j.ta)
+                                .min(j.b.map_or(f32::INFINITY, |b| give(&bodies[b], j.tb)));
+                            f.min(g)
+                        }
+                        _ => f,
                     };
                     if j.kind == JointKind::Contact {
                         contact[i] = contact[i].max(f);
@@ -682,10 +753,20 @@ impl Eval for Rig {
                     }
                     // +f on a (up), -f on b.
                     forces[j.a] += f;
+                    if let (Some(w), Some(t)) = (bodies[j.a].wg.as_mut(), j.ta) {
+                        w.push(t, f);
+                    }
                     for (m, w) in modal_f[j.a].iter_mut().zip(&j.wa) {
                         *m += w * f;
                     }
-                    if let Some(b) = j.b {
+                    if let (Some(w), Some(t), true) = (
+                        j.b.and_then(|b| bodies[b].wg.as_mut()),
+                        j.tb,
+                        j.kind != JointKind::Air,
+                    ) {
+                        w.push(t, -f);
+                    }
+                    if let Some(b) = j.b.filter(|_| j.kind != JointKind::Air) {
                         forces[b] -= f;
                         for (m, w) in modal_f[b].iter_mut().zip(&j.wb) {
                             *m -= w * f;
@@ -693,7 +774,9 @@ impl Eval for Rig {
                     }
                 }
                 for (bi, b) in bodies.iter_mut().enumerate() {
-                    if !b.fixed {
+                    if let Some(w) = b.wg.as_mut() {
+                        w.step(dt);
+                    } else if !b.fixed {
                         b.vy += dt * ((forces[bi] + pushes[bi]) / b.mass - gravity);
                         b.y += dt * b.vy;
                     }
@@ -706,6 +789,11 @@ impl Eval for Rig {
                         b.vt[k] += dt * at;
                         b.qt[k] += dt * b.vt[k];
                     }
+                }
+            }
+            for b in bodies.iter_mut() {
+                if let Some(w) = b.wg.as_mut() {
+                    guided[i] += w.radiate() * b.level;
                 }
             }
             for (bi, b) in bodies.iter().enumerate() {
@@ -734,6 +822,7 @@ impl Eval for Rig {
                 }
             }
         }
+        out.iter_mut().zip(&guided).for_each(|(o, g)| *o += g);
         let peak = out.iter().fold(0.0f32, |a, x| a.max(x.abs()));
         if !peak.is_finite() {
             return Err("the rig blew up: raise `oversample`, or soften a joint (lower stiffness or hardness)".into());

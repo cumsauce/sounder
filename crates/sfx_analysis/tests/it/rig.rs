@@ -158,3 +158,111 @@ fn friction_belongs_to_a_contact() {
     );
     assert!(e.contains("for a contact joint"), "{e}");
 }
+
+fn ball_on(body: Value, at_b: f64, secs: f32) -> Vec<f32> {
+    let n = out(vec![
+        json!({"type": "rig", "name": "r", "gravity": 0, "bodies": [
+        {"name": "ball", "mass": 0.01, "velocity": -1.0}, body],
+        "joints": [{"a": "ball", "b": "w", "at_b": at_b, "hardness": 0.8, "bounce": 0.3}]}),
+    ]);
+    let x = node_audio(&n, "r", secs);
+    assert_finite(&x, "rig");
+    x
+}
+
+#[test]
+fn a_struck_string_body_rings_at_its_f0() {
+    for f0 in [110.0f32, 330.0] {
+        let x = ball_on(
+            json!({"name": "w", "mass": 0.005, "waveguide": {"kind": "string", "f0": f0}}),
+            0.2,
+            1.0,
+        );
+        let hz = peak_hz(&x[4800..], 48_000);
+        assert!((hz / f0 - 1.0).abs() < 0.02, "f0 {f0}: rings at {hz} Hz");
+    }
+    // length and tension: f0 = sqrt(T L / m) / 2L = sqrt(126 * 0.65 / 0.004) / 1.3, about 110 Hz.
+    let x = ball_on(
+        json!({"name": "w", "mass": 0.004, "waveguide": {"length": 0.65, "tension": 126}}),
+        0.2,
+        1.0,
+    );
+    let want = (126.0f32 * 0.65 / 0.004).sqrt() / 1.3;
+    let hz = peak_hz(&x[4800..], 48_000);
+    assert!(
+        (hz / want - 1.0).abs() < 0.02,
+        "want {want}: rings at {hz} Hz"
+    );
+}
+
+#[test]
+fn a_tube_body_resonates_at_its_length() {
+    for (ends, want) in [("open", 343.0 / 1.0), ("closed", 343.0 / 2.0)] {
+        let x = ball_on(
+            json!({"name": "w", "mass": 0.1, "waveguide": {"kind": "tube", "length": 0.5,
+                   "ends": ends, "decay": 1.0}}),
+            0.3,
+            0.6,
+        );
+        // The lowest strong partial (an open end radiates the upper ones
+        // more).
+        let hz = peaks(&x[2400..], 48_000, 6, 30.0)
+            .iter()
+            .fold(f32::INFINITY, |a, p| a.min(p.0));
+        assert!(
+            (hz / want - 1.0).abs() < 0.03,
+            "{ends}: want {want}, got {hz} Hz"
+        );
+    }
+}
+
+fn drum_over_tube(strength: f64) -> Vec<Value> {
+    out(vec![
+        json!({"type": "rig", "name": "r", "gravity": 0, "bodies": [
+        {"name": "stick", "mass": 0.03, "velocity": -2.0},
+        {"name": "skin", "mass": 0.05, "fixed": true, "material": "metal", "shape": "plate",
+         "f0": 900, "loss": 2.0},
+        {"name": "shell", "mass": 0.1, "waveguide": {"kind": "tube", "length": 0.8,
+         "ends": "closed", "decay": 1.0}}],
+        "joints": [
+            {"a": "stick", "b": "skin", "at_b": 0.4, "hardness": 0.6},
+            {"kind": "air", "a": "skin", "b": "shell", "at_a": 0.4, "strength": strength}]}),
+    ])
+}
+
+#[test]
+fn the_air_joint_moves_energy_into_the_tube() {
+    // The shell sounds c / 4L = 107 Hz; the skin's lowest mode 900 Hz.
+    let band = |s: f64| {
+        let x = node_audio(drum_over_tube(s), "r", 1.0);
+        assert_finite(&x, "drum");
+        band_db(&x[2400..], 48_000, 90.0, 125.0) - band_db(&x[2400..], 48_000, 800.0, 4000.0)
+    };
+    let (off, on) = (band(0.0), band(2.0));
+    assert!(
+        on > off + 10.0,
+        "tube band vs skin: off {off} dB, on {on} dB"
+    );
+}
+
+#[test]
+fn waveguide_rigs_are_bit_identical() {
+    assert_bit_identical(drum_over_tube(2.0), 0.5);
+}
+
+#[test]
+fn a_string_held_by_a_stiff_spring_stays_finite() {
+    // A joint feels its own push on a waveguide (a spring of 2e5 N/m at the
+    // bridge end of a 2 g string).
+    for (k, pos) in [(2e4, 0.98), (2e5, 0.5)] {
+        let n = out(vec![
+            json!({"type": "rig", "name": "r", "gravity": 0, "bodies": [
+            {"name": "box", "mass": 0.5, "fixed": true},
+            {"name": "pick", "mass": 0.002, "velocity": -1.5},
+            {"name": "w", "mass": 0.002, "waveguide": {"f0": 196}}],
+            "joints": [{"a": "pick", "b": "w", "at_b": 0.15, "hardness": 0.8},
+                {"kind": "spring", "a": "box", "b": "w", "at_b": pos, "stiffness": k}]}),
+        ]);
+        assert_finite(&node_audio(&n, "r", 0.5), "string on a spring");
+    }
+}

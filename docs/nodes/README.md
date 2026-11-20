@@ -13,11 +13,14 @@ in this folder; `describe_op <type>` has the schema and an example.
 ```
 
 - `rig` {bodies: [{name, mass, [fixed], [velocity], [drive], [material ...
-  as modal], [level_db]}], joints: [{kind contact | spring, a, b | "ground",
+  as modal], [level_db], [waveguide {kind string | tube, f0 | length
+  [tension], [ends open | closed | stopped], [radius 0.02], [decay],
+  [damping 0.3]}]}], joints: [{kind contact | spring | air, a, b | "ground",
   [at_a], [at_b], [gap], [hardness] [radius] [bounce] [damp] [slide]
-  [friction] [stribeck] | [stiffness] [damping]}], [gravity 9.81], [oversample], [at], [gain_db], [seed]}: several
+  [friction] [stribeck] | [stiffness] [damping] | [strength 1]}], [gravity 9.81], [oversample], [at], [gain_db], [seed]}: several
   bodies joined by contacts and springs (a spring with a `gap` is a rattle),
-  stepped together. Details: `docs/nodes/rig.md`.
+  stepped together; a body may be a string or tube waveguide, and an `air`
+  joint drives a tube from a body's vibration. Details: `docs/nodes/rig.md`.
 - `impact` {material, shape, `size` or `f0`, [loss] [tilt] [noise] [noise_width]
   [strike_position] [modes 32] (as `modal`), [object_mass 0.5], [striker_mass]
   (left out: the object is dropped onto [floor "stone"]), [hardness 0.7] (a

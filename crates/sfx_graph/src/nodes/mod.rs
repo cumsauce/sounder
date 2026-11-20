@@ -69,6 +69,7 @@ mod mechanism;
 mod crackle;
 // bodies and joints stepped together.
 mod rig;
+mod rig_waveguide;
 // the finishing bus.
 mod finish;
 // exaggeration layers.

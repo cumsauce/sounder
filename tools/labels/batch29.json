@@ -1,0 +1,1063 @@
+[
+ {
+  "id": "b29_01",
+  "family": "impact",
+  "group": "ball_drum_shell",
+  "design": "shell_air_2",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "ball",
+       "mass": 0.06
+      },
+      {
+       "name": "skin",
+       "mass": 0.3,
+       "fixed": true,
+       "material": "wood",
+       "shape": "membrane",
+       "f0": 110,
+       "loss": 2.0,
+       "noise": 0.3
+      },
+      {
+       "name": "shell",
+       "mass": 0.1,
+       "waveguide": {
+        "kind": "tube",
+        "length": 0.4,
+        "ends": "closed",
+        "radius": 0.15,
+        "decay": 0.35,
+        "damping": 0.4
+       }
+      }
+     ],
+     "joints": [
+      {
+       "a": "ball",
+       "b": "skin",
+       "at_b": 0.3,
+       "gap": 0.3,
+       "bounce": 0.6,
+       "hardness": 0.2
+      },
+      {
+       "kind": "air",
+       "a": "skin",
+       "b": "shell",
+       "at_a": 0.3,
+       "strength": 2.0
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b29_02",
+  "family": "impact",
+  "group": "pipe_air",
+  "design": "air_3",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "pipe",
+       "mass": 2.0,
+       "material": "metal",
+       "shape": "tube",
+       "f0": 160,
+       "loss": 1.0,
+       "noise": 0.4,
+       "noise_width": 0.1
+      },
+      {
+       "name": "air",
+       "mass": 0.1,
+       "waveguide": {
+        "kind": "tube",
+        "length": 1.0,
+        "ends": "open",
+        "radius": 0.02,
+        "decay": 0.6
+       }
+      }
+     ],
+     "joints": [
+      {
+       "a": "pipe",
+       "b": "ground",
+       "gap": 0.4,
+       "bounce": 0.35,
+       "hardness": 0.9
+      },
+      {
+       "kind": "air",
+       "a": "pipe",
+       "b": "air",
+       "at_a": 0.3,
+       "strength": 3.0
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b29_03",
+  "family": "impact",
+  "group": "string_body",
+  "design": "rig_string_box",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "pick",
+       "mass": 0.002,
+       "velocity": -1.5
+      },
+      {
+       "name": "str",
+       "mass": 0.002,
+       "waveguide": {
+        "f0": 196,
+        "decay": 2.5,
+        "damping": 0.3
+       }
+      },
+      {
+       "name": "box",
+       "mass": 0.5,
+       "fixed": true,
+       "material": "wood",
+       "size": 0.35,
+       "thickness": 0.003,
+       "loss": 1.5,
+       "noise": 0.6,
+       "tilt": 4,
+       "level_db": 0
+      }
+     ],
+     "joints": [
+      {
+       "a": "pick",
+       "b": "str",
+       "at_b": 0.15,
+       "hardness": 0.8,
+       "bounce": 0.2
+      },
+      {
+       "kind": "spring",
+       "a": "box",
+       "b": "str",
+       "at_a": 0.3,
+       "at_b": 0.98,
+       "stiffness": 20000.0,
+       "damping": 0.5
+      }
+     ],
+     "at": 0.005,
+     "gravity": 0
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b29_04",
+  "family": "impact",
+  "group": "pipe_air",
+  "design": "air_8",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "pipe",
+       "mass": 2.0,
+       "material": "metal",
+       "shape": "tube",
+       "f0": 160,
+       "loss": 1.0,
+       "noise": 0.4,
+       "noise_width": 0.1
+      },
+      {
+       "name": "air",
+       "mass": 0.1,
+       "waveguide": {
+        "kind": "tube",
+        "length": 1.0,
+        "ends": "open",
+        "radius": 0.02,
+        "decay": 0.6
+       }
+      }
+     ],
+     "joints": [
+      {
+       "a": "pipe",
+       "b": "ground",
+       "gap": 0.4,
+       "bounce": 0.35,
+       "hardness": 0.9
+      },
+      {
+       "kind": "air",
+       "a": "pipe",
+       "b": "air",
+       "at_a": 0.3,
+       "strength": 8.0
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b29_05",
+  "family": "impact",
+  "group": "pipe_air",
+  "design": "air_3",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "pipe",
+       "mass": 2.0,
+       "material": "metal",
+       "shape": "tube",
+       "f0": 160,
+       "loss": 1.0,
+       "noise": 0.4,
+       "noise_width": 0.1
+      },
+      {
+       "name": "air",
+       "mass": 0.1,
+       "waveguide": {
+        "kind": "tube",
+        "length": 1.0,
+        "ends": "open",
+        "radius": 0.02,
+        "decay": 0.6
+       }
+      }
+     ],
+     "joints": [
+      {
+       "a": "pipe",
+       "b": "ground",
+       "gap": 0.4,
+       "bounce": 0.35,
+       "hardness": 0.9
+      },
+      {
+       "kind": "air",
+       "a": "pipe",
+       "b": "air",
+       "at_a": 0.3,
+       "strength": 3.0
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b29_06",
+  "family": "impact",
+  "group": "ball_drum_shell",
+  "design": "shell_air_6",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "ball",
+       "mass": 0.06
+      },
+      {
+       "name": "skin",
+       "mass": 0.3,
+       "fixed": true,
+       "material": "wood",
+       "shape": "membrane",
+       "f0": 110,
+       "loss": 2.0,
+       "noise": 0.3
+      },
+      {
+       "name": "shell",
+       "mass": 0.1,
+       "waveguide": {
+        "kind": "tube",
+        "length": 0.4,
+        "ends": "closed",
+        "radius": 0.15,
+        "decay": 0.35,
+        "damping": 0.4
+       }
+      }
+     ],
+     "joints": [
+      {
+       "a": "ball",
+       "b": "skin",
+       "at_b": 0.3,
+       "gap": 0.3,
+       "bounce": 0.6,
+       "hardness": 0.2
+      },
+      {
+       "kind": "air",
+       "a": "skin",
+       "b": "shell",
+       "at_a": 0.3,
+       "strength": 6.0
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b29_07",
+  "family": "impact",
+  "group": "string_body",
+  "design": "plain_string_node",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "string",
+     "name": "hit",
+     "freq": 196,
+     "excite": "pluck",
+     "position": 0.15,
+     "damping": 0.3
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b29_08",
+  "family": "impact",
+  "group": "string_body",
+  "design": "rig_string_box",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "pick",
+       "mass": 0.002,
+       "velocity": -1.5
+      },
+      {
+       "name": "str",
+       "mass": 0.002,
+       "waveguide": {
+        "f0": 196,
+        "decay": 2.5,
+        "damping": 0.3
+       }
+      },
+      {
+       "name": "box",
+       "mass": 0.5,
+       "fixed": true,
+       "material": "wood",
+       "size": 0.35,
+       "thickness": 0.003,
+       "loss": 1.5,
+       "noise": 0.6,
+       "tilt": 4,
+       "level_db": 0
+      }
+     ],
+     "joints": [
+      {
+       "a": "pick",
+       "b": "str",
+       "at_b": 0.15,
+       "hardness": 0.8,
+       "bounce": 0.2
+      },
+      {
+       "kind": "spring",
+       "a": "box",
+       "b": "str",
+       "at_a": 0.3,
+       "at_b": 0.98,
+       "stiffness": 20000.0,
+       "damping": 0.5
+      }
+     ],
+     "at": 0.005,
+     "gravity": 0
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b29_09",
+  "family": "impact",
+  "group": "pipe_air",
+  "design": "part_impact_pipe_drop",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "sound",
+     "name": "hit",
+     "sound": "impact_pipe_drop"
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b29_10",
+  "family": "impact",
+  "group": "ball_drum_shell",
+  "design": "shell_air_6",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "ball",
+       "mass": 0.06
+      },
+      {
+       "name": "skin",
+       "mass": 0.3,
+       "fixed": true,
+       "material": "wood",
+       "shape": "membrane",
+       "f0": 110,
+       "loss": 2.0,
+       "noise": 0.3
+      },
+      {
+       "name": "shell",
+       "mass": 0.1,
+       "waveguide": {
+        "kind": "tube",
+        "length": 0.4,
+        "ends": "closed",
+        "radius": 0.15,
+        "decay": 0.35,
+        "damping": 0.4
+       }
+      }
+     ],
+     "joints": [
+      {
+       "a": "ball",
+       "b": "skin",
+       "at_b": 0.3,
+       "gap": 0.3,
+       "bounce": 0.6,
+       "hardness": 0.2
+      },
+      {
+       "kind": "air",
+       "a": "skin",
+       "b": "shell",
+       "at_a": 0.3,
+       "strength": 6.0
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b29_11",
+  "family": "impact",
+  "group": "ball_drum_shell",
+  "design": "part_rig_ball_on_drum",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "sound",
+     "name": "hit",
+     "sound": "rig_ball_on_drum"
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b29_12",
+  "family": "impact",
+  "group": "ball_drum_shell",
+  "design": "part_rig_ball_on_drum",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "sound",
+     "name": "hit",
+     "sound": "rig_ball_on_drum"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b29_13",
+  "family": "impact",
+  "group": "string_body",
+  "design": "plain_string_node",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "string",
+     "name": "hit",
+     "freq": 196,
+     "excite": "pluck",
+     "position": 0.15,
+     "damping": 0.3
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b29_14",
+  "family": "impact",
+  "group": "pipe_air",
+  "design": "part_impact_pipe_drop",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "sound",
+     "name": "hit",
+     "sound": "impact_pipe_drop"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b29_15",
+  "family": "impact",
+  "group": "pipe_air",
+  "design": "air_8",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "pipe",
+       "mass": 2.0,
+       "material": "metal",
+       "shape": "tube",
+       "f0": 160,
+       "loss": 1.0,
+       "noise": 0.4,
+       "noise_width": 0.1
+      },
+      {
+       "name": "air",
+       "mass": 0.1,
+       "waveguide": {
+        "kind": "tube",
+        "length": 1.0,
+        "ends": "open",
+        "radius": 0.02,
+        "decay": 0.6
+       }
+      }
+     ],
+     "joints": [
+      {
+       "a": "pipe",
+       "b": "ground",
+       "gap": 0.4,
+       "bounce": 0.35,
+       "hardness": 0.9
+      },
+      {
+       "kind": "air",
+       "a": "pipe",
+       "b": "air",
+       "at_a": 0.3,
+       "strength": 8.0
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b29_16",
+  "family": "impact",
+  "group": "ball_drum_shell",
+  "design": "shell_air_2",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "ball",
+       "mass": 0.06
+      },
+      {
+       "name": "skin",
+       "mass": 0.3,
+       "fixed": true,
+       "material": "wood",
+       "shape": "membrane",
+       "f0": 110,
+       "loss": 2.0,
+       "noise": 0.3
+      },
+      {
+       "name": "shell",
+       "mass": 0.1,
+       "waveguide": {
+        "kind": "tube",
+        "length": 0.4,
+        "ends": "closed",
+        "radius": 0.15,
+        "decay": 0.35,
+        "damping": 0.4
+       }
+      }
+     ],
+     "joints": [
+      {
+       "a": "ball",
+       "b": "skin",
+       "at_b": 0.3,
+       "gap": 0.3,
+       "bounce": 0.6,
+       "hardness": 0.2
+      },
+      {
+       "kind": "air",
+       "a": "skin",
+       "b": "shell",
+       "at_a": 0.3,
+       "strength": 2.0
+      }
+     ],
+     "at": 0.005
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b29_17",
+  "family": "impact",
+  "group": "string_body",
+  "design": "rig_string_box_quiet_body",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "pick",
+       "mass": 0.002,
+       "velocity": -1.5
+      },
+      {
+       "name": "str",
+       "mass": 0.002,
+       "waveguide": {
+        "f0": 196,
+        "decay": 2.5,
+        "damping": 0.3
+       }
+      },
+      {
+       "name": "box",
+       "mass": 0.5,
+       "fixed": true,
+       "material": "wood",
+       "size": 0.35,
+       "thickness": 0.003,
+       "loss": 1.5,
+       "noise": 0.6,
+       "tilt": 4,
+       "level_db": -8
+      }
+     ],
+     "joints": [
+      {
+       "a": "pick",
+       "b": "str",
+       "at_b": 0.15,
+       "hardness": 0.8,
+       "bounce": 0.2
+      },
+      {
+       "kind": "spring",
+       "a": "box",
+       "b": "str",
+       "at_a": 0.3,
+       "at_b": 0.98,
+       "stiffness": 20000.0,
+       "damping": 0.5
+      }
+     ],
+     "at": 0.005,
+     "gravity": 0
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "hit",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b29_18",
+  "family": "impact",
+  "group": "string_body",
+  "design": "rig_string_box_quiet_body",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "rig",
+     "name": "hit",
+     "bodies": [
+      {
+       "name": "pick",
+       "mass": 0.002,
+       "velocity": -1.5
+      },
+      {
+       "name": "str",
+       "mass": 0.002,
+       "waveguide": {
+        "f0": 196,
+        "decay": 2.5,
+        "damping": 0.3
+       }
+      },
+      {
+       "name": "box",
+       "mass": 0.5,
+       "fixed": true,
+       "material": "wood",
+       "size": 0.35,
+       "thickness": 0.003,
+       "loss": 1.5,
+       "noise": 0.6,
+       "tilt": 4,
+       "level_db": -8
+      }
+     ],
+     "joints": [
+      {
+       "a": "pick",
+       "b": "str",
+       "at_b": 0.15,
+       "hardness": 0.8,
+       "bounce": 0.2
+      },
+      {
+       "kind": "spring",
+       "a": "box",
+       "b": "str",
+       "at_a": 0.3,
+       "at_b": 0.98,
+       "stiffness": 20000.0,
+       "damping": 0.5
+      }
+     ],
+     "at": 0.005,
+     "gravity": 0
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "hit",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -3
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ }
+]
