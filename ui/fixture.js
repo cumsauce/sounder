@@ -42,6 +42,7 @@ window.FIX = (() => {
       return { env: t => 0.9 * amp(t), partials: t => { const out = [], cut = f0(t) * b; for (let h = 1; h <= 16; h++) { const hz = f0(t) * h; if (hz > 22000) break; const o = Math.log2(hz / cut), g = 1 / Math.sqrt(1 + (hz / cut) ** 4) * (1 + (q - 0.7) * Math.exp(-o * o * 8)); out.push([hz, db20(amp(t) * g / h) - 12, 0.05]); } return out; }, bands: () => [], tonal: 0.7 }; }
     if (s.name === 'ui_click') { const modes = fv(s, 'body', 'modes'), fast = fv(s, 'fast', 'time'), hp = fv(s, 'hp', 'freq'), g = fv(s, 'm', 'inputs')[1].gain;
       return { env: t => 0.9 * Math.exp(-6.9078 * t / 0.06) + 0.05 * Math.exp(-6.9078 * t / fast), partials: t => modes.map(([hz, dec, gain]) => [hz, db20(gain * 0.6 * Math.exp(-6.9078 * t / dec)) - 8, 0.04]), bands: t => [[hp, 20000, db20(g * Math.exp(-6.9078 * t / fast)) - 34, 0.8]], tonal: 0.4 }; }
+    if (s.name !== 'wind_loop') { const L = s.seconds || 1; return { env: t => 0.9 * Math.exp(-5 * t / L), partials: t => [[340, -14 - 30 * t / L, 0.03], [610, -20 - 30 * t / L, 0.03], [1250, -28 - 30 * t / L, 0.04]], bands: t => [[2000, 20000, -40 - 60 * t / L, 1]], tonal: 0.5 }; }
     const q = fv(s, 'howl', 'q'), rate = fv(s, 'gust', 'rate'), sw = fv(s, 'swell', 'range'), lufs = fv(s, 'out', 'lufs');
     const swell = t => sw[0] + (sw[1] - sw[0]) * (0.5 + 0.5 * Math.sin(2 * Math.PI * t * rate / 4 * 1.0 + 1.3)), cen = t => 800 + 450 * Math.sin(2 * Math.PI * t / 4 + 0.5) + 200 * Math.sin(2 * Math.PI * t / 4 * 2 * rate / 1.2);
     return { env: t => 0.5 * swell(t), partials: () => [], bands: t => [[cen(t), 0, db20(swell(t)) - 26 + (lufs + 25) * 0.5, 1.4 / Math.sqrt(q)]], tonal: 0.35, noisy: true };
@@ -78,7 +79,7 @@ window.FIX = (() => {
   const bump = () => { rev++; setTimeout(() => window.sounder.changed(rev), 0); };
   const syncSounds = () => { for (const e of J.state.sounds) { const s = J.sound_data[e.name]; if (s) { e.open_comments = s.comments.filter(c => !c.resolved).length; e.seconds = s.seconds; e.lufs = s.lufs; } } };
   function state() { syncSounds(); return { ...clone(J.state), rev, doc: J.cur, sound: clone(cur()), solo: PL.solo, playing: PL.playing }; }
-  function addStep(s, label) { s.history.forEach(h => h.current = false); const id = nextId++; s.version++; s.history.push({ id, label, by: 'window', version: s.version, current: true }); snaps[id + s.name] = snapOf(s); const e = J.state.sounds.find(x => x.name === s.name); if (e) { e.saved = false; e.by = 'you'; e.ago = 'now'; } }
+  function addStep(s, label) { { const i = J.state.sounds.findIndex(x => x.name === s.name); if (i > 0) J.state.sounds.unshift(...J.state.sounds.splice(i, 1)); } s.history.forEach(h => h.current = false); const id = nextId++; s.version++; s.history.push({ id, label, by: 'window', version: s.version, current: true }); snaps[id + s.name] = snapOf(s); const e = J.state.sounds.find(x => x.name === s.name); if (e) { e.saved = false; e.by = 'you'; e.ago = 'now'; } }
   function emit(over) { Object.assign(PL, over); clearTimeout(PL.timer); const s = cur(); if (PL.playing && !PL.loop) PL.timer = setTimeout(() => emit({ playing: false, pos: 0 }), Math.max(0, (s.seconds - PL.pos)) * 1000); PL.t0 = performance.now(); window.sounder.played({ playing: PL.playing, pos: PL.pos, loop: PL.loop, span: PL.span, node: PL.solo }); }
   const tick = () => PL.playing ? PL.pos + (performance.now() - PL.t0) / 1000 : PL.pos;
   const calls = {
@@ -99,7 +100,7 @@ window.FIX = (() => {
     stop: () => emit({ playing: false, pos: 0 }),
     seek: a => emit({ pos: a.t }),
     catalog_list: () => clone(J.catalog),
-    catalog_load: a => { throw new Error(`the fixture has no data for "${a.name}" (it only knows the three sounds in fixture.json)`); },
+    catalog_load: a => { throw new Error(`the fixture has no data for "${a.name}" (it only knows the sounds in fixture.json)`); },
   };
   return {
     async call(name, args) { await ready; const f = calls[name]; if (!f) throw new Error(`unknown call ${name}`); const r = f(args || {}); return r === undefined ? null : clone(r); },

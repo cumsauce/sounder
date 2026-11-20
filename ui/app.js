@@ -52,8 +52,9 @@ const BLURB = {
   once: 'a single event', pattern: 'events at fixed times', poisson: 'random events at a rate', bounce: 'events of a bouncing ball', burst: 'a cluster of events', on_threshold: 'an event at each rising crossing',
   grains: 'windowed grains placed at events', voices: 'a sub-patch rendered once per event', sound: 'another sound, instanced', expr: 'per-sample maths',
   output: 'gain, loudness target, edge fades, ceiling: exactly one per sound',
+  modal: 'modes of a struck object', impact: 'one object hitting the floor or a striker', rig: 'bodies and joints',
 };
-const ICON = { osc: 'wave', noise: 'noise', impulse: 'ring', sample: 'wave', env: 'env', adsr: 'env', decay: 'env', follower: 'env', filter: 'filter', onepole: 'filter', comb: 'filter', allpass: 'filter', resonators: 'ring', ramp: 'ctrl', lfo: 'ctrl', wander: 'ctrl', sample_hold: 'ctrl', slew: 'ctrl', math: 'math', remap: 'math', gain: 'math', mix: 'mix', pan: 'mix', width: 'mix', delay: 'mix', reverb: 'mix', convolve: 'mix', shape: 'filter', output: 'out' };
+const ICON = { modal: 'phys', impact: 'phys', rig: 'phys', contact: 'phys', osc: 'wave', noise: 'noise', impulse: 'ring', sample: 'wave', env: 'env', adsr: 'env', decay: 'env', follower: 'env', filter: 'filter', onepole: 'filter', comb: 'filter', allpass: 'filter', resonators: 'ring', ramp: 'ctrl', lfo: 'ctrl', wander: 'ctrl', sample_hold: 'ctrl', slew: 'ctrl', math: 'math', remap: 'math', gain: 'math', mix: 'mix', pan: 'mix', width: 'mix', delay: 'mix', reverb: 'mix', convolve: 'mix', shape: 'filter', output: 'out' };
 const CLAIMS = { centroid: 'centroid', decay: 'ring-out', crest: 'crest', lufs: 'loudness', flatness: 'flatness', swing: 'loudness swing' };
 const BLAB = ['63', '125', '250', '500', '1k', '2k', '4k', '8k+'];
 const AGENT_COLORS = ['var(--a1)', 'var(--a2)', 'var(--a3)'];
@@ -75,7 +76,7 @@ function agentColor(name) {
 
 // ---------- state ----------
 let ST = null;                 // the last `state` result
-const S = { view: 'doc', centre: 'sound', sel: null, tab: 'node', loop: false, region: null, zoom: null, hot: null, pendingPin: null };
+const S = { openRig: null, rigSel: null, view: 'doc', centre: 'sound', sel: null, tab: 'node', loop: false, region: null, zoom: null, hot: null, pendingPin: null };
 const P = { playing: false, pos: 0, loop: false, span: null, node: null, at: 0 };   // player mirror, extrapolated with rAF
 let CMAP = null;               // 256 RGBA colormap bytes from sounder://render/colormap
 const doc = () => ST.sound;
@@ -271,15 +272,155 @@ function drawSpark(c, x) {
 function macroTargets(name) { const m = doc().macros.find(x => x.name === name); return m ? m.map.map(x => x.node) : []; }
 function renderGraph() {
   const host = $('#graphhost'); host.hidden = S.centre !== 'graph'; if (host.hidden) return;
-  const d = doc(), nodes = d.nodes, has = new Set(nodes.map(n => n.name));
-  const cols = {}; nodes.forEach(n => (cols[n.depth] ||= []).push(n)); const pos = {};
-  Object.entries(cols).forEach(([c, ns]) => ns.forEach((n, i) => pos[n.name] = [c * 190, i * 84 + (c % 2) * 18]));
-  const W = Math.max(...Object.values(pos).map(p => p[0])) + 170, H = Math.max(...Object.values(pos).map(p => p[1])) + 80;
-  const wires = nodes.flatMap(n => n.reads.filter(r => has.has(r)).map(r => { const [x0, y0] = pos[r], [x1, y1] = pos[n.name]; const a = [x0 + 150, y0 + 28], b = [x1, y1 + 28]; return `<path d="M${a[0]},${a[1]} C${a[0] + 40},${a[1]} ${b[0] - 40},${b[1]} ${b[0]},${b[1]}" stroke="${S.sel === n.name || S.sel === r ? '#6fa8ff' : '#3a404c'}" stroke-width="1.5" fill="none"/>`; })).join('');
+  { const rn = S.openRig && nodeOf(S.openRig); if (isRigish(rn)) return renderRigCanvas(host, doc(), rn); S.openRig = null; S.rigSel = null; }
+  const d = doc(), nodes = d.nodes, by = Object.fromEntries(nodes.map(n => [n.name, n]));
+  if (!nodes.length) { host.innerHTML = ''; return; }
+  // Layout: columns by depth, each node pulled right to sit just before its first reader (short wires); rows
+  // ordered by the average row of their inputs, a few sweeps each way (fewer crossings); columns centred.
+  const hOf = n => isRigish(n) ? 96 : 76, GAP = 16, CW = 200;
+  const ins = Object.fromEntries(nodes.map(n => [n.name, n.reads.filter(r => by[r])]));
+  const outs = Object.fromEntries(nodes.map(n => [n.name, nodes.filter(x => ins[x.name].includes(n.name)).map(x => x.name)]));
+  const col = Object.fromEntries(nodes.map(n => [n.name, n.depth || 0]));
+  for (let k = 0; k < 4; k++) [...nodes].reverse().forEach(n => { if (outs[n.name].length && n.type !== 'output') col[n.name] = Math.max(col[n.name], Math.min(...outs[n.name].map(o => col[o])) - 1); });
+  const maxC = Math.max(...Object.values(col)); nodes.filter(n => n.type === 'output').forEach(n => col[n.name] = maxC);
+  const cols = []; nodes.forEach(n => (cols[col[n.name]] ||= []).push(n)); const rowOf = {}; const idx = () => cols.forEach(c => c && c.forEach((n, i) => rowOf[n.name] = i)); idx();
+  const bary = (n, nb) => { const v = nb[n.name].map(x => rowOf[x]).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : rowOf[n.name]; };
+  for (let k = 0; k < 6; k++) { (k % 2 ? [...cols].reverse() : cols).forEach(c => { if (!c) return; c.sort((a, b) => bary(a, k % 2 ? outs : ins) - bary(b, k % 2 ? outs : ins)); }); idx(); }
+  const colH = c => c ? c.reduce((a, n) => a + hOf(n) + GAP, -GAP) : 0, Hmax = Math.max(...cols.map(colH)); const pos = {};
+  cols.forEach((c, ci) => { if (!c) return; let y = (Hmax - colH(c)) / 2; c.forEach(n => { pos[n.name] = [ci * CW, y]; y += hOf(n) + GAP; }); });
+  const W = (cols.length - 1) * CW + 160, H = Hmax + 20;
+  // Wires: audio inputs solid, control (a field other than input / inputs / excite / a / b ...) dashed and dimmer;
+  // each input gets its own slot on the reader's left edge; a port read (x.force) is teal and labelled.
+  const AUDIO = new Set(['input', 'inputs', 'excite', 'a', 'b', 'carrier', 'modulator', 'source']), WORDS = new Set(['op', 'mode', 'shape', 'curve', 'color', 'material', 'floor', 'kind']);
+  const sel = S.sel; const wires = nodes.flatMap(n => { const refs = [];
+    Object.entries(n.fields).forEach(([k, v]) => { if (WORDS.has(k)) return; const walk = x => { if (typeof x === 'string') { const b = x.split('.')[0]; if (pos[b] && b !== n.name) refs.push({ src: b, port: x.includes('.') ? x.split('.')[1] : null, audio: AUDIO.has(k) }); } else if (Array.isArray(x)) x.forEach(walk); else if (x && typeof x === 'object' && k !== 'bodies' && k !== 'joints') Object.entries(x).forEach(([kk, y]) => kk === 'input' || kk === 'gain' ? walk(y) : 0); }; walk(v); });
+    const uniq = refs.filter((r, i) => refs.findIndex(q => q.src === r.src && q.port === r.port) === i);
+    return uniq.map((r, i) => { const [x0, y0] = pos[r.src], [x1, y1] = pos[n.name], a = [x0 + 150, y0 + hOf(by[r.src]) / 2], b = [x1, y1 + 18 + (uniq.length > 1 ? i * (hOf(n) - 30) / (uniq.length - 1) : (hOf(n) - 36) / 2)];
+      const on = sel === n.name || sel === r.src, dim = sel && !on, dx = Math.max(30, (b[0] - a[0]) / 2), c = on ? '#6fa8ff' : r.port ? '#4fd1c5' : r.audio ? '#5a6273' : '#454c59';
+      return `<path d="M${a[0]},${a[1]} C${a[0] + dx},${a[1]} ${b[0] - dx},${b[1]} ${b[0]},${b[1]}" stroke="${c}" stroke-width="${on ? 2 : r.audio ? 1.6 : 1.2}" fill="none" ${r.audio || r.port ? '' : 'stroke-dasharray="4 3"'} opacity="${dim ? .35 : 1}"/><circle cx="${b[0]}" cy="${b[1]}" r="2.5" fill="${c}" opacity="${dim ? .35 : 1}"/>${r.port ? `<text x="${a[0] + 6}" y="${a[1] - 5}" class="wport">.${esc(r.port)}</text>` : ''}`; }); }).join('');
   const hotNodes = S.hot ? macroTargets(S.hot) : [];
-  host.innerHTML = `<div class="graph" style="width:${W}px;height:${H}px"><svg class="wires">${wires}</svg>${nodes.map(n => `<div class="gnode ${n.type === 'output' ? 'out' : ''} ${S.sel === n.name ? 'sel' : ''} ${ST.solo === n.name ? 'solo' : ''} ${hotNodes.includes(n.name) ? 'mac' : ''}" data-node="${esc(n.name)}" style="left:${pos[n.name][0]}px;top:${pos[n.name][1]}px"><div class="n">${ic(ICON[n.type] || 'wave')}${esc(n.name)}</div><button class="gsolo ${ST.solo === n.name ? 'on' : ''}" data-solo="${esc(n.name)}" aria-label="Solo ${esc(n.name)}" title="Hear this node">${ic('phones')}</button><div class="gbadges"><span class="t">${esc(n.type)}</span>${n.open_comments ? `<span class="pinc" title="open comments on this node">${n.open_comments}</span>` : ''}${n.unread ? `<span class="warnc" title="changed by an agent since you last looked (open the sound to mark it seen)">${ic('warn')}</span>` : ''}</div><canvas data-gspark="${esc(n.name)}"></canvas></div>`).join('')}</div>`;
+  host.innerHTML = `<div class="graph" style="width:${W}px;height:${H}px"><svg class="wires">${wires}</svg>${nodes.map(n => { const ph = isRigish(n), nb = ph ? rigModel(flat(n)).bodies.length : 0;
+    return `<div class="gnode ${n.type === 'output' ? 'out' : ''} ${ph ? 'phys' : ''} ${S.sel === n.name ? 'sel' : ''} ${ST.solo === n.name ? 'solo' : ''} ${hotNodes.includes(n.name) ? 'mac' : ''}" data-node="${esc(n.name)}" style="left:${pos[n.name][0]}px;top:${pos[n.name][1]}px;height:${hOf(n)}px"><div class="n">${ic(ICON[n.type] || 'wave')}${esc(n.name)}</div><button class="gsolo ${ST.solo === n.name ? 'on' : ''}" data-solo="${esc(n.name)}" aria-label="Solo ${esc(n.name)}" title="Hear this node">${ic('phones')}</button><div class="gbadges"><span class="t">${ph ? `${esc(n.type)} · ${nb} bod${nb === 1 ? 'y' : 'ies'}` : esc(n.type)}</span>${n.open_comments ? `<span class="pinc" title="open comments on this node">${n.open_comments}</span>` : ''}${n.unread ? `<span class="warnc" title="changed by an agent since you last looked (open the sound to mark it seen)">${ic('warn')}</span>` : ''}</div>${ph ? `<div class="rthumb" data-rigopen="${esc(n.name)}" title="Open">${rigMini(flat(n))}<span class="rexp">${ic('zoom')}</span></div>` : `<canvas data-gspark="${esc(n.name)}"></canvas>`}</div>`; }).join('')}</div>`;
   host.querySelectorAll('[data-gspark]').forEach(c => { const name = c.dataset.gspark, doc0 = ST.doc, e = getSpark(name); if (e.v) { drawSpark(c, e.v); return; } e.p.then(x => { if (c.isConnected && ST.doc === doc0) drawSpark(c, x); }).catch(() => {}); });
 }
+
+// ---------- physics: rig and impact nodes (bodies and joints, stepped together) ----------
+// Inside a rig nothing flows one way: bodies are vertices, joints two-way couplings. The canvas lays bodies out by
+// height (a joint's `a` is the upper body, `b` the lower or the ground) because gravity is part of the model.
+const PHYS = new Set(['modal', 'contact', 'impact', 'rig', 'friction', 'click', 'step']);
+const SHAPES = ['plate', 'bar', 'tube', 'membrane', 'string', 'shell'];
+const MATERIALS = ['wood', 'metal', 'glass', 'stone', 'plastic'];
+const flat = n => ({ type: n.type, name: n.name, ...n.fields });
+const isRigish = n => n && (n.type === 'rig' || n.type === 'impact');
+const isModal = b => !!(b.material || b.f0 || b.shape);
+function rigModel(n) { if (n.type === 'impact') return { bodies: [{ name: 'obj', mass: n.object_mass, material: n.material || 'wood', shape: n.shape, f0: n.f0, loss: n.loss, label: 'object' }].concat(n.striker_mass ? [{ name: 'striker', mass: n.striker_mass }] : []),
+    joints: [n.striker_mass ? { kind: 'contact', a: 'striker', b: 'obj', bounce: n.bounce } : { kind: 'contact', a: 'obj', b: 'ground', gap: n.height, bounce: n.bounce }] };
+  return { bodies: n.bodies || [], joints: n.joints || [] }; }
+function rigLayout(m) {
+  // Rows from the bottom up: a body sits one row above the highest body it rests on, so a joint never skips a row.
+  // Each body is placed over where it attaches below, ordered by that point, so edges come out near vertical.
+  if (!m.bodies.length) return { pos: {}, wid: {}, groundY: null, minX: 40, maxX: 300, W: 420, H: 160 };
+  const names = m.bodies.map(b => b.name), h = Object.fromEntries(names.map(n => [n, 0]));
+  for (let k = 0; k < 16; k++) for (const j of m.joints) if (j.b !== 'ground' && h[j.a] != null && h[j.b] != null) h[j.a] = Math.max(h[j.a], h[j.b] + 1);
+  const top = Math.max(0, ...Object.values(h)), RH = 130, GAPX = 34, BW = 170;
+  const wid = {}; names.forEach(n => { const up = m.joints.filter(j => j.b === n && h[j.a] === h[n] + 1).length; wid[n] = up > 1 ? Math.max(BW, up * (BW + GAPX) - GAPX) : BW; });
+  const pos = {}, at = (n, v) => pos[n][0] + 10 + (v ?? 0.3) * (wid[n] - 20);
+  for (let r = 0; r <= top; r++) { const row = names.filter(n => h[n] === r);
+    const want = Object.fromEntries(row.map(n => { const js = m.joints.filter(j => j.a === n && pos[j.b]); const c = js.length ? js.reduce((a, j) => a + at(j.b, j.at_b), 0) / js.length : null; return [n, c == null ? null : c - (10 + (js[0].at_a ?? 0.3) * (wid[n] - 20))]; }));
+    const key = n => { const js = m.joints.filter(j => j.a === n && pos[j.b]); return js.length ? js.reduce((a, j) => a + at(j.b, j.at_b), 0) / js.length : 1e9; }; row.sort((a, b) => key(a) - key(b));
+    let x = 0; const y = (top - r) * RH + 24;
+    row.forEach(n => { const w = want[n] ?? x; x = Math.max(x, w); pos[n] = [x, y]; x += wid[n] + GAPX; });
+    const off = row.reduce((a, n) => a + ((want[n] ?? pos[n][0]) - pos[n][0]), 0) / Math.max(1, row.length); if (off < 0) row.forEach(n => pos[n][0] += off); }
+  const minX = Math.min(...names.map(n => pos[n][0])), maxX = Math.max(...names.map(n => pos[n][0] + wid[n])); names.forEach(n => pos[n][0] += 40 - minX);
+  const groundY = m.joints.some(j => j.b === 'ground') ? (top + 1) * RH + 24 - 40 : null;
+  return { pos, wid, groundY, minX: 40, maxX: maxX - minX + 40, W: maxX - minX + 80, H: (groundY ?? top * RH + 24 + 50) + 30 }; }
+// a thumbnail of the rig for its card in the signal graph: heard bodies as bars, silent ones as rings, joints as lines
+function rigMini(n) { const m = rigModel(n), L = rigLayout(m), sx = 126 / Math.max(L.W, 1), sy = 30 / Math.max(L.H, 1);
+  const c = b => [4 + (L.pos[b][0] + L.wid[b] / 2) * sx, 3 + (L.pos[b][1] + 25) * sy]; let g = '';
+  m.joints.forEach(j => { if (!L.pos[j.a]) return; const [x1, y1] = c(j.a), [x2, y2] = j.b === 'ground' ? [x1, 31] : L.pos[j.b] ? c(j.b) : [x1, y1]; g += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${j.kind === 'spring' ? '#4fd1c5' : '#8a91a0'}" stroke-width="1.2" ${j.kind === 'spring' ? 'stroke-dasharray="2 1.5"' : ''}/>`; });
+  if (L.groundY != null) g += `<line x1="4" y1="31.5" x2="130" y2="31.5" stroke="#5b6270" stroke-width="1.5"/>`;
+  m.bodies.forEach(b => { const [x, y] = c(b.name), w = Math.max(6, L.wid[b.name] * sx); g += isModal(b) ? `<rect x="${x - w / 2}" y="${y - 2.5}" width="${w}" height="5" rx="2" fill="#4fd1c5"/>` : `<circle cx="${x}" cy="${y}" r="3" fill="none" stroke="#c4c9d4" stroke-width="1.2"/>`; });
+  return `<svg class="rmini" viewBox="0 0 134 34">${g}</svg>`; }
+
+// slider scales for body and joint fields; missing fields show the node's defaults (docs/nodes/rig.md)
+const RF = { mass: [0.001, 10, 'log', 'kg'], f0: [40, 8000, 'log', 'Hz'], loss: [0.1, 4, 'lin', ''], noise: [0, 1, 'lin', ''], level_db: [-24, 12, 'lin', 'dB'], velocity: [-10, 10, 'lin', 'm/s'],
+  bounce: [0, 1, 'lin', ''], hardness: [0, 1, 'lin', ''], gap: [0, 1, 'lin', 'm'], gap_mm: [0, 5, 'lin', 'mm'], stiffness: [1e3, 1e7, 'log', 'N/m'], damping: [0, 20, 'lin', 'N s/m'] };
+const RDEF = { at_a: 0.3, at_b: 0.3, gap: 0, bounce: 0.4, hardness: 0.5, stiffness: 2e5, damping: 2, level_db: 0, loss: 1, noise: 0, velocity: 0, mass: 1, f0: 300 };
+const RDOC = { mass: 'kg; heavier hits harder and rings the other body more', f0: 'lowest mode', loss: 'higher dies faster', noise: 'modes as noise bands: real wood 0.6, metal 0.4', level_db: 'how loud this body is in the output', velocity: 'starting speed, negative is down',
+  bounce: 'share of the speed kept on each rebound', hardness: 'a point mass\'s hardness', gap: 'starting distance', gap_mm: 'free play before it pulls: a rattle', stiffness: 'spring rate', damping: 'how fast the spring settles' };
+function rfPos(k, v) { const [a, b, sc] = RF[k]; return sc === 'log' ? Math.log(v / a) / Math.log(b / a) : (v - a) / (b - a); }
+function rfVal(k, t) { const [a, b, sc] = RF[k]; const v = sc === 'log' ? a * (b / a) ** t : a + (b - a) * t; return Math.abs(v) >= 100 ? Math.round(v) : +v.toFixed(v < 0.01 && v > 0 ? 5 : 3); }
+function rfFmt(k, v) { const u = RF[k][3]; return (Math.abs(v) >= 1000 ? (v / 1000).toFixed(v >= 1e5 ? 0 : 1) + 'k' : v) + (u ? ' ' + u : ''); }
+
+function renderRigCanvas(host, d, n0) { const n = flat(n0), m = rigModel(n), L = rigLayout(m), BH = 50;
+  const ax = (name, at) => L.pos[name][0] + 10 + (at ?? 0.3) * (L.wid[name] - 20);
+  let svg = '', html = '';
+  m.joints.forEach((j, ji) => { if (!L.pos[j.a] || (j.b !== 'ground' && !L.pos[j.b])) return; const gnd = j.b === 'ground'; const x1 = ax(j.a, j.at_a), y1 = L.pos[j.a][1] + BH, x2 = gnd ? x1 : ax(j.b, j.at_b), y2 = gnd ? L.groundY : L.pos[j.b][1];
+    const sel = S.rigSel === 'j' + ji, col = j.kind === 'spring' ? '#4fd1c5' : sel ? '#e3e6ec' : '#9aa1b0', mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    const len = Math.hypot(x2 - x1, y2 - y1) || 1, ux = (x2 - x1) / len, uy = (y2 - y1) / len, px = -uy, py = ux;
+    let d_ = `M${x1} ${y1} L${x2} ${y2}`, cap = '';
+    if (j.kind === 'contact') { const g = 4, w = 9, P = (t, o) => `${mx + ux * t + px * o} ${my + uy * t + py * o}`;
+      d_ = `M${x1} ${y1} L${P(-g, 0)} M${P(g, 0)} L${x2} ${y2}`; cap = `<path d="M${P(-g, -w)} Q${P(-g - 3, 0)} ${P(-g, w)} M${P(g, -w)} Q${P(g + 3, 0)} ${P(g, w)}" stroke="${col}" stroke-width="2" fill="none" stroke-linecap="round"/>`; }
+    if (j.kind === 'spring') { const seg = 7, t0 = .3, t1 = .7; d_ = `M${x1} ${y1} L${x1 + (x2 - x1) * t0} ${y1 + (y2 - y1) * t0} ` + Array.from({ length: seg }, (_, q) => { const t = t0 + (t1 - t0) * (q + .5) / seg, o = q % 2 ? 5 : -5; return `L${x1 + (x2 - x1) * t + px * o} ${y1 + (y2 - y1) * t + py * o}`; }).join(' ') + ` L${x1 + (x2 - x1) * t1} ${y1 + (y2 - y1) * t1} L${x2} ${y2}`; }
+    const drag = n.type === 'rig';
+    svg += `${sel ? `<path d="${d_}" stroke="${col}" stroke-opacity=".25" stroke-width="8" fill="none" stroke-linejoin="round"/>` : ''}<path d="${d_}" stroke="${col}" stroke-width="${sel ? 2.4 : 1.6}" fill="none"/>${cap}<path class="hit" data-rsel="j${ji}" d="M${x1} ${y1} L${x2} ${y2}"/>`
+      + `<circle ${drag ? `class="ah" data-ah="${ji}:a"` : ''} cx="${x1}" cy="${y1}" r="${sel ? 5 : 3.5}" fill="${col}">${drag ? `<title>drag along ${esc(j.a)} to move where it attaches</title>` : ''}</circle>`
+      + (gnd ? `<circle cx="${x2}" cy="${y2}" r="3.5" fill="${col}"/>` : `<circle ${drag ? `class="ah" data-ah="${ji}:b"` : ''} cx="${x2}" cy="${y2}" r="${sel ? 5 : 3.5}" fill="${col}">${drag ? `<title>drag along ${esc(j.b)} to move where it attaches</title>` : ''}</circle>`);
+    const extra = [j.kind === 'spring' && j.gap ? `${+(j.gap * 1000).toFixed(2)} mm play` : '', j.kind === 'contact' && j.gap ? `${j.gap} m drop` : '', j.slide ? `slide ← ${j.slide}` : ''].filter(Boolean).join(' · ');
+    html += `<div class="rjoint ${j.kind} ${sel ? 'sel' : ''}" data-rsel="j${ji}" style="left:${mx + 16}px;top:${my}px">${esc(j.kind)}${extra ? `<span>${esc(extra)}</span>` : ''}</div>`; });
+  m.bodies.forEach(b => { const [x, y] = L.pos[b.name], modal = isModal(b), sel = S.rigSel === 'b:' + b.name;
+    const kind = modal ? `${b.material || 'wood'} ${b.shape || 'plate'}${b.f0 ? ' · ' + fmtHz(b.f0) + ' Hz' : ''}` : `${b.mass ?? '?'} kg mass`;
+    const tags = [b.fixed ? '<span class="tag">fixed</span>' : '', b.velocity != null ? `<span class="tag start">${b.velocity < 0 ? '↓' : '↑'} ${Math.abs(b.velocity)} m/s</span>` : '', b.drive ? `<span class="tag in">drive ← ${esc(b.drive)}</span>` : '', modal ? `<span class="tag out" title="heard in the audio output">heard${b.level_db ? ' ' + b.level_db + ' dB' : ''}</span>` : '<span class="tag">silent</span>'].join('');
+    html += `<div class="rbody ${modal ? '' : 'silent'} ${sel ? 'sel' : ''}" data-rsel="b:${esc(b.name)}" style="left:${x}px;top:${y}px;height:${BH}px;width:${L.wid[b.name]}px"><div class="n">${esc(b.label || b.name)}<span class="tags">${tags}</span></div><div class="t">${esc(kind)}</div></div>`; });
+  if (L.groundY != null) html += `<div class="rground" style="left:${L.minX - 20}px;width:${L.maxX - L.minX + 40}px;top:${L.groundY}px"><span>ground${n.floor ? ' · ' + esc(n.floor) : ''}</span></div>`;
+  const nb = m.bodies.length, nj = m.joints.length;
+  host.innerHTML = `<div class="rigbar"><button data-rigclose>‹ ${esc(ST.doc)}</button><span>/</span><b>${esc(n.name)}</b><span class="badge">${esc(n.type)}</span><span class="hint">${nb} ${nb === 1 ? 'body' : 'bodies'} · ${nj} ${nj === 1 ? 'joint' : 'joints'}</span></div>
+    <div class="rig" style="width:${L.W + (S.rigSel ? 240 : 0)}px;height:${Math.max(L.H, S.rigSel ? 300 : 0)}px"><svg class="rw" width="${L.W}" height="${L.H}">${svg}</svg>${html}${rigPop(n, L)}</div>`; }
+// the edit popover for a body or joint; a field a knob drives shows the knob instead of a slider
+function rigPop(n, L) { const m = rigModel(n); if (!S.rigSel || n.type !== 'rig') return '';
+  const driver = (id, k) => { const f = k === 'gap_mm' ? 'gap' : k; const field = id.startsWith('b:') ? 'bodies' : 'joints', index = id.startsWith('b:') ? m.bodies.findIndex(q => 'b:' + q.name === id) : +id.slice(1);
+    return doc().macros.find(mc => mc.map.some(x => x.node === n.name && x.field === field && x.index === index && x.key === f)); };
+  const lab = k => k === 'gap_mm' ? 'play' : k.replace('_', ' ');
+  const row = (id, k, v, set) => { const mc = driver(id, k); if (mc) return `<div class="field"><label>${lab(k)}</label><div class="link"><span class="macchip" data-kfocus="${esc(mc.name)}" title="Turn the ${esc(mc.name)} knob">◎ ${esc(mc.name)}</span></div></div>`;
+    const shown = k === 'gap_mm' ? v * 1000 : v; return `<div class="field" title="${RDOC[k] || ''}"><label>${lab(k)}</label><input type="range" min="0" max="1" step="0.001" value="${rfPos(k, shown)}" data-rp="${esc(id)}:${k}"${set ? '' : ' class="dflt"'}><span class="val" data-rpv="${esc(id)}:${k}">${rfFmt(k, shown)}</span></div>`; };
+  const en = (id, k, opts, v) => `<div class="field"><label>${k}</label><div class="opts">${opts.map(o => `<button data-rpe="${esc(id)}:${k}" data-v="${o}" aria-pressed="${o === v}">${o}</button>`).join('')}</div></div>`;
+  let head = '', body = '', x = 0, y = 0;
+  if (S.rigSel.startsWith('b:')) { const b = m.bodies.find(q => 'b:' + q.name === S.rigSel); if (!b) return ''; const id = S.rigSel, modal = isModal(b); [x, y] = [L.pos[b.name][0] + L.wid[b.name] + 12, L.pos[b.name][1]];
+    head = `<b>${esc(b.name)}</b><span class="hint">${modal ? 'modal body' : 'point mass'}</span>`;
+    const ks = modal ? ['f0', 'loss', 'noise', 'mass', 'level_db', 'velocity'] : ['mass', 'velocity'];
+    body = (modal ? en(id, 'material', MATERIALS, b.material || 'wood') + en(id, 'shape', SHAPES, b.shape || 'plate') : '') + ks.map(k => row(id, k, b[k] ?? RDEF[k], b[k] != null)).join('') +
+      `<div class="field"><label>fixed</label><div class="opts"><button data-rpe="${esc(id)}:fixed" data-v="true" aria-pressed="${!!b.fixed}">held</button><button data-rpe="${esc(id)}:fixed" data-v="false" aria-pressed="${!b.fixed}">free</button></div></div>`; }
+  else { const ji = +S.rigSel.slice(1), j = m.joints[ji]; if (!j || !L.pos[j.a]) return ''; const id = S.rigSel, a = L.pos[j.a], b = j.b === 'ground' ? [a[0], L.groundY - 50] : L.pos[j.b]; [x, y] = [Math.max(a[0], b[0]) + 180, (a[1] + b[1]) / 2];
+    head = `<b style="color:${j.kind === 'spring' ? 'var(--a3)' : 'var(--fg)'}">${esc(j.kind)}</b><span class="hint">${esc(j.a)} ↔ ${esc(j.b)}</span>`;
+    const ks = j.kind === 'spring' ? ['gap_mm', 'stiffness', 'damping'] : ['bounce', 'hardness', 'gap'];
+    body = ks.map(k => { const f = k === 'gap_mm' ? 'gap' : k; return row(id, k, j[f] ?? RDEF[f], j[f] != null); }).join('') + (j.slide ? `<div class="hint" style="margin-top:4px">slides ← ${esc(j.slide)}</div>` : ''); }
+  return `<div class="rpop" style="left:${x}px;top:${y}px"><div class="rph">${head}<button data-rpclose title="Close (Esc)">${ic('x')}</button></div>${body}</div>`; }
+// a body / joint edit as the whole bodies / joints list, which set_field upserts as one field
+function rigPatch(n, id, k, v) { if (id.startsWith('b:')) { const name = id.slice(2); return ['bodies', n.bodies.map(b => b.name === name ? { ...b, [k]: v } : b)]; }
+  const ji = +id.slice(1); if (k === 'gap_mm') { k = 'gap'; v = +(v / 1000).toFixed(5); } return ['joints', n.joints.map((j, i) => i === ji ? { ...j, [k]: v } : j)]; }
+function physSection(n0) { const n = flat(n0), m = rigModel(n);
+  const li = (id, main, sub, c) => `<button class="rli ${S.rigSel === id ? 'on' : ''}" data-rigpick="${esc(id)}"><span style="color:${c}">${esc(main)}</span><span class="hint">${esc(sub)}</span></button>`;
+  const rows = n.type === 'rig' ? m.bodies.map(b => li('b:' + b.name, b.name, isModal(b) ? `${b.material || 'wood'} ${b.shape || 'plate'}` : `${b.mass ?? '?'} kg · silent`, 'var(--fg)')).join('') + m.joints.map((j, ji) => li('j' + ji, j.kind, `${j.a} ↔ ${j.b}`, j.kind === 'spring' ? 'var(--a3)' : 'var(--dim)')).join('') : '';
+  return `<div class="sect"><div class="sh">Physics <span class="hint" style="text-transform:none;letter-spacing:0">${m.bodies.length} bodies · ${m.joints.length} joints</span></div>
+    <button class="tbtn" data-rigopen="${esc(n.name)}" style="margin-bottom:8px">${ic('grid')}Open the rig</button><div class="rlist">${rows}</div></div>`; }
+function openRig(name, pick) { S.centre = 'graph'; S.openRig = S.sel = name; S.rigSel = pick || null; S.tab = 'node'; renderCentre(); renderRight(); }
+function closeRig() { S.openRig = null; S.rigSel = null; renderGraph(); renderRight(); }
+// rig edits: change the local copy at once (so the canvas follows the pointer), send one set_field on release
+function rigLocal(id, k, v) { const n0 = nodeOf(S.openRig); if (!n0) return null; const [field, value] = rigPatch(flat(n0), id, k, v); n0.fields[field] = value; return [field, value]; }
+function rigSend(field, value) { act('set_field', { node: S.openRig, field, value }); }
+$('#graphhost').addEventListener('mouseover', e => { const h = e.target.closest('.hit'); document.querySelectorAll('.rjoint').forEach(c => c.classList.toggle('hover', !!h && c.dataset.rsel === h.dataset.rsel)); });
+let AH = null;
+$('#graphhost').addEventListener('pointerdown', e => { const h = e.target.closest('.ah'); if (!h) return; e.preventDefault(); e.stopPropagation(); const [ji, end] = h.dataset.ah.split(':'); AH = { ji: +ji, end, moved: false }; S.rigSel = 'j' + ji; });
+addEventListener('pointermove', e => { if (!AH) return; const n0 = nodeOf(S.openRig); if (!n0 || !n0.fields.joints) return; const j = n0.fields.joints[AH.ji], body = AH.end === 'a' ? j.a : j.b;
+  const L = rigLayout(rigModel(flat(n0))), rig = $('#graphhost .rig'); if (!rig || !L.pos[body]) return; const r = rig.getBoundingClientRect();
+  const at = Math.max(0, Math.min(1, +((e.clientX - r.left - L.pos[body][0] - 10) / (L.wid[body] - 20)).toFixed(2)));
+  n0.fields.joints = n0.fields.joints.map((q, i) => i === AH.ji ? { ...q, ['at_' + AH.end]: at } : q); AH.moved = true; renderGraph(); });
+addEventListener('pointerup', () => { if (!AH) return; const a = AH; AH = null; if (a.moved) rigSend('joints', nodeOf(S.openRig).fields.joints); else { renderGraph(); renderRight(); } });
+$('#graphhost').addEventListener('input', e => { const t = e.target.closest('[data-rp]'); if (!t) return; const [a, b, k] = t.dataset.rp.split(':'), id = a === 'b' ? a + ':' + b : a, key = a === 'b' ? k : b;
+  const v = rfVal(key, +t.value); rigLocal(id, key, v); t.classList.remove('dflt'); const o = document.querySelector(`[data-rpv="${CSS.escape(t.dataset.rp)}"]`); if (o) o.textContent = rfFmt(key, v); });
+$('#graphhost').addEventListener('change', e => { const t = e.target.closest('[data-rp]'); if (!t) return; const [a, b, k] = t.dataset.rp.split(':'), id = a === 'b' ? a + ':' + b : a, key = a === 'b' ? k : b;
+  const f = key === 'gap_mm' || id.startsWith('j') ? 'joints' : 'bodies'; rigSend(f, nodeOf(S.openRig).fields[f]); });
+$('#graphhost').addEventListener('dblclick', e => { const c = e.target.closest('.gnode'); if (!c) return; const n = nodeOf(c.dataset.node); if (isRigish(n)) { e.stopPropagation(); openRig(n.name); } });
 
 // ---------- macro knobs ----------
 function polar(cx, cy, r, deg) { const a = deg * Math.PI / 180; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; }
@@ -381,8 +522,9 @@ function renderRight() {
   if (S.tab === 'node') {
     if (!n) body = `<div class="sect hint">Select a node in the graph.</div>`;
     else { const readBy = d.nodes.filter(x => x.reads.includes(n.name)).map(x => x.name); const link = x => `<a href="#" data-goto="${esc(x)}" style="color:var(--accent)">${esc(x)}</a>`;
-      body = `<div class="sect"><div class="nodehead">${ic(ICON[n.type] || 'wave')}<span class="nm">${esc(n.name)}</span><span class="badge">${esc(n.type)}</span><span class="grow"></span><button class="tbtn" data-solo="${esc(n.name)}" aria-pressed="${ST.solo === n.name}" title="Hear this node">${ic('phones')}Solo</button></div><div class="blurb">${esc(BLURB[n.type] || '')}</div></div>
-      <div class="sect"><div class="sh">Fields</div>${Object.entries(n.fields).map(([k, v]) => fieldRow(n, k, v)).join('')}</div>
+      body = `<div class="sect"><div class="nodehead">${ic(ICON[n.type] || 'wave')}<span class="nm">${esc(n.name)}</span><span class="badge">${esc(n.type)}</span>${PHYS.has(n.type) ? '<span class="physbadge">physical</span>' : ''}<span class="grow"></span><button class="tbtn" data-solo="${esc(n.name)}" aria-pressed="${ST.solo === n.name}" title="Hear this node">${ic('phones')}Solo</button></div><div class="blurb">${esc(BLURB[n.type] || '')}</div></div>
+      ${isRigish(n) ? physSection(n) : ''}
+      <div class="sect"><div class="sh">Fields</div>${Object.entries(n.fields).filter(([k]) => !(isRigish(n) && (k === 'bodies' || k === 'joints'))).map(([k, v]) => fieldRow(n, k, v)).join('')}</div>
       <div class="sect"><div class="sh">Wiring</div><dl class="kv"><dt>reads</dt><dd>${n.reads.filter(x => d.nodes.some(y => y.name === x)).map(link).join(', ') || '—'}</dd><dt>read by</dt><dd>${readBy.map(link).join(', ') || (n.type === 'output' ? 'the sound' : '<span style="color:var(--warn)">nothing</span>')}</dd><dt>peak</dt><dd data-nodepeak="${esc(n.name)}">…</dd></dl></div>
       <div class="sect"><div class="sh">JSON <span class="hint" style="text-transform:none;letter-spacing:0">what sound_ops sends</span></div><pre class="mono" style="margin:0;white-space:pre-wrap;color:var(--dim);font-size:11px">${esc(JSON.stringify({ type: n.type, name: n.name, ...n.fields }))}</pre></div>`;
       const name = n.name, doc0 = ST.doc; getSpark(name).p.then(x => { const el = document.querySelector(`[data-nodepeak="${name}"]`); if (el && ST.doc === doc0) { let pk = 0; for (const v of x) pk = Math.max(pk, Math.abs(v)); el.textContent = `${(20 * Math.log10(Math.max(pk, 1e-10))).toFixed(1)} dBFS`; } }).catch(() => {}); }
@@ -411,7 +553,7 @@ function renderRight() {
 }
 
 // ---------- grid of all sounds ----------
-const THUMBS = new Map();
+const THUMBS = new Map(); let THUMB_IO = null;
 function renderOverview() {
   $('#overview').hidden = S.view !== 'grid'; if (S.view !== 'grid') return;
   const sounds = ST.sounds;
@@ -421,12 +563,14 @@ function renderOverview() {
   $('#feed').innerHTML = (ST.feed || []).map(f => { const i = f.what.indexOf(' · '); const what = i > 0 ? `<b>${esc(f.what.slice(0, i))}</b>${esc(f.what.slice(i))}` : esc(f.what);
     return `<div class="ev" data-doc="${esc(f.doc)}"><i class="dot" style="background:${agentColor(f.agent)}"></i><span class="what"><span class="mono">${esc(f.tool)}</span> ${what}</span><time>${esc(f.ago)}</time></div>`; }).join('');
   const hashes = new Map(sounds.map(d => [d.name, d.hash]));
-  document.querySelectorAll('[data-th]').forEach(c => {
-    if (!CMAP) return; const name = c.dataset.th, W = c.width = Math.max(8, Math.round(c.clientWidth * DPR)), H = c.height = Math.max(8, Math.round(c.clientHeight * DPR));
+  const drawTh = c => {
+    if (!CMAP || !c.clientWidth || !c.clientHeight) return false; const name = c.dataset.th, W = c.width = Math.max(8, Math.round(c.clientWidth * DPR)), H = c.height = Math.max(8, Math.round(c.clientHeight * DPR));
     const k = docKey(hashes.get(name)), e = cached(THUMBS, `${name}|${k}|${W}x${H}`, 120, () => bulk(`render/${name}/spectrogram`, { rev: k, w: W, h: H }).then(b => specCanvas(parseSpec(b))));
     const draw = sc => { if (c.isConnected) c.getContext('2d').drawImage(sc, 0, 0, W, H); };
-    if (e.v) draw(e.v); else e.p.then(draw).catch(() => {});
-  });
+    if (e.v) draw(e.v); else e.p.then(draw).catch(() => {}); return true;
+  };
+  THUMB_IO?.disconnect(); THUMB_IO = new IntersectionObserver(es => es.forEach(x => { if (x.isIntersecting && drawTh(x.target)) THUMB_IO.unobserve(x.target); }), { rootMargin: '200px' });
+  document.querySelectorAll('[data-th]').forEach(c => THUMB_IO.observe(c));
 }
 
 // ---------- toast, render all ----------
@@ -473,6 +617,15 @@ $('#hudbar').onclick = e => { const c = e.target.closest('[data-centre]'); if (c
   if (e.target.closest('[data-unzoom]')) { S.zoom = null; renderCentre(); return; } const hb = e.target.closest('[data-hist]'); if (hb) openHist(hb); };
 function toggleSolo(node) { solo(ST.solo === node || isOut(node) ? null : node); }
 $('#graphhost').onclick = e => {
+  if (e.target.closest('[data-rigclose]')) { closeRig(); return; }
+  const ro = e.target.closest('[data-rigopen]'); if (ro) { e.stopPropagation(); openRig(ro.dataset.rigopen); return; }
+  if (S.openRig) {
+    if (e.target.closest('[data-rpclose]')) { S.rigSel = null; renderGraph(); renderRight(); return; }
+    const pe = e.target.closest('[data-rpe]'); if (pe) { const [a, b, k] = pe.dataset.rpe.split(':'), v = pe.dataset.v === 'true' ? true : pe.dataset.v === 'false' ? false : pe.dataset.v; const r = rigLocal(a + ':' + b, k, v); if (r) rigSend(...r); return; }
+    const kf = e.target.closest('[data-kfocus]'); if (kf) { const el = document.querySelector(`[data-dial="${CSS.escape(kf.dataset.kfocus)}"]`); if (el) el.focus(); return; }
+    if (e.target.closest('.rpop')) return;
+    const rs = e.target.closest('[data-rsel]'); if (rs) { S.rigSel = S.rigSel === rs.dataset.rsel ? null : rs.dataset.rsel; renderGraph(); renderRight(); return; }
+    if (S.rigSel) { S.rigSel = null; renderGraph(); renderRight(); } return; }
   const so = e.target.closest('[data-solo]'); if (so) { e.stopPropagation(); toggleSolo(so.dataset.solo); return; }
   const n = e.target.closest('[data-node]'); if (n) { S.sel = n.dataset.node; S.tab = 'node'; renderGraph(); renderRight(); } };
 
@@ -494,6 +647,8 @@ $('#dock').onclick = async e => { if (e.target.closest('[data-kreset]')) { await
 // right pane
 $('#right').onclick = e => {
   const t = e.target.closest('[data-tab]'); if (t) { S.tab = t.dataset.tab; renderRight(); return; }
+  const rp = e.target.closest('[data-rigpick]'); if (rp) { openRig(S.sel, rp.dataset.rigpick); return; }
+  const ro = e.target.closest('[data-rigopen]'); if (ro) { openRig(ro.dataset.rigopen); return; }
   const so = e.target.closest('[data-solo]'); if (so) { toggleSolo(so.dataset.solo); return; }
   const kf = e.target.closest('[data-kfocus]'); if (kf) { const el = document.querySelector(`[data-dial="${kf.dataset.kfocus}"]`); if (el) { el.focus(); el.closest('.knob').animate([{ boxShadow: '0 0 0 4px rgba(111,168,255,.5)' }, { boxShadow: '0 0 0 0 rgba(111,168,255,0)' }], 900); } return; }
   const go = e.target.closest('[data-goto]'); if (go) { e.preventDefault(); S.sel = go.dataset.goto.split('.')[0]; renderRight(); renderGraph(); return; }
@@ -555,7 +710,7 @@ addEventListener('keydown', e => {
   else if (k === '1' || k === '2') { S.centre = k === '1' ? 'sound' : 'graph'; renderCentre(); }
   else if (k === 'h') { const hb = document.querySelector('[data-hist]'); if (hb) openHist(hb); }
   else if (k === 'c') { S.tab = 'comments'; renderRight(); }
-  else if (e.key === 'Escape') { $('#docpop').hidden = true; $('#bpop').hidden = true; if (S.region) { S.region = null; showRegbar(); } else if (S.zoom) { S.zoom = null; renderCentre(); } else if (ST.solo) solo(null); }
+  else if (e.key === 'Escape') { $('#docpop').hidden = true; $('#bpop').hidden = true; if (S.openRig && S.rigSel && S.centre === 'graph') { S.rigSel = null; renderGraph(); renderRight(); } else if (S.openRig && S.centre === 'graph') closeRig(); else if (S.region) { S.region = null; showRegbar(); } else if (S.zoom) { S.zoom = null; renderCentre(); } else if (ST.solo) solo(null); }
 });
 document.addEventListener('mousedown', e => { if (!e.target.closest('#docpop, #docbtn')) $('#docpop').hidden = true; if (!e.target.closest('#bpop, [data-hist]')) $('#bpop').hidden = true; });
 

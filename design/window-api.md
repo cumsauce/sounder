@@ -36,7 +36,7 @@ the page shows comes from `Session`: no DSP in JS.
 {
   "rev": 42,                       // bumps on every change; also in sounder.changed
   "doc": "laser",                  // the open sound
-  "sounds": [ { "name": "laser", "kind": "oneshot|loop", "by": "look",
+  "sounds": [ { "name": "laser",   // open sounds, the most recently edited first "kind": "oneshot|loop", "by": "look",
                 "ago": "2 min", "working": true, "saved": false,
                 "open_comments": 1,
                 "seconds": 0.404, "lufs": -18.2 } ],   // seconds, lufs: for the All-sounds tile (null if it does not render yet)

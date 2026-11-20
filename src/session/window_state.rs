@@ -150,10 +150,11 @@ impl Session {
             );
         }
 
-        // Sounds.
-        let sounds: Vec<Value> = self
-            .order
-            .iter()
+        // Sounds, the most recently edited first (never-edited ones last, in the order they opened).
+        let mut by_recent: Vec<&String> = self.order.iter().collect();
+        by_recent.sort_by_key(|n| std::cmp::Reverse(self.touched.get(*n).copied()));
+        let sounds: Vec<Value> = by_recent
+            .into_iter()
             .filter_map(|n| self.sounds.get(n).map(|s| (n, s)))
             .map(|(n, s)| {
                 let by = s

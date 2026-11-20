@@ -272,3 +272,43 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .ap { font: 600 10px var(--sans); border: 1px solid var(--line); border-radius: 99px; padding: 0 6px; color: var(--faint); cursor: pointer; }
 .ap:hover { color: var(--fg); }
 .ap.on { color: var(--ok, #6fcf97); border-color: currentColor; }
+
+/* physics: rig and impact nodes */
+.physbadge { font: 10px var(--mono); color: var(--a3); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+.rigbar { position: sticky; top: 0; left: 0; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(24,26,32,.92); border-bottom: 1px solid var(--line); font-size: 12px; }
+.rigbar button { color: var(--accent); } .rigbar .hint { margin-left: auto; }
+.rig { position: relative; margin: 10px 12px; user-select: none; }
+.rig svg.rw { position: absolute; inset: 0; overflow: visible; pointer-events: none; z-index: 2; }
+.rig svg.rw .ah { pointer-events: all; cursor: ew-resize; stroke: transparent; stroke-width: 10; } .rig svg.rw .ah:hover { r: 6; }
+.rig svg.rw .hit { pointer-events: stroke; cursor: pointer; stroke: transparent; stroke-width: 18; fill: none; }
+.rig svg.rw text { font: 10px var(--mono); fill: var(--dim); }
+.rbody { position: absolute; width: 140px; padding: 6px 8px 5px; background: var(--raise); border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
+.rbody.silent { background: transparent; border-style: dashed; }
+.rbody.sel, .rport.sel { border-color: var(--accent); }
+.rbody .n { font-size: 12px; font-weight: 500; display: flex; gap: 6px; align-items: center; } .rbody .t { font: 10.5px var(--mono); color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rbody { overflow: hidden; }
+.rbody canvas { width: 100%; height: 20px; display: block; margin-top: 3px; }
+.rbody .pin { color: var(--dim); font: 10px var(--mono); margin-left: auto; }
+.rground { position: absolute; height: 12px; border-top: 2px solid var(--dim); background: repeating-linear-gradient(135deg, #3a404c 0 1px, transparent 1px 7px); }
+.rground span { position: absolute; left: 0; top: 2px; font: 10px var(--mono); color: var(--faint); }
+.rbody .tags { margin-left: auto; display: flex; gap: 4px; }
+.rbody .n { justify-content: space-between; }
+.tag { font: 500 9.5px var(--mono); color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; white-space: nowrap; background: var(--bg); }
+.tag.out { color: var(--a3); border-color: rgba(79,209,197,.35); } .tag.in { color: var(--a2); border-color: rgba(246,160,77,.4); } .tag.start { color: var(--fg); }
+.rjoint { opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 3; }
+.rjoint.sel, .rjoint.hover { opacity: 1; }
+.rjoint { position: absolute; transform: translate(0, -50%); font: 10px var(--mono); color: var(--dim); background: #181a20; border: 1px solid var(--line); border-radius: 99px; padding: 1px 7px; white-space: nowrap; cursor: pointer; display: flex; gap: 6px; }
+.rjoint.spring { color: var(--a3); } .rjoint span { color: var(--faint); } .rjoint.sel { border-color: currentColor; }
+.rpop { position: absolute; z-index: 5; width: 250px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px 10px; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
+.rpop .rph { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; } .rpop .rph button { margin-left: auto; color: var(--faint); }
+.rpop .field { grid-template-columns: 62px 1fr 64px; } .rpop input.dflt { opacity: .45; } .rpop .opts { flex-wrap: wrap; }
+.rlist { display: grid; gap: 2px; } .rli { display: flex; gap: 8px; align-items: baseline; text-align: left; padding: 4px 6px; border-radius: 5px; font-size: 12px; } .rli:hover { background: var(--raise); } .rli.on { background: var(--accent-soft); }
+.gnode.phys { border-color: rgba(79,209,197,.55); background: linear-gradient(180deg, rgba(79,209,197,.10), rgba(79,209,197,.02) 60%), var(--raise); box-shadow: inset 3px 0 0 var(--a3); }
+.gnode.phys .n { color: var(--a3); padding-right: 26px; } .gnode.phys .t { white-space: nowrap; } .gnode.phys.sel { border-color: var(--accent); }
+.gnode .rthumb { position: relative; margin-top: 5px; border: 1px solid rgba(79,209,197,.18); border-radius: 5px; background: rgba(0,0,0,.18); cursor: zoom-in; }
+.gnode .rthumb:hover { border-color: var(--a3); background: rgba(79,209,197,.08); }
+.gnode .rmini { display: block; width: 100%; height: 36px; }
+.gnode .rexp { position: absolute; top: 3px; right: 3px; color: var(--a3); opacity: 0; transition: opacity .12s; } .gnode .rexp svg.i { width: 12px; height: 12px; }
+.gnode .rthumb:hover .rexp { opacity: 1; }
+.graph svg.wires .wport { font: 10px var(--mono); fill: var(--a3); }
+.rbody .t { font: 10.5px var(--mono); color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

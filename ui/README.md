@@ -10,7 +10,7 @@ no DSP here. The contract is `design/window-api.md`; the look is
 | `index.html`, `style.css` | the mock's markup and CSS, unchanged except the concept-notes card (mock only) is gone |
 | `app.js` | the page: `sounder` shim, rendering, interactions |
 | `fixture.js` | FIXTURE ONLY, plain-browser stand-in for the Rust side; never loaded in the window, no need to embed it |
-| `fixture.json` | a `state` skeleton plus three sounds (laser with 3 macros, comments and history; ui_click; wind_loop, a loop with a failing macro check) |
+| `fixture.json` | a `state` skeleton plus four sounds (laser with 3 macros, comments and history; pan_and_lid, a rig with bodies, joints and two knobs on joint / body fields; ui_click; wind_loop, a loop with a failing macro check) |
 | `fonts/` | IBM Plex Sans / Mono (`IBMPlex-LICENSE.txt`), loaded with `FontFace` from `sounder://fonts/` in the window, `fonts/` in a browser |
 
 ## Design work in a browser

@@ -354,3 +354,37 @@ fn rev_bumps_on_every_visible_change() {
     assert!(a.len() > 1000);
     assert!(s.node_audio(Some("zap"), Some("ghost")).is_err());
 }
+
+#[test]
+fn sounds_list_the_most_recently_edited_first() {
+    let mut s = session("recent_first");
+    let _ = s.begin_call(Some("look"), None, None);
+    s.new_sound("hum", Kind::Oneshot).unwrap();
+    s.apply_ops(
+        Some("hum"),
+        vec![
+            json!({"type": "noise", "name": "n", "amp": 0.1}),
+            json!({"type": "output", "name": "out", "input": "n"}),
+        ],
+        DocEdit::default(),
+    )
+    .unwrap();
+    let names = |s: &mut Session| -> Vec<String> {
+        s.window_state(None).unwrap()["sounds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|x| x["name"].as_str().unwrap().to_string())
+            .collect()
+    };
+    assert_eq!(names(&mut s), vec!["hum", "zap"]);
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    s.apply_ops(
+        Some("zap"),
+        vec![json!({"type": "decay", "name": "e", "time": 0.25})],
+        DocEdit::default(),
+    )
+    .unwrap();
+    assert_eq!(names(&mut s), vec!["zap", "hum"]);
+    s.end_call(Some("look"));
+}
