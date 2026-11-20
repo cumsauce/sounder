@@ -314,6 +314,7 @@ impl Session {
             "warnings": [],
             "nodes": nodes,
             "params": serde_json::to_value(&d.params).unwrap_or(json!({})),
+            "layout": serde_json::to_value(&d.layout).unwrap_or(json!({})),
             "macros": macros,
             "moves": sound.knob_moves.iter().map(|k| json!({"name": k.name, "from": k.from, "to": k.to})).collect::<Vec<_>>(),
             "comments": sound.annotations.iter().map(comment_json).collect::<Vec<_>>(),

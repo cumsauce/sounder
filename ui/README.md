@@ -44,3 +44,13 @@ picture is refetched (state is pulled on release). Node-tab sliders send
 
 Not backed by a call (so read-only or approximated, see `design/window-api.md`):
 `$params` are listed, not edited; a tile's play button is `select_sound` + `play`.
+
+## Editing
+
+A person can build a sound without an agent: add, connect, move, rename, duplicate and delete nodes; open a rig
+to add bodies, join them and move them; make knobs and map them by dragging a slider in map mode; change the
+sound's settings; make, duplicate, save and export sounds. Every edit goes out as the call an agent would make
+(`tool` with `sound_ops`, `new_sound`, `catalog` or `export`, so the server's checks apply and each is one history
+step), and placements as `layout` (stored on the sound, no render). The add-node list and the inspector's field
+editors come from `node_types`, the schemas `describe_op` serves agents. The strip at the bottom left shows the
+last call. The look was worked out in `design/window-editing.html`.

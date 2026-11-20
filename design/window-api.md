@@ -56,6 +56,7 @@ the page shows comes from `Session`: no DSP in JS.
                  "effective": { "q": 1.6 },   // fields a macro drives: the value in use
                  "unread": false, "open_comments": 0, "depth": 4 } ],
     "params": { "base": 220 },
+    "layout": { "nodes": { "lp": [400, 120] }, "rigs": { "pan": { "lid": [230, 24] } } },   // a person's placements; absent = automatic
     "macros": [ { "name": "brightness", "value": 0.5, "default": 0.5,
                   "doc": "...", "claim": ["centroid", 1], "game": false,
                   "map": [ { "node": "lp", "field": "q", "from": 0.8, "to": 2.4,
@@ -91,6 +92,9 @@ the window never recomputes them.
 | `reset_knobs` | `{}` | every macro back to its default (one `move_knob` each) |
 | `set_field` | `{node, field, value}` | upserts one field of one node through `Session::apply_ops` as client `window`: one history step labelled `~node`; error text on a bad value |
 | `set_seed` | `{seed}` | `sound_ops seed` |
+| `tool` | `{name, args}` | runs an MCP tool exactly as an agent would, as client `window`: `sound_ops`, `new_sound`, `catalog`, `export` (others are refused). Result `{text, json}`: the tool's text and structured JSON. A person's edits are these calls, so they get the server's checks and one history step each |
+| `layout` | `{layout: {nodes: {name: [x, y] \| null} \| null, rigs: {rig: {body: [x, y] \| null} \| null}}}` | where a person placed nodes and rig bodies (`sound.layout` in `state`); one history step `layout`, no render, the version and `hash` stay. Entries for nodes or bodies that do not exist are dropped; deleting a node drops its place |
+| `node_types` | `{}` | `[{type, blurb, example, schema}]` for every node type: the add-node list and the field editors (the JSON schema `describe_op` serves agents) |
 | `add_annotation` | `{text, node?, time?, hz?}` | a comment by `you` |
 | `jump` | `{id}` | history jump (undo / redo are jumps) |
 | `solo` | `{node: string|null}` | what the player plays; the data URLs below take `node` too |

@@ -539,7 +539,8 @@
      ]
     ]
    },
-   "hash": "0000000000000000"
+   "hash": "0000000000000000",
+   "layout": {}
   },
   "ui_click": {
    "name": "ui_click",
@@ -918,7 +919,8 @@
      ]
     ]
    },
-   "hash": "0000000000000000"
+   "hash": "0000000000000000",
+   "layout": {}
   },
   "wind_loop": {
    "name": "wind_loop",
@@ -1250,7 +1252,8 @@
      ]
     ]
    },
-   "hash": "0000000000000000"
+   "hash": "0000000000000000",
+   "layout": {}
   },
   "pan_and_lid": {
    "name": "pan_and_lid",
@@ -1468,7 +1471,8 @@
     }
    ],
    "descriptors": {},
-   "hash": "a1"
+   "hash": "a1",
+   "layout": {}
   }
  },
  "catalog": [
@@ -1479,6 +1483,2913 @@
   {
    "name": "door_knock",
    "kind": "oneshot"
+  }
+ ],
+ "node_types": [
+  {
+   "type": "osc",
+   "blurb": "band-limited oscillator (sine/saw/square/tri/pulse); freq may be a node (pitch sweeps, FM); sync (hard sync from a master signal), unison + detune + spread (supersaw), pm (phase modulation)",
+   "example": {
+    "type": "osc",
+    "name": "osc1",
+    "shape": "saw",
+    "freq": "sweep",
+    "amp": 0.5
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Osc",
+    "description": "A band-limited oscillator.",
+    "type": "object",
+    "properties": {
+     "shape": {
+      "description": "sine (default), saw, square, tri, pulse.",
+      "$ref": "#/$defs/WaveSpec"
+     },
+     "freq": {
+      "description": "Hz; a node here sweeps or frequency-modulates.",
+      "$ref": "#/$defs/In"
+     },
+     "phase": {
+      "description": "Start phase, 0..1 (default 0). With `unison` > 1 only the first voice\nstarts here; the others start at seeded random phases.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "width": {
+      "description": "Pulse width 0..1 (pulse only; default 0.5).",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "amp": {
+      "description": "Linear amplitude (default 1). Unison voices are summed, not averaged:\n`unison` 7 is about sqrt(7) times louder than one voice.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "sync": {
+      "description": "Hard sync: a mono signal (the master); every rising zero crossing\nresets this oscillator's phase, band-limited with polyBLEP at the\nreset. The master crossing is placed to a fraction of a sample.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "unison": {
+      "description": "Voices stacked on `freq`, 1..16 (default 1). More than 1 makes the\nnode random (seeded start phases).",
+      "type": [
+       "integer",
+       "null"
+      ],
+      "format": "uint32",
+      "minimum": 0,
+      "default": null
+     },
+     "detune": {
+      "description": "Unison detune, cents 0..1200 (default 0): the voices are spread evenly\nfrom -detune to +detune around `freq`.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "spread": {
+      "description": "Stereo width of the unison voices, 0..1 (default 0 = mono). Above 0\nthe output is stereo: voices alternate left and right, the outermost\nhard-panned at 1 (a balance law: a centred voice is unchanged in both\nchannels).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "pm": {
+      "description": "Phase modulation, in cycles (1 = a full turn), a signal: a node here\nadds to the phase, so an `osc` into `pm` is FM.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "seed": {
+      "description": "Mixed with the document seed and the node name (default 0); picks the\nunison start phases.",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0,
+      "default": 0
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "freq"
+    ],
+    "$defs": {
+     "WaveSpec": {
+      "type": "string",
+      "enum": [
+       "sine",
+       "saw",
+       "square",
+       "tri",
+       "pulse"
+      ]
+     },
+     "In": {
+      "description": "An input: a number, a constant stereo pair `[l, r]`, or another node's\noutput by name (`\"env\"` or `\"env.port\"`).",
+      "anyOf": [
+       {
+        "type": "number",
+        "format": "float"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "format": "float"
+        }
+       },
+       {
+        "type": "string"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "noise",
+   "blurb": "white/pink/brown/blue/violet noise, velvet and crackle impulses (seeded); density (a signal) sets the impulse rate",
+   "example": {
+    "type": "noise",
+    "name": "noise1",
+    "color": "pink",
+    "seed": 3
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Noise",
+    "description": "Seeded noise.",
+    "type": "object",
+    "properties": {
+     "color": {
+      "description": "white (default), pink (-3 dB/oct), brown (-6 dB/oct), blue (+3 dB/oct),\nviolet (+6 dB/oct), velvet (one random-sign impulse per cell: smooth,\ncheap reverb-like texture), crackle (random-sign, random-height\nimpulses at random, irregular times).",
+      "$ref": "#/$defs/NoiseColor"
+     },
+     "density": {
+      "description": "Velvet and crackle: impulses a second (default 2000 for velvet, 50 for\ncrackle); a number or a signal. Velvet above the sample rate is\ncapped at one a sample.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "seed": {
+      "description": "Mixed with the document seed and the node name (default 0).",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0,
+      "default": 0
+     },
+     "amp": {
+      "description": "Linear amplitude (default 1).",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     }
+    },
+    "additionalProperties": false,
+    "$defs": {
+     "NoiseColor": {
+      "type": "string",
+      "enum": [
+       "white",
+       "pink",
+       "brown",
+       "velvet",
+       "blue",
+       "violet",
+       "crackle"
+      ]
+     },
+     "In": {
+      "description": "An input: a number, a constant stereo pair `[l, r]`, or another node's\noutput by name (`\"env\"` or `\"env.port\"`).",
+      "anyOf": [
+       {
+        "type": "number",
+        "format": "float"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "format": "float"
+        }
+       },
+       {
+        "type": "string"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "impulse",
+   "blurb": "single-sample clicks: the field is `at`, one time or a list of times in seconds (excites resonators, comb, reverb)",
+   "example": {
+    "type": "impulse",
+    "name": "impulse1",
+    "at": [
+     0.0,
+     0.25
+    ]
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Impulse",
+    "description": "Single-sample clicks.",
+    "type": "object",
+    "properties": {
+     "at": {
+      "description": "`at`: seconds into the sound, one number (`0.1`) or a list\n(`[0, 0.25, 0.5]`) for several clicks (default 0).",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/OneOrMany"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "amp": {
+      "description": "Height of each click (default 1).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     }
+    },
+    "additionalProperties": false,
+    "$defs": {
+     "OneOrMany": {
+      "description": "A number or a list of numbers.",
+      "anyOf": [
+       {
+        "type": "number",
+        "format": "float"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "format": "float"
+        }
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "env",
+   "blurb": "breakpoint envelope [[t, v], ...]",
+   "example": {
+    "type": "env",
+    "name": "env1",
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      0.01,
+      1
+     ],
+     [
+      0.3,
+      0.2
+     ],
+     [
+      1.0,
+      0
+     ]
+    ],
+    "curve": "smooth"
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Env",
+    "description": "A breakpoint envelope.",
+    "type": "object",
+    "properties": {
+     "points": {
+      "description": "[[seconds, value], ...] in time order; holds the first value before\nand the last value after.",
+      "type": "array",
+      "items": {
+       "type": "array",
+       "items": {
+        "type": "number",
+        "format": "float"
+       },
+       "minItems": 2,
+       "maxItems": 2
+      }
+     },
+     "curve": {
+      "description": "Between points: linear (default), exp (geometric when both ends are\npositive), smooth (raised cosine).",
+      "$ref": "#/$defs/CurveSpec"
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "points"
+    ],
+    "$defs": {
+     "CurveSpec": {
+      "description": "An interpolation curve.",
+      "type": "string",
+      "enum": [
+       "linear",
+       "exp",
+       "smooth"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "decay",
+   "blurb": "exponential fall from 1 (time = seconds to -60 dB): the workhorse amplitude envelope",
+   "example": {
+    "type": "decay",
+    "name": "decay1",
+    "time": 0.4
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Decay",
+    "description": "Exponential fall from 1.",
+    "type": "object",
+    "properties": {
+     "time": {
+      "description": "Seconds to fall 60 dB (exp) or to reach 0 (linear).",
+      "type": "number",
+      "format": "float"
+     },
+     "curve": {
+      "description": "exp (default) or linear.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/CurveSpec"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "at": {
+      "description": "Seconds before the fall starts; silent before it (default 0).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "time"
+    ],
+    "$defs": {
+     "CurveSpec": {
+      "description": "An interpolation curve.",
+      "type": "string",
+      "enum": [
+       "linear",
+       "exp",
+       "smooth"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "filter",
+   "blurb": "state-variable filter lp/hp/bp/notch/peak/lowshelf/highshelf; freq and q take signals; slope 12/24/48 for lp and hp",
+   "example": {
+    "type": "filter",
+    "name": "filter1",
+    "input": "src",
+    "mode": "lp",
+    "freq": "cutoff_env",
+    "q": 2.0
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Filter",
+    "description": "A state-variable filter (12 dB an octave; lp and hp can be steeper).",
+    "type": "object",
+    "properties": {
+     "input": {
+      "$ref": "#/$defs/In"
+     },
+     "mode": {
+      "description": "lp (default), hp, bp, notch, peak, lowshelf, highshelf.",
+      "$ref": "#/$defs/FilterModeSpec"
+     },
+     "freq": {
+      "description": "Cutoff / centre, Hz (a node sweeps it).",
+      "$ref": "#/$defs/In"
+     },
+     "q": {
+      "description": "Resonance (default 0.707: no peak).",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "gain_db": {
+      "description": "peak and shelves: boost (+) or cut (-), dB.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "slope": {
+      "description": "Steepness in dB an octave: 12 (default), 24 or 48. lp and hp only\n(cascaded 12 dB sections with Butterworth Q spread, flat in the\npassband); `q` scales the last section, so the default q is a pure\nButterworth. Not available inside a feedback loop.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "input",
+     "freq"
+    ],
+    "$defs": {
+     "In": {
+      "description": "An input: a number, a constant stereo pair `[l, r]`, or another node's\noutput by name (`\"env\"` or `\"env.port\"`).",
+      "anyOf": [
+       {
+        "type": "number",
+        "format": "float"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "format": "float"
+        }
+       },
+       {
+        "type": "string"
+       }
+      ]
+     },
+     "FilterModeSpec": {
+      "type": "string",
+      "enum": [
+       "lp",
+       "hp",
+       "bp",
+       "notch",
+       "peak",
+       "lowshelf",
+       "highshelf"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "resonators",
+   "blurb": "bank of ringing modes [[hz, decay_s, gain], ...] (struck objects)",
+   "example": {
+    "type": "resonators",
+    "name": "resonators1",
+    "input": "hit",
+    "modes": [
+     [
+      523,
+      1.2,
+      1.0
+     ],
+     [
+      1410,
+      0.6,
+      0.5
+     ],
+     [
+      2730,
+      0.3,
+      0.3
+     ]
+    ]
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Resonators",
+    "description": "A bank of ringing modes.",
+    "type": "object",
+    "properties": {
+     "input": {
+      "description": "The excitation (an impulse, a noise burst, a contact pulse).",
+      "$ref": "#/$defs/In"
+     },
+     "modes": {
+      "description": "[[hz, decay_s (to -60 dB), gain], ...].",
+      "type": "array",
+      "items": {
+       "type": "array",
+       "items": {
+        "type": "number",
+        "format": "float"
+       },
+       "minItems": 3,
+       "maxItems": 3
+      }
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "input",
+     "modes"
+    ],
+    "$defs": {
+     "In": {
+      "description": "An input: a number, a constant stereo pair `[l, r]`, or another node's\noutput by name (`\"env\"` or `\"env.port\"`).",
+      "anyOf": [
+       {
+        "type": "number",
+        "format": "float"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "format": "float"
+        }
+       },
+       {
+        "type": "string"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "delay",
+   "blurb": "interpolated delay with optional internal feedback; time may be a signal",
+   "example": {
+    "type": "delay",
+    "name": "delay1",
+    "input": "src",
+    "time": 0.25,
+    "feedback": 0.4
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Delay",
+    "description": "An interpolated delay.",
+    "type": "object",
+    "properties": {
+     "input": {
+      "$ref": "#/$defs/In"
+     },
+     "time": {
+      "description": "Seconds (a node modulates it: chorus, flanger, doppler).",
+      "$ref": "#/$defs/In"
+     },
+     "max": {
+      "description": "Longest delay the line holds, seconds (default: the longest `time`).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "feedback": {
+      "description": "Echo feedback inside the line, -0.99..0.99 (default 0: one echo).",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "input",
+     "time"
+    ],
+    "$defs": {
+     "In": {
+      "description": "An input: a number, a constant stereo pair `[l, r]`, or another node's\noutput by name (`\"env\"` or `\"env.port\"`).",
+      "anyOf": [
+       {
+        "type": "number",
+        "format": "float"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "format": "float"
+        }
+       },
+       {
+        "type": "string"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "shape",
+   "blurb": "waveshaper tanh/clip/fold/bitcrush/rectify/asym/diode/tube/table, oversampling, mix",
+   "example": {
+    "type": "shape",
+    "name": "shape1",
+    "input": "src",
+    "mode": "tanh",
+    "drive": 3.0,
+    "oversample": 2
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Shape",
+    "description": "A waveshaper.",
+    "type": "object",
+    "properties": {
+     "input": {
+      "$ref": "#/$defs/In"
+     },
+     "mode": {
+      "description": "tanh (default: warm saturation), clip (hard), fold (wavefolder:\nbright, metallic), bitcrush (quantize to `bits`), rectify (absolute\nvalue: an octave up), asym (tanh of the signal plus `bias`, the\nresting value taken off: even harmonics), diode (unity slope at 0,\nthe positive half saturates at +1 exponentially, the negative at\n-0.5: even harmonics and a DC offset), tube (positive half\nsaturates at +1 with a sharp knee, negative at -0.7 with a soft\none: even harmonics at high drive), table (the curve in `points`).",
+      "$ref": "#/$defs/ShapeMode"
+     },
+     "drive": {
+      "description": "Gain before the shaper (default 1; may be a signal).",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "bits": {
+      "description": "bitcrush: bits (default 8).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "bias": {
+      "description": "asym: where on the tanh curve the signal rests (default 0.5; 0 is\nplain tanh; any finite value; the further from 0, the more even\nharmonics and the more DC: follow with a high-pass).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "points": {
+      "description": "table: the curve as `[[x, y], ...]` (x increasing, at most 4096\npoints), linear between points and held at the ends. When no x is\nnegative the curve is odd-extended (y(-x) = -y(x)), and a point at\nx = 0 must have y = 0.",
+      "type": [
+       "array",
+       "null"
+      ],
+      "items": {
+       "type": "array",
+       "items": {
+        "type": "number",
+        "format": "float"
+       },
+       "minItems": 2,
+       "maxItems": 2
+      },
+      "default": null
+     },
+     "oversample": {
+      "description": "Times the shaper runs faster than the sample rate: 1 (default), 2, 4\nor 8. More removes aliasing from the harmonics the curve makes and\ncosts that many times the work (the shaper's input is band-limited\nto 0.45 of the sample rate on the way up). Not allowed inside a\nfeedback loop.",
+      "type": [
+       "integer",
+       "null"
+      ],
+      "format": "uint32",
+      "minimum": 0,
+      "default": null
+     },
+     "mix": {
+      "description": "Wet / dry, 0..1 (default 1; may be a signal). 0 is the input,\nbefore `drive`.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "input"
+    ],
+    "$defs": {
+     "In": {
+      "description": "An input: a number, a constant stereo pair `[l, r]`, or another node's\noutput by name (`\"env\"` or `\"env.port\"`).",
+      "anyOf": [
+       {
+        "type": "number",
+        "format": "float"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "format": "float"
+        }
+       },
+       {
+        "type": "string"
+       }
+      ]
+     },
+     "ShapeMode": {
+      "type": "string",
+      "enum": [
+       "tanh",
+       "clip",
+       "fold",
+       "bitcrush",
+       "rectify",
+       "asym",
+       "diode",
+       "tube",
+       "table"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "lfo",
+   "blurb": "low-frequency oscillator, -1..1 or a range",
+   "example": {
+    "type": "lfo",
+    "name": "lfo1",
+    "shape": "sine",
+    "freq": 6,
+    "range": [
+     0.8,
+     1.2
+    ]
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Lfo",
+    "description": "A low-frequency oscillator.",
+    "type": "object",
+    "properties": {
+     "shape": {
+      "description": "sine (default), tri, saw (rising), square.",
+      "$ref": "#/$defs/LfoShape"
+     },
+     "freq": {
+      "description": "Hz (may be a signal).",
+      "$ref": "#/$defs/In"
+     },
+     "phase": {
+      "description": "Start phase 0..1 (default 0).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "range": {
+      "description": "Map -1..1 onto [lo, hi] (default: -1..1).",
+      "type": [
+       "array",
+       "null"
+      ],
+      "items": {
+       "type": "number",
+       "format": "float"
+      },
+      "minItems": 2,
+      "maxItems": 2,
+      "default": null
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "freq"
+    ],
+    "$defs": {
+     "LfoShape": {
+      "type": "string",
+      "enum": [
+       "sine",
+       "tri",
+       "saw",
+       "square"
+      ]
+     },
+     "In": {
+      "description": "An input: a number, a constant stereo pair `[l, r]`, or another node's\noutput by name (`\"env\"` or `\"env.port\"`).",
+      "anyOf": [
+       {
+        "type": "number",
+        "format": "float"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "format": "float"
+        }
+       },
+       {
+        "type": "string"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "wander",
+   "blurb": "smooth random motion at a rate (seeded), -1..1 or a range",
+   "example": {
+    "type": "wander",
+    "name": "wander1",
+    "rate": 3,
+    "range": [
+     200,
+     800
+    ],
+    "seed": 2
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Wander",
+    "description": "Smooth random motion: random points `rate` times a second joined by\nsmooth (cubic Hermite) curves. Foley's `Wobble` low-passes white noise\ninstead; points give a bounded, rate-true wander that an agent can reason\nabout, so this differs on purpose.",
+    "type": "object",
+    "properties": {
+     "rate": {
+      "description": "New targets a second.",
+      "type": "number",
+      "format": "float"
+     },
+     "range": {
+      "description": "Map -1..1 onto [lo, hi] (default: -1..1).",
+      "type": [
+       "array",
+       "null"
+      ],
+      "items": {
+       "type": "number",
+       "format": "float"
+      },
+      "minItems": 2,
+      "maxItems": 2,
+      "default": null
+     },
+     "min": {
+      "description": "With `max`: the same as `range: [min, max]` (not with `range`).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "max": {
+      "description": "With `min`: the same as `range: [min, max]` (not with `range`).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "seed": {
+      "description": "Mixed with the document seed and the node name (default 0).",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0,
+      "default": 0
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "rate"
+    ]
+   }
+  },
+  {
+   "type": "ramp",
+   "blurb": "a sweep from one value to another over time (pitch drops, filter sweeps)",
+   "example": {
+    "type": "ramp",
+    "name": "ramp1",
+    "from": 2000,
+    "to": 200,
+    "time": 0.3,
+    "curve": "exp"
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Ramp",
+    "description": "A sweep from one value to another.",
+    "type": "object",
+    "properties": {
+     "from": {
+      "type": "number",
+      "format": "float"
+     },
+     "to": {
+      "type": "number",
+      "format": "float"
+     },
+     "time": {
+      "description": "Seconds the sweep takes (or give `duration`).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "duration": {
+      "description": "The same as `time` (not both).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "curve": {
+      "description": "exp (default: geometric, right for pitch and cutoff), linear, smooth.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/CurveSpec"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "at": {
+      "description": "Seconds before the sweep starts (holds `from` until then; default 0).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "from",
+     "to"
+    ],
+    "$defs": {
+     "CurveSpec": {
+      "description": "An interpolation curve.",
+      "type": "string",
+      "enum": [
+       "linear",
+       "exp",
+       "smooth"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "math",
+   "blurb": "add/sub/mul/div/min/max/pow/abs/mix of signals or numbers",
+   "example": {
+    "type": "math",
+    "name": "math1",
+    "op": "mul",
+    "a": "tone",
+    "b": "amp_env"
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Math",
+    "description": "Arithmetic on signals or numbers.",
+    "type": "object",
+    "properties": {
+     "op": {
+      "description": "add, sub, mul, div (x / 0 = 0), min, max, pow (sign-preserving), abs\n(of a), mix (a + (b - a) * t).",
+      "$ref": "#/$defs/MathOp"
+     },
+     "a": {
+      "$ref": "#/$defs/In"
+     },
+     "b": {
+      "description": "Second operand (all but abs).",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "t": {
+      "description": "mix: the blend 0 (a) .. 1 (b).",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "op",
+     "a"
+    ],
+    "$defs": {
+     "MathOp": {
+      "type": "string",
+      "enum": [
+       "add",
+       "sub",
+       "mul",
+       "div",
+       "min",
+       "max",
+       "pow",
+       "abs",
+       "mix"
+      ]
+     },
+     "In": {
+      "description": "An input: a number, a constant stereo pair `[l, r]`, or another node's\noutput by name (`\"env\"` or `\"env.port\"`).",
+      "anyOf": [
+       {
+        "type": "number",
+        "format": "float"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "format": "float"
+        }
+       },
+       {
+        "type": "string"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "gain",
+   "blurb": "scales by db or a linear gain (either may be a signal)",
+   "example": {
+    "type": "gain",
+    "name": "gain1",
+    "input": "src",
+    "db": -6
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Gain",
+    "description": "Scales a signal.",
+    "type": "object",
+    "properties": {
+     "input": {
+      "$ref": "#/$defs/In"
+     },
+     "db": {
+      "description": "Gain in dB (or give gain). `gain_db` (the name the other nodes use)\nis accepted as the same field; giving both is an error. Being an\nalias, it works in feedback loops and macro maps too.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "gain": {
+      "description": "Linear gain (or give db).",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "input"
+    ],
+    "$defs": {
+     "In": {
+      "description": "An input: a number, a constant stereo pair `[l, r]`, or another node's\noutput by name (`\"env\"` or `\"env.port\"`).",
+      "anyOf": [
+       {
+        "type": "number",
+        "format": "float"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "format": "float"
+        }
+       },
+       {
+        "type": "string"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "mix",
+   "blurb": "sums inputs with gain, pan and time offset; mono or stereo",
+   "example": {
+    "type": "mix",
+    "name": "mix1",
+    "inputs": [
+     "body",
+     {
+      "input": "click",
+      "gain": 0.5,
+      "pan": -0.3,
+      "at": 0.01
+     }
+    ],
+    "to": "stereo"
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Mix",
+    "description": "Sums inputs.",
+    "type": "object",
+    "properties": {
+     "inputs": {
+      "description": "[\"node\", {\"input\": \"node\", \"gain\": 0.5, \"pan\": -0.3, \"at\": 0.1}, ...].",
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/MixIn"
+      }
+     },
+     "to": {
+      "description": "mono or stereo (default: stereo if any input is stereo or panned).",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/To"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "inputs"
+    ],
+    "$defs": {
+     "MixIn": {
+      "description": "One `mix` input: a node name, or a node with gain, pan and offset.",
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "$ref": "#/$defs/MixInFull"
+       }
+      ]
+     },
+     "MixInFull": {
+      "type": "object",
+      "properties": {
+       "input": {
+        "$ref": "#/$defs/In"
+       },
+       "gain": {
+        "description": "Linear gain (default 1; may be a signal).",
+        "anyOf": [
+         {
+          "$ref": "#/$defs/In"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "pan": {
+        "description": "-1 (left) .. 1 (right); makes the mix stereo.",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "at": {
+        "description": "Seconds to delay this input by (layering a tail after a transient).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "input"
+      ]
+     },
+     "In": {
+      "description": "An input: a number, a constant stereo pair `[l, r]`, or another node's\noutput by name (`\"env\"` or `\"env.port\"`).",
+      "anyOf": [
+       {
+        "type": "number",
+        "format": "float"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "format": "float"
+        }
+       },
+       {
+        "type": "string"
+       }
+      ]
+     },
+     "To": {
+      "type": "string",
+      "enum": [
+       "mono",
+       "stereo"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "output",
+   "blurb": "the sound: gain, loudness or peak target, edge fades and a ceiling limiter; exactly one",
+   "example": {
+    "type": "output",
+    "name": "output1",
+    "input": "mix1",
+    "lufs": -16
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Output",
+    "description": "The sound.",
+    "type": "object",
+    "properties": {
+     "input": {
+      "$ref": "#/$defs/In"
+     },
+     "gain_db": {
+      "description": "Gain first, dB (default 0).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "lufs": {
+      "description": "Then normalize to this integrated loudness, LUFS (default: leave).\nA very peaky or short sound cannot reach a high target under the\nceiling: use `peak_db` for it. Not together with `peak_db`.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "peak_db": {
+      "description": "Or normalize the pre-limiter sample peak to this, dBFS (clicks,\nticks, short hits; default: leave). Not together with `lufs`; not\nabove `ceiling_db`. `gain_db` is added on top, as it is for `lufs`.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "fade_in": {
+      "description": "Edge fades, seconds (defaults 0.002 in, 0.005 out; 0 for a loop).\nA hit that starts inside the fade-in is cut by it: set `fade_in`\n0.0005 (0.5 ms; zero at sample 0, so `silent_edges` passes). The\n`lufs` / `peak_db` target is met after the fades. The fade-in\nwarning (\"the 2 ms fade-in is cutting the first hit\") is not given\nfor a `fade_in` of 1 ms or less, nor when a `lufs` / `peak_db` target\nis set and met (the delivered level is right); with no target it\nstill fires when the fade cuts the first hit by 1 dB or more.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "fade_out": {
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "ceiling_db": {
+      "description": "Lookahead limiter ceiling, dBFS (default -1). The limiter holds the\nTRUE peak (4x oversampled, the estimator behind the `true_peak_db`\ncheck) at the ceiling, not just the sample peak, so a delivered\nsound measures at or under it (within 0.01 dB) in `true_peak_db`. A\nsound whose true peak is already under the ceiling passes through\nbit-identical; one whose samples are under the ceiling but whose\ninter-sample peak is over it is now turned down (before, it was not).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "input"
+    ],
+    "$defs": {
+     "In": {
+      "description": "An input: a number, a constant stereo pair `[l, r]`, or another node's\noutput by name (`\"env\"` or `\"env.port\"`).",
+      "anyOf": [
+       {
+        "type": "number",
+        "format": "float"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "format": "float"
+        }
+       },
+       {
+        "type": "string"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "modal",
+   "blurb": "a struck object: excite audio rings modes computed from material, size, shape (plate bar tube membrane string shell) and strike position (bigger = lower); thickness (m) overrides the material's; f0 (Hz) sets size from the lowest mode; f_min / f_max keep only modes in a band; loss scales the ring time, tilt (dB/oct) the mode balance; a unit impulse peaks near 0 dBFS",
+   "example": {
+    "type": "modal",
+    "name": "modal1",
+    "excite": "contact1",
+    "material": "wood",
+    "size": 0.5,
+    "strike_position": 0.3,
+    "modes": 48
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Modal",
+    "description": "A struck object: the `excite` audio rings a bank of modes computed from a\nmaterial, a size and a shape. A unit impulse (or a `contact` of area 1)\npeaks at 0 dBFS, whatever the shape, size and material.",
+    "type": "object",
+    "properties": {
+     "excite": {
+      "description": "The strike: a `contact` pulse, an impulse, a noise burst, a `friction`\nstream.",
+      "$ref": "#/$defs/In"
+     },
+     "material": {
+      "description": "stone wood metal glass ice earth granular plant soft snow, or\n{young, density, poisson, loss, thickness}.",
+      "$ref": "#/$defs/MaterialSpec"
+     },
+     "size": {
+      "description": "Side of the plate, length of the bar or string, diameter of the tube\nor membrane, metres; the bell's size. Bigger rings lower (pitch goes\nas 1 / size^2; for membrane and string as 1 / size). Read once, at the\nstart (a `$param` or `=expr` works). The usable range is where the\nlowest mode falls between 24 Hz and 90 % of the top of the band\n(18 kHz at 48 kHz): a size outside it is an error that names the range\nfor the material and shape, and the thickness that would fix it.\nModes above the top of the band are dropped, never folded back.\nLeave it out when `f0` is given.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "f0": {
+      "description": "Frequency of the lowest mode of the shape, Hz (20..18000, a number,\n`$param` or `=expr`, read once): sets `size` so that the table's lowest\nmode sits here, from the shape's own table and the effective material\nand `thickness` (the seeded mistuning moves it by up to 1.5 % for a\nplate, 0.3 % for the others). Giving both `f0` and `size` is an error.\n`f_min` does not move it: it drops modes, not the size.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "f_min": {
+      "description": "Keep only modes at or above this frequency, Hz (default none). Applied\nafter the mode table and before the `modes` cap, so `modes` counts kept\nmodes. A band with no mode in it is an error that gives the table's range.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "f_max": {
+      "description": "Keep only modes at or below this frequency, Hz (default none); see `f_min`.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "shape": {
+      "description": "What is struck: plate (default) bar tube membrane string shell.",
+      "$ref": "#/$defs/ModalShape"
+     },
+     "strike_position": {
+      "description": "Where it is struck, 0..1 (default 0.3). Plate: 0.5 is the centre,\nwhich silences every mode with a node there. Bar, string: along the\nlength. Membrane: radius, 0 the centre. Tube: around the wall. Shell:\nignored (a bell is struck on the lip).",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "modes": {
+      "description": "Most modes kept (default 48, 1..256). The lowest half of them are\nalways the lowest modes of the object, the rest the strongest.",
+      "type": [
+       "integer",
+       "null"
+      ],
+      "format": "uint",
+      "minimum": 0,
+      "default": null
+     },
+     "stiffness": {
+      "description": "String only: the inharmonicity B in f_n = n f_1 sqrt(1 + B n^2),\n0..1 (default 0: exactly harmonic; a piano string is about 0.0004).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "loss": {
+      "description": "Multiplier on the material's loss (default 1, range 0.01..100):\n0.5 rings twice as long, 2 half as long. T60 is still capped at 20 s\nper mode.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "thickness": {
+      "description": "Thickness of the plate, bar wall, tube wall, membrane or string\nstand-in, metres (default: the material's; range 0.0001..0.5). Every\nmode frequency goes as the thickness, so 0.0015 gives a coin, 0.003 a\nshard, 0.004 a key without a custom material. A number, `$param` or\n`=expr`, read once. The size range in the error and the hint use this\nthickness.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "tilt": {
+      "description": "dB per octave on the mode gains about the lowest mode (default 0,\n-12..12): positive lifts the upper modes (flattens a table that is\nall in its first mode), negative darkens. The output is normalized\nafter, so only the balance moves.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "gain_db": {
+      "description": "Level of the output in dB after the normalization (default 0, -60..60):\nbalances a body against a click without a `gain` node, and a macro can\nmap it. Absent or 0 leaves the samples unchanged.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "strike_glide": {
+      "description": "Pitch glide of a hard strike, cents (default none, 0..1200): every\nmode starts this far sharp at the ring's loudest and settles as it\ndecays (the pitch follows the level, as a struck plate's tension\ndoes). Left out or 0, the samples are unchanged.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "rattle": {
+      "description": "A loose part buzzing while the ring is loud, 0..1 (default none): the\npart of the ring above a gap (the ring's level, its loudest 5 ms as a\nsine peak, at 0; 30 dB under it at 1) is\nadded back high-passed above 1.5 kHz, so the buzz lasts longer as\n`rattle` rises and stops when the ring falls under the gap. Left out\nor 0, the samples are unchanged.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "noise": {
+      "description": "How noisy each mode rings, 0..1 (default none): each mode's clean\nring is mixed (1 - noise : noise) with a band of white noise at the\nmode's frequency, `noise_width` wide, that follows the ring's own\nenvelope and decay. At 1 no line is left, only noise bands placed and\ndecaying like the modes: wood and stone knock, metal washes, nothing\nchimes. Left out or 0, the samples are unchanged.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "noise_width": {
+      "description": "How wide each mode's noise band is, as a fraction of its frequency\n(default 0.25, 0.05..2; only with `noise`). Wider than the gaps\nbetween partials, the bands merge into a wash.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "seed": {
+      "description": "Mixed with the document seed and the node name (default 0): the\nmistuning.",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0,
+      "default": 0
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "excite",
+     "material"
+    ],
+    "$defs": {
+     "In": {
+      "description": "An input: a number, a constant stereo pair `[l, r]`, or another node's\noutput by name (`\"env\"` or `\"env.port\"`).",
+      "anyOf": [
+       {
+        "type": "number",
+        "format": "float"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "format": "float"
+        }
+       },
+       {
+        "type": "string"
+       }
+      ]
+     },
+     "MaterialSpec": {
+      "description": "A material: one of foley's names, or the plate's physical constants.",
+      "anyOf": [
+       {
+        "description": "stone wood metal glass ice earth granular plant soft snow.",
+        "type": "string"
+       },
+       {
+        "$ref": "#/$defs/PlateProps"
+       }
+      ]
+     },
+     "PlateProps": {
+      "description": "A plate's constants.",
+      "type": "object",
+      "properties": {
+       "young": {
+        "description": "Young's modulus, Pa.",
+        "type": "number",
+        "format": "float"
+       },
+       "density": {
+        "description": "Density, kg/m3.",
+        "type": "number",
+        "format": "float"
+       },
+       "poisson": {
+        "description": "Poisson's ratio, 0..0.5.",
+        "type": "number",
+        "format": "float"
+       },
+       "loss": {
+        "description": "Loss factor (damping): steel 0.004, wood 0.025.",
+        "type": "number",
+        "format": "float"
+       },
+       "thickness": {
+        "description": "Plate thickness, m.",
+        "type": "number",
+        "format": "float"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "young",
+       "density",
+       "poisson",
+       "loss",
+       "thickness"
+      ]
+     },
+     "ModalShape": {
+      "description": "What a plate, bar, tube, membrane, string or shell is, for the mode table.",
+      "oneOf": [
+       {
+        "description": "A simply supported square plate, `size` a side (the default).",
+        "type": "string",
+        "const": "plate"
+       },
+       {
+        "description": "A free-free bar of length `size` (xylophone key, tool, rod).",
+        "type": "string",
+        "const": "bar"
+       },
+       {
+        "description": "A thin-walled tube of diameter `size`, struck on the wall (pipe, can).",
+        "type": "string",
+        "const": "tube"
+       },
+       {
+        "description": "An ideal circular membrane of diameter `size` (drum skin).",
+        "type": "string",
+        "const": "membrane"
+       },
+       {
+        "description": "A string of length `size`, with optional `stiffness`.",
+        "type": "string",
+        "const": "string"
+       },
+       {
+        "description": "A bell / bowl / helmet: the church-bell partial series.",
+        "type": "string",
+        "const": "shell"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "impact",
+   "blurb": "a strike or drop solved as one system: a striker (or the floor, when the object is dropped) and modal's modes coupled by a Hunt-Crossley contact per sample; bounces under gravity, chatter and buzz come from the physics; peaks at -6 dBFS; port `force` is the contact force above the resting load (1 at its peak, 0 off contact and at rest): a trigger for crack layers",
+   "example": {
+    "type": "impact",
+    "name": "impact1",
+    "material": "metal",
+    "shape": "tube",
+    "f0": 160,
+    "loss": 0.4,
+    "noise": 0.4,
+    "noise_width": 0.1,
+    "object_mass": 2.0,
+    "height": 0.5,
+    "floor": "stone"
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Impact",
+    "description": "A strike solved as one system: a point mass (the striker, or a rigid\nfloor when the object itself is dropped) and the object's modes, coupled\nthrough a Hunt-Crossley contact and stepped together per sample. The\ncontact feels the surface move under it, so chatter, rebounds, a bounce\ntrain under gravity and a ringing object buzzing on the floor come out of\nthe physics. The mode table is `modal`'s.",
+    "type": "object",
+    "properties": {
+     "material": {
+      "description": "The object: as `modal` (a name or constants).",
+      "$ref": "#/$defs/MaterialSpec"
+     },
+     "shape": {
+      "description": "plate (default) bar tube membrane string shell, as `modal`.",
+      "$ref": "#/$defs/ModalShape"
+     },
+     "size": {
+      "description": "Size of the object, metres, as `modal` (or `f0`).",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "f0": {
+      "description": "Lowest mode, Hz, as `modal` (or `size`).",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "thickness": {
+      "description": "As `modal`.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "loss": {
+      "description": "As `modal`: multiplier on the material's loss (default 1).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "tilt": {
+      "description": "As `modal`: dB per octave on the radiated mode levels (default 0).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "noise": {
+      "description": "As `modal`: noise bands instead of clean lines, 0..1.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "noise_width": {
+      "description": "As `modal` (default 0.25).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "strike_position": {
+      "description": "Where the object is hit, 0..1 (default 0.3), as `modal`.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "modes": {
+      "description": "Most modes (default 32, 1..96: each is stepped per substep).",
+      "type": [
+       "integer",
+       "null"
+      ],
+      "format": "uint",
+      "minimum": 0,
+      "default": null
+     },
+     "object_mass": {
+      "description": "Mass of the object, kg (default 0.5). Each mode's modal mass is a\nquarter of it; in a drop it is also the falling mass.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "striker_mass": {
+      "description": "Mass of a striker, kg (0.001..100). Given: a striker falls or flies\nonto the held object. Left out: the object itself is dropped onto a\nrigid `floor`.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "hardness": {
+      "description": "Striker hardness 0..1 (default 0.7; rubber to steel), as `contact`.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "floor": {
+      "description": "What a dropped object lands on (default \"stone\"), as `material`.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/MaterialSpec"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "height": {
+      "description": "Drop height, metres (0.001..20). Turns gravity on: things fall back\nand bounce. A drop defaults to 0.3.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "speed": {
+      "description": "Impact speed, m/s (0.01..50), instead of `height` (no gravity for a\nstriker; a drop keeps gravity and starts at this speed).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "radius": {
+      "description": "Radius of curvature at the contact, metres (default 0.01; a striker's\nis its own ball radius when left out). Smaller = sharper, brighter.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "bounce": {
+      "description": "Coefficient of restitution of each contact, 0..0.98 (default 0.5):\nhow much speed a bounce keeps (the modes take some more).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "scatter": {
+      "description": "0..1 (default 0.3): seeded scatter per contact of the restitution and\nof each mode's coupling (a tumbling object lands on another point).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "max_bounces": {
+      "description": "Contacts before it settles (default 40, 1..400): after these it stays\nin contact (restitution 0).",
+      "type": [
+       "integer",
+       "null"
+      ],
+      "format": "uint",
+      "minimum": 0,
+      "default": null
+     },
+     "oversample": {
+      "description": "Substeps per sample at least (default 4, 1..64; raised by itself so the\nshortest contact spans 20 substeps).",
+      "type": [
+       "integer",
+       "null"
+      ],
+      "format": "uint",
+      "minimum": 0,
+      "default": null
+     },
+     "at": {
+      "description": "When it starts, seconds (default 0); the first contact follows at once.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "gain_db": {
+      "description": "Output level, dB (default 0, -60..60). The output peaks at -6 dBFS\nbefore it.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "drive": {
+      "description": "A force on the moving body, newtons (a signal, default none; positive\npushes it down onto the object or the floor). Shaking (an `lfo`) is a\nrattle, a slow `ramp` a press, a pulsed `wander` an uneven roll. With\nit a striker needs no `height` or `speed`: it starts at rest, touching.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "excite": {
+      "description": "Audio pushing the modes at the contact point (default none), as\n`modal`'s `excite`, while the contact runs: wind on a sign that is\nalso hit. A sample of 1 kicks the contact point at 1 m/s, so a unit\nimpulse is about as loud as a 1 m/s strike.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "pitch": {
+      "description": "Ratio on every mode frequency (a signal, default 1, held in\n0.25..4). Not physical: a bend while it rings.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "damping": {
+      "description": "Multiplier on every mode's decay rate (a signal, default 1, held in\n0.05..20): 2 dies twice as fast; a hand closing on the object.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "stiffness": {
+      "description": "Multiplier on the contact stiffness (a signal, default 1, held in\n0.01..100): lower is a softer, duller touch.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "slide": {
+      "description": "Speed along the surface while in contact, m/s (a signal, default 0):\na ball rolling, a block or a bow sliding. Keep it pressed with\ngravity (`height`) or a `drive`.",
+      "anyOf": [
+       {
+        "$ref": "#/$defs/In"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     },
+     "roughness": {
+      "description": "RMS height of the surface's bumps under the contact, metres (default\n0; 1e-6 a polished floor, 3e-5 a rough board, 2e-4 gravel). With\n`slide`, the contact rides the profile: a roll.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "grain": {
+      "description": "Distance between the surface's bumps, metres (default 0.002,\n0.0001..0.1). Keep it at least the contact `radius`: a ball cannot\nfall into a narrower dip.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "octaves": {
+      "description": "Scales in the surface profile (default 6, 1..8): `grain` and finer\noctaves, each half the spacing and 0.2 the height. 1 is one scale of\nbumps, heard as a crackle in a roll (the batch 24 scrape was picked\nwith it).",
+      "type": [
+       "integer",
+       "null"
+      ],
+      "format": "uint",
+      "minimum": 0,
+      "default": null
+     },
+     "wobble": {
+      "description": "Out-of-roundness of a rolling ball, metres (default 0; 1e-6 a good\nmarble, 2e-5 a dented one): its centre rises and falls once a turn\n(every 2 pi `radius` of `slide`), the periodic pulse that tells a roll\nfrom a scrape.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "rebound": {
+      "description": "How a landing rebounds (default \"exact\"): \"exact\" leaves at\n`bounce` x the landing speed (the modes no longer swallow a light\nstriker's bounce); \"cap\" only limits it to that, so the modes can take\nmore (how batches 22-24 were heard; their parts use it).",
+      "type": [
+       "string",
+       "null"
+      ],
+      "default": null
+     },
+     "friction": {
+      "description": "`[static, dynamic]` friction coefficients (default none: no friction,\na pure roll). With `slide`, a stick-slip force drags the surface\nalong: a scrape, a creak, a bowed squeal that locks to a mode.",
+      "type": [
+       "array",
+       "null"
+      ],
+      "items": {
+       "type": "number",
+       "format": "float"
+      },
+      "minItems": 2,
+      "maxItems": 2,
+      "default": null
+     },
+     "stribeck": {
+      "description": "Speed where friction falls from static to dynamic, m/s (default 0.1,\n0.001..10): lower locks harder to a mode.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "seed": {
+      "description": "Mixed with the document seed and the node name (default 0).",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0,
+      "default": 0
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "material"
+    ],
+    "$defs": {
+     "MaterialSpec": {
+      "description": "A material: one of foley's names, or the plate's physical constants.",
+      "anyOf": [
+       {
+        "description": "stone wood metal glass ice earth granular plant soft snow.",
+        "type": "string"
+       },
+       {
+        "$ref": "#/$defs/PlateProps"
+       }
+      ]
+     },
+     "PlateProps": {
+      "description": "A plate's constants.",
+      "type": "object",
+      "properties": {
+       "young": {
+        "description": "Young's modulus, Pa.",
+        "type": "number",
+        "format": "float"
+       },
+       "density": {
+        "description": "Density, kg/m3.",
+        "type": "number",
+        "format": "float"
+       },
+       "poisson": {
+        "description": "Poisson's ratio, 0..0.5.",
+        "type": "number",
+        "format": "float"
+       },
+       "loss": {
+        "description": "Loss factor (damping): steel 0.004, wood 0.025.",
+        "type": "number",
+        "format": "float"
+       },
+       "thickness": {
+        "description": "Plate thickness, m.",
+        "type": "number",
+        "format": "float"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "young",
+       "density",
+       "poisson",
+       "loss",
+       "thickness"
+      ]
+     },
+     "ModalShape": {
+      "description": "What a plate, bar, tube, membrane, string or shell is, for the mode table.",
+      "oneOf": [
+       {
+        "description": "A simply supported square plate, `size` a side (the default).",
+        "type": "string",
+        "const": "plate"
+       },
+       {
+        "description": "A free-free bar of length `size` (xylophone key, tool, rod).",
+        "type": "string",
+        "const": "bar"
+       },
+       {
+        "description": "A thin-walled tube of diameter `size`, struck on the wall (pipe, can).",
+        "type": "string",
+        "const": "tube"
+       },
+       {
+        "description": "An ideal circular membrane of diameter `size` (drum skin).",
+        "type": "string",
+        "const": "membrane"
+       },
+       {
+        "description": "A string of length `size`, with optional `stiffness`.",
+        "type": "string",
+        "const": "string"
+       },
+       {
+        "description": "A bell / bowl / helmet: the church-bell partial series.",
+        "type": "string",
+        "const": "shell"
+       }
+      ]
+     },
+     "In": {
+      "description": "An input: a number, a constant stereo pair `[l, r]`, or another node's\noutput by name (`\"env\"` or `\"env.port\"`).",
+      "anyOf": [
+       {
+        "type": "number",
+        "format": "float"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "format": "float"
+        }
+       },
+       {
+        "type": "string"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "type": "rig",
+   "blurb": "bodies (point masses, modal objects) joined by contacts and springs (a gap makes a rattle), stepped together per sample: a hammer on a plate with a loose screw, a ball on a drum; vertical motion; port `force` is the largest contact force above the resting load; peaks at -6 dBFS",
+   "example": {
+    "type": "rig",
+    "name": "rig1",
+    "bodies": [
+     {
+      "name": "hammer",
+      "mass": 0.4,
+      "velocity": -3.0
+     },
+     {
+      "name": "sheet",
+      "mass": 2.0,
+      "fixed": true,
+      "material": "metal",
+      "size": 0.5,
+      "thickness": 0.002,
+      "loss": 0.4,
+      "noise": 0.3
+     },
+     {
+      "name": "screw",
+      "mass": 0.005,
+      "material": "metal",
+      "shape": "bar",
+      "f0": 2500,
+      "loss": 0.6,
+      "level_db": -6
+     }
+    ],
+    "joints": [
+     {
+      "kind": "contact",
+      "a": "hammer",
+      "b": "sheet",
+      "at_b": 0.4,
+      "hardness": 0.9
+     },
+     {
+      "kind": "spring",
+      "a": "screw",
+      "b": "sheet",
+      "at_b": 0.8,
+      "gap": 0.0002,
+      "stiffness": 200000.0,
+      "damping": 2
+     }
+    ]
+   },
+   "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Rig",
+    "description": "Bodies and joints stepped together.",
+    "type": "object",
+    "properties": {
+     "bodies": {
+      "description": "The bodies (1..16).",
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/RigBody"
+      }
+     },
+     "joints": {
+      "description": "The joints (0..32).",
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/RigJoint"
+      }
+     },
+     "gravity": {
+      "description": "Gravity, m/s^2 (default 9.81; 0 for a hit in free space).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "oversample": {
+      "description": "Substeps per sample at least (default 4, 1..64; raised so the\nshortest contact spans 20 substeps).",
+      "type": [
+       "integer",
+       "null"
+      ],
+      "format": "uint",
+      "minimum": 0,
+      "default": null
+     },
+     "at": {
+      "description": "When it starts, seconds (default 0).",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "gain_db": {
+      "description": "Output level, dB (default 0). The output peaks at -6 dBFS before it.",
+      "type": [
+       "number",
+       "null"
+      ],
+      "format": "float",
+      "default": null
+     },
+     "seed": {
+      "description": "Mixed with the document seed and the node name (default 0).",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0,
+      "default": 0
+     }
+    },
+    "additionalProperties": false,
+    "required": [
+     "bodies",
+     "joints"
+    ],
+    "$defs": {
+     "RigBody": {
+      "description": "One body of a rig.",
+      "type": "object",
+      "properties": {
+       "name": {
+        "description": "Its name, for the joints.",
+        "type": "string"
+       },
+       "mass": {
+        "description": "Mass, kg (0.0001..10000).",
+        "type": "number",
+        "format": "float"
+       },
+       "fixed": {
+        "description": "Held in place (default false): a fixed body does not translate (a\nclamped plate, a bell on its stand); its modes still ring.",
+        "type": "boolean",
+        "default": false
+       },
+       "velocity": {
+        "description": "Starting speed, m/s (default 0; positive is up, so a thrown hammer\ncoming down is negative).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "drive": {
+        "description": "A force on the body, newtons (a signal; positive is up).",
+        "anyOf": [
+         {
+          "$ref": "#/$defs/In"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "material": {
+        "description": "A modal object (default none: a point mass): `modal`'s material.",
+        "anyOf": [
+         {
+          "$ref": "#/$defs/MaterialSpec"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "shape": {
+        "description": "plate (default) bar tube membrane string shell.",
+        "$ref": "#/$defs/ModalShape"
+       },
+       "size": {
+        "description": "Size, metres, as `modal` (or `f0`).",
+        "anyOf": [
+         {
+          "$ref": "#/$defs/In"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "f0": {
+        "description": "Lowest mode, Hz, as `modal` (or `size`).",
+        "anyOf": [
+         {
+          "$ref": "#/$defs/In"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "thickness": {
+        "description": "As `modal`.",
+        "anyOf": [
+         {
+          "$ref": "#/$defs/In"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "loss": {
+        "description": "As `modal` (default 1).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "tilt": {
+        "description": "As `modal`, on the radiated levels (default 0).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "noise": {
+        "description": "As `modal`, 0..1.",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "noise_width": {
+        "description": "As `modal` (default 0.25).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "modes": {
+        "description": "Most modes (default 24, 1..64).",
+        "type": [
+         "integer",
+         "null"
+        ],
+        "format": "uint",
+        "minimum": 0,
+        "default": null
+       },
+       "level_db": {
+        "description": "Level of this body in the output, dB (default 0): a modal body\nradiates; a point mass is silent.",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "waveguide": {
+        "description": "A waveguide body (default none): a string or a tube; see\n`docs/nodes/rig.md`. Not with `material`.",
+        "anyOf": [
+         {
+          "$ref": "#/$defs/RigWaveguide"
+         },
+         {
+          "type": "null"
+         }
+        ]
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "name",
+       "mass"
+      ]
+     },
+     "In": {
+      "description": "An input: a number, a constant stereo pair `[l, r]`, or another node's\noutput by name (`\"env\"` or `\"env.port\"`).",
+      "anyOf": [
+       {
+        "type": "number",
+        "format": "float"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number",
+         "format": "float"
+        }
+       },
+       {
+        "type": "string"
+       }
+      ]
+     },
+     "MaterialSpec": {
+      "description": "A material: one of foley's names, or the plate's physical constants.",
+      "anyOf": [
+       {
+        "description": "stone wood metal glass ice earth granular plant soft snow.",
+        "type": "string"
+       },
+       {
+        "$ref": "#/$defs/PlateProps"
+       }
+      ]
+     },
+     "PlateProps": {
+      "description": "A plate's constants.",
+      "type": "object",
+      "properties": {
+       "young": {
+        "description": "Young's modulus, Pa.",
+        "type": "number",
+        "format": "float"
+       },
+       "density": {
+        "description": "Density, kg/m3.",
+        "type": "number",
+        "format": "float"
+       },
+       "poisson": {
+        "description": "Poisson's ratio, 0..0.5.",
+        "type": "number",
+        "format": "float"
+       },
+       "loss": {
+        "description": "Loss factor (damping): steel 0.004, wood 0.025.",
+        "type": "number",
+        "format": "float"
+       },
+       "thickness": {
+        "description": "Plate thickness, m.",
+        "type": "number",
+        "format": "float"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "young",
+       "density",
+       "poisson",
+       "loss",
+       "thickness"
+      ]
+     },
+     "ModalShape": {
+      "description": "What a plate, bar, tube, membrane, string or shell is, for the mode table.",
+      "oneOf": [
+       {
+        "description": "A simply supported square plate, `size` a side (the default).",
+        "type": "string",
+        "const": "plate"
+       },
+       {
+        "description": "A free-free bar of length `size` (xylophone key, tool, rod).",
+        "type": "string",
+        "const": "bar"
+       },
+       {
+        "description": "A thin-walled tube of diameter `size`, struck on the wall (pipe, can).",
+        "type": "string",
+        "const": "tube"
+       },
+       {
+        "description": "An ideal circular membrane of diameter `size` (drum skin).",
+        "type": "string",
+        "const": "membrane"
+       },
+       {
+        "description": "A string of length `size`, with optional `stiffness`.",
+        "type": "string",
+        "const": "string"
+       },
+       {
+        "description": "A bell / bowl / helmet: the church-bell partial series.",
+        "type": "string",
+        "const": "shell"
+       }
+      ]
+     },
+     "RigWaveguide": {
+      "description": "A rig body that is a waveguide (`waveguide` on a body; the body's `mass`\nis the string's mass, and a tube ignores it). It does not translate.",
+      "type": "object",
+      "properties": {
+       "kind": {
+        "description": "string (default) or tube.",
+        "$ref": "#/$defs/WaveguideKind"
+       },
+       "f0": {
+        "description": "Lowest frequency, Hz (a string: or `length` with `tension`).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "length": {
+        "description": "Length, metres (a tube: tunes it; a string: with `tension`).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "tension": {
+        "description": "A string's tension, newtons (with `length`).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "ends": {
+        "description": "A tube's ends: open (default), closed, stopped.",
+        "$ref": "#/$defs/TubeEnds"
+       },
+       "radius": {
+        "description": "A tube's radius, metres (default 0.02).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "decay": {
+        "description": "Seconds for the lowest frequency to fall 60 dB (default: string 3,\ntube 0.8).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "damping": {
+        "description": "Loss of the highs at each round trip, 0..1 (default 0.3): 0 bright,\n1 dull.",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       }
+      },
+      "additionalProperties": false
+     },
+     "WaveguideKind": {
+      "description": "Which waveguide.",
+      "oneOf": [
+       {
+        "description": "A string fixed at both ends.",
+        "type": "string",
+        "const": "string"
+       },
+       {
+        "description": "An air column.",
+        "type": "string",
+        "const": "tube"
+       }
+      ]
+     },
+     "TubeEnds": {
+      "description": "The ends of a tube: `open` (both open, c / 2L), `closed` (closed at 0,\nopen at 1: c / 4L), `stopped` (both closed, c / 2L).",
+      "type": "string",
+      "enum": [
+       "open",
+       "closed",
+       "stopped"
+      ]
+     },
+     "RigJoint": {
+      "description": "One joint of a rig, between body `a` (above) and body `b` (below; or\n\"ground\", rigid and fixed).",
+      "type": "object",
+      "properties": {
+       "kind": {
+        "description": "contact (default) or spring.",
+        "$ref": "#/$defs/JointKind"
+       },
+       "a": {
+        "description": "The upper body.",
+        "type": "string"
+       },
+       "b": {
+        "description": "The lower body, or \"ground\".",
+        "type": "string"
+       },
+       "at_a": {
+        "description": "Where on `a` it attaches, 0..1, as `modal`'s `strike_position`\n(default 0.3; a point mass ignores it).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "at_b": {
+        "description": "Where on `b` it attaches (default 0.3).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "gap": {
+        "description": "Contact: the starting distance between them, metres (default 0,\ntouching); a body dropped from 0.3 m onto another is `gap` 0.3.\nSpring: the free play either side of its rest length (default 0).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "hardness": {
+        "description": "Contact: hardness of the pair 0..1 (default 0.7, rubber to steel),\nas `contact`'s, when neither side has a material.",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "radius": {
+        "description": "Contact: radius of curvature at the touch, metres (default 0.01).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "bounce": {
+        "description": "Contact: restitution 0..0.98 (default 0.5).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "stiffness": {
+        "description": "Spring: stiffness, N/m (default 1e4).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "damping": {
+        "description": "Spring: damping, N s/m (default 1).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "damp": {
+        "description": "Contact: what its damping acts on (default \"body\"): \"body\" damps the\nbodies' own motion, so a bounce keeps `bounce` while the modes ring\non (and the rebound off a held body is held to `bounce`); \"point\"\ndamps the full speed at the touch, vibration included, with no\nrebound cap (how the batch 27 / 28 rigs were heard).",
+        "type": [
+         "string",
+         "null"
+        ],
+        "default": null
+       },
+       "rebound": {
+        "description": "Contact with `damp` \"body\": how a real rebound leaves (default\n\"exact\": at `bounce` x the landing speed; \"cap\": only limited to it,\nas the batch 30 wind chime was heard).",
+        "type": [
+         "string",
+         "null"
+        ],
+        "default": null
+       },
+       "slide": {
+        "description": "Contact: speed of `a` along `b`'s surface, m/s (a signal, default 0):\na bow drawn, a box dragged, a stick scraped.",
+        "anyOf": [
+         {
+          "$ref": "#/$defs/In"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "default": null
+       },
+       "friction": {
+        "description": "Contact: `[static, dynamic]` friction coefficients (default none: no\ndrag). With `slide`, a Stribeck stick-slip drag drives a sliding copy\nof both sides' modes (as `impact`'s `friction`): a bow sings near the\n`stribeck` speed, a faster slide scrapes.",
+        "type": [
+         "array",
+         "null"
+        ],
+        "items": {
+         "type": "number",
+         "format": "float"
+        },
+        "minItems": 2,
+        "maxItems": 2,
+        "default": null
+       },
+       "stribeck": {
+        "description": "Contact: the speed where friction falls from static to dynamic, m/s\n(default 0.1, 0.001..10).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       },
+       "strength": {
+        "description": "Air: the coupling, 0..20 (default 1).",
+        "type": [
+         "number",
+         "null"
+        ],
+        "format": "float",
+        "default": null
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "a",
+       "b"
+      ]
+     },
+     "JointKind": {
+      "description": "Which kind of joint.",
+      "oneOf": [
+       {
+        "description": "Hunt-Crossley: pushes `a` up off `b` only while they overlap.",
+        "type": "string",
+        "const": "contact"
+       },
+       {
+        "description": "A spring and damper; with a `gap` it only pulls past the gap (a loose\npart rattling on its fixing).",
+        "type": "string",
+        "const": "spring"
+       },
+       {
+        "description": "`a`'s velocity at `at_a` drives end 0 of the tube `b`, and the air\npushes back on `a` (`strength`).",
+        "type": "string",
+        "const": "air"
+       }
+      ]
+     }
+    }
+   }
   }
  ]
 }

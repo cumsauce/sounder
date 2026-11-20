@@ -422,6 +422,39 @@ fn report_text(results: &[sfx_analysis::CheckResult]) -> String {
     report(results)
 }
 
+fn do_new_sound(s: &mut Session, a: NewSoundArgs) -> R {
+    let kind = plain(parse_kind(&a.kind))?.unwrap_or_default();
+    let mut text =
+        plain(s.new_sound_from(&a.name, kind, a.duration, a.seed, a.template.as_deref()))?;
+    if let Some(b) = a.brief.as_deref().filter(|b| !b.trim().is_empty()) {
+        text += &brief_suggestions(s, b);
+    }
+    Ok(Out::text(text))
+}
+
+/// The window's edits are agents' calls: the same tool, the same parsing and checks, one history
+/// step each, made as the window's client. Only the tools a person edits with are open to it.
+pub(crate) fn window_tool(s: &mut Session, name: &str, args: Value) -> Result<Value, String> {
+    fn parse<T: serde::de::DeserializeOwned>(tool: &str, v: Value) -> Result<T, String> {
+        serde_json::from_value(v).map_err(|e| format!("{tool}: {e}"))
+    }
+    let r = match name {
+        "sound_ops" => do_sound_ops(s, parse(name, args)?),
+        "new_sound" => do_new_sound(s, parse(name, args)?),
+        "catalog" => do_catalog(s, parse(name, args)?),
+        "export" => do_export(s, parse(name, args)?),
+        other => {
+            return Err(format!(
+                "the window cannot call `{other}` (sound_ops, new_sound, catalog, export)"
+            ));
+        }
+    };
+    match r {
+        Ok(o) => Ok(json!({"text": o.text, "json": o.json})),
+        Err((e, _)) => Err(e),
+    }
+}
+
 fn do_export(s: &mut Session, a: ExportArgs) -> R {
     let project = s.project.clone();
     let base = s.base_dir();
@@ -999,16 +1032,7 @@ impl Tools {
         &self,
         Parameters(a): Parameters<NewSoundArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        self.run(move |s| {
-            let kind = plain(parse_kind(&a.kind))?.unwrap_or_default();
-            let mut text =
-                plain(s.new_sound_from(&a.name, kind, a.duration, a.seed, a.template.as_deref()))?;
-            if let Some(b) = a.brief.as_deref().filter(|b| !b.trim().is_empty()) {
-                text += &brief_suggestions(s, b);
-            }
-            Ok(Out::text(text))
-        })
-        .await
+        self.run(move |s| do_new_sound(s, a)).await
     }
 
     /// Saved sounds and parts: action list, search (text / role / material /

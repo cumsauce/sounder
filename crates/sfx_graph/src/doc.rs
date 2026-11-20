@@ -80,6 +80,111 @@ pub struct SoundDoc {
     /// Changes with every recorded edit.
     #[serde(default)]
     pub version: u64,
+    /// Where a person placed nodes and rig bodies in the window. Rendering ignores it.
+    #[serde(default, skip_serializing_if = "Layout::is_empty")]
+    pub layout: Layout,
+}
+
+/// Window positions: `nodes` by node name, `rigs` by rig node then body name, each `[x, y]` pixels.
+/// Anything not listed is placed by the window's automatic layout.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Layout {
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub nodes: BTreeMap<String, [f32; 2]>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub rigs: BTreeMap<String, BTreeMap<String, [f32; 2]>>,
+}
+
+impl Layout {
+    pub fn is_empty(&self) -> bool {
+        self.nodes.is_empty() && self.rigs.is_empty()
+    }
+
+    /// Merges `{"nodes": {name: [x, y] | null} | null, "rigs": {rig: {body: [x, y] | null} | null}}`:
+    /// `null` removes an entry (or, for `nodes`, every node entry).
+    pub fn patch(&mut self, p: &Value) -> Result<(), String> {
+        let Value::Object(p) = p else {
+            return Err("layout: an object {nodes, rigs}".into());
+        };
+        let xy = |v: &Value, what: &str| -> Result<[f32; 2], String> {
+            match v
+                .as_array()
+                .map(|a| a.iter().map(Value::as_f64).collect::<Vec<_>>())
+            {
+                Some(a) if a.len() == 2 && a.iter().all(Option::is_some) => {
+                    Ok([a[0].unwrap_or(0.0) as f32, a[1].unwrap_or(0.0) as f32])
+                }
+                _ => Err(format!("layout {what}: [x, y]")),
+            }
+        };
+        for (k, v) in p {
+            match k.as_str() {
+                "nodes" => match v {
+                    Value::Null => self.nodes.clear(),
+                    Value::Object(m) => {
+                        for (n, v) in m {
+                            if v.is_null() {
+                                self.nodes.remove(n);
+                            } else {
+                                self.nodes.insert(n.clone(), xy(v, n)?);
+                            }
+                        }
+                    }
+                    _ => return Err("layout nodes: {name: [x, y] | null} or null".into()),
+                },
+                "rigs" => {
+                    let Value::Object(m) = v else {
+                        return Err("layout rigs: {rig: {body: [x, y] | null} | null}".into());
+                    };
+                    for (rig, bodies) in m {
+                        match bodies {
+                            Value::Null => {
+                                self.rigs.remove(rig);
+                            }
+                            Value::Object(b) => {
+                                let t = self.rigs.entry(rig.clone()).or_default();
+                                for (body, v) in b {
+                                    if v.is_null() {
+                                        t.remove(body);
+                                    } else {
+                                        t.insert(body.clone(), xy(v, &format!("{rig}/{body}"))?);
+                                    }
+                                }
+                                if t.is_empty() {
+                                    self.rigs.remove(rig);
+                                }
+                            }
+                            _ => return Err(format!("layout rigs {rig}: {{body: [x, y] | null}}")),
+                        }
+                    }
+                }
+                other => return Err(format!("layout: unknown key `{other}` (nodes, rigs)")),
+            }
+        }
+        Ok(())
+    }
+
+    /// Drops entries for nodes, rigs and bodies the document no longer has.
+    pub fn retain_known(&mut self, nodes: &[Value]) {
+        let name = |n: &Value| n.get("name").and_then(Value::as_str).map(str::to_string);
+        let names: Vec<String> = nodes.iter().filter_map(name).collect();
+        self.nodes.retain(|k, _| names.contains(k));
+        self.rigs.retain(|rig, bodies| {
+            let Some(n) = nodes
+                .iter()
+                .find(|n| name(n).as_deref() == Some(rig.as_str()))
+            else {
+                return false;
+            };
+            let have: Vec<String> = n
+                .get("bodies")
+                .and_then(Value::as_array)
+                .map(|a| a.iter().filter_map(name).collect())
+                .unwrap_or_default();
+            bodies.retain(|b, _| have.contains(b));
+            !bodies.is_empty()
+        });
+    }
 }
 
 fn default_rate() -> u32 {
@@ -103,6 +208,7 @@ impl Default for SoundDoc {
             macros: Vec::new(),
             spec: None,
             version: 0,
+            layout: Layout::default(),
         }
     }
 }
@@ -648,6 +754,8 @@ impl SoundDoc {
                 }
             }
         }
+        // A deleted node (or rig body) drops its window position.
+        next.layout.retain_known(&next.nodes);
         // No nodes yet: settings and the spec are kept without a render, so
         // the brief can be written down before the graph is built.
         if next.nodes.is_empty() && next.macros.is_empty() {

@@ -33,6 +33,15 @@
         "sleep 100000 | target/debug/sounder --headless --dev-ui 8767"
       ],
       "port": 8767
+    },
+    {
+      "name": "window-dev-scratch",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "mkdir -p /tmp/sounder-dev-scratch/.sounder && sleep 100000 | target/debug/sounder --headless --dev-ui 8768 --project /tmp/sounder-dev-scratch"
+      ],
+      "port": 8768
     }
   ]
 }

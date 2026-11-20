@@ -31,7 +31,9 @@ pub mod spec;
 pub mod wav;
 
 pub use buf::{Audio, Buf, Event, Sig};
-pub use doc::{ApplyReport, DocEdit, Kind, RenderOpts, Rendered, SOUND_FORMAT_VERSION, SoundDoc};
+pub use doc::{
+    ApplyReport, DocEdit, Kind, Layout, RenderOpts, Rendered, SOUND_FORMAT_VERSION, SoundDoc,
+};
 pub use eval::{Ctx, Evaluated, Parsed, clear_cache, evaluate};
 pub use instance::SoundSource;
 pub use macros::{Claim, KnobMove, Macro, MapCurve, MapEntry, Measure};

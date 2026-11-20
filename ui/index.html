@@ -29,6 +29,9 @@
   <symbol id="i-pin" viewBox="0 0 16 16"><path d="M8 14s4.5-4.2 4.5-7.5a4.5 4.5 0 10-9 0C3.5 9.8 8 14 8 14z"/><circle cx="8" cy="6.5" r="1.5"/></symbol>
   <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2l6.5 11.5h-13z"/><path d="M8 6.5v3M8 11.6v.1"/></symbol>
   <symbol id="i-phys" viewBox="0 0 16 16"><circle cx="8" cy="4" r="2.2"/><path d="M8 6.5v3M2 13h12M4 13l1-3.5h6l1 3.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 16 16"><rect x="5" y="5" width="8.5" height="8.5" rx="1.5"/><path d="M3 10.5V3.5A1.5 1.5 0 014.5 2h6"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5"/></symbol>
   <symbol id="i-hist" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></symbol>
 </svg>
 
@@ -49,12 +52,14 @@
     <div class="spacer"></div>
     <div class="agents" id="agents"></div>
   </header>
-  <div class="docpop" id="docpop" hidden><input id="docq" placeholder="Find a sound" autocomplete="off"><div class="list" id="doclist"></div></div>
+  <div class="kedit" id="kedit" hidden></div><div class="dlg" id="dlg" hidden></div>
+  <div class="docpop" id="docpop" hidden><input id="docq" placeholder="Find a sound" autocomplete="off"><div class="docnew"><button class="tbtn" data-newsound><svg class="i"><use href="#i-plus"/></svg>New</button><button class="tbtn" data-dupsound><svg class="i"><use href="#i-copy"/></svg>Duplicate</button><button class="tbtn" data-tplsound>From template</button></div><div class="list" id="doclist"></div></div>
   <div class="bpop" id="bpop" hidden></div>
   <div class="kpop" id="kpop" hidden></div>
 
   <div class="work" id="work">
     <main class="view" id="view">
+      <div class="opslog" id="opslog" hidden title="The last edit, as the call an agent would send"></div><div class="mapbar" id="mapbar" hidden></div>
       <div class="hudbar" id="hudbar"></div>
       <div class="plot" id="plot">
         <canvas id="base"></canvas><canvas id="ov"></canvas>

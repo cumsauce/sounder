@@ -210,7 +210,13 @@ impl Sound {
     /// A sound that instances others also keys on the session's generation:
     /// editing an instanced sound changes nothing in this document.
     pub fn doc_hash(&self, generation: u64) -> u64 {
-        hash_of(&(&self.doc, self.salt(generation)))
+        // Window positions do not change the render: a moved card keeps the cached render.
+        if self.doc.layout.is_empty() {
+            return hash_of(&(&self.doc, self.salt(generation)));
+        }
+        let mut d = self.doc.clone();
+        d.layout = sfx_graph::Layout::default();
+        hash_of(&(&d, self.salt(generation)))
     }
 
     /// The generation matters only to a sound that instances others; every
@@ -844,6 +850,28 @@ impl Session {
             sound.set_render(&opts, salt, report.rendered.clone());
         }
         Ok(report)
+    }
+
+    /// Moves nodes or rig bodies in the window (`Layout::patch`): one history step `layout`, no
+    /// render, and the version stays (the render and the checks are unchanged).
+    pub fn set_layout(&mut self, doc: Option<&str>, patch: &Value) -> Result<bool, String> {
+        let by = self.current.clone();
+        let name = self.target_name(doc)?;
+        let sound = self.open_mut(&name)?;
+        let mut layout = sound.doc.layout.clone();
+        layout.patch(patch)?;
+        layout.retain_known(&sound.doc.nodes);
+        if layout == sound.doc.layout {
+            return Ok(false);
+        }
+        sound.doc.layout = layout;
+        sound.history.record(Step(sound.doc.clone()), "layout");
+        if let Some(n) = sound.history.nodes.last_mut() {
+            n.author = by;
+        }
+        sound.unsaved = true;
+        self.mark_dirty();
+        Ok(true)
     }
 
     /// Runs the checks (`expect`, or the defaults) on the sound as it stands.

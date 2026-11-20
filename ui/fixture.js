@@ -100,6 +100,34 @@ window.FIX = (() => {
     stop: () => emit({ playing: false, pos: 0 }),
     seek: a => emit({ pos: a.t }),
     catalog_list: () => clone(J.catalog),
+    node_types: () => clone(J.node_types || []),
+    layout: a => { const s = cur(), L = s.layout ||= {}; const p = a.layout || {};
+      if ('nodes' in p) { if (p.nodes === null) L.nodes = {}; else { L.nodes ||= {}; for (const [k, v] of Object.entries(p.nodes)) { if (v == null) delete L.nodes[k]; else L.nodes[k] = v; } } }
+      for (const [r, bs] of Object.entries(p.rigs || {})) { L.rigs ||= {}; if (bs == null) { delete L.rigs[r]; continue; } const t = L.rigs[r] ||= {}; for (const [k, v] of Object.entries(bs)) { if (v == null) delete t[k]; else t[k] = v; } }
+      addStep(s, 'layout'); bump(); return { changed: true }; },
+    // the editing tools, as far as the fixture can: no render, light checks
+    tool: a => { const args = a.args || {};
+      if (a.name === 'new_sound') { if (J.sound_data[args.name]) throw new Error(`a sound named "${args.name}" is open`); J.sound_data[args.name] = { name: args.name, kind: 'oneshot', version: 0, seed: 1, sample_rate: 48000, duration: null, seconds: 1, peak_db: -6, lufs: -20, causal: true, warnings: [], nodes: [], params: {}, macros: [], moves: [], comments: [], history: [], checks: [], descriptors: {}, layout: {}, hash: 'n' + nextId };
+        J.state.sounds.unshift({ name: args.name, kind: 'oneshot', by: 'window', ago: 'now', working: false, saved: false, open_comments: 0, seconds: 1, lufs: -20, hash: 'n' + nextId }); addStep(J.sound_data[args.name], 'new sound'); bump(); return { text: `new sound \`${args.name}\``, json: null }; }
+      if (a.name === 'catalog') { const e = J.state.sounds.find(x => x.name === (args.doc || args.name || J.cur)); if (args.action === 'save' && e) e.saved = true; bump(); return { text: `${args.action} \`${args.doc || args.name || J.cur}\` (fixture)`, json: null }; }
+      if (a.name === 'export') return { text: `exported \`${args.doc || J.cur}\` (fixture: no files)`, json: null };
+      if (a.name !== 'sound_ops') throw new Error(`the window cannot call \`${a.name}\``);
+      const s = J.sound_data[args.doc || J.cur], label = [];
+      for (const op of args.ops || []) { const i = s.nodes.findIndex(n => n.name === op.name);
+        if (op.type === 'delete') { if (i < 0) throw new Error(`no node named \`${op.name}\``); s.nodes.splice(i, 1); label.push('-' + op.name); continue; }
+        const { type, name, ...fields } = op, n = { name, type, reads: [], fields, effective: {}, unread: false, open_comments: 0, depth: 0 };
+        if (i >= 0) { s.nodes[i] = n; label.push('~' + name); } else { s.nodes.push(n); label.push('+' + name); } }
+      if (s.nodes.length && s.nodes.filter(n => n.type === 'output').length !== 1) throw new Error('no output node: add {"type": "output", "name": "out", "input": "<your last node>"}');
+      const names = new Set(s.nodes.map(n => n.name)), refs = v => typeof v === 'string' ? (names.has(v.split('.')[0]) ? [v.split('.')[0]] : []) : Array.isArray(v) ? v.flatMap(refs) : v && typeof v === 'object' ? Object.entries(v).filter(([k]) => !['name', 'a', 'b', 'kind'].includes(k)).flatMap(([, x]) => refs(x)) : [];
+      s.nodes.forEach(n => n.reads = [...new Set(Object.entries(n.fields).filter(([k]) => !['mode', 'op', 'shape', 'curve', 'color', 'material'].includes(k)).flatMap(([, v]) => refs(v)))].filter(r => r !== n.name));
+      const depth = n => n._d ?? (n._d = 1 + Math.max(-1, ...n.reads.map(r => depth(s.nodes.find(x => x.name === r)))));
+      s.nodes.forEach(n => delete n._d); s.nodes.forEach(n => { n.depth = depth(n); }); s.nodes.forEach(n => delete n._d);
+      for (const nm of args.delete_macros || []) s.macros = s.macros.filter(m => m.name !== nm);
+      for (const m of args.macros || []) { const i = s.macros.findIndex(x => x.name === m.name), v = { default: m.value, ...clone(m), result: null }; v.map = v.map.map(e => ({ curve: 'linear', col: null, index: null, key: null, ...e })); if (i >= 0) s.macros[i] = v; else s.macros.push(v); }
+      if (args.params) Object.assign(s.params, args.params);
+      if (args.kind) s.kind = args.kind; if ('duration' in args) s.duration = args.duration || null; if (args.seed) s.seed = args.seed;
+      if (s.layout && s.layout.nodes) for (const k of Object.keys(s.layout.nodes)) if (!names.has(k)) delete s.layout.nodes[k];
+      recompute(s); addStep(s, label.join(' ') || 'sound settings'); bump(); return { text: label.join(' '), json: { label: label.join(' ') } }; },
     catalog_load: a => { throw new Error(`the fixture has no data for "${a.name}" (it only knows the sounds in fixture.json)`); },
   };
   return {

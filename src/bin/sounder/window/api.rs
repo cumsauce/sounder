@@ -120,6 +120,18 @@ fn run(s: &mut Session, sh: &Arc<Shared>, name: &str, a: &Value) -> Result<Value
             s.window_knob_result(None)
         }
         "set_field" => set_field(s, a),
+        "tool" => crate::server::window_tool(
+            s,
+            str_arg(a, "name")?,
+            a.get("args").cloned().unwrap_or_else(|| json!({})),
+        ),
+        "layout" => {
+            let patch = a
+                .get("layout")
+                .ok_or("`layout` is missing ({nodes, rigs})")?;
+            Ok(json!({"changed": s.set_layout(None, patch)?}))
+        }
+        "node_types" => Ok(node_types()),
         "set_seed" => {
             let seed = a
                 .get("seed")
@@ -297,6 +309,23 @@ fn schedule_settle(s: &Session, sh: &Arc<Shared>, doc: Option<&str>) {
     });
 }
 
+/// Every node type with its blurb, an example and the JSON schema of its fields: the window builds
+/// its add-node list and field editors from these (the same text `describe_op` serves agents).
+fn node_types() -> Value {
+    let types: Vec<Value> = sfx_graph::NODE_TYPES
+        .iter()
+        .map(|t| {
+            json!({
+                "type": t,
+                "blurb": sfx_graph::blurb(t),
+                "example": sfx_graph::example(t),
+                "schema": sfx_graph::node::schema(t).map(|s| serde_json::to_value(s).unwrap_or(Value::Null)),
+            })
+        })
+        .collect();
+    Value::Array(types)
+}
+
 /// One field of one node through `apply_ops`: one history step `~node`.
 /// A null value removes the field (back to the node's default).
 fn set_field(s: &mut Session, a: &Value) -> Result<Value, String> {
@@ -465,6 +494,108 @@ mod tests {
 
     fn summary_text(rig: &Rig) -> String {
         rig.agent(|s| s.summary(None).unwrap().0)
+    }
+
+    #[test]
+    fn the_window_edits_through_the_agents_tools() {
+        let rig = Rig::new("tool").with_sound();
+        let r = rig
+            .call(
+                "tool",
+                json!({"name": "sound_ops", "args": {"ops": [
+                    {"type": "gain", "name": "g", "input": "lp", "db": -3},
+                    {"type": "output", "name": "out", "input": "g", "lufs": -20}]}}),
+            )
+            .unwrap();
+        assert_eq!(r["json"]["label"], "+g ~out", "{r}");
+        let st = rig.call("state", json!({})).unwrap();
+        let h = st["sound"]["history"].as_array().unwrap();
+        assert_eq!(h.last().unwrap()["label"], "+g ~out");
+        assert_eq!(h.last().unwrap()["by"], CLIENT);
+        // the server's checks apply: a second output is refused and nothing changes
+        let err = rig
+            .call("tool", json!({"name": "sound_ops", "args": {"ops": [{"type": "output", "name": "out2", "input": "g"}]}}))
+            .unwrap_err();
+        assert!(err.contains("output"), "{err}");
+        assert_eq!(
+            rig.call("state", json!({})).unwrap()["sound"]["history"]
+                .as_array()
+                .unwrap()
+                .len(),
+            h.len()
+        );
+        // only the editing tools are open to the window
+        let err = rig
+            .call("tool", json!({"name": "listen", "args": {}}))
+            .unwrap_err();
+        assert!(err.contains("cannot call `listen`"), "{err}");
+        // a new sound through new_sound
+        rig.call(
+            "tool",
+            json!({"name": "new_sound", "args": {"name": "hum"}}),
+        )
+        .unwrap();
+        let st = rig.call("state", json!({})).unwrap();
+        assert!(
+            st["sounds"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|x| x["name"] == "hum")
+        );
+    }
+
+    #[test]
+    fn layout_is_a_history_step_that_keeps_the_render() {
+        let rig = Rig::new("layout").with_sound();
+        let before = rig.call("state", json!({})).unwrap()["sound"].clone();
+        let r = rig
+            .call(
+                "layout",
+                json!({"layout": {"nodes": {"lp": [400, 120], "ghost": [1, 2]}}}),
+            )
+            .unwrap();
+        assert_eq!(r["changed"], true);
+        let st = rig.call("state", json!({})).unwrap()["sound"].clone();
+        // a node that does not exist is dropped; the rest is kept
+        assert_eq!(st["layout"], json!({"nodes": {"lp": [400.0, 120.0]}}));
+        assert_eq!(
+            st["history"].as_array().unwrap().last().unwrap()["label"],
+            "layout"
+        );
+        assert_eq!(st["version"], before["version"]);
+        assert_eq!(st["hash"], before["hash"]);
+        // the same patch again changes nothing
+        let r = rig
+            .call("layout", json!({"layout": {"nodes": {"lp": [400, 120]}}}))
+            .unwrap();
+        assert_eq!(r["changed"], false);
+        // deleting the node drops its place
+        rig.call(
+            "tool",
+            json!({"name": "sound_ops", "args": {"delete_macros": ["brightness"], "ops": [
+                {"type": "output", "name": "out", "input": "m", "lufs": -20},
+                {"type": "delete", "name": "lp"}]}}),
+        )
+        .unwrap();
+        let st = rig.call("state", json!({})).unwrap()["sound"].clone();
+        assert_eq!(st["layout"], json!({}));
+        let err = rig
+            .call("layout", json!({"layout": {"nodes": {"lp": "x"}}}))
+            .unwrap_err();
+        assert!(err.contains("[x, y]"), "{err}");
+    }
+
+    #[test]
+    fn node_types_serve_every_type_with_its_schema() {
+        let rig = Rig::new("types");
+        let r = rig.call("node_types", json!({})).unwrap();
+        let types = r.as_array().unwrap();
+        assert_eq!(types.len(), sfx_graph::NODE_TYPES.len());
+        let f = types.iter().find(|t| t["type"] == "filter").unwrap();
+        assert!(f["schema"]["properties"]["freq"].is_object(), "{f}");
+        assert_eq!(f["example"]["type"], "filter");
+        assert!(!f["blurb"].as_str().unwrap().is_empty());
     }
 
     #[test]

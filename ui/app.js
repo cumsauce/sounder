@@ -76,7 +76,7 @@ function agentColor(name) {
 
 // ---------- state ----------
 let ST = null;                 // the last `state` result
-const S = { openRig: null, rigSel: null, view: 'doc', centre: 'sound', sel: null, tab: 'node', loop: false, region: null, zoom: null, hot: null, pendingPin: null };
+const S = { openRig: null, rigSel: null, multi: null, wireSel: null, mapArm: null, gdrag: null, bdrag: null, view: 'doc', centre: 'sound', sel: null, tab: 'node', loop: false, region: null, zoom: null, hot: null, pendingPin: null };
 const P = { playing: false, pos: 0, loop: false, span: null, node: null, at: 0 };   // player mirror, extrapolated with rAF
 let CMAP = null;               // 256 RGBA colormap bytes from sounder://render/colormap
 const doc = () => ST.sound;
@@ -99,7 +99,8 @@ function pullState(docName) {
 function defaultSel(s) { return (s.nodes.find(n => n.type === 'filter') || s.nodes[0] || {}).name || null; }
 function applyState(s) {
   // No sound is open for the window yet (an agent made one, or none exists): open the first one.
-  if (!s.sound) { if (s.sounds && s.sounds.length && !ST) setTimeout(() => pullState(s.sounds[0].name), 0); return; }
+  if (!s.sound) { if (s.sounds && s.sounds.length && !ST) setTimeout(() => pullState(s.sounds[0].name), 0); else if (!s.sounds || !s.sounds.length) showEmpty(); return; }
+  $('#empty')?.remove();
   const prev = ST;
   if (KD && prev && s.sound && prev.sound) { const m = s.sound.macros.find(x => x.name === KD.name), o = prev.sound.macros.find(x => x.name === KD.name); if (m && o) m.value = o.value; }
   ST = s; PLOTREV = Math.max(PLOTREV, s.rev || 0);
@@ -158,7 +159,7 @@ function renderHud() {
   const d = doc();
   const z = S.zoom ? `<span class="chip">${ic('zoom')}<b>${S.zoom.t[0].toFixed(2)}-${S.zoom.t[1].toFixed(2)} s${S.zoom.hz ? ` · ${fmtHz(S.zoom.hz[0])}-${fmtHz(S.zoom.hz[1])} Hz` : ''}</b><button data-unzoom aria-label="Reset zoom">${ic('x')}</button></span>` : '';
   const ss = (ST.solo && ST.solo_stats) || d, fin = x => (Number.isFinite(x) ? x : -90);
-  const stats = `<span class="chip"><b>${ss.seconds.toFixed(2)} s</b></span><span class="chip">pk <b>${fin(ss.peak_db).toFixed(1)}</b></span><span class="chip"><b>${fin(ss.lufs).toFixed(1)}</b> LUFS</span>`;
+  const stats = `<span class="chip"><b>${fin(ss.seconds ?? 0).toFixed(2)} s</b></span><span class="chip">pk <b>${fin(ss.peak_db).toFixed(1)}</b></span><span class="chip"><b>${fin(ss.lufs).toFixed(1)}</b> LUFS</span>`;
   $('#hudbar').innerHTML = `<div class="seg" role="group" aria-label="Centre"><button data-centre="sound" aria-pressed="${S.centre === 'sound'}">Spectrogram <kbd>1</kbd></button><button data-centre="graph" aria-pressed="${S.centre === 'graph'}">Graph <kbd>2</kbd></button></div>${z}<span class="grow"></span>${stats}<button class="tbtn" data-hist title="History (H): undo / redo and compare">${ic('hist')}<span class="lbl">v${d.version}</span>${ic('chev')}</button>`;
 }
 
@@ -288,19 +289,19 @@ function renderGraph() {
   for (let k = 0; k < 6; k++) { (k % 2 ? [...cols].reverse() : cols).forEach(c => { if (!c) return; c.sort((a, b) => bary(a, k % 2 ? outs : ins) - bary(b, k % 2 ? outs : ins)); }); idx(); }
   const colH = c => c ? c.reduce((a, n) => a + hOf(n) + GAP, -GAP) : 0, Hmax = Math.max(...cols.map(colH)); const pos = {};
   cols.forEach((c, ci) => { if (!c) return; let y = (Hmax - colH(c)) / 2; c.forEach(n => { pos[n.name] = [ci * CW, y]; y += hOf(n) + GAP; }); });
-  const W = (cols.length - 1) * CW + 160, H = Hmax + 20;
+  const LO = (d.layout && d.layout.nodes) || {}; nodes.forEach(n => { const o = (S.gdrag && S.gdrag.pos && S.gdrag.pos[n.name]) || LO[n.name]; if (o) pos[n.name] = [o[0], o[1]]; });
+  const W = Math.max(0, ...Object.values(pos).map(p => p[0])) + 320, H = Math.max(0, ...Object.values(pos).map(p => p[1])) + 220;
   // Wires: audio inputs solid, control (a field other than input / inputs / excite / a / b ...) dashed and dimmer;
   // each input gets its own slot on the reader's left edge; a port read (x.force) is teal and labelled.
   const AUDIO = new Set(['input', 'inputs', 'excite', 'a', 'b', 'carrier', 'modulator', 'source']), WORDS = new Set(['op', 'mode', 'shape', 'curve', 'color', 'material', 'floor', 'kind']);
-  const sel = S.sel; const wires = nodes.flatMap(n => { const refs = [];
-    Object.entries(n.fields).forEach(([k, v]) => { if (WORDS.has(k)) return; const walk = x => { if (typeof x === 'string') { const b = x.split('.')[0]; if (pos[b] && b !== n.name) refs.push({ src: b, port: x.includes('.') ? x.split('.')[1] : null, audio: AUDIO.has(k) }); } else if (Array.isArray(x)) x.forEach(walk); else if (x && typeof x === 'object' && k !== 'bodies' && k !== 'joints') Object.entries(x).forEach(([kk, y]) => kk === 'input' || kk === 'gain' ? walk(y) : 0); }; walk(v); });
-    const uniq = refs.filter((r, i) => refs.findIndex(q => q.src === r.src && q.port === r.port) === i);
+  const sel = S.sel; const wires = nodes.flatMap(n => {
+    const uniq = refPaths(n).map(r => ({ path: r.path, src: r.value.split('.')[0], port: r.value.includes('.') ? r.value.split('.')[1] : null, audio: AUDIO.has(r.path[0]) })).filter(r => pos[r.src]);
     return uniq.map((r, i) => { const [x0, y0] = pos[r.src], [x1, y1] = pos[n.name], a = [x0 + 150, y0 + hOf(by[r.src]) / 2], b = [x1, y1 + 18 + (uniq.length > 1 ? i * (hOf(n) - 30) / (uniq.length - 1) : (hOf(n) - 36) / 2)];
-      const on = sel === n.name || sel === r.src, dim = sel && !on, dx = Math.max(30, (b[0] - a[0]) / 2), c = on ? '#6fa8ff' : r.port ? '#4fd1c5' : r.audio ? '#5a6273' : '#454c59';
-      return `<path d="M${a[0]},${a[1]} C${a[0] + dx},${a[1]} ${b[0] - dx},${b[1]} ${b[0]},${b[1]}" stroke="${c}" stroke-width="${on ? 2 : r.audio ? 1.6 : 1.2}" fill="none" ${r.audio || r.port ? '' : 'stroke-dasharray="4 3"'} opacity="${dim ? .35 : 1}"/><circle cx="${b[0]}" cy="${b[1]}" r="2.5" fill="${c}" opacity="${dim ? .35 : 1}"/>${r.port ? `<text x="${a[0] + 6}" y="${a[1] - 5}" class="wport">.${esc(r.port)}</text>` : ''}`; }); }).join('');
+      const id = [n.name, ...r.path].join('|'), picked = S.wireSel === id, on = picked || sel === n.name || sel === r.src, dim = sel && !on, dx = Math.max(30, Math.abs(b[0] - a[0]) / 2), c = picked ? '#ec6d6d' : on ? '#6fa8ff' : r.port ? '#4fd1c5' : r.audio ? '#5a6273' : '#454c59', pd = `M${a[0]},${a[1]} C${a[0] + dx},${a[1]} ${b[0] - dx},${b[1]} ${b[0]},${b[1]}`;
+      return `<path class="whit" data-wire="${esc(id)}" d="${pd}"><title>${esc(r.src + (r.port ? '.' + r.port : ''))} → ${esc(n.name)}.${esc(r.path.join('.'))}</title></path><path d="${pd}" stroke="${c}" stroke-width="${on ? 2 : r.audio ? 1.6 : 1.2}" fill="none" ${r.audio || r.port ? '' : 'stroke-dasharray="4 3"'} opacity="${dim ? .35 : 1}"/><circle cx="${b[0]}" cy="${b[1]}" r="2.5" fill="${c}" opacity="${dim ? .35 : 1}"/>${r.port ? `<text x="${a[0] + 6}" y="${a[1] - 5}" class="wport">.${esc(r.port)}</text>` : ''}`; }); }).join('');
   const hotNodes = S.hot ? macroTargets(S.hot) : [];
-  host.innerHTML = `<div class="graph" style="width:${W}px;height:${H}px"><svg class="wires">${wires}</svg>${nodes.map(n => { const ph = isRigish(n), nb = ph ? rigModel(flat(n)).bodies.length : 0;
-    return `<div class="gnode ${n.type === 'output' ? 'out' : ''} ${ph ? 'phys' : ''} ${S.sel === n.name ? 'sel' : ''} ${ST.solo === n.name ? 'solo' : ''} ${hotNodes.includes(n.name) ? 'mac' : ''}" data-node="${esc(n.name)}" style="left:${pos[n.name][0]}px;top:${pos[n.name][1]}px;height:${hOf(n)}px"><div class="n">${ic(ICON[n.type] || 'wave')}${esc(n.name)}</div><button class="gsolo ${ST.solo === n.name ? 'on' : ''}" data-solo="${esc(n.name)}" aria-label="Solo ${esc(n.name)}" title="Hear this node">${ic('phones')}</button><div class="gbadges"><span class="t">${ph ? `${esc(n.type)} · ${nb} bod${nb === 1 ? 'y' : 'ies'}` : esc(n.type)}</span>${n.open_comments ? `<span class="pinc" title="open comments on this node">${n.open_comments}</span>` : ''}${n.unread ? `<span class="warnc" title="changed by an agent since you last looked (open the sound to mark it seen)">${ic('warn')}</span>` : ''}</div>${ph ? `<div class="rthumb" data-rigopen="${esc(n.name)}" title="Open">${rigMini(flat(n))}<span class="rexp">${ic('zoom')}</span></div>` : `<canvas data-gspark="${esc(n.name)}"></canvas>`}</div>`; }).join('')}</div>`;
+  host.innerHTML = `<div class="gtool"><button class="tbtn" data-gadd>${ic('plus')}Node <kbd>A</kbd></button>${Object.keys(LO).length ? '<button class="tbtn" data-gtidy>Tidy</button>' : ''}${S.multi && S.multi.size > 1 ? `<span class="hint">${S.multi.size} selected</span>` : ''}</div><div class="graph" style="width:${W}px;height:${H}px"><svg class="wires">${wires}</svg><svg class="gtemp" id="gtemp"></svg>${nodes.map(n => { const ph = isRigish(n), nb = ph ? rigModel(flat(n)).bodies.length : 0;
+    return `<div class="gnode ${n.type === 'output' ? 'out' : ''} ${ph ? 'phys' : ''} ${S.sel === n.name ? 'sel' : ''} ${S.multi && S.multi.has(n.name) ? 'multi' : ''} ${ST.solo === n.name ? 'solo' : ''} ${hotNodes.includes(n.name) ? 'mac' : ''}" data-node="${esc(n.name)}" style="left:${pos[n.name][0]}px;top:${pos[n.name][1]}px;height:${hOf(n)}px"><div class="n">${ic(ICON[n.type] || 'wave')}${esc(n.name)}</div><button class="gsolo ${ST.solo === n.name ? 'on' : ''}" data-solo="${esc(n.name)}" aria-label="Solo ${esc(n.name)}" title="Hear this node">${ic('phones')}</button><div class="gbadges"><span class="t">${ph ? `${esc(n.type)} · ${nb} bod${nb === 1 ? 'y' : 'ies'}` : esc(n.type)}</span>${n.open_comments ? `<span class="pinc" title="open comments on this node">${n.open_comments}</span>` : ''}${n.unread ? `<span class="warnc" title="changed by an agent since you last looked (open the sound to mark it seen)">${ic('warn')}</span>` : ''}</div>${ph ? `<div class="rthumb" data-rigopen="${esc(n.name)}" title="Open">${rigMini(flat(n))}<span class="rexp">${ic('zoom')}</span></div>` : `<canvas data-gspark="${esc(n.name)}"></canvas>`}${n.type !== 'output' ? `<span class="gout" data-gout="${esc(n.name)}" title="Drag onto a node to connect"></span>` : ''}${ph ? `<span class="gout port" data-gout="${esc(n.name)}.force" data-label=".force" title="Drag to connect the force port"></span>` : ''}</div>`; }).join('')}</div>`;
   host.querySelectorAll('[data-gspark]').forEach(c => { const name = c.dataset.gspark, doc0 = ST.doc, e = getSpark(name); if (e.v) { drawSpark(c, e.v); return; } e.p.then(x => { if (c.isConnected && ST.doc === doc0) drawSpark(c, x); }).catch(() => {}); });
 }
 
@@ -353,9 +354,14 @@ function rfVal(k, t) { const [a, b, sc] = RF[k]; const v = sc === 'log' ? a * (b
 function rfFmt(k, v) { const u = RF[k][3]; return (Math.abs(v) >= 1000 ? (v / 1000).toFixed(v >= 1e5 ? 0 : 1) + 'k' : v) + (u ? ' ' + u : ''); }
 
 function renderRigCanvas(host, d, n0) { const n = flat(n0), m = rigModel(n), L = rigLayout(m), BH = 50;
+  { const LO = (d.layout && d.layout.rigs && d.layout.rigs[n.name]) || {}, bd = S.bdrag && S.bdrag.rig === n.name && S.bdrag.pos ? S.bdrag : null;
+    m.bodies.forEach(b => { const o = bd && bd.name === b.name ? bd.pos : LO[b.name]; if (o && L.pos[b.name]) L.pos[b.name] = [o[0], o[1]]; });
+    const ps = m.bodies.map(b => L.pos[b.name]).filter(Boolean);
+    if (ps.length) { const maxR = Math.max(...m.bodies.map(b => L.pos[b.name][0] + L.wid[b.name])), maxB = Math.max(...ps.map(p => p[1])) + BH, gnd = m.joints.some(j => j.b === 'ground') || !!JD;
+      L.groundY = gnd ? Math.max(L.groundY || 0, maxB + 40) : null; L.minX = Math.min(...ps.map(p => p[0])); L.maxX = maxR; L.W = maxR + 80; L.H = (L.groundY ?? maxB) + 40; } }
   const ax = (name, at) => L.pos[name][0] + 10 + (at ?? 0.3) * (L.wid[name] - 20);
   let svg = '', html = '';
-  m.joints.forEach((j, ji) => { if (!L.pos[j.a] || (j.b !== 'ground' && !L.pos[j.b])) return; const gnd = j.b === 'ground'; const x1 = ax(j.a, j.at_a), y1 = L.pos[j.a][1] + BH, x2 = gnd ? x1 : ax(j.b, j.at_b), y2 = gnd ? L.groundY : L.pos[j.b][1];
+  m.joints.forEach((j, ji) => { if (!L.pos[j.a] || (j.b !== 'ground' && !L.pos[j.b])) return; const gnd = j.b === 'ground', flip = !gnd && L.pos[j.a][1] > L.pos[j.b][1]; const x1 = ax(j.a, j.at_a), y1 = L.pos[j.a][1] + (flip ? 0 : BH), x2 = gnd ? x1 : ax(j.b, j.at_b), y2 = gnd ? L.groundY : L.pos[j.b][1] + (flip ? BH : 0);
     const sel = S.rigSel === 'j' + ji, col = j.kind === 'spring' ? '#4fd1c5' : sel ? '#e3e6ec' : '#9aa1b0', mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
     const len = Math.hypot(x2 - x1, y2 - y1) || 1, ux = (x2 - x1) / len, uy = (y2 - y1) / len, px = -uy, py = ux;
     let d_ = `M${x1} ${y1} L${x2} ${y2}`, cap = '';
@@ -371,11 +377,11 @@ function renderRigCanvas(host, d, n0) { const n = flat(n0), m = rigModel(n), L =
   m.bodies.forEach(b => { const [x, y] = L.pos[b.name], modal = isModal(b), sel = S.rigSel === 'b:' + b.name;
     const kind = modal ? `${b.material || 'wood'} ${b.shape || 'plate'}${b.f0 ? ' · ' + fmtHz(b.f0) + ' Hz' : ''}` : `${b.mass ?? '?'} kg mass`;
     const tags = [b.fixed ? '<span class="tag">fixed</span>' : '', b.velocity != null ? `<span class="tag start">${b.velocity < 0 ? '↓' : '↑'} ${Math.abs(b.velocity)} m/s</span>` : '', b.drive ? `<span class="tag in">drive ← ${esc(b.drive)}</span>` : '', modal ? `<span class="tag out" title="heard in the audio output">heard${b.level_db ? ' ' + b.level_db + ' dB' : ''}</span>` : '<span class="tag">silent</span>'].join('');
-    html += `<div class="rbody ${modal ? '' : 'silent'} ${sel ? 'sel' : ''}" data-rsel="b:${esc(b.name)}" style="left:${x}px;top:${y}px;height:${BH}px;width:${L.wid[b.name]}px"><div class="n">${esc(b.label || b.name)}<span class="tags">${tags}</span></div><div class="t">${esc(kind)}</div></div>`; });
-  if (L.groundY != null) html += `<div class="rground" style="left:${L.minX - 20}px;width:${L.maxX - L.minX + 40}px;top:${L.groundY}px"><span>ground${n.floor ? ' · ' + esc(n.floor) : ''}</span></div>`;
+    html += `<div class="rbody ${modal ? '' : 'silent'} ${sel ? 'sel' : ''}" data-rsel="b:${esc(b.name)}" style="left:${x}px;top:${y}px;height:${BH}px;width:${L.wid[b.name]}px"><div class="n">${esc(b.label || b.name)}<span class="tags">${tags}</span></div><div class="t">${esc(kind)}</div>${n.type === 'rig' ? `<span class="jedge top" data-jedge="${esc(b.name)}" title="Drag to another body to join them"></span><span class="jedge bot" data-jedge="${esc(b.name)}" title="Drag to another body or the ground"></span>` : ''}</div>`; });
+  if (L.groundY != null) html += `<div class="rground ${JD ? 'drop' : ''}" style="left:${L.minX - 20}px;width:${L.maxX - L.minX + 40}px;top:${L.groundY}px"><span>ground${n.floor ? ' · ' + esc(n.floor) : ''}</span></div>`;
   const nb = m.bodies.length, nj = m.joints.length;
-  host.innerHTML = `<div class="rigbar"><button data-rigclose>‹ ${esc(ST.doc)}</button><span>/</span><b>${esc(n.name)}</b><span class="badge">${esc(n.type)}</span><span class="hint">${nb} ${nb === 1 ? 'body' : 'bodies'} · ${nj} ${nj === 1 ? 'joint' : 'joints'}</span></div>
-    <div class="rig" style="width:${L.W + (S.rigSel ? 240 : 0)}px;height:${Math.max(L.H, S.rigSel ? 300 : 0)}px"><svg class="rw" width="${L.W}" height="${L.H}">${svg}</svg>${html}${rigPop(n, L)}</div>`; }
+  host.innerHTML = `<div class="rigbar"><button data-rigclose>‹ ${esc(ST.doc)}</button><span>/</span><b>${esc(n.name)}</b><span class="badge">${esc(n.type)}</span>${n.type === 'rig' ? `<span class="rtools"><button class="tbtn" data-radd="mass">${ic('plus')}Mass</button><button class="tbtn" data-radd="modal">${ic('plus')}Modal</button>${Object.keys((d.layout && d.layout.rigs && d.layout.rigs[n.name]) || {}).length ? '<button class="tbtn" data-gtidy>Tidy</button>' : ''}</span>` : ''}<span class="hint">${nb} ${nb === 1 ? 'body' : 'bodies'} · ${nj} ${nj === 1 ? 'joint' : 'joints'}</span></div>
+    <div class="rig" style="width:${L.W + (S.rigSel ? 240 : 0)}px;height:${Math.max(L.H, S.rigSel ? 300 : 0)}px"><svg class="rw" width="${L.W}" height="${L.H}">${svg}</svg><svg class="rtemp" id="rtemp" width="${L.W}" height="${L.H}"></svg>${html}${nb ? '' : '<div class="hint" style="position:absolute;left:40px;top:40px">No bodies</div>'}${rigPop(n, L)}</div>`; }
 // the edit popover for a body or joint; a field a knob drives shows the knob instead of a slider
 function rigPop(n, L) { const m = rigModel(n); if (!S.rigSel || n.type !== 'rig') return '';
   const driver = (id, k) => { const f = k === 'gap_mm' ? 'gap' : k; const field = id.startsWith('b:') ? 'bodies' : 'joints', index = id.startsWith('b:') ? m.bodies.findIndex(q => 'b:' + q.name === id) : +id.slice(1);
@@ -386,7 +392,7 @@ function rigPop(n, L) { const m = rigModel(n); if (!S.rigSel || n.type !== 'rig'
   const en = (id, k, opts, v) => `<div class="field"><label>${k}</label><div class="opts">${opts.map(o => `<button data-rpe="${esc(id)}:${k}" data-v="${o}" aria-pressed="${o === v}">${o}</button>`).join('')}</div></div>`;
   let head = '', body = '', x = 0, y = 0;
   if (S.rigSel.startsWith('b:')) { const b = m.bodies.find(q => 'b:' + q.name === S.rigSel); if (!b) return ''; const id = S.rigSel, modal = isModal(b); [x, y] = [L.pos[b.name][0] + L.wid[b.name] + 12, L.pos[b.name][1]];
-    head = `<b>${esc(b.name)}</b><span class="hint">${modal ? 'modal body' : 'point mass'}</span>`;
+    head = `<input class="rbname" data-rbrename="${esc(b.name)}" value="${esc(b.name)}" spellcheck="false"><span class="hint">${modal ? 'modal body' : 'point mass'}</span>`;
     const ks = modal ? ['f0', 'loss', 'noise', 'mass', 'level_db', 'velocity'] : ['mass', 'velocity'];
     body = (modal ? en(id, 'material', MATERIALS, b.material || 'wood') + en(id, 'shape', SHAPES, b.shape || 'plate') : '') + ks.map(k => row(id, k, b[k] ?? RDEF[k], b[k] != null)).join('') +
       `<div class="field"><label>fixed</label><div class="opts"><button data-rpe="${esc(id)}:fixed" data-v="true" aria-pressed="${!!b.fixed}">held</button><button data-rpe="${esc(id)}:fixed" data-v="false" aria-pressed="${!b.fixed}">free</button></div></div>`; }
@@ -394,7 +400,7 @@ function rigPop(n, L) { const m = rigModel(n); if (!S.rigSel || n.type !== 'rig'
     head = `<b style="color:${j.kind === 'spring' ? 'var(--a3)' : 'var(--fg)'}">${esc(j.kind)}</b><span class="hint">${esc(j.a)} ↔ ${esc(j.b)}</span>`;
     const ks = j.kind === 'spring' ? ['gap_mm', 'stiffness', 'damping'] : ['bounce', 'hardness', 'gap'];
     body = ks.map(k => { const f = k === 'gap_mm' ? 'gap' : k; return row(id, k, j[f] ?? RDEF[f], j[f] != null); }).join('') + (j.slide ? `<div class="hint" style="margin-top:4px">slides ← ${esc(j.slide)}</div>` : ''); }
-  return `<div class="rpop" style="left:${x}px;top:${y}px"><div class="rph">${head}<button data-rpclose title="Close (Esc)">${ic('x')}</button></div>${body}</div>`; }
+  return `<div class="rpop" style="left:${x}px;top:${y}px"><div class="rph">${head}<button data-rpclose title="Close (Esc)">${ic('x')}</button></div>${body}<div class="rpf"><button class="tbtn danger" data-rpdel>${ic('trash')}Delete</button></div></div>`; }
 // a body / joint edit as the whole bodies / joints list, which set_field upserts as one field
 function rigPatch(n, id, k, v) { if (id.startsWith('b:')) { const name = id.slice(2); return ['bodies', n.bodies.map(b => b.name === name ? { ...b, [k]: v } : b)]; }
   const ji = +id.slice(1); if (k === 'gap_mm') { k = 'gap'; v = +(v / 1000).toFixed(5); } return ['joints', n.joints.map((j, i) => i === ji ? { ...j, [k]: v } : j)]; }
@@ -433,7 +439,7 @@ function dial(m) {
     `<circle cx="33" cy="31" r="17" fill="#252932" stroke="#3a404c"/><line x1="33" y1="31" x2="${px}" y2="${py}" stroke="#e3e6ec" stroke-width="2.2" stroke-linecap="round"/>`;
 }
 function knobHTML(m) {
-  return `<div class="knob ${S.hot === m.name ? 'hot' : ''}" data-knob="${esc(m.name)}"><div class="kn">${esc(m.name)}${m.game ? '<span class="game" title="exported: the game sets this at runtime">GAME</span>' : ''}</div>
+  return `<div class="knob ${S.hot === m.name ? 'hot' : ''} ${S.mapArm && S.mapArm.name === m.name ? 'armed' : ''}" data-knob="${esc(m.name)}"><div class="kn" title="Edit ${esc(m.name)}">${esc(m.name)}${m.game ? '<span class="game" title="exported: the game sets this at runtime">GAME</span>' : ''}</div>
     <svg class="dial" viewBox="0 0 66 60" tabindex="0" role="slider" aria-label="${esc(m.name)}" aria-valuemin="0" aria-valuemax="1" aria-valuenow="${m.value.toFixed(2)}" data-dial="${esc(m.name)}">${dial(m)}</svg>
     <div class="kval"><span data-kv="${esc(m.name)}">${m.value.toFixed(2)}</span></div></div>`;
 }
@@ -441,7 +447,7 @@ function renderDock() {
   const d = doc(), dk = $('#dock'); dk.hidden = S.view === 'grid'; if (KD) return;
   const moved = d.macros.filter(m => Math.abs(m.value - m.default) > 0.005).length;
   const html = `<div class="dockgrip" data-dockgrip title="Drag to resize the macro pane"></div><div class="dockh"><span class="t">Macros</span><span class="grow"></span>${moved ? `<button class="tbtn" data-kreset title="Back to the agent's settings">Reset</button>` : ''}</div>
-    <div class="knobs">${d.macros.map(knobHTML).join('')}</div>`;
+    <div class="knobs">${d.macros.map(knobHTML).join('')}<div class="knob add" data-kadd tabindex="0" title="A new knob">${ic('plus')}<span>Knob</span></div></div>`;
   // Rebuilt on every state change: skip when nothing changed, and keep the grid's scroll position otherwise.
   if (dk.dataset.html === html) return;
   const keep = dk.querySelector('.knobs'), top = keep ? keep.scrollTop : 0;
@@ -520,13 +526,13 @@ function renderRight() {
   const tabs = `<div class="tabs" role="tablist">${[['node', 'Node'], ['sound', 'Sound'], ['comments', 'Comments']].map(([k, l]) => `<button role="tab" data-tab="${k}" aria-selected="${S.tab === k}">${l}${k === 'comments' && open ? `<span class="n">${open}</span>` : ''}</button>`).join('')}</div>`;
   let body = '';
   if (S.tab === 'node') {
-    if (!n) body = `<div class="sect hint">Select a node in the graph.</div>`;
+    if (!n) body = `<div class="sect hint">No node selected.</div>`;
     else { const readBy = d.nodes.filter(x => x.reads.includes(n.name)).map(x => x.name); const link = x => `<a href="#" data-goto="${esc(x)}" style="color:var(--accent)">${esc(x)}</a>`;
-      body = `<div class="sect"><div class="nodehead">${ic(ICON[n.type] || 'wave')}<span class="nm">${esc(n.name)}</span><span class="badge">${esc(n.type)}</span>${PHYS.has(n.type) ? '<span class="physbadge">physical</span>' : ''}<span class="grow"></span><button class="tbtn" data-solo="${esc(n.name)}" aria-pressed="${ST.solo === n.name}" title="Hear this node">${ic('phones')}Solo</button></div><div class="blurb">${esc(BLURB[n.type] || '')}</div></div>
+      body = `<div class="sect"><div class="nodehead">${ic(ICON[n.type] || 'wave')}<input class="nmedit" data-rename="${esc(n.name)}" value="${esc(n.name)}" spellcheck="false"><span class="badge">${esc(n.type)}</span>${PHYS.has(n.type) ? '<span class="physbadge">physical</span>' : ''}<button class="tbtn" data-solo="${esc(n.name)}" aria-pressed="${ST.solo === n.name}" title="Hear this node">${ic('phones')}Solo</button>${n.type !== 'output' ? `<button class="tbtn icon" data-ndup title="Duplicate (⌘D)">${ic('copy')}</button><button class="tbtn icon danger" data-ndel title="Delete (⌫)">${ic('trash')}</button>` : ''}</div><div class="blurb">${esc(BLURB[n.type] || '')}</div></div>
       ${isRigish(n) ? physSection(n) : ''}
-      <div class="sect"><div class="sh">Fields</div>${Object.entries(n.fields).filter(([k]) => !(isRigish(n) && (k === 'bodies' || k === 'joints'))).map(([k, v]) => fieldRow(n, k, v)).join('')}</div>
+      <div class="sect"><div class="sh">Fields</div>${fieldRows(n)}</div>
       <div class="sect"><div class="sh">Wiring</div><dl class="kv"><dt>reads</dt><dd>${n.reads.filter(x => d.nodes.some(y => y.name === x)).map(link).join(', ') || '—'}</dd><dt>read by</dt><dd>${readBy.map(link).join(', ') || (n.type === 'output' ? 'the sound' : '<span style="color:var(--warn)">nothing</span>')}</dd><dt>peak</dt><dd data-nodepeak="${esc(n.name)}">…</dd></dl></div>
-      <div class="sect"><div class="sh">JSON <span class="hint" style="text-transform:none;letter-spacing:0">what sound_ops sends</span></div><pre class="mono" style="margin:0;white-space:pre-wrap;color:var(--dim);font-size:11px">${esc(JSON.stringify({ type: n.type, name: n.name, ...n.fields }))}</pre></div>`;
+      <div class="sect"><div class="sh">JSON</div><pre class="mono" style="margin:0;white-space:pre-wrap;color:var(--dim);font-size:11px">${esc(JSON.stringify({ type: n.type, name: n.name, ...n.fields }))}</pre></div>`;
       const name = n.name, doc0 = ST.doc; getSpark(name).p.then(x => { const el = document.querySelector(`[data-nodepeak="${name}"]`); if (el && ST.doc === doc0) { let pk = 0; for (const v of x) pk = Math.max(pk, Math.abs(v)); el.textContent = `${(20 * Math.log10(Math.max(pk, 1e-10))).toFixed(1)} dBFS`; } }).catch(() => {}); }
   } else if (S.tab === 'sound') {
     const ds = d.descriptors || {}, bmax = -6, bmin = -72;
@@ -535,16 +541,25 @@ function renderRight() {
     if (!checks.some(c => c[0].startsWith('macro'))) d.macros.forEach(m => { if (m.result) checks.push([`macro ${m.name}`, m.result.pass, esc(m.result.detail)]); });
     const bands = ds.bands || [], by = (ST.sounds.find(s => s.name === ST.doc) || {}).by || '';
     const params = Object.entries(d.params || {});
-    body = `<div class="sect"><div class="sh">Sound</div><dl class="kv"><dt>kind</dt><dd>${esc(d.kind)}</dd><dt>duration</dt><dd>${d.duration ? d.duration + ' s' : 'auto (until -80 dBFS)'}</dd><dt>seed</dt><dd>${d.seed}</dd><dt>sample rate</dt><dd>${d.sample_rate}</dd><dt>causal</dt><dd>${d.causal ? 'yes' : 'no'}</dd></dl></div>
+    const out = d.nodes.find(x => x.type === 'output'), of = out ? out.fields : {}, tgt = of.lufs != null ? 'lufs' : of.peak_db != null ? 'peak' : 'none';
+    body = `<div class="sect"><div class="sh">Sound</div>
+      <div class="field"><label>kind</label><div class="opts">${['oneshot', 'loop'].map(k => `<button data-skind="${k}" aria-pressed="${d.kind === k}">${k}</button>`).join('')}</div></div>
+      <div class="field"><label>duration</label><div class="link"><label class="chk2"><input type="checkbox" data-sdurauto ${d.duration ? '' : 'checked'}>auto</label>${d.duration ? `<input class="fnum" type="number" step="0.1" min="0.01" data-sdur value="${d.duration}"><span class="hint">s</span>` : ''}</div></div>
+      <div class="field"><label>seed</label><div class="link"><input class="fnum" type="number" step="1" min="1" data-sseed value="${d.seed}"></div></div>
+      ${out ? `<div class="field"><label>level</label><div class="opts">${[['none', 'none'], ['lufs', 'LUFS'], ['peak', 'peak']].map(([k, l]) => `<button data-starget="${k}" aria-pressed="${tgt === k}">${l}</button>`).join('')}</div></div>${tgt !== 'none' ? `<div class="field"><label>${tgt === 'lufs' ? 'LUFS' : 'peak dBFS'}</label><div class="link"><input class="fnum" type="number" step="0.5" data-stval value="${tgt === 'lufs' ? of.lufs : of.peak_db}"></div></div>` : ''}
+      <div class="field"><label>fades ms</label><div class="link"><input class="fnum" type="number" step="0.5" min="0" data-sfade="in" value="${+((of.fade_in ?? 0.002) * 1000).toFixed(2)}" title="fade in"><input class="fnum" type="number" step="1" min="0" data-sfade="out" value="${+((of.fade_out ?? 0.005) * 1000).toFixed(2)}" title="fade out"></div></div>
+      <div class="field"><label>ceiling dB</label><div class="link"><input class="fnum" type="number" step="0.5" max="0" data-sceil value="${of.ceiling_db ?? -1}"></div></div>` : ''}
+      <dl class="kv" style="margin-top:8px"><dt>sample rate</dt><dd>${d.sample_rate}</dd><dt>causal</dt><dd>${d.causal ? 'yes' : 'no'}</dd></dl>
+      <div class="sbtns"><button class="tbtn" data-dlg="save">Save to catalog…</button><button class="tbtn" data-dlg="export">Export…</button></div></div>
       ${d.macros.length ? `<div class="sect"><div class="sh">Macros <span class="hint" style="text-transform:none;letter-spacing:0">by ${esc(by)}</span></div>${d.macros.map(m => `<div style="margin:0 0 9px"><div style="display:flex;gap:6px;align-items:center"><span class="macchip" data-kfocus="${esc(m.name)}">◎ ${esc(m.name)}</span>${m.game ? '<span class="game">GAME</span>' : ''}<span class="grow"></span><span class="mono">${m.value.toFixed(2)}</span><span class="hint">default ${m.default.toFixed(2)}</span></div><div class="hint" style="margin:3px 0">${esc(m.doc)}</div><div class="fb">${m.map.map(x => mapText(x).map(t => `<span class="mono" style="font-size:11px">${esc(t)}</span>`).join('')).join('')}</div></div>`).join('')}</div>` : ''}
-      ${(d.moves || []).length ? `<div class="sect"><div class="sh">Your moves <span class="hint" style="text-transform:none;letter-spacing:0">agents see these in summary</span></div><div class="fb">${d.moves.map(f => `<span>${esc(f.name)} <span class="mono">${f.from.toFixed(2)} → ${f.to.toFixed(2)}</span></span><span>now</span>`).join('')}</div><div class="hint" style="margin-top:6px">An agent can keep them as the new defaults, or re-centre a knob's range around where you left it.</div></div>` : ''}
-      ${params.length ? `<div class="sect"><div class="sh">Params</div>${params.map(([k, v]) => `<div class="field"><label>$${esc(k)}</label><span class="val grow mono" style="grid-column:2/4;text-align:left">${esc(JSON.stringify(v))}</span></div>`).join('')}</div>` : ''}
+      ${(d.moves || []).length ? `<div class="sect"><div class="sh">Your moves</div><div class="fb">${d.moves.map(f => `<span>${esc(f.name)} <span class="mono">${f.from.toFixed(2)} → ${f.to.toFixed(2)}</span></span><span>now</span>`).join('')}</div></div>` : ''}
+      <div class="sect"><div class="sh">Params</div>${params.map(([k, v]) => `<div class="field"><label>$${esc(k)}</label><div class="link"><input class="fnum" type="number" step="any" data-pval="${esc(k)}" value="${esc(v)}"></div></div>`).join('')}<div class="field"><label></label><div class="link"><input class="fnum" data-pnew placeholder="name" spellcheck="false"><button data-padd>+ param</button></div></div></div>
       <div class="sect"><div class="sh">Checks <span class="badge ${checks.every(c => c[1]) ? 'ok' : 'bad'}">${checks.filter(c => c[1]).length}/${checks.length}</span></div>${checks.map(([k, p, t]) => `<div class="chk"><span class="p ${p ? 'ok' : 'bad'}">${p ? 'PASS' : 'FAIL'}</span><span class="d">${esc(k)}: ${t}</span></div>`).join('')}${(d.warnings || []).map(w => `<div class="wrn">${ic('warn')}${esc(w)}</div>`).join('')}</div>
       ${bands.length ? `<div class="sect"><div class="sh">Bands (dB) × time</div><div class="bt"><span class="lab"></span>${['0', '20', '40', '60', '80%'].map(h => `<span class="hd">${h}</span>`).join('')}${bands.map((row, b) => `<span class="lab">${BLAB[b] || ''}</span>${row.map(cell).join('')}`).reverse().join('')}</div></div>` : ''}
-      <div class="sect"><div class="sh">Descriptors</div><dl class="kv"><dt>length</dt><dd>${d.seconds.toFixed(3)} s</dd><dt>peak</dt><dd>${d.peak_db.toFixed(1)} dBFS</dd><dt>loudness</dt><dd>${d.lufs.toFixed(1)} LUFS</dd>${ds.rms_db != null ? `<dt>RMS</dt><dd>${ds.rms_db.toFixed(1)} dBFS</dd>` : ''}${ds.centroid_hz != null ? `<dt>centroid</dt><dd>${fmtHz(sme(ds.centroid_hz))} Hz</dd>` : ''}</dl><div class="hint" style="margin-top:6px">The full table (onsets, pitch, modes…) is what listen returns to agents.</div></div>`;
+      <div class="sect"><div class="sh">Descriptors</div><dl class="kv"><dt>length</dt><dd>${(d.seconds ?? 0).toFixed(3)} s</dd><dt>peak</dt><dd>${d.peak_db == null ? '—' : d.peak_db.toFixed(1) + ' dBFS'}</dd><dt>loudness</dt><dd>${d.lufs == null ? '—' : d.lufs.toFixed(1) + ' LUFS'}</dd>${ds.rms_db != null ? `<dt>RMS</dt><dd>${ds.rms_db.toFixed(1)} dBFS</dd>` : ''}${ds.centroid_hz != null ? `<dt>centroid</dt><dd>${fmtHz(sme(ds.centroid_hz))} Hz</dd>` : ''}</dl></div>`;
   } else {
     body = d.comments.length ? d.comments.map(c => { const rep = c.reply && (typeof c.reply === 'string' ? { by: 'agent', text: c.reply } : c.reply);
-      return `<div class="cmt ${c.resolved ? 'done' : ''}" data-cmt="${c.id}"><span class="num">${c.id}</span><div><div class="hd"><b>${esc(c.by)}</b>${c.ago ? `<span>${esc(c.ago)}</span>` : ''}<span class="on">${esc(pinText(onOf(c)))}</span>${c.resolved ? '<span style="color:var(--ok)">resolved</span>' : ''}</div>${esc(c.text)}${rep ? `<div class="reply"><div class="hd"><b>${esc(rep.by || 'agent')}</b><span>agent</span></div>${esc(rep.text)}</div>` : ''}</div></div>`; }).join('') : `<div class="sect hint">No comments on ${esc(ST.doc)}. Drag a region on the spectrogram or pick a node, then write what you hear. Agents see open comments in summary.</div>`;
+      return `<div class="cmt ${c.resolved ? 'done' : ''}" data-cmt="${c.id}"><span class="num">${c.id}</span><div><div class="hd"><b>${esc(c.by)}</b>${c.ago ? `<span>${esc(c.ago)}</span>` : ''}<span class="on">${esc(pinText(onOf(c)))}</span>${c.resolved ? '<span style="color:var(--ok)">resolved</span>' : ''}</div>${esc(c.text)}${rep ? `<div class="reply"><div class="hd"><b>${esc(rep.by || 'agent')}</b><span>agent</span></div>${esc(rep.text)}</div>` : ''}</div></div>`; }).join('') : `<div class="sect hint">No comments.</div>`;
     const pin = S.pendingPin || (S.sel ? { node: S.sel } : {});
     body += `<div class="grow"></div><div class="compose"><div class="pinto">${ic('pin')} on <span class="on mono" style="border:1px solid var(--line);border-radius:4px;padding:0 5px">${esc(pinText(pin))}</span>${S.pendingPin ? '<button class="hint" data-unpin>(whole sound)</button>' : ''}</div><div class="row2"><input id="cin" placeholder="What do you hear?" autocomplete="off"><button class="primary" id="csend">Post</button></div></div>`;
   }
@@ -576,7 +591,7 @@ function renderOverview() {
 // ---------- toast, render all ----------
 function toast(t) { const e = $('#toast'); e.innerHTML = `<span class="chip"><b>${esc(t)}</b></span>`; e.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => e.hidden = true, 2600); }
 function renderCentre() { renderHud(); renderGraph(); requestAnimationFrame(() => { renderPlot(); showRegbar(); refreshPlot(); }); }
-function renderAll() { renderTop(); renderOverview(); renderCentre(); renderDock(); renderRight(); }
+function renderAll() { renderTop(); renderOverview(); renderCentre(); renderDock(); renderRight(); renderOpslog(); }
 
 // =====================================================================
 // Wiring (every action is a call; the page keeps no copy of the sound)
@@ -599,7 +614,7 @@ function renderDocList() {
   $('#doclist').innerHTML = open + (saved.length ? `<div class="h" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:8px 8px 4px">Saved</div>` + saved.map(c => `<div class="docrow" data-load="${esc(c.name)}">${ic(c.kind === 'loop' ? 'loop' : 'wave')}<span style="display:flex;gap:6px;align-items:center">${esc(c.name)}${c.role ? `<span style="color:var(--faint);font-size:11px">${esc(c.role)}</span>` : ''}${apTag(c.name)}</span><span class="r">open</span></div>`).join('') : '');
 }
 $('#docq').oninput = renderDocList;
-async function openSound(name) { S.view = 'doc'; try { await sounder.call('select_sound', { doc: name }); } catch (e) { toast(errText(e)); } pullState(name); }
+async function openSound(name) { S.view = 'doc'; try { await sounder.call('select_sound', { doc: name }); } catch (e) { toast(errText(e)); } return pullState(name); }
 $('#doclist').onclick = async e => {
   const ap = e.target.closest('[data-approve]'); if (ap) { e.stopPropagation(); try { const r = await sounder.call('catalog_approve', { name: ap.dataset.approve, approved: ap.dataset.on !== '1' }); if (Array.isArray(r)) CATALOG = r; renderDocList(); } catch (er) { toast(errText(er)); } return; }
   const l = e.target.closest('[data-load]'); if (l) { $('#docpop').hidden = true; try { await sounder.call('catalog_load', { name: l.dataset.load }); await openSound(l.dataset.load); } catch (er) { toast(errText(er)); } return; }
@@ -720,11 +735,345 @@ async function loadFonts() {
   await Promise.all(faces.map(async ([fam, w, file]) => { try { const f = new FontFace(fam, `url(${FONT_BASE}${file})`, { weight: String(w) }); await f.load(); document.fonts.add(f); } catch (e) { /* falls back to system-ui */ } }));
 }
 function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('could not load ' + src)); document.head.append(s); }); }
+// =====================================================================
+// Editing: everything a person can do without an agent
+// =====================================================================
+// A person's edits are agents' calls: sound_ops (and new_sound, catalog, export) through the `tool` window call,
+// so the server parses and checks them and each is one history step. Placements go through `layout`. The strip
+// at the bottom left shows the last call as an agent would send it.
+let TYPES = null;                                   // node_types: [{type, blurb, example, schema}]
+const TYPE = t => (TYPES || []).find(x => x.type === t);
+const NAME_RE = /^[a-z_][a-z0-9_]*$/i;
+const RESERVED = new Set(['mono', 'stereo']);
+const freeName = (base, taken) => { base = base.replace(/[^a-z0-9_]/gi, '_'); if (!taken.has(base)) return base; let i = 2; while (taken.has(base + '_' + i)) i++; return base + '_' + i; };
+const nodeNames = () => new Set(doc().nodes.map(n => n.name));
+const opOf = n => ({ type: n.type, name: n.name, ...clone(n.fields) });
+const plainMacro = m => { const { result, ...r } = clone(m); r.map = r.map.map(e => Object.fromEntries(Object.entries(e).filter(([, v]) => v != null))); if (r.claim == null) delete r.claim; return r; };
+let LASTCALL = null;
+function renderOpslog() { const el = $('#opslog'); if (!el) return; el.hidden = !LASTCALL || S.view === 'grid'; if (!LASTCALL) return;
+  el.innerHTML = `<b>${esc(LASTCALL.tool)}</b>${esc(el.classList.contains('open') ? JSON.stringify(LASTCALL.args, null, 1) : JSON.stringify(LASTCALL.args))}`; }
+async function tool(name, args) { LASTCALL = { tool: name, args }; renderOpslog(); return act('tool', { name, args }); }
+const ops = args => tool('sound_ops', { doc: ST.doc, ...args });
+async function placeAt(layout) { LASTCALL = { tool: 'layout', args: layout }; renderOpslog(); return act('layout', { layout }); }
+
+// ---------- schemas: what kind of value a field takes ----------
+function fieldSchema(type, k) { const t = TYPE(type); if (!t || !t.schema) return null; const S0 = t.schema, defs = S0.$defs || S0.definitions || {};
+  const deref = s => { let g = 0; while (s && s.$ref && g++ < 8) s = defs[s.$ref.split('/').pop()]; return s; };
+  let p = (S0.properties || {})[k]; if (!p) return null; const desc = p.description || '';
+  if (p.$ref && /\/In$/.test(p.$ref)) return { kind: 'in', desc };
+  if (p.anyOf) { const alts = p.anyOf.filter(a => a.type !== 'null'); if (alts.length === 1) { if (alts[0].$ref && /\/In$/.test(alts[0].$ref)) return { kind: 'in', desc, optional: true }; p = { ...alts[0], description: desc }; } }
+  const r = deref(p) || {};
+  if (r.enum) return { kind: 'enum', options: r.enum, desc };
+  if (r.oneOf && r.oneOf.every(o => o.enum || o.const)) return { kind: 'enum', options: r.oneOf.flatMap(o => o.enum || [o.const]), desc };
+  const ty = Array.isArray(r.type) ? r.type.filter(x => x !== 'null')[0] : r.type;
+  if (ty === 'number' || ty === 'integer') return { kind: 'num', int: ty === 'integer', desc };
+  if (ty === 'boolean') return { kind: 'bool', desc };
+  if (ty === 'string') return { kind: 'str', desc };
+  return { kind: 'json', desc }; }
+const inFields = type => { const t = TYPE(type); return t && t.schema ? Object.keys(t.schema.properties || {}).filter(k => (fieldSchema(type, k) || {}).kind === 'in') : []; };
+
+// ---------- references between nodes, as paths into a node's fields ----------
+const ENUMK = new Set(['type', 'op', 'mode', 'shape', 'curve', 'color', 'material', 'floor', 'kind', 'to', 'surface', 'call', 'layer', 'preset']);
+function refPaths(n) { const names = nodeNames(), out = [];
+  const isRef = s => typeof s === 'string' && !/^[$=]/.test(s) && !/\s/.test(s) && names.has(s.split('.')[0]) && s.split('.')[0] !== n.name;
+  const walk = (v, path) => { const k = path[path.length - 1];
+    if (typeof v === 'string') { if (isRef(v) && !ENUMK.has(path[0]) && !(path[0] === 'bodies' && k === 'name') && !(path[0] === 'joints' && (k === 'a' || k === 'b'))) out.push({ path, value: v }); }
+    else if (Array.isArray(v)) v.forEach((x, i) => walk(x, path.concat(i)));
+    else if (v && typeof v === 'object') Object.entries(v).forEach(([kk, x]) => walk(x, path.concat(kk))); };
+  Object.entries(n.fields).forEach(([k, v]) => walk(v, [k])); return out; }
+function setPath(o, path, v) { let p = o; for (const k of path.slice(0, -1)) p = p[k]; const last = path[path.length - 1];
+  if (v != null) { p[last] = v; return; }
+  if (Array.isArray(p)) p[last] = undefined; else delete p[last]; }
+const tidyArrays = o => { for (const [k, v] of Object.entries(o)) if (Array.isArray(v) && v.includes(undefined)) o[k] = v.filter(x => x !== undefined); return o; };
+// a disconnected input becomes 0 (silence), so the node stays valid (`mul` without `b` is an error)
+function unref(op, path) { const top = path[0];
+  if (path.length === 1 && (fieldSchema(op.type, top) || {}).kind === 'in') op[top] = 0;
+  else if (path.length === 2 && top === 'inputs') setPath(op, path, null);
+  else if (path.length >= 2 && typeof path[path.length - 2] === 'number' && path[path.length - 1] === 'input') setPath(op, path.slice(0, -1), null);
+  else setPath(op, path, null);
+  return tidyArrays(op); }
+
+// ---------- signal graph ----------
+function defaultsFor(type) { const t = TYPE(type), ex = clone((t && t.example) || {}); delete ex.type; delete ex.name; const names = nodeNames();
+  for (const [k, v] of Object.entries(ex)) { const fs = fieldSchema(type, k) || {}; if (fs.kind === 'in' && typeof v === 'string' && !/^[$=]/.test(v) && !names.has(v.split('.')[0])) ex[k] = 0;
+    else if (k === 'inputs' && Array.isArray(v)) ex[k] = []; else if (Array.isArray(v) && v.some(x => typeof x === 'string' && names.has(x) === false && /^[a-z_]+$/i.test(x) && fs.kind !== 'json')) delete ex[k]; }
+  for (const k of (t?.schema?.required || [])) if (!(k in ex)) { const fs = fieldSchema(type, k) || {}; ex[k] = fs.kind === 'in' ? 0 : fs.kind === 'enum' ? fs.options[0] : fs.kind === 'num' ? 0 : fs.kind === 'bool' ? false : k === 'inputs' ? [] : null; if (ex[k] == null) delete ex[k]; }
+  return ex; }
+async function addNode(type, at) { const name = freeName(type, nodeNames()), op = { type, name, ...defaultsFor(type) };
+  // a sound needs an output: the first node of an empty sound comes with one, reading it
+  const extra = type !== 'output' && !doc().nodes.some(n => n.type === 'output') ? [{ type: 'output', name: freeName('out', new Set([...nodeNames(), name])), input: name }] : [];
+  const r = await ops({ ops: [op, ...extra] }); if (r === undefined) return; S.sel = name; S.tab = 'node'; if (at) await placeAt({ nodes: { [name]: at.map(Math.round) } }); }
+function openNodePalette(x, y, at) { if (!TYPES) return toast('loading node types…');
+  openPal({ x, y, title: 'Add a node', search: true, items: TYPES.filter(t => t.type !== 'output').map(t => ({ label: t.type, hint: (t.blurb || '').split(/[;:(]/)[0], act: () => addNode(t.type, at) })) }); }
+function connect(src, tname, cx, cy) { const t = nodeOf(tname); if (!t || tname === src.split('.')[0]) return; const op = opOf(t);
+  if (t.type === 'mix') return ops({ ops: [{ ...op, inputs: [...(op.inputs || []), src] }] });
+  let items;
+  if (t.type === 'rig') items = (op.bodies || []).map((b, i) => ({ label: `${b.name} drive`, hint: b.drive || '', act: () => { op.bodies[i].drive = src; ops({ ops: [op] }); } }))
+    .concat((op.joints || []).map((j, i) => j.kind === 'contact' ? { label: `${j.a}↔${j.b} slide`, hint: j.slide || '', act: () => { op.joints[i].slide = src; ops({ ops: [op] }); } } : null).filter(Boolean));
+  else items = inFields(t.type).map(k => ({ label: k, hint: op[k] == null ? 'empty' : String(op[k]), act: () => ops({ ops: [{ ...op, [k]: src }] }) }));
+  if (!items.length) return toast(`${tname} takes no signal`);
+  if (items.length === 1) return items[0].act();
+  openPal({ x: cx, y: cy, title: `${src} → ${tname}`, items }); }
+function disconnect(id) { const [node, ...p] = id.split('|'), n = nodeOf(node); if (!n) return; const path = p.map(x => /^\d+$/.test(x) ? +x : x); S.wireSel = null; ops({ ops: [unref(opOf(n), path)] }); }
+function deleteNodes(names) { const d = doc(); names = names.filter(nm => nodeOf(nm) && nodeOf(nm).type !== 'output'); if (!names.length) return toast('the output stays: a sound has exactly one');
+  const gone = new Set(names), list = names.map(name => ({ type: 'delete', name }));
+  d.nodes.filter(n => !gone.has(n.name)).forEach(n => { const rs = refPaths(n).filter(r => gone.has(r.value.split('.')[0])); if (!rs.length) return; let op = opOf(n); rs.sort((a, b) => String(b.path).localeCompare(String(a.path))).forEach(r => { op = unref(op, r.path); }); list.push(op); });
+  const macros = d.macros.filter(m => m.map.some(e => gone.has(e.node))).map(m => ({ ...plainMacro(m), map: plainMacro(m).map.filter(e => !gone.has(e.node)) }));
+  S.multi = null; ops({ ops: list, ...(macros.length ? { macros } : {}) }); }
+async function duplicateNodes(names) { const taken = nodeNames(), list = [], lay = {};
+  names.forEach(nm => { const n = nodeOf(nm); if (!n || n.type === 'output') return; const op = opOf(n); op.name = freeName(nm, taken); taken.add(op.name); list.push(op); const p = cardPos(nm); if (p) lay[op.name] = [p[0] + 30, p[1] + 30]; });
+  if (!list.length) return; if (await ops({ ops: list }) === undefined) return; S.sel = list[0].name; if (Object.keys(lay).length) placeAt({ nodes: lay }); }
+async function renameNode(old, nu) { nu = nu.trim(); if (old === nu) return true; if (!NAME_RE.test(nu) || RESERVED.has(nu)) { toast(`"${nu}" is not a valid node name`); return false; } if (nodeNames().has(nu)) { toast(`a node is already named ${nu}`); return false; }
+  const d = doc(), list = [{ type: 'delete', name: old }];
+  d.nodes.forEach(n => { const op = opOf(n); let ch = n.name === old; if (ch) op.name = nu; refPaths(n).forEach(r => { if (r.value.split('.')[0] === old) { ch = true; setPath(op, r.path, nu + r.value.slice(old.length)); } }); if (ch) list.push(op); });
+  const macros = d.macros.filter(m => m.map.some(e => e.node === old)).map(m => { const pm = plainMacro(m); pm.map = pm.map.map(e => e.node === old ? { ...e, node: nu } : e); return pm; });
+  if (await ops({ ops: list, ...(macros.length ? { macros } : {}) }) === undefined) return false;
+  const lo = d.layout || {}; if (lo.nodes?.[old] || lo.rigs?.[old]) placeAt({ nodes: { [old]: null, ...(lo.nodes?.[old] ? { [nu]: lo.nodes[old] } : {}) }, rigs: { [old]: null, ...(lo.rigs?.[old] ? { [nu]: lo.rigs[old] } : {}) } });
+  if (S.sel === old) S.sel = nu; if (S.openRig === old) S.openRig = nu; return true; }
+function cardPos(name) { const el = document.querySelector(`#graphhost .gnode[data-node="${CSS.escape(name)}"]`); return el ? [parseFloat(el.style.left), parseFloat(el.style.top)] : (doc().layout?.nodes?.[name] || null); }
+function graphXY(e) { const g = $('#graphhost .graph') || $('#graphhost .rig'); const r = g.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+function openAddAtCentre() { if (S.view === 'grid') return; if (S.centre !== 'graph') { S.centre = 'graph'; renderCentre(); }
+  const h = $('#graphhost').getBoundingClientRect();
+  if (S.openRig) return openPal({ x: h.left + h.width / 2 - 140, y: h.top + 60, title: 'Add a body', items: [{ label: 'point mass', act: () => addBody('mass') }, { label: 'modal object', act: () => addBody('modal') }] });
+  const cards = [...document.querySelectorAll('#graphhost .gnode')], y = cards.length ? Math.max(...cards.map(c => parseFloat(c.style.top) + c.offsetHeight)) + 30 : 20;
+  openNodePalette(h.left + h.width / 2 - 140, h.top + 60, [0, y]); }
+
+// ---------- rig: bodies and joints ----------
+const rigOp = () => { const n = nodeOf(S.openRig); return n && n.type === 'rig' ? opOf(n) : null; };
+async function addBody(kind) { const op = rigOp(); if (!op) return; op.bodies ||= []; op.joints ||= []; const nm = freeName(kind === 'mass' ? 'mass' : 'body', new Set(op.bodies.map(b => b.name)));
+  op.bodies.push(kind === 'mass' ? { name: nm, mass: 0.1 } : { name: nm, mass: 0.5, material: 'wood', shape: 'plate', f0: 300, loss: 1.2, noise: 0.6 });
+  if (await ops({ ops: [op] }) !== undefined) S.rigSel = 'b:' + nm; }
+async function addJoint(kind, a, b, at_a, at_b) { const op = rigOp(); if (!op) return; op.joints ||= [];
+  const j = { kind, a, b, at_a: +at_a.toFixed(2), ...(b === 'ground' ? {} : { at_b: +at_b.toFixed(2) }) }; Object.assign(j, kind === 'contact' ? { bounce: 0.4, ...(b === 'ground' ? { gap: 0.3 } : {}) } : { stiffness: 2e5, damping: 2 });
+  op.joints.push(j); if (await ops({ ops: [op] }) !== undefined) S.rigSel = 'j' + (op.joints.length - 1); }
+function deleteRigPart(id) { const op = rigOp(); if (!op) return; const rig = op.name; let macros = doc().macros.map(plainMacro);
+  const reindex = (field, removed) => { macros = macros.map(m => ({ ...m, map: m.map.filter(e => !(e.node === rig && e.field === field && removed.includes(e.index))).map(e => e.node === rig && e.field === field && e.index != null ? { ...e, index: e.index - removed.filter(r => r < e.index).length } : e) })); };
+  const before = JSON.stringify(macros);
+  if (id.startsWith('b:')) { const name = id.slice(2), bi = op.bodies.findIndex(b => b.name === name), jr = op.joints.map((j, i) => j.a === name || j.b === name ? i : -1).filter(i => i >= 0);
+    op.bodies.splice(bi, 1); op.joints = op.joints.filter((j, i) => !jr.includes(i)); reindex('bodies', [bi]); reindex('joints', jr); }
+  else { const ji = +id.slice(1); op.joints.splice(ji, 1); reindex('joints', [ji]); }
+  const orig = doc().macros.map(plainMacro), changed = macros.filter((m, i) => JSON.stringify(m) !== JSON.stringify(orig[i]));
+  S.rigSel = null; ops({ ops: [op], ...(JSON.stringify(macros) !== before && changed.length ? { macros: changed } : {}) }); }
+function renameBody(old, nu) { nu = nu.trim(); if (old === nu) return; const op = rigOp(); if (!op) return; if (!NAME_RE.test(nu) || nu === 'ground') return toast(`"${nu}" is not a valid body name`); if (op.bodies.some(b => b.name === nu)) return toast(`a body is already named ${nu}`);
+  op.bodies.forEach(b => { if (b.name === old) b.name = nu; }); op.joints.forEach(j => { if (j.a === old) j.a = nu; if (j.b === old) j.b = nu; });
+  ops({ ops: [op] }).then(r => { if (r === undefined) return; S.rigSel = 'b:' + nu; const lo = doc().layout?.rigs?.[op.name]?.[old]; if (lo) placeAt({ rigs: { [op.name]: { [old]: null, [nu]: lo } } }); }); }
+
+// ---------- knobs: create, edit, map ----------
+function knobEntryTarget(el) {
+  if (el.dataset.num) { const n = nodeOf(S.sel), k = el.dataset.num, s = slider(k); return n && { ent: { node: n.name, field: k }, cur: n.fields[k], val: t => { const v = s.to ? s.to(t) : t; return Math.abs(v) >= 100 ? Math.round(v) : +v.toFixed(4); } }; }
+  if (el.dataset.rp) { const [a, b, k] = el.dataset.rp.split(':'), id = a === 'b' ? a + ':' + b : a, key = a === 'b' ? k : b, n = nodeOf(S.openRig); if (!n) return null; const f = n.fields;
+    const field = id.startsWith('b:') ? 'bodies' : 'joints', index = id.startsWith('b:') ? f.bodies.findIndex(q => 'b:' + q.name === id) : +id.slice(1), fk = key === 'gap_mm' ? 'gap' : key;
+    return { ent: { node: n.name, field, index, key: fk }, cur: f[field][index][fk] ?? RDEF[fk], val: t => key === 'gap_mm' ? +(rfVal(key, t) / 1000).toFixed(5) : rfVal(key, t) }; }
+  return null; }
+function armMap(name) { S.mapArm = { name, entry: null }; document.body.classList.add('mapping'); const b = $('#mapbar'); b.hidden = false; b.innerHTML = `<span>Mapping <b>◎ ${esc(name)}</b></span><span class="hint">drag a slider to the knob's top value</span><button data-mapdone>Done</button>`; if (S.tab !== 'node') { S.tab = 'node'; renderRight(); } renderDock(); }
+function disarmMap() { S.mapArm = null; document.body.classList.remove('mapping'); $('#mapbar').hidden = true; renderDock(); }
+const saveMacro = (m, oldName) => ops({ ...(oldName && oldName !== m.name ? { delete_macros: [oldName] } : {}), macros: [m] });
+async function newKnob() { const name = freeName('knob', new Set(doc().macros.map(m => m.name)));
+  if (await saveMacro({ name, value: 0.5, default: 0.5, doc: '', game: false, map: [] }) === undefined) return; KEDIT = name; armMap(name); setTimeout(() => openKedit(name), 60); }
+let KEDIT = null;
+function openKedit(name) { const m = doc().macros.find(x => x.name === name), el = $('#kedit'); if (!m) { el.hidden = true; KEDIT = null; return; } KEDIT = name;
+  const k = document.querySelector(`.knob[data-knob="${CSS.escape(name)}"]`), r = k ? k.getBoundingClientRect() : { left: 20, top: innerHeight - 200 };
+  el.innerHTML = `<div class="keh"><input data-kname value="${esc(m.name)}" spellcheck="false"><button data-kclose>${ic('x')}</button></div>
+    <input class="kdoc" data-kdoc value="${esc(m.doc || '')}" placeholder="what it does">
+    <div class="krow"><span>claim</span><select data-kclaim><option value="">none</option>${Object.keys(CLAIMS).concat(['inharmonicity', 'roughness', 'density', 'attack', 'spacing', 'ring']).map(c => `<option ${m.claim && m.claim[0] === c ? 'selected' : ''}>${c}</option>`).join('')}</select>${m.claim ? `<div class="opts"><button data-kdir="1" aria-pressed="${m.claim[1] > 0}">rises</button><button data-kdir="-1" aria-pressed="${m.claim[1] < 0}">falls</button></div>` : ''}</div>
+    <label class="krow"><span>game</span><input type="checkbox" data-kgame ${m.game ? 'checked' : ''}></label>
+    <div class="kmap">${m.map.length ? m.map.map((e, i) => `<div class="kme"><span class="mono" title="${esc(mapText(e)[0])}">${esc(mapText(e)[0])}</span><input type="number" step="any" data-kfrom="${i}" value="${+(+e.from).toFixed(5)}"><span>→</span><input type="number" step="any" data-kto="${i}" value="${+(+e.to).toFixed(5)}"><select data-kcurve="${i}"><option ${e.curve !== 'exp' ? 'selected' : ''}>linear</option><option ${e.curve === 'exp' ? 'selected' : ''}>exp</option></select><button data-kdel="${i}" title="Remove">${ic('x')}</button></div>`).join('') : '<div class="hint">moves nothing yet</div>'}</div>
+    <div class="kfoot"><button class="tbtn" data-karm aria-pressed="${S.mapArm?.name === name}">${ic('pin')}Map a slider</button><button class="tbtn" data-kdef title="Make where it sits the default">Default here</button><span class="grow"></span><button class="tbtn danger" data-kremove>Delete</button></div>`;
+  el.hidden = false; el.style.left = Math.max(8, Math.min(innerWidth - 400, r.left)) + 'px'; el.style.top = Math.max(8, r.top - el.offsetHeight - 10) + 'px'; }
+$('#kedit').addEventListener('change', async e => { const name = KEDIT, m0 = doc().macros.find(x => x.name === name); if (!m0) return; const m = plainMacro(m0), t = e.target;
+  if (t.matches('[data-kname]')) { const nu = t.value.trim(); if (!NAME_RE.test(nu)) { toast(`"${nu}" is not a valid knob name`); t.value = name; return; } if (await saveMacro({ ...m, name: nu }, name) === undefined) { t.value = name; return; } if (S.mapArm?.name === name) S.mapArm.name = nu; KEDIT = nu; return; }
+  if (t.matches('[data-kdoc]')) m.doc = t.value;
+  else if (t.matches('[data-kclaim]')) { if (t.value) m.claim = [t.value, m.claim ? m.claim[1] : 1]; else delete m.claim; }
+  else if (t.matches('[data-kgame]')) m.game = t.checked;
+  else if (t.dataset.kfrom != null) m.map[+t.dataset.kfrom].from = +t.value;
+  else if (t.dataset.kto != null) m.map[+t.dataset.kto].to = +t.value;
+  else if (t.dataset.kcurve != null) m.map[+t.dataset.kcurve].curve = t.value;
+  else return;
+  saveMacro(m); });
+$('#kedit').addEventListener('click', e => { const name = KEDIT, m0 = doc().macros.find(x => x.name === name); if (!m0) return; const m = plainMacro(m0), t = e.target;
+  if (t.closest('[data-kclose]')) { $('#kedit').hidden = true; KEDIT = null; disarmMap(); return; }
+  if (t.closest('[data-kdir]')) { m.claim = [m.claim[0], +t.closest('[data-kdir]').dataset.kdir]; saveMacro(m); return; }
+  if (t.closest('[data-kdel]')) { m.map.splice(+t.closest('[data-kdel]').dataset.kdel, 1); saveMacro(m); return; }
+  if (t.closest('[data-karm]')) { S.mapArm?.name === name ? disarmMap() : armMap(name); openKedit(name); return; }
+  if (t.closest('[data-kdef]')) { m.default = m.value; saveMacro(m); return; }
+  if (t.closest('[data-kremove]')) { disarmMap(); $('#kedit').hidden = true; KEDIT = null; ops({ delete_macros: [name] }); } });
+$('#kedit').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input')) e.target.blur(); });
+$('#mapbar').addEventListener('click', e => { if (e.target.closest('[data-mapdone]')) { disarmMap(); if (KEDIT) openKedit(KEDIT); } });
+// map mode: a slider press starts a map entry and the drag sets its `to`; the node itself is not edited
+document.addEventListener('pointerdown', e => { if (!S.mapArm) return; const el = e.target.closest('input[type=range][data-num], input[type=range][data-rp]'); if (!el) return;
+  const tg = knobEntryTarget(el); if (!tg || typeof tg.cur !== 'number') { toast('that field takes a number'); return; } S.mapArm.entry = { ...tg.ent, from: tg.cur, to: tg.cur }; S.mapArm.val = tg.val; S.mapArm.el = el; }, true);
+document.addEventListener('input', e => { const a = S.mapArm; if (!a || !a.entry || e.target !== a.el) return; e.stopImmediatePropagation(); a.entry.to = a.val(+e.target.value);
+  const out = e.target.nextElementSibling; if (out) out.textContent = `${+(+a.entry.from).toFixed(4)} → ${+(+a.entry.to).toFixed(4)}`; }, true);
+document.addEventListener('change', e => { const a = S.mapArm; if (!a || !a.entry || e.target !== a.el) return; e.stopImmediatePropagation(); dragRight = false; const m0 = doc().macros.find(x => x.name === a.name); if (!m0) return; const m = plainMacro(m0), ent = a.entry; a.entry = null;
+  const same = x => x.node === ent.node && x.field === ent.field && (x.index ?? null) === (ent.index ?? null) && (x.key ?? null) === (ent.key ?? null);
+  const exp = ent.from > 0 && ent.to > 0 && (ent.to / ent.from > 4 || ent.from / ent.to > 4);
+  m.map = m.map.filter(x => !same(x)).concat([{ ...ent, curve: exp ? 'exp' : 'linear' }]);
+  saveMacro(m).then(r => { if (r !== undefined) toast(`${a.name} now moves ${mapText(ent)[0]}`); }); }, true);
+
+// ---------- sounds: new, duplicate, template, save, export ----------
+function showEmpty() { if ($('#empty')) return; const el = document.createElement('div'); el.id = 'empty'; el.className = 'empty';
+  el.innerHTML = `<div class="emptybox"><b>No sounds open</b><div class="sbtns"><button class="primary" data-enew>${ic('plus')}New sound</button><button class="tbtn" data-etpl>From template</button></div></div>`;
+  el.onclick = e => { if (e.target.closest('[data-enew]')) newSound(); else if (e.target.closest('[data-etpl]')) newSound(null, 'door_slam'); }; document.body.appendChild(el); }
+async function newSound(from, template) { const ids = new Set(((ST && ST.sounds) || []).map(s => s.name)); const name = freeName(template || (from ? from + '_copy' : 'sound'), ids);
+  if (await tool('new_sound', { name, ...(template ? { template } : {}) }) === undefined) return;
+  if (from) { const d = doc(); await tool('sound_ops', { doc: name, ops: d.nodes.map(opOf), macros: d.macros.map(plainMacro), params: d.params, kind: d.kind, ...(d.duration ? { duration: d.duration } : {}), seed: d.seed }); }
+  $('#docpop').hidden = true; await openSound(name); S.centre = 'graph'; if (ST) renderCentre(); }
+function saveDialog() { openDlg(`Save ${ST.doc} to the catalog`, [{ label: 'role', key: 'role', kind: 'select', options: ['', 'pre', 'crack', 'body', 'weight', 'after', 'bed', 'texture', 'whole'] }, { label: 'material', key: 'material', kind: 'select', options: ['', 'wood', 'metal', 'glass', 'stone', 'plastic', 'cloth', 'water', 'any'] }, { label: 'tags', key: 'tags' }, { label: 'description', key: 'description', kind: 'area' }], 'Save',
+  v => tool('catalog', { action: 'save', doc: ST.doc, ...(v.role ? { role: v.role } : {}), ...(v.material ? { material: v.material } : {}), ...(v.tags ? { tags: v.tags.split(/[,\s]+/).filter(Boolean) } : {}), ...(v.description ? { description: v.description } : {}) }).then(r => { if (r) toast(r.text.split('\n')[0]); })); }
+function exportDialog() { openDlg(`Export ${ST.doc}`, [{ label: 'format', key: 'format', kind: 'select', options: ['ogg', 'wav'], value: 'ogg' }, { label: 'ogg quality', key: 'quality', kind: 'number', value: 0.5, step: 0.1 }, { label: 'wav bits', key: 'bits', kind: 'select', options: ['16', '24', '32'], value: '24' }, { label: 'variations', key: 'variations', kind: 'number', value: 1, step: 1 }], 'Export',
+  v => tool('export', { doc: ST.doc, ...(v.format === 'wav' ? { format: 'wav', bits: +v.bits } : { quality: v.quality }), ...(v.variations > 1 ? { variations: v.variations } : {}) }).then(r => { if (r) toast(r.text.split('\n')[0]); })); }
+function stepHistory(dir) { const h = doc().history, i = h.findIndex(x => x.current), j = i + dir; if (i < 0 || j < 0 || j >= h.length) { toast(dir < 0 ? 'nothing to undo' : 'nothing to redo'); return; } act('jump', { id: h[j].id }); }
+
+// ---------- small popovers: a menu / palette and a dialog ----------
+let PAL = null;
+function openPal({ x, y, title, items, search }) { closePal(); const el = document.createElement('div'); el.className = 'pal'; document.body.appendChild(el); PAL = { el, items, q: '', i: 0 };
+  el.innerHTML = `${title ? `<div class="palh">${esc(title)}</div>` : ''}${search ? '<input placeholder="Search" autocomplete="off" spellcheck="false">' : ''}<div class="list"></div>`;
+  const draw = () => { const q = PAL.q.toLowerCase(), score = t => !q ? 0 : t.label.toLowerCase().startsWith(q) ? 0 : t.label.toLowerCase().includes(q) ? 1 : 2;
+    let its = PAL.items.filter(t => !q || (t.label + ' ' + (t.hint || '')).toLowerCase().includes(q)); if (q) its = its.map((t, i) => [t, i]).sort((a, b) => score(a[0]) - score(b[0]) || a[1] - b[1]).map(x => x[0]);
+    PAL.vis = its; PAL.i = Math.min(PAL.i, Math.max(0, its.length - 1));
+    el.querySelector('.list').innerHTML = its.slice(0, 200).map((t, i) => `<button data-pi="${i}" class="${i === PAL.i ? 'on' : ''}"><span>${esc(t.label)}</span>${t.hint ? `<span class="hint">${esc(t.hint)}</span>` : ''}</button>`).join('') || '<div class="hint" style="padding:6px 8px">nothing matches</div>'; };
+  draw(); PAL.draw = draw;
+  el.style.left = Math.max(8, Math.min(innerWidth - 300, x)) + 'px'; el.style.top = Math.max(8, Math.min(innerHeight - Math.min(400, el.offsetHeight) - 8, y)) + 'px';
+  const inp = el.querySelector('input'); if (inp) { inp.focus(); inp.oninput = () => { PAL.q = inp.value; PAL.i = 0; draw(); }; } else { el.tabIndex = -1; el.focus(); }
+  el.onkeydown = e => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); PAL.i = Math.max(0, Math.min(PAL.vis.length - 1, PAL.i + (e.key === 'ArrowDown' ? 1 : -1))); draw(); el.querySelector('.on')?.scrollIntoView({ block: 'nearest' }); }
+    else if (e.key === 'Enter') { e.preventDefault(); const t = PAL.vis[PAL.i]; if (t) { closePal(); t.act(); } } };
+  // a menu opened by a drop appears under the cursor: the drop's own click must not pick an item
+  const born = performance.now(); el.onclick = e => { if (performance.now() - born < 300) return; const b = e.target.closest('[data-pi]'); if (!b) return; const t = PAL.vis[+b.dataset.pi]; closePal(); t.act(); }; }
+function closePal() { if (PAL) { PAL.el.remove(); PAL = null; } }
+document.addEventListener('mousedown', e => { if (PAL && !e.target.closest('.pal')) closePal(); if (!e.target.closest('#kedit, .knob, #mapbar, .pal') && !$('#kedit').hidden && !S.mapArm) { $('#kedit').hidden = true; KEDIT = null; } });
+function openDlg(title, fields, primary, onOk) { const el = $('#dlg');
+  el.innerHTML = `<div class="dlgbox"><div class="dlgh">${esc(title)}<button data-dlgx>${ic('x')}</button></div>${fields.map(f => `<label class="dfield"><span>${esc(f.label)}</span>${f.kind === 'select' ? `<select data-dk="${f.key}">${f.options.map(o => `<option ${o === f.value ? 'selected' : ''}>${o}</option>`).join('')}</select>` : f.kind === 'area' ? `<textarea data-dk="${f.key}" rows="3"></textarea>` : `<input data-dk="${f.key}" type="${f.kind || 'text'}" value="${f.value ?? ''}" ${f.step ? `step="${f.step}"` : ''}>`}</label>`).join('')}<div class="dlgf"><button class="tbtn" data-dlgx>Cancel</button><button class="primary" data-dlgok>${esc(primary)}</button></div></div>`;
+  el.hidden = false; el.onclick = e => { if (e.target === el || e.target.closest('[data-dlgx]')) { el.hidden = true; return; } if (e.target.closest('[data-dlgok]')) { const v = Object.fromEntries([...el.querySelectorAll('[data-dk]')].map(i => [i.dataset.dk, i.type === 'number' ? +i.value : i.value])); el.hidden = true; onOk(v); } };
+  el.querySelector('[data-dk]')?.focus(); }
+
+// ---------- inspector field editors, from each type's schema ----------
+function fieldEd(n, k, v) { const d = doc();
+  if (d.macros.some(m => m.map.some(x => x.node === n.name && x.field === k && x.index == null))) return fieldRow(n, k, v);
+  const fs = fieldSchema(n.type, k) || { kind: typeof v === 'number' ? 'num' : 'json' }, L = `<label title="${esc(fs.desc || k)}">${esc(k)}</label>`, opt = !(TYPE(n.type)?.schema?.required || []).includes(k);
+  const x = opt ? `<button class="x" data-funset="${esc(k)}" title="Unset (back to the default)">×</button>` : '';
+  if (fs.kind === 'enum') return `<div class="field">${L}<div class="opts">${fs.options.map(o => `<button data-enum="${esc(k)}" data-v="${esc(o)}" aria-pressed="${o === v}">${esc(o)}</button>`).join('')}</div></div>`;
+  if (fs.kind === 'in') {
+    if (typeof v === 'number') { const s = slider(k), pos = s.from ? s.from(Math.max(v, 1e-6)) : v; return `<div class="field">${L}<input type="range" data-num="${esc(k)}" min="${s.min}" max="${s.max}" step="${s.step}" value="${pos}"><span class="val"><span data-numv="${esc(k)}">${s.fmt(v)}</span><button class="x" data-fsig="${esc(k)}" title="From a node or an expression">⇄</button></span></div>`; }
+    if (typeof v === 'string' && nodeNames().has(v.split('.')[0])) return `<div class="field">${L}<div class="link"><button data-goto="${esc(v)}">← ${esc(v)}</button><button class="x" data-fclear="${esc(k)}" title="Disconnect">×</button></div></div>`;
+    return `<div class="field">${L}<input class="fexpr" data-ftxt="${esc(k)}" value="${esc(typeof v === 'string' ? v : JSON.stringify(v))}" spellcheck="false"><button class="x" data-fsig="${esc(k)}" title="From a node or a number">⇄</button></div>`; }
+  if (fs.kind === 'num') return `<div class="field">${L}<div class="link"><input class="fnum" type="number" step="any" data-fbox="${esc(k)}" value="${v}">${x}</div></div>`;
+  if (fs.kind === 'bool') return `<div class="field">${L}<div class="link"><input type="checkbox" data-fbool="${esc(k)}" ${v ? 'checked' : ''}>${x}</div></div>`;
+  if (fs.kind === 'str') return `<div class="field">${L}<div class="link"><input class="fexpr" data-fstr="${esc(k)}" value="${esc(v)}" spellcheck="false">${x}</div></div>`;
+  return `<div class="field">${L}<textarea class="fjson" data-fjson="${esc(k)}" rows="1" spellcheck="false">${esc(JSON.stringify(v))}</textarea></div>`; }
+function fieldRows(n) { const skip = k => isRigish(n) && (k === 'bodies' || k === 'joints'); const set = Object.keys(n.fields).filter(k => !skip(k));
+  const props = Object.keys(TYPE(n.type)?.schema?.properties || {}).filter(k => !(k in n.fields) && !skip(k));
+  return set.map(k => fieldEd(n, k, n.fields[k])).join('') + (props.length ? `<div class="field"><label></label><div class="link"><select class="faddsel" data-fadd><option value="">+ field</option>${props.map(p => `<option title="${esc(fieldSchema(n.type, p)?.desc || '')}">${esc(p)}</option>`).join('')}</select></div></div>` : ''); }
+function sourceMenu(e, name, k) { const n = nodeOf(name), r = e.target.getBoundingClientRect();
+  const items = doc().nodes.filter(x => x.name !== name && x.type !== 'output').map(x => ({ label: x.name, hint: x.type, act: () => act('set_field', { node: name, field: k, value: x.name }) }));
+  doc().nodes.filter(x => isRigish(x) && x.name !== name).forEach(x => items.push({ label: x.name + '.force', hint: 'port', act: () => act('set_field', { node: name, field: k, value: x.name + '.force' }) }));
+  items.unshift({ label: 'a number', act: () => act('set_field', { node: name, field: k, value: typeof n.fields[k] === 'number' ? n.fields[k] : 1 }) }, { label: 'an expression', hint: '=… or $param', act: () => act('set_field', { node: name, field: k, value: '=1' }) });
+  openPal({ x: r.left - 120, y: r.bottom + 4, title: `${name}.${k}`, items, search: items.length > 8 }); }
+const fieldDefault = (type, k) => { const ex = TYPE(type)?.example, fs = fieldSchema(type, k) || {}; if (ex && k in ex && !(fs.kind === 'in' && typeof ex[k] === 'string')) return clone(ex[k]); return fs.kind === 'enum' ? fs.options[0] : fs.kind === 'bool' ? true : fs.kind === 'str' ? '' : fs.kind === 'json' ? [] : fs.kind === 'in' ? 1 : 0; };
+
+// ---------- editing gestures ----------
+let GD = null, WD = null, MQ = null, BD = null, JD = null, SUPPRESS = false;
+const editable = el => !!(el && el.closest && el.closest('input, textarea, select, [contenteditable]'));
+$('#graphhost').addEventListener('pointerdown', e => { if (e.button !== 0) return; const t = e.target;
+  if (S.openRig) { const rig = nodeOf(S.openRig); if (!rig || rig.type !== 'rig') return;
+    const je = t.closest('[data-jedge]'); if (je) { e.preventDefault(); e.stopPropagation(); const [x, y] = graphXY(e), bx = je.closest('.rbody').getBoundingClientRect(); JD = { from: je.dataset.jedge, edge: je.classList.contains('top') ? 'top' : 'bot', x0: x, y0: y, at: Math.max(0, Math.min(1, (e.clientX - bx.left - 10) / (bx.width - 20))) }; renderGraph(); return; }
+    const rb = t.closest('.rbody'); if (rb && !t.closest('.ah')) { const [x, y] = graphXY(e); BD = { rig: rig.name, name: rb.dataset.rsel.slice(2), x0: x, y0: y, orig: [parseFloat(rb.style.left), parseFloat(rb.style.top)], pos: null }; }
+    return; }
+  const out = t.closest('[data-gout]'); if (out) { e.preventDefault(); e.stopPropagation(); const r = out.getBoundingClientRect(), g = $('#graphhost .graph').getBoundingClientRect(); WD = { src: out.dataset.gout, x0: r.left + r.width / 2 - g.left, y0: r.top + r.height / 2 - g.top }; out.classList.add('on'); return; }
+  const card = t.closest('.gnode'); if (card && !t.closest('button, .rthumb, input')) { const nm = card.dataset.node, names = S.multi && S.multi.has(nm) ? [...S.multi] : [nm]; const [x, y] = graphXY(e); GD = { names, x0: x, y0: y, orig: Object.fromEntries(names.map(n => [n, cardPos(n)])), pos: null }; return; }
+  if (!t.closest('.gnode, .whit, .gtool') && $('#graphhost .graph')) { const [x, y] = graphXY(e); MQ = { x0: x, y0: y, x, y, add: e.shiftKey }; } });
+addEventListener('pointermove', e => {
+  if (GD) { const [x, y] = graphXY(e), dx = x - GD.x0, dy = y - GD.y0; if (!GD.pos && Math.hypot(dx, dy) < 4) return; GD.pos = Object.fromEntries(GD.names.map(n => [n, [Math.max(0, GD.orig[n][0] + dx), Math.max(0, GD.orig[n][1] + dy)]])); S.gdrag = GD; renderGraph(); return; }
+  if (WD) { const [x, y] = graphXY(e), tmp = $('#gtemp'); if (tmp) tmp.innerHTML = `<path d="M${WD.x0},${WD.y0} C${WD.x0 + 60},${WD.y0} ${x - 60},${y} ${x},${y}" stroke="#6fa8ff" stroke-width="2" fill="none" stroke-dasharray="5 4"/>`;
+    document.querySelectorAll('.gnode.droptarget').forEach(c => c.classList.remove('droptarget')); const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.gnode'); if (over && over.dataset.node !== WD.src.split('.')[0]) over.classList.add('droptarget'); return; }
+  if (MQ) { const [x, y] = graphXY(e); MQ.x = x; MQ.y = y; let m = $('#graphhost .marquee'); if (!m) { m = document.createElement('div'); m.className = 'marquee'; $('#graphhost .graph').appendChild(m); } Object.assign(m.style, { left: Math.min(x, MQ.x0) + 'px', top: Math.min(y, MQ.y0) + 'px', width: Math.abs(x - MQ.x0) + 'px', height: Math.abs(y - MQ.y0) + 'px' }); return; }
+  if (BD) { const [x, y] = graphXY(e), dx = x - BD.x0, dy = y - BD.y0; if (!BD.pos && Math.hypot(dx, dy) < 4) return; BD.pos = [Math.max(0, BD.orig[0] + dx), Math.max(0, BD.orig[1] + dy)]; S.bdrag = BD; renderGraph(); return; }
+  if (JD) { const [x, y] = graphXY(e), tmp = $('#rtemp'); if (tmp) tmp.innerHTML = `<line x1="${JD.x0}" y1="${JD.y0}" x2="${x}" y2="${y}" stroke="#6fa8ff" stroke-width="2" stroke-dasharray="5 4"/><circle cx="${x}" cy="${y}" r="4" fill="#6fa8ff"/>`;
+    document.querySelectorAll('.rbody.droptarget, .rground.droptarget').forEach(c => c.classList.remove('droptarget')); const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.rbody, .rground'); if (over && over.dataset.rsel !== 'b:' + JD.from) over.classList.add('droptarget'); } });
+addEventListener('pointerup', e => {
+  if (GD) { const g = GD; GD = null; S.gdrag = null; if (g.pos) { SUPPRESS = true; placeAt({ nodes: Object.fromEntries(Object.entries(g.pos).map(([k, v]) => [k, v.map(Math.round)])) }); } return; }
+  if (WD) { const w = WD; WD = null; document.querySelectorAll('.gnode.droptarget, .gout.on').forEach(c => c.classList.remove('droptarget', 'on')); const tmp = $('#gtemp'); if (tmp) tmp.innerHTML = '';
+    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.gnode'); if (over) connect(w.src, over.dataset.node, e.clientX, e.clientY); return; }
+  if (MQ) { const q = MQ; MQ = null; $('#graphhost .marquee')?.remove(); const x0 = Math.min(q.x0, q.x), x1 = Math.max(q.x0, q.x), y0 = Math.min(q.y0, q.y), y1 = Math.max(q.y0, q.y);
+    if (x1 - x0 < 4 && y1 - y0 < 4) { if (!q.add && (S.multi || S.wireSel)) { S.multi = null; S.wireSel = null; renderGraph(); } return; }
+    const hit = [...document.querySelectorAll('#graphhost .gnode')].filter(c => { const l = parseFloat(c.style.left), t = parseFloat(c.style.top); return l < x1 && l + 150 > x0 && t < y1 && t + c.offsetHeight > y0; }).map(c => c.dataset.node);
+    S.multi = new Set([...(q.add && S.multi ? S.multi : []), ...hit]); if (!S.multi.size) S.multi = null; else { S.sel = hit[0] || S.sel; S.tab = 'node'; } SUPPRESS = true; renderGraph(); renderRight(); return; }
+  if (BD) { const b = BD; BD = null; S.bdrag = null; if (b.pos) { SUPPRESS = true; placeAt({ rigs: { [b.rig]: { [b.name]: b.pos.map(Math.round) } } }); } return; }
+  if (JD) { const j = JD; JD = null; const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.rbody, .rground'); renderGraph(); if (!over) return; SUPPRESS = true;
+    if (over.classList.contains('rground')) return openPal({ x: e.clientX, y: e.clientY, title: `${j.from} → ground`, items: [{ label: 'contact', act: () => addJoint('contact', j.from, 'ground', j.at, 0) }] });
+    const to = over.dataset.rsel.slice(2); if (to === j.from) return; const br = over.getBoundingClientRect(), atTo = Math.max(0, Math.min(1, (e.clientX - br.left - 10) / (br.width - 20))), upper = j.edge === 'bot';
+    const mk = kind => () => upper ? addJoint(kind, j.from, to, j.at, atTo) : addJoint(kind, to, j.from, atTo, j.at);
+    openPal({ x: e.clientX, y: e.clientY, title: `${j.from} ↔ ${to}`, items: [{ label: 'contact', act: mk('contact') }, { label: 'spring', act: mk('spring') }] }); } });
+$('#graphhost').addEventListener('click', e => { if (SUPPRESS) { SUPPRESS = false; e.stopPropagation(); return; } const t = e.target;
+  if (t.closest('[data-gadd]')) { e.stopPropagation(); openAddAtCentre(); return; }
+  if (t.closest('[data-gtidy]')) { e.stopPropagation(); placeAt(S.openRig ? { rigs: { [S.openRig]: null } } : { nodes: null }); return; }
+  const ra = t.closest('[data-radd]'); if (ra) { e.stopPropagation(); addBody(ra.dataset.radd); return; }
+  if (t.closest('[data-rpdel]')) { e.stopPropagation(); deleteRigPart(S.rigSel); return; }
+  const w = t.closest('.whit'); if (w) { e.stopPropagation(); S.wireSel = S.wireSel === w.dataset.wire ? null : w.dataset.wire; renderGraph(); return; }
+  const card = t.closest('.gnode'); if (card && e.shiftKey) { e.stopPropagation(); const nm = card.dataset.node; S.multi ||= new Set(S.sel ? [S.sel] : []); S.multi.has(nm) ? S.multi.delete(nm) : S.multi.add(nm); if (!S.multi.size) S.multi = null; S.sel = nm; renderGraph(); renderRight(); return; }
+  if (card) { S.multi = null; S.wireSel = null; } }, true);
+$('#graphhost').addEventListener('dblclick', e => { const t = e.target;
+  if (S.openRig) { if (!t.closest('.rbody, .rpop, .rjoint, .rigbar') && nodeOf(S.openRig)?.type === 'rig') { e.stopPropagation(); openPal({ x: e.clientX, y: e.clientY, title: 'Add a body', items: [{ label: 'point mass', act: () => addBody('mass') }, { label: 'modal object', act: () => addBody('modal') }] }); } return; }
+  if (t.closest('.gnode .n')) { e.stopPropagation(); S.sel = t.closest('.gnode').dataset.node; S.tab = 'node'; renderGraph(); renderRight(); const i = $('[data-rename]'); if (i) { i.focus(); i.select(); } return; }
+  if (!t.closest('.gnode, .gtool') && $('#graphhost .graph')) { e.stopPropagation(); openNodePalette(e.clientX, e.clientY, graphXY(e)); } }, true);
+$('#graphhost').addEventListener('change', e => { if (e.target.matches('[data-rbrename]')) renameBody(e.target.dataset.rbrename, e.target.value); });
+$('#graphhost').addEventListener('keydown', e => { if (e.target.matches('[data-rbrename]') && e.key === 'Enter') e.target.blur(); });
+
+// inspector
+$('#right').addEventListener('change', async e => { const t = e.target, n = nodeOf(S.sel); let k;
+  if (t.matches('[data-rename]')) { if (!await renameNode(t.dataset.rename, t.value)) t.value = t.dataset.rename; return; }
+  if ((k = t.dataset.fbox)) return act('set_field', { node: S.sel, field: k, value: +t.value });
+  if ((k = t.dataset.fbool)) return act('set_field', { node: S.sel, field: k, value: t.checked });
+  if ((k = t.dataset.fstr)) return act('set_field', { node: S.sel, field: k, value: t.value });
+  if ((k = t.dataset.fjson)) { let v; try { v = JSON.parse(t.value); } catch (er) { toast(`${k}: not valid JSON`); return; } return act('set_field', { node: S.sel, field: k, value: v }); }
+  if ((k = t.dataset.ftxt)) { const s = t.value.trim(), v = s !== '' && !isNaN(+s) ? +s : s; return act('set_field', { node: S.sel, field: k, value: v }); }
+  if (t.matches('[data-fadd]') && t.value) { const f = t.value; return act('set_field', { node: S.sel, field: f, value: fieldDefault(n.type, f) }); }
+  if (t.matches('[data-pval]')) return ops({ params: { [t.dataset.pval]: +t.value } });
+  if (t.matches('[data-sseed]')) return ops({ seed: Math.max(1, Math.round(+t.value)) });
+  if (t.matches('[data-sdur]')) return ops({ duration: +t.value || 0 });
+  const out = doc().nodes.find(x => x.type === 'output');
+  if (t.matches('[data-stval]')) return act('set_field', { node: out.name, field: out.fields.lufs != null ? 'lufs' : 'peak_db', value: +t.value });
+  if (t.matches('[data-sfade]')) return act('set_field', { node: out.name, field: 'fade_' + t.dataset.sfade, value: +t.value / 1000 });
+  if (t.matches('[data-sceil]')) return act('set_field', { node: out.name, field: 'ceiling_db', value: +t.value }); });
+$('#right').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-rename], [data-pnew], input.fnum, input.fexpr')) { e.target.blur(); if (e.target.matches('[data-pnew]')) $('[data-padd]')?.click(); } });
+$('#right').addEventListener('click', e => { const t = e.target; let b;
+  if ((b = t.closest('[data-fclear]'))) return act('set_field', { node: S.sel, field: b.dataset.fclear, value: 0 });
+  if ((b = t.closest('[data-funset]'))) return act('set_field', { node: S.sel, field: b.dataset.funset, value: null });
+  if ((b = t.closest('[data-fsig]'))) return sourceMenu(e, S.sel, b.dataset.fsig);
+  if (t.closest('[data-ndel]')) return deleteNodes(S.multi ? [...S.multi] : [S.sel]);
+  if (t.closest('[data-ndup]')) return duplicateNodes(S.multi ? [...S.multi] : [S.sel]);
+  if ((b = t.closest('[data-skind]'))) { const k = b.dataset.skind; return ops(k === 'loop' && !doc().duration ? { kind: k, duration: 2 } : { kind: k }); }
+  if (t.matches('[data-sdurauto]')) return ops({ duration: t.checked ? 0 : Math.max(0.1, +(doc().seconds || 1).toFixed(2)) });
+  if ((b = t.closest('[data-starget]'))) { const o = doc().nodes.find(x => x.type === 'output'), k = b.dataset.starget, op = opOf(o); delete op.lufs; delete op.peak_db; if (k === 'lufs') op.lufs = -16; if (k === 'peak') op.peak_db = -1; return ops({ ops: [op] }); }
+  if ((b = t.closest('[data-pdel]'))) { const p = clone(doc().params); delete p[b.dataset.pdel]; return toast('removing a param: delete its uses first, then it can go (sound_ops has no param delete)'); }
+  if (t.closest('[data-padd]')) { const i = $('[data-pnew]'), nm = i.value.trim().replace(/^\$/, ''); if (!NAME_RE.test(nm)) return toast('a param name is a word'); return ops({ params: { [nm]: 1 } }); }
+  if (t.closest('[data-dlg="save"]')) return saveDialog();
+  if (t.closest('[data-dlg="export"]')) return exportDialog(); });
+
+// dock
+$('#dock').addEventListener('click', e => { if (e.target.closest('[data-kadd]')) { newKnob(); return; } const kn = e.target.closest('.knob .kn'); if (kn) { $('#kpop').hidden = true; openKedit(kn.closest('[data-knob]').dataset.knob); } });
+// sound switcher: new, duplicate, template
+$('#docpop').addEventListener('click', e => { if (e.target.closest('[data-newsound]')) newSound(); else if (e.target.closest('[data-dupsound]')) newSound(ST.doc);
+  else if (e.target.closest('[data-tplsound]')) { const r = e.target.getBoundingClientRect(); openPal({ x: r.left, y: r.bottom + 4, title: 'From a template', items: [{ label: 'door_slam', hint: 'the approved layered slam', act: () => newSound(null, 'door_slam') }] }); } });
+$('#opslog').addEventListener('click', () => { $('#opslog').classList.toggle('open'); renderOpslog(); });
+
+// keys
+addEventListener('keydown', e => { if (!ST) return; const mod = e.metaKey || e.ctrlKey, k = e.key.toLowerCase();
+  if (e.key === 'Escape') { if (PAL) { closePal(); e.stopImmediatePropagation(); return; } if (!$('#dlg').hidden) { $('#dlg').hidden = true; e.stopImmediatePropagation(); return; } if (S.mapArm) { disarmMap(); e.stopImmediatePropagation(); return; } if (!$('#kedit').hidden) { $('#kedit').hidden = true; KEDIT = null; e.stopImmediatePropagation(); return; } if (S.wireSel || S.multi) { S.wireSel = null; S.multi = null; renderGraph(); e.stopImmediatePropagation(); return; } return; }
+  if (editable(e.target) || S.view === 'grid') return;
+  if (mod && k === 'z') { e.preventDefault(); e.stopImmediatePropagation(); stepHistory(e.shiftKey ? 1 : -1); return; }
+  if (mod && k === 'd') { e.preventDefault(); e.stopImmediatePropagation(); if (S.sel) duplicateNodes(S.multi ? [...S.multi] : [S.sel]); return; }
+  if (mod) return;
+  if (k === 'a') { e.preventDefault(); e.stopImmediatePropagation(); openAddAtCentre(); return; }
+  if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); e.stopImmediatePropagation();
+    if (S.openRig && S.centre === 'graph') { if (S.rigSel && nodeOf(S.openRig)?.type === 'rig') deleteRigPart(S.rigSel); return; }
+    if (S.wireSel) return disconnect(S.wireSel); if (S.multi) return deleteNodes([...S.multi]); if (S.sel && S.centre === 'graph') deleteNodes([S.sel]); } }, true);
+
 async function boot() {
   try {
     if (!IN_WINDOW && !BRIDGE) await loadScript('fixture.js');   // plain browser: fixture.js answers sounder.call and the bulk GETs
     await loadFonts();
     CMAP = new Uint8Array(await bulk('render/colormap', {}));
+    sounder.call('node_types', {}).then(t => { TYPES = t; if (ST) renderRight(); }).catch(() => {});
     applyState(await sounder.call('state', {}));
     requestAnimationFrame(overlay);
     if (BRIDGE) (async function poll(since) { // the session's `rev` moved: the page pulls `state` (as sounder.changed does)

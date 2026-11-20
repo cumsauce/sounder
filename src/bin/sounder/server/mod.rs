@@ -6,4 +6,4 @@ mod tools;
 
 pub(crate) use bridge::OnChange;
 pub(crate) use bridge::{Cmd, Done, run_session};
-pub(crate) use tools::Tools;
+pub(crate) use tools::{Tools, window_tool};
