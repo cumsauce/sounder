@@ -1092,3 +1092,29 @@ the click; macro: `brightness` -> both notes' `freq`, exp, claim `centroid` 1):
 ]
 ```
 
+
+## More ready-made nodes by brief
+
+Moved from AGENTS.md "Which ready-made node for which sound" to keep that file
+agent-sized; AGENTS.md keeps one row pointing here. Same columns.
+
+| Brief | Node | Start with | Fits |
+|---|---|---|---|
+| a telephone bell, a ringing bell | `bell` | `freq` (750), `at` (strike time or list), `ring` | Farnell's telephone bell: partial groups, a strike and the bell body; 3.6 dB from the patch played by Pd |
+| a bouncing ball | `ball_bounce` | `length` (to rest), `gap` (first interval), `pitch` | Farnell's ball: sine thumps that come faster, shorter and quieter |
+| a cricket, night insects | `cricket` | `tick`, `pulses`, `period`, `pitch`, `ring` (0.3; lower is more cicada) | Farnell's cricket: chirps of rising pulses ringing narrow bands at 4.5 / 9 kHz |
+| a ruler twang, a sprung tongue, "boing" | `twang` | `freq` (overhang pitch), `vibrato`, `ring` | Farnell's twanged ruler: a phasor-driven clamped bar exciting free modes |
+| a police siren, an emergency vehicle | `siren` | `rate` (3 = yelp, 0.1 = wail), `low` / `high` Hz, `echo` (the patch's street; 0 dry) | Farnell's siren: a log-shaped oscillator swept through a clipped plastic horn |
+| a creaking door, a hinge | `door_creak` | `force` (signal; creaks over 0.3) | Farnell's stick-slip hinge through wood resonances and a square panel |
+| a jet engine, a turbine | `jet` | `speed` (signal 0.1..1, spools up through a 0.2 Hz low-pass) | Farnell's jet: turbine tones and a clipped, swept burner roar |
+| a sci-fi alarm, red alert | `red_alert` | `at` (whoop times), `pitch` | Farnell's klaxon: a rising buzz through feedback delays and a formant horn |
+| a stream, a brook; pouring into a vessel | `stream`; `pour` | `flow`, `depth`, `range`, `layers`, `loop`; `fill_time`, `vessel`, `bubbles` | heard: `stream` ok (bubbles), at `flow` 2 / `layers` 4 a gurgling tube (good); `pour` ok (chemistry-set bubbles); `pour` needs a `duration` of `fill_time` + 1.5 s |
+| a helicopter; a rocket motor | `helicopter`; `rocket` | `rotor_rate`, `engine`, `tail`, `distance` (signals); `thrust`, `ignition`, `burn` | heard: helicopter good (near and far); rocket as a fake game weapon; set a `duration` |
+| a housefly; cicadas | `fly`; `cicada` | `freq`, `res`, `flutter`; `kind` buzz / rattle / call, `pitch`, `rate` | heard: `fly` as a fly (good); `cicada` as a rattlesnake / scissors (both parts). Both never decay: set a `duration`. (`roar` is the older creature, heard as a cow: use `creature`) |
+| waves on a shore, surf | `surf` | `shore` sand / shingle, `wave_height`, `period`, `distance`, `loop` | foley's shore: roar, plunge bubbles, foam hiss, backwash; quiet: set `lufs`. Picked: shingle, dry, over sand and storm |
+| lava; a cave | `lava`; `cave` | `size`, `activity`; `depth`, `mass`, `drips`, `openness` | foley's beds: rumble plus ringing bubbles; ceiling drips over a sub rumble (a `cave` loop needs `onepole` hp 20 Hz then `crossfade_loop`). Picked: `lava` (default size); `cave` rebuilt (pool drips in a long echo): the default picked, dry |
+| frogs, a pond chorus | `frog` | `size` cm, `rate` calls/s, `chorus` | foley's sac-resonator call, repeated and layered (birdsong by species is `syrinx` `species`). Rebuilt with per-call pitch and rasping pulses: a small frog (3 cm) picked |
+| wind through grass, leaves, dry stalks; underwater | `leaves`; `underwater` | `wind` (signal), `foliage`, `gust`; `depth` (signal), `bubbles`, `pressure` | foley's plant brush and submerged bed; `underwater` loops want `bubbles` 4. Picked: `leaves` trees, `underwater` dry |
+| a chattering robot, a beam-up shimmer, a sci-fi torpedo, a hand-held beam | `droid`, `transporter`, `torpedo`, `phaser_beam` | `chatter`, `pitch`, `mood`; `chime`, `reverb`; `sweep`, `ring`; `mode` kill / stun; each a `length` | heard: transporter good, beam good (an alert), droid ok (too random), torpedo ok (a space weapon) |
+| a telephone: dial, busy, ringback, touch tones, rotary; a two-tone alarm | `phone_tone`; `two_tone` | `kind`, `digits`, `line` 0..1, `tempo`; `low`, `high`, `rate`, `shape` | heard: dial, busy, ringback, touch tones, two_tone good; pulse_dial as distant gunfire |
+| thunder, a distant storm | `thunder` | `distance`, `brightness`, `length`, `duration` | foley's N-wave and rumble; `brightness` tilts above 100 Hz, `length` stretches the rumble; a `duration` that fits |
