@@ -107,8 +107,11 @@ impl Window {
         let window = WindowBuilder::new()
             .with_title("sounder")
             .with_inner_size(LogicalSize::new(1360.0, 860.0))
+            .with_window_icon(window_icon())
             .build(&self.event_loop)
             .map_err(|e| format!("could not open the window: {e}"))?;
+
+        set_dock_icon();
 
         let backend = Arc::new(SessionBackend { tx: tx.clone() });
         let ipc_proxy = proxy.clone();
@@ -312,3 +315,38 @@ const PROBE_JS: &str = r#"(() => {
   out.state = typeof ST !== 'undefined' && ST ? { doc: ST.doc, sounds: (ST.sounds || []).length, nodes: ST.sound && ST.sound.nodes.length } : null;
   window.ipc.postMessage(JSON.stringify({ name: 'probe_report', args: out }));
 })()"#;
+
+/// The app icon (a struck sound spiralling in, in the spectrogram's palette;
+/// `icon.svg` is its source).
+const ICON_PNG: &[u8] = include_bytes!("icon.png");
+
+/// The icon as a tao window icon (the title bar / taskbar off macOS).
+fn window_icon() -> Option<tao::window::Icon> {
+    let decoder = png::Decoder::new(std::io::Cursor::new(ICON_PNG));
+    let mut reader = decoder.read_info().ok()?;
+    let mut buf = vec![0; reader.output_buffer_size()?];
+    let info = reader.next_frame(&mut buf).ok()?;
+    if info.color_type != png::ColorType::Rgba || info.bit_depth != png::BitDepth::Eight {
+        return None;
+    }
+    buf.truncate(info.buffer_size());
+    tao::window::Icon::from_rgba(buf, info.width, info.height).ok()
+}
+
+/// macOS takes the Dock icon from the application, not the window.
+#[cfg(target_os = "macos")]
+fn set_dock_icon() {
+    use objc2::AllocAnyThread;
+    use objc2_app_kit::{NSApplication, NSImage};
+    use objc2_foundation::{MainThreadMarker, NSData};
+    let Some(mtm) = MainThreadMarker::new() else {
+        return;
+    };
+    let data = NSData::with_bytes(ICON_PNG);
+    if let Some(image) = NSImage::initWithData(NSImage::alloc(), &data) {
+        unsafe { NSApplication::sharedApplication(mtm).setApplicationIconImage(Some(&image)) };
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn set_dock_icon() {}

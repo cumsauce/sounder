@@ -10,3 +10,4 @@
 /.sounder/
 /assets/
 /refs/
+!/src/bin/sounder/window/icon.png
