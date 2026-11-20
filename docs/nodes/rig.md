@@ -142,3 +142,10 @@ on, and counts as held for the rebound cap.
 
 Listen page for batch 29: https://claude.ai/artifact/VTX9qodU1K7Fbbx8eBCLSE
 (`picks` collection).
+
+## Heard (batch 29)
+
+The waveguide string on a wooden body was picked over a plain `string`
+node (part `rig_string_on_box`). The `air` joint lost both boxes it was in:
+a drum with a shell tube and a pipe with its air column were each beaten by
+the build without it. `docs/history/labels/batch29_findings.md`.

@@ -1,0 +1,100 @@
+{
+ "role": "whole",
+ "material": "wood",
+ "description": "heard as the best string struck on a wooden body of its box in a blind listen (over a plain `string` node and a quieter body); built as: `rig`, a 2 g pick at 1.5 m/s on a waveguide string f0 196 (decay 2.5, damping 0.3) tied by a spring (2e4 N/m) to a fixed 0.35 m, 3 mm wood plate (noise 0.6, tilt 4)",
+ "tags": [
+  "string",
+  "pluck",
+  "guitar",
+  "wood",
+  "body",
+  "waveguide",
+  "rig"
+ ],
+ "origin": "batch 29 (rig waveguides); picked best of its box by the listener on 2026-11-20",
+ "doc": {
+  "name": "rig_string_on_box",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.5,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "rig",
+    "name": "hit",
+    "bodies": [
+     {
+      "name": "pick",
+      "mass": 0.002,
+      "velocity": -1.5
+     },
+     {
+      "name": "str",
+      "mass": 0.002,
+      "waveguide": {
+       "f0": 196,
+       "decay": 2.5,
+       "damping": 0.3
+      }
+     },
+     {
+      "name": "box",
+      "mass": 0.5,
+      "fixed": true,
+      "material": "wood",
+      "size": 0.35,
+      "thickness": 0.003,
+      "loss": 1.5,
+      "noise": 0.6,
+      "tilt": 4,
+      "level_db": 0
+     }
+    ],
+    "joints": [
+     {
+      "a": "pick",
+      "b": "str",
+      "at_b": 0.15,
+      "hardness": 0.8,
+      "bounce": 0.2
+     },
+     {
+      "kind": "spring",
+      "a": "box",
+      "b": "str",
+      "at_a": 0.3,
+      "at_b": 0.98,
+      "stiffness": 20000.0,
+      "damping": 0.5
+     }
+    ],
+    "at": 0.005,
+    "gravity": 0
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "hit",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "body",
+    "value": 0.5,
+    "doc": "how loud the wooden body is against the string",
+    "map": [
+     {
+      "node": "hit",
+      "field": "bodies",
+      "index": 2,
+      "key": "level_db",
+      "from": -12,
+      "to": 6
+     }
+    ]
+   }
+  ]
+ }
+}
