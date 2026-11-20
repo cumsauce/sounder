@@ -78,11 +78,11 @@ modeler's `MODELER_*`.
 | `sound_ops` | atomic batch: `ops` (node upserts; `{"type": "delete", "name": ...}` removes), `params`, `macros`, `delete_macros`, `kind`, `duration` (null or 0 = automatic length again), `seed`, `sample_rate`, `expect`, `spec` (the brief as data; null removes it); renders for real; one history step if anything changed |
 | `listen` | the image + descriptor table; `node`, `seeds`, `sweep {param, values: [..]}`, `zoom {t: [a, b], hz: [lo, hi]}`, `diff`, `reference`, `reference_set` (a bad `zoom` / `sweep` error shows the accepted shape) |
 | `verify` | PASS / FAIL checks (`checks`, `only`, `expect`; see Senses); any FAIL is an error |
-| `describe_op` | node types, one line each; or one type's example + schema (`kind`, aliases `type` / `node`) |
+| `describe_op` | node types, one line each; or one type's example + schema (`kind`, aliases `type` / `node`) and the built-in parts built on it |
 | `extract_modes` | strongest partials of a WAV as a ready `resonators` node; `residual: "x.wav"` also writes what they miss and returns a rebuild |
 | `play` | plays on the speakers for the human (the window, or `--headless --audio`); a plain headless server answers with an error saying so |
-| `new_sound` | opens a sound beside the others (`kind`, `duration` 0..600 s, `seed` can be set at once, so a loop is one call; `template` starts from an approved sound: `door_slam`; a loop with no `duration` is an error naming the field); an open name is refused |
-| `catalog` | `list search sources describe save load delete close` (`search`: parts and saved sounds by `text` / `role` / `material` / `approved`; `sources`: the WAVs in the sources folders; `save` takes `role` / `material` to make a part); the sound is `name` or `doc` (both given and different is an error) |
+| `new_sound` | opens a sound beside the others (`kind`, `duration` 0..600 s, `seed` can be set at once, so a loop is one call; `template` starts from an approved sound: `door_slam`; `brief` (the brief in words) lists the parts, templates and ready-made nodes that fit it; a loop with no `duration` is an error naming the field); an open name is refused |
+| `catalog` | `list search sources describe save load delete close` (`search`: parts and saved sounds by `text` / `role` / `material` / `approved`, and with `text` alone also the templates and ready-made nodes whose names or one-line descriptions share its words; `sources`: the WAVs in the sources folders; `save` takes `role` / `material` to make a part); the sound is `name` or `doc` (both given and different is an error) |
 | `export` | Ogg Vorbis files (default; `format: "wav"` for WAV) + `<name>.sfx.json` manifest |
 | `undo redo jump history` | the history tree; one `sound_ops` call is one step |
 | `add_annotation` | comment on a node / region, or `resolve` / `reopen` one |
@@ -387,7 +387,8 @@ bus above they pass `layers` (`tests/parts.rs`).
 
 ## Which ready-made node for which sound
 
-**Search first.** `catalog {action: "search", text: "<the sound you need>"}`
+**Search first.** `new_sound {name, brief: "<the brief>"}` lists the parts,
+templates and ready-made nodes that fit it; `catalog {action: "search", text: "<the sound you need>"}`
 (plus `role` / `material`) finds the 130 built-in parts by what the listener
 heard: two eval agents who matched their brief against a table row instead
 missed `impact_sign_wind` and `impact_bowed_bar`. Then this short table; the

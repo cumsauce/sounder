@@ -35,7 +35,7 @@ pub use doc::{ApplyReport, DocEdit, Kind, RenderOpts, Rendered, SOUND_FORMAT_VER
 pub use eval::{Ctx, Evaluated, Parsed, clear_cache, evaluate};
 pub use instance::SoundSource;
 pub use macros::{Claim, KnobMove, Macro, MapCurve, MapEntry, Measure};
-pub use node::{In, NODE_TYPES, describe, example};
+pub use node::{In, NODE_TYPES, blurb, describe, example};
 pub use params::Params;
 pub use spec::{Component, Spec};
 

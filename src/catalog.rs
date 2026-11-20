@@ -212,6 +212,122 @@ pub fn search(entries: &[CatalogEntry], q: &Query) -> Vec<CatalogEntry> {
     hits.into_iter().map(|(_, e)| e).collect()
 }
 
+/// Words a brief carries that say nothing about which node fits it.
+const BRIEF_NOISE: &[&str] = &[
+    "sound", "sfx", "effect", "like", "game", "into", "from", "by",
+];
+
+fn brief_words(text: &str) -> Vec<String> {
+    words_of(text)
+        .into_iter()
+        .filter(|w| !STOP_WORDS.contains(&w.as_str()) && !BRIEF_NOISE.contains(&w.as_str()))
+        .collect()
+}
+
+/// A brief word against a node or template name: stricter than `word_hit`
+/// ("rev" from "revving" must not name `reverb`), and a compound brief word
+/// ends with the name ("footstep" names `step`).
+fn name_hit(q: &str, name: &[String]) -> bool {
+    name.iter().any(|h| {
+        h == q
+            || (q.len() >= 4 && h.starts_with(q))
+            || (h.len() >= 4
+                && (q.starts_with(h.as_str()) && q.len() <= h.len() + 2 || q.ends_with(h.as_str())))
+    })
+}
+
+/// Templates and ready-made node types whose name (or a template's brief,
+/// a node's one-line blurb) shares words with `text`: the routing that
+/// AGENTS.md's table does by hand. A name hit counts three times a blurb
+/// hit, so `fire` finds the `fire` node before nodes that mention fire.
+/// Returns (templates, nodes), best first, at most `max` nodes.
+pub fn brief_matches(text: &str, max: usize) -> (Vec<String>, Vec<(String, &'static str)>) {
+    let words = brief_words(text);
+    if words.is_empty() {
+        return (Vec::new(), Vec::new());
+    }
+    let score = |name: &str, body: &str| {
+        let n = words_of(&name.replace('_', " "));
+        let b = words_of(body);
+        words
+            .iter()
+            .map(|w| {
+                if name_hit(w, &n) {
+                    3
+                } else if word_hit(w, &b) {
+                    1
+                } else {
+                    0
+                }
+            })
+            .sum::<usize>()
+    };
+    let templates = crate::session::TEMPLATES
+        .iter()
+        .filter_map(|(n, body)| {
+            let brief = serde_json::from_str::<serde_json::Value>(body)
+                .ok()
+                .and_then(|v| v["spec"]["brief"].as_str().map(str::to_string))
+                .unwrap_or_default();
+            // A template needs a name word or two brief words: "a heavy door" yes, "heavy" no.
+            let sc = score(n, &brief);
+            (sc >= 2).then(|| (sc, n.to_string()))
+        })
+        .collect::<Vec<_>>();
+    let mut templates = templates;
+    templates.sort_by_key(|a| std::cmp::Reverse(a.0));
+    let mut nodes: Vec<(usize, String, &'static str)> = sfx_graph::NODE_TYPES
+        .iter()
+        .filter(|t| **t != "output")
+        .filter_map(|t| {
+            let bl = sfx_graph::blurb(t);
+            let sc = score(t, bl);
+            (sc > 0).then(|| (sc, t.to_string(), bl))
+        })
+        .collect();
+    nodes.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+    // A name hit wins: then only nodes whose name matched stay. Without one a
+    // node needs two shared words, so one common blurb word does not flood it.
+    let named = nodes.first().is_some_and(|n| n.0 >= 3);
+    nodes.retain(|n| if named { n.0 >= 3 } else { n.0 >= 2 });
+    nodes.truncate(max);
+    (
+        templates.into_iter().map(|(_, n)| n).collect(),
+        nodes.into_iter().map(|(_, n, b)| (n, b)).collect(),
+    )
+}
+
+/// `brief_matches` as text lines for a tool result ("" when nothing fits).
+pub fn format_brief_matches(text: &str, max: usize) -> String {
+    let (templates, nodes) = brief_matches(text, max);
+    let mut out = String::new();
+    for t in &templates {
+        out += &format!(
+            "- template `{t}`: new_sound {{template: \"{t}\"}} starts from the approved sound (do not rebuild it)\n"
+        );
+    }
+    for (n, b) in &nodes {
+        out += &format!("- node `{n}`: {b} (describe_op {{kind: \"{n}\"}})\n");
+    }
+    out
+}
+
+/// Built-in parts whose graph uses node type `ty` (a `voices` patch included).
+pub fn parts_using(ty: &str) -> Vec<String> {
+    fn uses(nodes: &[serde_json::Value], ty: &str) -> bool {
+        nodes.iter().any(|n| {
+            n["type"].as_str() == Some(ty) || n["patch"].as_array().is_some_and(|p| uses(p, ty))
+        })
+    }
+    let mut v: Vec<String> = crate::parts::builtin()
+        .into_iter()
+        .filter(|p| uses(&p.doc.nodes, ty))
+        .map(|p| p.doc.name)
+        .collect();
+    v.sort();
+    v
+}
+
 pub fn format_search(hits: &[CatalogEntry]) -> String {
     if hits.is_empty() {
         return "no match (catalog search with no arguments lists every part and saved sound)"
@@ -319,4 +435,34 @@ pub fn format_list(entries: &[CatalogEntry]) -> String {
         );
     }
     out
+}
+
+#[cfg(test)]
+mod brief_tests {
+    use super::*;
+
+    fn nodes(b: &str) -> Vec<String> {
+        brief_matches(b, 5).1.into_iter().map(|(n, _)| n).collect()
+    }
+
+    #[test]
+    fn briefs_route_to_templates_and_nodes() {
+        let (t, _) = brief_matches("a heavy wooden door slammed shut", 5);
+        assert_eq!(t, ["door_slam"]);
+        assert_eq!(nodes("a campfire crackling, fire"), ["fire"]);
+        assert_eq!(nodes("an explosion far away"), ["explosion"]);
+        assert_eq!(nodes("a car engine revving"), ["engine"]);
+        assert!(nodes("footsteps on gravel").contains(&"step".to_string()));
+        assert!(nodes("a metal sign hit while the wind pushes it").contains(&"wind".to_string()));
+        assert!(nodes("a struck plate").contains(&"modal".to_string()));
+        assert!(brief_matches("the", 5).1.is_empty());
+        assert!(brief_matches("heavy", 5).0.is_empty());
+    }
+
+    #[test]
+    fn parts_using_finds_the_impact_parts() {
+        let p = parts_using("impact");
+        assert!(p.contains(&"impact_bowed_bar".to_string()), "{p:?}");
+        assert!(parts_using("no_such_node").is_empty());
+    }
 }

@@ -191,7 +191,7 @@ macro_rules! node_types {
         }
 
         /// One line per type: what the node is for (its [`Describe::BLURB`]).
-        fn blurb(ty: &str) -> &'static str {
+        pub fn blurb(ty: &str) -> &'static str {
             match ty {
                 $($ty => <$var as Describe>::BLURB,)*
                 _ => "",

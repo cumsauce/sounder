@@ -289,6 +289,10 @@ pub(crate) struct NewSoundArgs {
     /// snap, knock and latch). The whole graph is copied and stays editable.
     #[serde(default)]
     pub(crate) template: Option<String>,
+    /// The brief in words ("a pipe dropped on concrete"): the result lists
+    /// the parts, templates and ready-made nodes that fit it, best first.
+    #[serde(default)]
+    pub(crate) brief: Option<String>,
 }
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
