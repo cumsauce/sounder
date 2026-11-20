@@ -200,6 +200,7 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .rigbar { position: sticky; top: 0; left: 0; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(24,26,32,.92); border-bottom: 1px solid var(--line); font-size: 12px; }
 .rigbar button { color: var(--accent); } .rigbar .hint { margin-left: auto; }
 .rig { position: relative; margin: 10px 12px; user-select: none; }
+.graph, .gnode, .rbody, .gtool, .rigbar { -webkit-user-select: none; user-select: none; }
 .rig svg.rw { position: absolute; inset: 0; overflow: visible; pointer-events: none; z-index: 2; }
 .rig svg.rw .ah { pointer-events: all; cursor: ew-resize; stroke: transparent; stroke-width: 10; } .rig svg.rw .ah:hover { r: 6; }
 .rig svg.rw .hit { pointer-events: stroke; cursor: pointer; stroke: transparent; stroke-width: 18; fill: none; }

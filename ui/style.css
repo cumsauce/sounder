@@ -412,3 +412,7 @@ body.mapping input[type=range][data-fnum], body.mapping input[type=range][data-r
 .empty { position: fixed; inset: 48px 0 0 0; z-index: 20; display: grid; place-items: center; background: var(--bg); }
 .emptybox { display: flex; flex-direction: column; gap: 12px; align-items: center; color: var(--dim); }
 .emptybox .primary { display: flex; gap: 6px; align-items: center; background: var(--accent); color: #08162b; border-radius: 6px; padding: 6px 14px; font-weight: 500; }
+
+/* dragging cards and bodies must not select their labels */
+.graph, .gnode, .rig, .rbody, .gtool, .rigbar { -webkit-user-select: none; user-select: none; }
+.rig input, .rpop input { -webkit-user-select: text; user-select: text; }
