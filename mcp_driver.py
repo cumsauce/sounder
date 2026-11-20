@@ -61,8 +61,10 @@ def _default_binary():
     here = os.path.dirname(os.path.abspath(__file__))
     rel = os.path.join(here, "target", "release", "sounder")
     dbg = os.path.join(here, "target", "debug", "sounder")
-    # The newer of the two builds (a fresh `cargo install` / release build wins).
-    cands = [p for p in (rel, dbg) if os.path.exists(p)]
+    # Sounder.app (tools/app/install.sh) keeps a build of the latest commit.
+    app = "/Applications/Sounder.app/Contents/MacOS/sounder-server"
+    # The newest build wins (a fresh dev build, or the app after an update).
+    cands = [p for p in (rel, dbg, app) if os.path.exists(p)]
     return max(cands, key=os.path.getmtime) if cands else dbg
 
 
@@ -125,7 +127,9 @@ class SounderSession:
     def __init__(self, mode="headless", log=None, slot=None, own_slot=None):
         # mode: "windowed" (the sounder window beside the server), anything
         # else is headless (no window).
-        cmd = [BINARY] + ([] if mode == "windowed" else ["--headless"]) + os.environ.get("SOUNDER_EXTRA_ARGS", "").split()
+        # Chosen at each start, so a daemon restarting its server picks up a newer build.
+        binary = os.environ.get("SOUNDER_BINARY") or _default_binary()
+        cmd = [binary] + ([] if mode == "windowed" else ["--headless"]) + os.environ.get("SOUNDER_EXTRA_ARGS", "").split()
         cmd.append("--restore")  # daemon restarts and throwaway runs pick up the autosave
         env = dict(os.environ)
         if slot:
