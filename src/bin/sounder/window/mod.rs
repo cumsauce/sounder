@@ -27,7 +27,7 @@ use serde_json::{Value, json};
 use sfx_graph::Audio;
 use sounder::session::Session;
 use tao::dpi::LogicalSize;
-use tao::event::{Event, WindowEvent};
+use tao::event::{Event, StartCause, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy};
 use tao::platform::run_return::EventLoopExtRunReturn;
 use tao::window::WindowBuilder;
@@ -190,6 +190,9 @@ impl Window {
             *flow = ControlFlow::Wait;
             let _keep = (&window, &webview);
             match event {
+                // AppKit finishes launching inside the loop and puts the
+                // default icon back, so set the Dock icon again once it has.
+                Event::NewEvents(StartCause::Init) => set_dock_icon(),
                 Event::WindowEvent {
                     event: WindowEvent::CloseRequested,
                     ..
