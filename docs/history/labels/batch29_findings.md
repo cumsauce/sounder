@@ -10,6 +10,8 @@ Three boxes, blind, each take dry and dressed. Key:
 | a string struck on a wooden body | `rig` waveguide string tied to a wood plate, dry | a plain `string` node and a quieter body |
 
 - The waveguide string on a body works: saved as `rig_string_on_box`
-  (knob: body level).
+  (knob: coupling, the spring tying the string to the body; at 0.5 it is
+  the heard 2e4 N/m. A body-level knob moved the output by only 0.76 dB:
+  the rig normalizes its output).
 - The air joint lost both of its boxes to the builds without it: it is kept
   but unheard-good; leave it out of drums and drops.

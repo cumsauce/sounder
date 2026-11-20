@@ -81,17 +81,18 @@
   "params": {},
   "macros": [
    {
-    "name": "body",
+    "name": "coupling",
     "value": 0.5,
-    "doc": "how loud the wooden body is against the string",
+    "doc": "how firmly the string is tied to the wooden body: more, more body in the tone",
     "map": [
      {
       "node": "hit",
-      "field": "bodies",
-      "index": 2,
-      "key": "level_db",
-      "from": -12,
-      "to": 6
+      "field": "joints",
+      "index": 1,
+      "key": "stiffness",
+      "from": 5000,
+      "to": 80000,
+      "curve": "exp"
      }
     ]
    }
