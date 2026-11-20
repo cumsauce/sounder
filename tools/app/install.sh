@@ -67,7 +67,7 @@ BIN="$CACHE/target/release/sounder"
 
 # the bundle, built beside the destination and swapped in whole
 STAGE="$CACHE/Sounder.app"; rm -rf "$STAGE"; mkdir -p "$STAGE/Contents/MacOS" "$STAGE/Contents/Resources"
-cp "$BIN" "$STAGE/Contents/MacOS/sounder"
+cp "$BIN" "$STAGE/Contents/MacOS/sounder-server"
 cp "$WT/mcp_driver.py" "$STAGE/Contents/Resources/mcp_driver.py"
 PY="$(command -v python3)"
 sed -e "s|@PYTHON@|$PY|" "$WT/tools/app/launcher.sh" > "$STAGE/Contents/MacOS/Sounder"; chmod +x "$STAGE/Contents/MacOS/Sounder"

@@ -8,6 +8,6 @@ SOCK="${SOUNDER_SOCKET:-/tmp/sounder-mcp.sock}"
 if [ -S "$SOCK" ] && "@PYTHON@" -c "import socket,sys; s=socket.socket(socket.AF_UNIX); s.settimeout(1); s.connect(sys.argv[1])" "$SOCK" 2>/dev/null; then
   exit 0
 fi
-export SOUNDER_BINARY="$HERE/sounder"
+export SOUNDER_BINARY="$HERE/sounder-server"
 cd "$HOME"
 nohup "@PYTHON@" "$RES/mcp_driver.py" --daemon --windowed >/dev/null 2>&1 &
