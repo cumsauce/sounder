@@ -103,6 +103,8 @@ reads the weight at rest: use it to detect touches).
   is chatter and is only capped): a 5 g marble in a held glass bowl at
   `bounce` 0.75 keeps landing with flights 0.75 of the one before; before
   this the bowl's modes took its bounce and it stopped after 3 landings.
+  A contact's `rebound` "cap" keeps the earlier rule (only limited to
+  `bounce`); `rig_wind_chime` uses it to stay as heard.
 - A free body resting on the ground has its lowest mode pinned by the
   contact: a 2 kg tube rings at its 160 Hz `f0` while it lands, then the
   resting contact passes the vibration into its rigid motion and it quietens

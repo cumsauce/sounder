@@ -138,6 +138,11 @@ pub struct RigJoint {
     /// rebound cap (how the batch 27 / 28 rigs were heard).
     #[serde(default)]
     pub damp: Option<String>,
+    /// Contact with `damp` "body": how a real rebound leaves (default
+    /// "exact": at `bounce` x the landing speed; "cap": only limited to it,
+    /// as the batch 30 wind chime was heard).
+    #[serde(default)]
+    pub rebound: Option<String>,
     /// Contact: speed of `a` along `b`'s surface, m/s (a signal, default 0):
     /// a bow drawn, a box dragged, a stick scraped.
     #[serde(default)]
@@ -185,7 +190,7 @@ pub struct Rig {
 
 impl Describe for Rig {
     const BLURB: &'static str = "bodies (point masses, modal objects) joined by contacts and springs (a gap makes a rattle), stepped together per sample: a hammer on a plate with a loose screw, a ball on a drum; vertical motion; port `force` is the largest contact force above the resting load; peaks at -6 dBFS";
-    const WORDS: &'static [&'static str] = &["kind", "a", "b", "damp", "ends"];
+    const WORDS: &'static [&'static str] = &["kind", "a", "b", "damp", "rebound", "ends"];
     fn example() -> serde_json::Value {
         serde_json::json!({
             "bodies": [
@@ -245,6 +250,7 @@ struct Join {
     // same landing and keep its cap.
     apart: usize,
     point_damp: bool,
+    exact_rebound: bool,
     slide: Option<Sig>,
     friction: Option<(f32, f32)>,
     vc: f32,
@@ -539,6 +545,15 @@ impl Eval for Rig {
                     return Err(format!("joint {n}: damp {o:?}: give \"body\" or \"point\""));
                 }
             };
+            let exact_rebound = match j.rebound.as_deref() {
+                None | Some("exact") => true,
+                Some("cap") => false,
+                Some(o) => {
+                    return Err(format!(
+                        "joint {n}: rebound {o:?}: give \"exact\" or \"cap\""
+                    ));
+                }
+            };
             let bounce = j.bounce.unwrap_or(0.5);
             if !(0.0..=0.98).contains(&bounce) {
                 return Err(format!("joint {n}: bounce {bounce}: give 0..0.98"));
@@ -561,6 +576,7 @@ impl Eval for Rig {
                 apart: usize::MAX / 2,
                 // A waveguide has no rigid motion: damp the speed at the touch.
                 point_damp: point_damp || ta.is_some() || tb.is_some(),
+                exact_rebound,
                 slide,
                 friction,
                 vc,
@@ -686,7 +702,7 @@ impl Eval for Rig {
                                         // modes took most of a light ball's
                                         // bounce (a marble on a bowl stopped
                                         // after 3 landings at `bounce` 0.75).
-                                        bodies[j.a].vy = if rel > 0.3 * target {
+                                        bodies[j.a].vy = if j.exact_rebound && rel > 0.3 * target {
                                             vb + target
                                         } else {
                                             bodies[j.a].vy.min(vb + target)

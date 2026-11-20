@@ -16,7 +16,7 @@ in this folder; `describe_op <type>` has the schema and an example.
   as modal], [level_db], [waveguide {kind string | tube, f0 | length
   [tension], [ends open | closed | stopped], [radius 0.02], [decay],
   [damping 0.3]}]}], joints: [{kind contact | spring | air, a, b | "ground",
-  [at_a], [at_b], [gap], [hardness] [radius] [bounce] [damp] [slide]
+  [at_a], [at_b], [gap], [hardness] [radius] [bounce] [damp] [rebound] [slide]
   [friction] [stribeck] | [stiffness] [damping] | [strength 1]}], [gravity 9.81], [oversample], [at], [gain_db], [seed]}: several
   bodies joined by contacts and springs (a spring with a `gap` is a rattle),
   stepped together; a body may be a string or tube waveguide, and an `air`
