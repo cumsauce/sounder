@@ -47,9 +47,13 @@ open in the next.
 modeler's `MODELER_*`.
 
 1. `summary` — what is open, what the human asked for (open comments).
-2. `new_sound` (or `sound_ops` with `sound: "name"`), then `sound_ops` to build.
-   Run `catalog search` for parts first (see "Parts"), then
-   **search first**, then "Which ready-made node for which sound": a brief that fits a
+2. **`new_sound {name, brief: "<the brief, word for word>"}`**: it lists the
+   approved parts, templates and nodes that fit the brief, best first. When
+   the top one fits, start from it (a `sound` node, or `catalog load` to
+   edit a copy) instead of building from nodes: in a re-run of the physics
+   eval, the two agents who skipped `brief` rebuilt from primitives although
+   the top suggestion was the picked part. Then `sound_ops` to build. More
+   in "Which ready-made node for which sound": a brief that fits a
    ready-made node starts from that node, not a rebuilt graph. For an impact,
    a hit or a mechanism, read "Layering a designed sound": the node is the
    body layer, and a designed sound adds the pre, crack, weight and after
@@ -365,8 +369,8 @@ Before building a layer from nodes, look for one:
   Give the document the part's `duration` (`catalog describe` shows it):
   with automatic length the instance is cut at 60 dB under its peak (a
   struck string part came out 0.87 s instead of its heard 2.5 s). A part
-  that starts with a fall (`rig_ball_on_drum`: 0.27 s before the first
-  hit) can go through `trim` to lose the silence.
+  that starts with a fall can go through `trim` to lose the silence
+  (`rig_ball_on_drum` does so itself).
 - A knob on the outer sound can drive a part's own knob: `{"node": "body",
   "field": "macros", "key": "size", "from": 0.2, "to": 0.9}` (`node` is the
   `sound` node, `key` the part's knob). Knobs on parts are usually
@@ -401,6 +405,7 @@ listener's notes on knocks, metal, stone) is `docs/routing.md`.
 | footsteps | `step` or its parts (`all_purpose_step`, `concrete_step`, `gravel_step`, ...); not `footstep`, not an impact |
 | a dropped / bouncing / rattling / scraped / bowed object | the `impact_*` parts (`impact_pipe_drop`, `impact_coin_drop`, `impact_block_drop`, `impact_lid_rattle`, `impact_sign_wind`, `impact_bowed_bar`, `impact_box_scrape`, `impact_bending_sheet`) |
 | objects acting on each other | the `rig_*` parts (`rig_ball_on_drum`, `rig_pan_and_lid`, `rig_tin_roof_screw`, `rig_string_on_box`) |
+| none of those parts fits, but objects move each other | the nodes: `impact` (one striker or the floor on one object: `height` / `speed`, `drive`, `slide` + `friction`), `rig` (several bodies, `contact` / `spring` joints; a spring `gap` rattles); `docs/nodes/modal.md`, `docs/nodes/rig.md` |
 | a knock | `pattern` -> `voices` of `contact` -> wood `modal` (`noise` 0.6, `tilt` 4, `loss` ~3) + crack + thud (`docs/routing.md`) |
 | metal: pipe, bar, lid, coin | `modal` metal, `noise` 0.4, `noise_width` 0.1, `loss` 0.3-0.6, lowest mode 120-200 Hz for a pipe |
 | stone, brick | noise layers + a quiet stone `modal` (`docs/routing.md`, "From the round 6 listen") |

@@ -39,3 +39,9 @@ Runs:
   or template, 2 (the sign, the bowed bar) from primitives. Rating page
   "Physics Brief Ratings": 11 good, 1 OK (the laser control: "cute tiny but
   not realistic"); the lid rattle "good but sounds a bit large".
+- `runs/2026-11-20-physics/` re-run (4 briefs, after the AGENTS.md
+  restructure and tool-side routing): the bowed bar now found its part
+  (`catalog search "bowed"`), the drum kept its part; the sign and the string
+  were built from primitives, by agents that called `new_sound` without
+  `brief` (with it, both briefs list the picked part first). Getting-started
+  step 2 now leads with `new_sound {name, brief}`. Not rated.

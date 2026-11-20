@@ -1,7 +1,7 @@
 {
  "role": "whole",
  "material": "wood",
- "description": "heard as the best ball dropped on a drum of its box in a blind listen; built as: `rig`, a 60 g ball (contact hardness 0.2, bounce 0.6) dropped 0.3 m on a fixed wood membrane, f0 110, loss 2, noise 0.3",
+ "description": "heard as the best ball dropped on a drum of its box in a blind listen; built as: `rig`, a 60 g ball (contact hardness 0.2, bounce 0.6) dropped 0.3 m on a fixed wood membrane, f0 110, loss 2, noise 0.3; the 0.27 s fall before the first hit is trimmed (`trim`), the rest as heard",
  "tags": [
   "drum",
   "ball",
@@ -50,9 +50,14 @@
     "at": 0.005
    },
    {
+    "type": "trim",
+    "name": "trim_fall",
+    "input": "hit"
+   },
+   {
     "type": "output",
     "name": "out",
-    "input": "hit",
+    "input": "trim_fall",
     "fade_in": 0.0005
    }
   ],
