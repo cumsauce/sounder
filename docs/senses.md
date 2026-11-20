@@ -154,3 +154,111 @@ What each line of `listen` says. This was moved from AGENTS.md, which keeps a su
 When the counter's own events form a regular train, `density` uses them: each gap must sit close to its neighbours' median, or at a whole multiple of it, so a speed-up or a missed beat still counts. Missed beats are filled in, and the tenths count the filled train. A resonant tick rings into several envelope peaks, and the peak method read a zipper's teeth 5 x too high. The `listen` line says "a regular train of counted events, missed beats filled in" (`tests/it/onsets.rs`, `a_ringing_speeding_train_with_quiet_teeth_reads_its_tooth_rate`).
 
 A periodic envelope under 200 Hz counts as a tick train only if it dips 12 dB or more between ticks (the 1 ms envelope's 90th over its 10th percentile). A servo's 85 Hz gear wobble of 6 dB had read as 111 events/s for 3 hits (`a_wobbling_tone_is_not_a_tick_train`). Known limit: a continuous motor whose envelope repeats above 200 Hz can still read as a dense train through the envelope-peak method. A vending machine's motor read 158/s for 14 events.
+
+## listen in full
+
+- `listen`: one PNG (log-frequency spectrogram, waveform with peak and RMS
+  envelopes, loudness curve; seeds / sweep values tile as labelled columns, 8
+  at most) and the descriptor table, one line each: length, level, time
+  (attack, decay -20 / -60 dB), the headline swell/attack, onsets (40 ms
+  merge and a fine 5 ms count), pitch, events strong / weak, spectrum
+  start / middle / end and whole-sound (occupied-band flatness), energy
+  shares by role band, centroid and pitch by tenth, the 8 octave x 5 segment
+  dB table (the main "what does it sound like"), modes, stereo, density, the
+  onset table, and aliasing / inharmonicity / modulation / roughness. Every
+  line is explained in `docs/senses.md`, "The descriptor table". `diff:
+  true` shows the previous render and a dB-difference spectrogram; `zoom
+  {t: [a, b], hz: [lo, hi]}` magnifies a window, and the text then
+  describes that window (times count from `a`); `descriptors: false` is the
+  image alone.
+- `heard_as` (a line in `listen`, on when a model is set up; `heard_as:
+  false` skips it): the five closest of about 100 sound descriptions
+  (`tools/hearing/vocabulary.txt`) an audio-text model
+  (`laion/larger_clap_general`, run by `tools/hearing/heard_as.py`) finds
+  for each column, and where the spec's brief ranks among them. **A hint,
+  not a check:** it called the crate drop the listener rated great "a snare
+  drum" and ranked its brief 83 of 102, while the approved door slam's brief
+  ranks 1. Read it as "what a stranger might mistake this for". The worker
+  starts on the first `listen` (about 4 s) and its Python is
+  `SOUNDER_HEARING_PYTHON`, else `~/.local/share/sounder-hearing/venv`;
+  without one the line says the hint is off. `SOUNDER_HEARING=off` turns it
+  off.
+
+## verify checks in full
+
+- `verify` / `expect` checks: `peak_db` `true_peak_db` `lufs` `duration`
+  `silent_edges` `clicks` `dc` `finite` `loop_seam` `bands` `pitch` `onsets`
+  `variations` `rebuild` `reference` `reference_set` `macros` `layers` `spec`, and the synthesis checks
+  `aliasing` `inharmonicity` `modulation` `roughness`. Each line is PASS /
+  FAIL with the measured value; a FAIL says what to change. Four ways to ask:
+  - no arguments: the defaults (`finite`, `peak_db` max -0.3, `silent_edges`
+    (a loop: `loop_seam`), `dc`, `rebuild`, and `macros` when the sound has
+    knobs).
+  - `checks: ["clicks"]` adds checks to the defaults; `only: ["clicks", "dc"]`
+    runs just those. Only checks that **need no settings** can be named here:
+    `finite peak_db true_peak_db silent_edges clicks dc loop_seam variations
+    rebuild macros layers spec` (a bare `variations` runs 4 seeds, a bare `layers`
+    the `impact` preset). A check that needs settings errors and shows the `expect`
+    form to use.
+  - `expect` (verify's `expect`, `sound_ops`'s `expect`, or the same fields at
+    verify's top level) takes the checks with settings; given alone, only
+    those run: `{"duration": {"min": 0.4, "max": 1.2}, "onsets": {"min": 1,
+    "max": 3}, "lufs": {"min": -20, "max": -14}, "peak_db": {"max": -3},
+    "clicks": true, "pitch": {"hz": 440, "tol_cents": 25}}`. `onsets` takes
+    `spacing_ms` (default 40, the descriptors' merge distance, so a fast
+    double like a `switch` click or a 200/s tick train reads as one): under
+    30 counts with a fine detector above 1 kHz (`spacing_ms: 5` counted a 200/s
+    click train within 10 %), over 40 merges more. `onsets` also takes
+    `gap: [lo, hi]` (seconds): every gap between consecutive onsets, at the
+    `spacing_ms` resolution, must lie in the range, and a FAIL lists the
+    offending gap and its times. "Exactly 3 hits 0.15-0.3 s apart" is
+    `{"min": 3, "max": 3, "gap": [0.15, 0.3]}`; leave 10 ms of margin on the
+    gap bounds (onset times are measured, not exact).
+  - **`verify {seeds: N}`** (2..8) re-renders the sound with seeds 1..N (the
+    document's seed is replaced for those renders only; nothing is saved) and
+    runs the same checks on each; the report groups results by seed ("seed 3:
+    loop_seam FAIL ..."). A plain `verify` renders only the seed in the
+    document, so a loop or a random texture that passes at seed 1 can still
+    fail at another: run `seeds: 4` before calling it finished. `variations`
+    (bare, or with settings) is a different check: it compares the seeds with
+    each other.
+  - Settings of the rest: `bands [{band: "1k" (or Hz), segment 0..4, min_db,
+    max_db}]`; `variations {seeds 6, lufs_spread 1, peak_spread_db 1, min_distance 1}`
+    (it compares the quantity the output normalizes: the sample-peak spread,
+    `peak_spread_db`, when the output uses `peak_db`; the loudness spread,
+    `lufs_spread`, otherwise; the other is only reported; the closest pair of
+    seeds must also differ by `min_distance` dB of STFT distance);
+    a wrong shape (`"variations": 5`) errors with the check's name and its
+    fields, as `dc` and `aliasing` do;
+    `aliasing true` or `{max_db -40}` (it needs a steady pitch: on a sweep
+    it fails "no steady pitched segment", so leave it off a laser or a
+    riser); `inharmonicity {min, max}` cents (a
+    harmonic tone reads under 2, a bell tens); `modulation {rate_hz, tol_hz
+    0.5, min_depth (1 dB or 10 cents), mode "amplitude" | "pitch"}`;
+    `roughness {min, max}` percent; `dc {max}` dB; `reference {file,
+    max_distance}`.
+  - **`layers`**: is it a designed sound? `{"preset": "impact"}` (or bare in
+    `checks`) for a hit, slam, knock or blow, `{"preset": "footstep"}` for a
+    step (weight 20-70 %, body 10-60 %: a floor's mode under 200 Hz counts
+    as weight; crest at most 22), runs seven measures: `weight`
+    15-60 % of the energy under 200 Hz, `body` 30-80 % at 200 Hz-2 kHz,
+    `crack` at least 1.5 % above 2 kHz, `voiced_max` 0.3 (pitch tracker),
+    `ringing_max` 1 (partials within 6 dB of the strongest that take over
+    0.6 s to fall 60 dB, and not longer than 1.5 x the sound: a longer estimate
+    is a misread), `crest_db` at most 21 over the active frames (10 ms frames
+    within 40 dB of the loudest: silence between hits is not counted), and `dry` (no `reverb` or
+    `convolve` node, patches included). A field given beside the preset
+    replaces the preset's (`tail_ms {min, max}`, the time to -20 dB, has no
+    preset value). Each FAIL names the role and the layer to add. The
+    approved slam and the real recording pass; the round-0 and tuned-drum
+    builds fail (`tests/it/layers.rs`). Ringing metal (a pipe, a sign, a bell)
+    fails the preset's `ringing_max` and crest by design: give
+    `{"preset": "impact", "ringing_max": 6, "crest_db": {"max": 30}}` or skip
+    `layers` for it. Not a default: a UI blip or a drone has
+    no weight or crack. `summary` warns when 80 % of a oneshot's energy sits
+    in one role band, and `listen`'s energy shares line names the roles.
+  `aliasing`, `inharmonicity`, `modulation` and `roughness` cannot be named in
+  `checks` / `only`: put them in `expect`. `reference {file, max_distance}` fails
+  when the STFT distance to the WAV (aligned and loudness-matched as in
+  `listen reference`) exceeds `max_distance` dB, and then names the biggest
+  band differences. `variations` needs a node that reads the seed.

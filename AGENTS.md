@@ -49,7 +49,7 @@ modeler's `MODELER_*`.
 1. `summary` — what is open, what the human asked for (open comments).
 2. `new_sound` (or `sound_ops` with `sound: "name"`), then `sound_ops` to build.
    Run `catalog search` for parts first (see "Parts"), then
-   look at "Which ready-made node for which sound": a brief that fits a
+   **search first**, then "Which ready-made node for which sound": a brief that fits a
    ready-made node starts from that node, not a rebuilt graph. For an impact,
    a hit or a mechanism, read "Layering a designed sound": the node is the
    body layer, and a designed sound adds the pre, crack, weight and after
@@ -350,7 +350,7 @@ Before building a layer from nodes, look for one:
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`:
   any word of a name, tag or description, plurals and endings folded, most
   hits first; `approved`): the library's parts and saved sounds plus the 130 built-in
-  parts in `parts/` (table below). Each is named and described by what the
+  parts in `parts/` (by use: `docs/routing.md`, "Parts the listener picked"). Each is named and described by what the
   listener heard (`heard as "..."`), which is often not what it was built
   as: search by the sound you need, not by the node. Approved ones come
   first. `catalog describe` shows a part's nodes and knobs.
@@ -385,138 +385,44 @@ The five built-in parts are the layers of the approved door slam, and the
 listener approved each one alone as well (2026-11-18). Reassembled with the
 bus above they pass `layers` (`tests/parts.rs`).
 
-### Parts the listener picked, by use
-
-Start from these. Each was picked best of its box, or rated good blind.
-
-| Need | Parts | Stack |
-|---|---|---|
-| a door slam | the `door_slam` template; its layers `wood_brush`, `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock` | the template is the approved slam |
-| footsteps | `all_purpose_step`, `concrete_step`, `gravel_step`, `grass_step`, `dirt_step`, `wood_step`, `carpet_step`, `metal_step` (all `step`) | `gravel_crunch` or `grass_swish` (step textures) over `all_purpose_step`; a walk is `step` with an `at` list |
-| a pipe, coin or wooden block dropped, bouncing | `impact_pipe_drop`, `impact_coin_drop`, `impact_block_drop` (`impact`) | a crack from the part's `force` over it |
-| a loose lid or part rattling, shaken | `impact_lid_rattle` | |
-| a sign, panel or sheet hit while the wind pushes it | `impact_sign_wind` | |
-| a metal bar (or glass, a saw) bowed: a sustained eerie tone | `impact_bowed_bar` | |
-| a box or crate dragged, scraped | `impact_box_scrape` | |
-| a struck sheet that bends or wobbles as it rings | `impact_bending_sheet` | |
-| objects acting on each other | `rig_ball_on_drum`, `rig_pan_and_lid`, `rig_tin_roof_screw`, `rig_string_on_box` (`rig`) | |
-| stone and metal hits | `brick_or_rock_drop`, `small_brick_drop`, `heavy_stone_hit` (a wall); `large_pipe_drop`, `large_metal_container_hit`, `metal_plate_gong_hit`, `metal_bell_hit`, `metal_into_small_glass` | `wooden_crate_drop` is a whole crate on concrete |
-| clicks and taps | `small_object_taps`, `mouse_click_tap`, `keyboard_button_hit` | |
-| creatures | `creature_roar`, `creature_growl`, `creature_snarl`, `creature_whine`, `small_frog` | `creature_snarl_breath` under any voice, `creature_roar_voice` for the voice alone |
-| rain and water | `rain_on_stone`; `splash_close`, the 5-30 cm splashes, a deep bubble pop | `rain_drops_on_grass` over `rain_hiss` |
-| beds and loops | `surf_shingle`, `lava_bubbling`, `wind_in_trees`, `underwater_bed`, `cave_drips`; fire, storm wind, fan, sparks, crickets | |
-| machines and alarms | `small_motor_spin`, engine rev, siren, alarm, error beep, laser | |
-| others | rattlesnake rattle and scissors snip (cicada patches heard so), door creak, bird, breath, bells, flute, plucked string, twang | |
-
-**Not in the library** (every attempt was heard as something else, or set aside): a ball or marble rolling (`impact` `slide` over `roughness`: four rounds heard as crackle or crunch, set aside 2026-11-19), footsteps in snow or on ice (`step` has both; two rebuilds each were heard bad), a stream (heard as a gurgling tube), and a large splash heard from a distance. Build those from nodes and say they are unheard.
-
-**From the round 6 listen (testers' sounds, judged by ear):**
-- **Door slam:** `new_sound` with `template: "door_slam"` (the recipe below, approved by ear, ready to tune); keep
-  its weighty low layer (band-limited noise under 200 Hz) under the detail:
-  detail without it reads light, weight without detail reads like a drum. A
-  brief that names a latch adds a `click` (`noise` about 0.75) as the after
-  layer; the slam is still the layered recipe, not a click over one `modal`.
-- **Footstep:** a step is not an impact. Use `step` or a step part (table
-  above), not `footstep` (heard as a snare on concrete, a pitter-patter on
-  gravel); check with `layers` `{"preset": "footstep"}`.
-- **Knock:** the approved pattern: a `pattern` into `voices` of a `contact`
-  into a wood `modal` (`noise` 0.6, `noise_width` about 0.15, `tilt` 4,
-  `loss` about 3), plus a short crack and a noise thud per knock, through
-  `finish`. Pitch it slightly low (lowest mode near 200 Hz).
-- **Metal (pipe, bar, lid, bin, tool, coin):** `modal` metal struck by a
-  short noise burst with `noise` 0.4, `noise_width` 0.1 and a **low `loss`
-  (0.3-0.6) so it rings for seconds**; plus a crack and a thud per bounce.
-  All five metal objects built this way were heard as metal (a pipe as
-  "large pipe drop"). The same objects as clean sine modes, even with
-  split, beating pairs, were heard as "digital bell" / "fm bell"; the
-  earlier short rings (0.1-0.4 s) as glass and ceramic. Start a dropped
-  pipe low: lowest mode 120-200 Hz (`f0`), not 300+ (a very small pipe).
-- **Stone (a rock, a brick):** brown-noise weight low-passed at 200-230 Hz
-  (0.15-0.22 s), crackle-noise grit band-passed at 2-2.5 kHz, band-passed
-  noise at 700-800 Hz for the body, a white-noise crack, and a quiet
-  `modal` stone body (f0 700-900, loss 2-2.5, 6-8 dB under the noise),
-  then a few chips or a small bounce. Heard as "brick dropped or medium
-  rock hit". A louder, longer-ringing stone body (loss 1.2) reads as a
-  woodblock; small bright dead hits read as mouse clicks; a boulder with
-  long low weight reads as a wall.
-
-**When one node is still right:** ambience and loops (`fire`, `wind`, `water`),
-UI blips, a single texture, or a brief that names one ready-made sound
-(`step`, `explosion`): use it as the body layer and add layers only if the
-brief asks for more weight or detail. When a project has reference recordings
-(`refs/`), tune the layer levels against them (`verify` `expect reference`):
-the distance is a coarse gate (about 10 dB is the spread between real
-recordings of one event), not a judge.
-
-The heavy wooden door slam (`slam_b2` in Phase 0) is the `door_slam` template:
-`new_sound {template: "door_slam"}` or `catalog describe` it for the graph
-(brush `scr_g`, crack `crk_g`, noise-struck wood `panel`, band-passed noise
-body `body_g`, brown-noise weight `thd_g`, knock `knock_g`, then `transient`
-3.1 dB, `shape` tube mix 0.25, `onepole` hp 30, `eq` peak 200 Hz +5.6 dB,
-`output` lufs -28).
-
-A sword clash (two inharmonic `modal` bars) and a UI confirm (tonal on purpose,
-an echo instead of a reverb) are worked recipes in `docs/nodes/README.md`,
-"Worked recipes".
-
-`examples/door_slam.rs` renders the door slam and checks it.
-
 ## Which ready-made node for which sound
 
-Round-1 testers built every footstep from primitives and never tried `fire` or
-`footstep`: the nodes below exist so that a brief that names one of these
-sounds starts from one node (the body layer) plus a few knobs. **Building from primitives is still
-fine** (and right for anything not listed: a laser, a UI blip, a whoosh, a
-drone); `describe_op {kind}` gives each node's fields and an example, and the
-sections below give the measured limits. None of these has been heard (the ports from `stream` to `two_tone` were rated once, blind: their rows say how they were heard): pick by
-the brief, then `listen`, `verify` and let the human's macros do the rest.
+**Search first.** `catalog {action: "search", text: "<the sound you need>"}`
+(plus `role` / `material`) finds the 130 built-in parts by what the listener
+heard: two eval agents who matched their brief against a table row instead
+missed `impact_sign_wind` and `impact_bowed_bar`. Then this short table; the
+full one (every ready-made node, its knobs, how it was heard, the
+listener's notes on knocks, metal, stone) is `docs/routing.md`.
 
-| Brief | Node | Start with | Fits |
-|---|---|---|---|
-| **a door slam** | `new_sound` `template: "door_slam"` | knobs `weight`, `snap`, `stick`, `knock`, `latch` (a click latch, off at 0) | the layered slam the listener approved (brush, crack, noise-struck wood body, noise weight, knock, dry bus), copied whole and editable. Two rounds of testers given only the recipe built a click over one `modal` instead, heard as weak: **start from the template**, then tune the knobs |
-| a footstep, a walk (older model) | `footstep` | `surface`, `weight`, `pace`, `shoe` | heard as a snare on concrete, a pitter-patter on gravel, a blow on grass: use `step` (next row); kept for its wood steps (`ring` 0.6, `weight` 0.25, `noise` 0.35) |
-| footsteps on concrete, gravel, grass, dirt, snow, carpet (foley's model) | `step` | `surface`, `speed` m/s (1 a walk), `grit` 0..2, `layer` all / body / texture (they add back exactly), `at` a list for a walk | a Hertz heel strike on the surface's modes, scuff, ball of the foot; grains, swish, snow crackle. Heard: gravel good ("really good footsteps"; `grit` 0 is the all-purpose step), concrete picked (`concrete_step`, `all_purpose_step` are parts); grass on soil with the crunch at the heel picked ("a bit heavy"; `grass_step` lightens it with a high-pass) |
-| fire, a campfire, crackle | `fire` | `size`, `intensity`, `crackle`, `loop` | roar + hiss + Poisson pops; loops by itself in a `kind: loop` document |
-| wind, a gale, howling | `wind` | `speed` (signal), `gust`, `whistle`, `loop` | five moving bands (+ an Aeolian tone); a `ramp` on `speed` is a rising gale |
-| electric arcs, sparks | `spark` | `rate` (snaps/s), `buzz`, `body` | a beating transformer hum, gated arcing chirps and formant snaps (Farnell) |
-| a stream, a brook, rain on water | `water` | `flow` (signal), `density`, `splash`, `depth` | a Minnaert bubble population plus hiss; a loop in a loop document |
-| a splash, something dropped in water | `splash` | `size` (m) | cavity bubbles and a pour with no noise burst, droplets falling back, then bubbles whose pitch rises (after Farnell's poured liquid and rain drops; rated good by ear at 5-20 cm, bad at 60 cm); `impact: "noise"` is the earlier opening, heard as a snare; a transient: use `peak_db` |
-| a single drip, a blip of water | `bubble` | `radius_mm`, `jitter`; in `voices` `map` a `$rand` radius | one Minnaert bubble: drips, water_drips example |
-| cloth, foliage rustle | `cloth` | `motion` (signal), `weight` | power-law rustle bursts in four bands; shape `motion` with a `wander` or `ramp` |
-| crumpled paper, foil, plastic, dry leaves | `crumple` | `density` (signal, bursts/s up to 400), `size`, `hardness` | band-passed noise bursts whose count follows `density` (cloth's saturates); hardness 0.2 paper, 0.85 foil; `peak_db` for a sparse one |
-| rolling, scraping, sliding | `rolling`, `friction` | `speed` (signal), `roughness` | an excitation: put it through `modal` (a scale first: `rolling` is loud at high speed) |
-| breaking glass, shards, debris | `shatter` into `voices` | `pieces`, `spread`, `exponent`; a small `modal` per fragment | a crack then power-law fragments; `modal` glass with `loss` and `tilt` per shard |
-| explosion, gunshot, blast | `explosion`, `gunshot` | `size`, `distance`; `caliber`, `barrel`, `suppressed` | finished one-shots, start 2.5 ms in (the default fade-in does not cut them); distance delays and darkens |
-| engine, motor, vehicle | `engine`, `motor` | `rpm` (a `ramp` or `wander`), `cylinders` / `poles`, `load` | rpm-driven pitch; set a `duration` (ramps hold) |
-| a whoosh, a swing, a sword or stick through the air | the part `whoosh_sweep` (`catalog search` `text: "whoosh"`, heard as "whoosh") | `at`, `gain_db`, its knobs | noise band-passed wide (q about 1) and swept up then down over 0.3-0.5 s. Narrow bands (q 2.5-6) were heard as "an artificial sweep, filtered noise": keep the band wide |
-| a pipe, a flute, a string, a bow | `tube`, `string` | `length` / `freq`, `excite`, `pressure` | waveguides: winds, plucks, strikes, bowed notes |
-| a latch, a switch, a button, a lock, a buckle | `click` | `kind` latch / switch / button / lock / clasp, `size`, `hardness`, `noise` about 0.75 for a small plastic or metal part (the listener's setting; the default rings pitched, voiced 0.33-0.78) | one or two transients through small resonators; a hit at t = 0: `fade_in` 0.0005 |
-| a bell, a bouncing ball, crickets, a ruler twang, a siren, a creaking door, a jet, a sci-fi klaxon, a stream or a pour, a helicopter or a rocket, a fly or cicadas, surf, lava or a cave, frogs, leaves or underwater, a droid / transporter / torpedo / beam, phone tones, thunder | one node each: `docs/nodes/README.md`, "More ready-made nodes by brief" | its row | Farnell ports and foley beds, each heard once |
-| rain, a shower, a downpour, rain on a roof | `rain` | `surface` water / stone / leaf / wood / soft / glass / metal, `rate` mm/h (2 light, 10, 50 a downpour), `roof` + `roof_height`, `loop`, `layer` all / drops / hiss (they add back) | physically sized drops over a surface-coloured hiss (after the foley project); levels differ by 20 dB per surface: set `lufs`. Heard: soft and wood as rain (good), leaf and stone as a stream (good), glass and metal as chimes, water as white noise |
-| an animal roar, growl, snarl, whine | `creature` | `call`, `size` 0..1 (tract length and pitch), `aggression`, `roughness`, `length`, `layer` all / voice / breath (they add back) | foley's LF voice through a waveguide tract; every call picked (the creature parts) |
-| a struck object: panel, bell, pipe, keys, a door's thud | `modal` fed by `contact`, `impulse` or a noise burst | `shape` plate / bar / tube / membrane / string / shell, `material`, `size`, `thickness`, `loss`, `tilt`; **`noise` for real wood (0.6, `tilt` 4) and metal (pipe, bar, lid, tool, coin: 0.4, `noise_width` 0.1, `loss` 0.3-0.6; 0.85 with `noise_width` 0.5 reads as a thin sheet)** (clean modes read as a tuned instrument) | normalized; `size` and `thickness` are pitch knobs (small thin objects: `thickness` 0.0015 instead of a custom material); `loss` 0.5 rings twice as long; `tilt` flattens a one-mode plate |
-| how a hit plays out over time: a dropped pipe / coin / block, a loose lid rattling, a sign in the wind, a bowed bar, a box dragged, a struck sheet that bends | `impact`; **start from its part** (`sound` node or `catalog load`): `impact_pipe_drop`, `impact_coin_drop`, `impact_block_drop`, `impact_lid_rattle`, `impact_sign_wind`, `impact_bowed_bar`, `impact_box_scrape`, `impact_bending_sheet` | `height` or `speed`, `object_mass`, `striker_mass` (left out: a drop onto `floor`), `bounce`, `scatter`, and `modal`'s shape / material / `f0` / `loss` / `noise` | a striker (or the floor) and the modes stepped together (Hunt-Crossley). Picked blind over the approved builds (2026-11-19). The body layer: a crack from its `force` port (white noise x `hit.force`, hp 2 kHz). Lost by ear: rolling, creaks (use `door_creak`), a pitch bend on a low sheet. Single hits stay on the parts / template / `contact` or noise -> `modal`; hand-timed rhythms on `pattern` / `voices`. Peaks at -6 dBFS |
-| several objects acting on each other: a ball on a drum, a pan with its lid, a tin roof with a loose screw, a plucked or struck string on a wooden body | `rig`; **start from its part**: `rig_ball_on_drum`, `rig_pan_and_lid`, `rig_tin_roof_screw`, `rig_string_on_box` (picked blind 2026-11-19/20) | `bodies` (point masses, modal objects, `string` / `tube` waveguides) and `joints` (`contact`, `spring` with a `gap` for a rattle); a rattling part needs `noise` about 0.7; leave the `air` joint out (it lost both listens) | `impact` generalised, vertical only; see `docs/nodes/rig.md` |
-| a larger-than-life hit (cinematic, trailer, a game's heavy impact) | `subdrop` under it, `riser` into it | `from` / `to` / `decay`, `drive`; `at` (the hit), `length`, `shape` | tonal on purpose: add them to a layered hit only when the brief asks for exaggeration (a realistic slam with a sine sub read as a tuned drum) |
-| a robot voice, speech-like texture, band dynamics | `vocoder`, `multiband`, `filterbank` | a pitched `carrier` + a noisy `modulator`; `crossovers` + `bands` | see "Bands and vocoder" in `docs/nodes/README.md` |
-| a swarm, a swell, a granular wash | `cloud`, `grains` | `source`, `density` (signal), `size`, `pitch_spread` | grains from any node or WAV |
-| a vowel, a creature call | `glottis` into `tract` | `f0` (signal), `tension`, `vowel`, `scale` | `docs/nodes/README.md`, "Foley models" |
+| Brief | Start from |
+|---|---|
+| a door slam | `new_sound {template: "door_slam"}` (knobs `weight snap stick knock latch`); never a click over one `modal` |
+| footsteps | `step` or its parts (`all_purpose_step`, `concrete_step`, `gravel_step`, ...); not `footstep`, not an impact |
+| a dropped / bouncing / rattling / scraped / bowed object | the `impact_*` parts (`impact_pipe_drop`, `impact_coin_drop`, `impact_block_drop`, `impact_lid_rattle`, `impact_sign_wind`, `impact_bowed_bar`, `impact_box_scrape`, `impact_bending_sheet`) |
+| objects acting on each other | the `rig_*` parts (`rig_ball_on_drum`, `rig_pan_and_lid`, `rig_tin_roof_screw`, `rig_string_on_box`) |
+| a knock | `pattern` -> `voices` of `contact` -> wood `modal` (`noise` 0.6, `tilt` 4, `loss` ~3) + crack + thud (`docs/routing.md`) |
+| metal: pipe, bar, lid, coin | `modal` metal, `noise` 0.4, `noise_width` 0.1, `loss` 0.3-0.6, lowest mode 120-200 Hz for a pipe |
+| stone, brick | noise layers + a quiet stone `modal` (`docs/routing.md`, "From the round 6 listen") |
+| a latch, switch, button, lock | `click` (`noise` ~0.75; `fade_in` 0.0005) |
+| fire, wind, rain, water, a splash, sparks | `fire`, `wind`, `rain`, `water`, `splash`, `spark` |
+| an explosion, a gunshot | `explosion`, `gunshot` |
+| an engine, a motor | `engine`, `motor` with a `ramp` / `wander` on `rpm` and a `duration` |
+| a creature | `creature` or the `creature_*` parts |
+| a whoosh | the `whoosh_sweep` part (wide band, q ~1) |
+| breaking glass | `shatter` -> `voices` of a small `modal` |
+| a laser, UI blip, drone | primitives (recipes in "Nodes") |
+| a cinematic hit | add `subdrop` / `riser` only when the brief asks |
 
-Scene sounds layer these: a door slam is the layered recipe in "Layering a
-designed sound" (not a `click` latch under a `modal` thud: that read as metal
-and as a tuned drum), a campfire is `fire` plus a few `spark`s, rain is the `rain` node.
-One `sound` per layer and a `mix` with `gain` / `at` keeps each one editable.
+Not in the library (heard as something else): a ball rolling, steps in snow
+or on ice, a stream, a distant large splash: build from nodes and say they are
+unheard. A part used as the whole sound needs the part's `duration`
+(see "Parts").
 
-Layer levels: the ready-made nodes are not normalized and sit at different
-levels (a default `fire` about -30 LUFS, a `footstep` peaks near -12 dBFS, a
-`click` press at -6 dBFS), so balance a scene with a `gain` node (`db`) per
-layer **before** the `mix`, then one `peak_db` / `lufs` on the output. For
-example `fire` -> `gain` db 0 and `click` -> `gain` db -8 and `footstep` ->
-`gain` db -4, each a `sound` or a node, summed by one `mix`. A macro maps the
-`gain` node's `db` (or a `mix` input's `gain`), so "fire level" is one knob
-per layer. `contact` and `modal` take their own `gain_db` (-60..60, 0 =
-unchanged), so a struck layer's level needs no extra node.
-
+Layer levels: ready-made nodes are not normalized (a `fire` about -30 LUFS, a
+`footstep` peaks near -12 dBFS, a `click` -6 dBFS): balance with a `gain`
+(`db`) per layer **before** the `mix`, then one `peak_db` / `lufs` on the
+output; one level macro per layer. `contact` and `modal` take their own
+`gain_db`.
 ### Variation
 
 `seed` (the sound's, `new_sound` / `sound_ops` `seed`) is mixed into every
@@ -572,6 +478,10 @@ loop a `mix` takes no `pan` / `at`. Layer with the object form (a tail with
 | Topic | File |
 |---|---|
 | Every node family in short: fields, a recipe, measured limits (`modal` / `contact` / `friction`, the foley models, sources, filters, dynamics, `finish`, exaggeration, modulation, space, motion, control, events to control, lo-fi and loops, the physical models, spectral, bands, grains) | `docs/nodes/README.md` |
+| The full brief -> part / template / node routing, the listener's notes per material (knock, metal, stone), the door slam template's graph | `docs/routing.md` |
+| Macro map paths and every claim measure with its limits | `docs/macros.md` |
+| Every `listen` line, `heard_as`, every `verify` check's settings | `docs/senses.md` |
+| Worked recipes: a sword clash, a UI confirm | `docs/nodes/README.md`, "Worked recipes" |
 | One node family in full | `docs/nodes/<family>.md` (`modal.md`, `water.md`, `machines.md`, ...) |
 | Feedback loops, offline pitch / time / spectral, events and grains, `expr`, `voices` and `sound` instances, loop seams | `docs/graph.md` |
 | Porting a patch from Farnell's *Designing Sound* | `docs/porting-farnell.md` |
@@ -608,24 +518,13 @@ until it fits; you read their moves in `summary`.
   (resonator `modes`); `index` / `key` set one element of a list field (a `mix`
   input's `gain`). Mapped fields are overridden: the node's own value for them
   is ignored. Two macros may not write the same field.
-- **Map entries reach deeper** (R4-C). A node inside a `voices` patch is
-  `"node": "voices_name/patch_node"` (deeper for a `voices` in a patch): the
-  write goes to the patch template, so every voice sees it, with no param to
-  declare (a typo errors with the patch's node names). A breakpoint list
-  (`env` `points`, `curve` `points`) takes `"field": "points", "index": 1,
-  "key": "x"` (also `time`, `t`; the first number of the pair) or `"key": "y"`
-  (also `value`, `v`). An `expr`'s initial state is `"field": "state", "key":
-  "y1"` (the entry must exist). Known gap: the "driven by a macro" warning and
-  the window's effective-value display do not look inside patch paths, so an
-  edit to a patch field a macro writes is silently ignored.
-- **A map entry may write a sound param** instead of a node field:
-  `{"param": "size", "from": 0.2, "to": 0.8}` (no `node`, `field`, `col`,
-  `index`). A `voices` patch (and its `map`) reads the sound's params, so this
-  is one way a knob reaches the inside of a patch (the other is the path form
-  above). A map entry naming a patch node without the path is an error that
-  says so and shows both: `"voices_name/node"`, or declare a param with
-  `sound_ops` `params`, use it in the patch as `"=$name"` (or `$name` in the
-  `voices` `map`), map `{"param": ...}`.
+- **Map entries reach deeper**: `"node": "voices_name/patch_node"` writes a
+  `voices` patch template; `"field": "points", "index": 1, "key": "x"` / `"y"`
+  a breakpoint; `"field": "state", "key": "y1"` an `expr` state; `{"param":
+  "size", "from", "to"}` a sound param (also how a knob reaches a patch);
+  `{"node": "<sound node>", "field": "macros", "key": "<part knob>"}` a
+  part's own knob. Full forms and the known gaps: `docs/macros.md`, "Map
+  entries that reach deeper".
 - **`claim` is optional.** A macro without one is a plain knob (summary says
   "unclaimed"). `verify` holds it to no measure, but it must still change
   the sound: from 0 to 1, some 10 ms frame in one of the four role bands
@@ -638,63 +537,26 @@ until it fits; you read their moves in `summary`.
   made or redefined at 0, .25, .5, .75, 1 and errors with the position and the
   render error if one fails ("macro `m` at 0.75: ... too many events"), so a
   knob that breaks the render at one end is found at once.
-- **The name is a claim.** `claim` is `[measure, direction]`: `centroid`
-  (Hz), `decay` (ring-out), `crest` (dB), `lufs`, `flatness`, `swing`
-  (loudness spread), `inharmonicity` (cents off a harmonic series; clean to
-  bell-like), `roughness` (percent of the loudness envelope's energy at
-  20-150 Hz; smooth to beating), `density` (events per second at the fine 1 ms
-  hop of `listen`'s `density` line: rain, crackle, ticks), `attack` (ms from
-  the first sample over -60 dBFS to the first 0.25 ms frame at 90 % of the
-  peak: a swell or one hit), `spacing` (s, the median gap between the
-  strongest onsets: a bounce, a roll, a footfall pair; 0 under two onsets),
-  `ring` (ms, the median over the strong onsets, at least 0.25 of the loudest,
-  of each hit's own fall to -20 dB under its peak, stopping at the next onset;
-  a hit cut off by the next onset is skipped, none usable falls back to
-  `decay`: it falls as a modal `loss` rises and rises with a `decay` node's
-  `time`);
-  `1` rises over 0..1, `-1` falls. `verify`
-  (macros, in the defaults when a sound has any) sweeps each knob over 0, .25, .5, .75, 1
-  with the others where they are and requires the measure to move that way at
-  every step and no position to peak over -0.3 dBFS, **and that the knob moves
-  the measure by at least 2 % of its largest value across 0..1** (one step
-  may go against the claim by up to 15 % of the end-to-end move, so a knob
-  over a noisy layer, `modal` `noise` or a noise crack, still holds its
-  claim: keep the noise, do not lower it to pass) ("the knob
-  barely moves X: widen its map, or rename the macro"). A FAIL says to rename
-  the macro to what it really does, or fix what it moves. Pick names that
-  match: brightness -> centroid up, weight -> centroid down, length -> decay
-  up, punch / snap -> crest up, grit / howl -> flatness, gustiness -> swing,
-  clang / stiffness -> inharmonicity up, rattle / buzz -> roughness up,
-  rate / busyness -> density up, softness / swell -> attack up, spread /
-  bounciness -> spacing up, ring / sustain on a multi-hit sound -> ring up.
-  Pick the claim that fits the knob: a layer's level (a `gain` before the
-  output) -> `lufs` only with a `peak_db` output (else `flatness`, or leave
-  the claim off); a filter or brightness knob -> `centroid`; an envelope time
-  -> `attack` (a rise) or `decay` (a single hit's fall); event spacing ->
-  `spacing` (a few hits) or `density` (any event-rate knob: rain, crackle,
-  crumple, bubbles); the ring-out of each hit in a knock, typewriter or
-  footfall train -> `ring`. The `density` claim holds for tick trains
-  from 10 to about 500 events/s (calibrated on 3 ms ticks; the counter's
-  ceiling is near 590 events/s, so a knob that sweeps past it flattens; it
-  is an estimate when the ticks overlap, which `listen` says: "density
-  estimate"). A `pattern` with `jitter` gives a steadier count than a
-  `poisson` of the same rate (its chance clumps move the counter between
-  seeds), so use it under a density-claim knob when the human did not ask
-  for a random stream.
-  **An `output.lufs` target renormalizes the level, so a "loudness" /
-  "volume" macro with claim `lufs` cannot move**: use a `peak_db` target (then
-  map a `gain` before the output) or claim another measure, or leave the
-  claim off. When the whole output fails a claim (a loud layer masks the
-  knob, or a multi-hit sound's `decay` jumps between hits), `verify` also
-  measures it on the knob's own layer (the node its `map` writes, followed
-  down to the `mix`) and passes it if it holds there, saying "measured on
-  `node`"; `decay`, `swing` and `crest` stay unreliable on a very short
-  sound, so give those a `density`, `attack`, `spacing` or `ring` claim. `flatness` is the
-  full-band measure; to check a "high flatness" (grit, hiss) knob by hand read
-  `listen`'s whole-sound flatness lines (full-band, and the occupied band, the
-  middle 80 % of the energy: a band-limited texture reads low full-band and
-  high occupied-band) at the knob's ends with `sweep`; `verify` has no
-  occupied-band check yet.
+- **The name is a claim.** `claim` is `[measure, direction]` (`1` rises over
+  0..1, `-1` falls): `centroid`, `decay`, `crest`, `lufs`, `flatness`,
+  `swing`, `inharmonicity`, `roughness`, `density`, `attack`, `spacing`,
+  `ring`. `verify` (`macros`) sweeps each knob at 0, .25, .5, .75, 1: the
+  measure must move that way at every step (one step may go against it by
+  up to 15 % of the end-to-end move: keep noisy layers noisy), by at least
+  2 % of its largest value, and no position may peak over -0.3 dBFS. A FAIL
+  says to rename the macro or fix what it moves. Names that match:
+  brightness -> centroid up, weight -> centroid down, length -> decay up,
+  punch / snap -> crest up, grit / howl -> flatness, gustiness -> swing,
+  clang -> inharmonicity up, rattle / buzz -> roughness up, rate / busyness
+  -> density up, softness / swell -> attack up, spread / bounciness ->
+  spacing up, ring / sustain on a multi-hit sound -> ring up.
+  **An `output.lufs` target renormalizes the level**, so a loudness knob
+  claiming `lufs` cannot move: use a `peak_db` output, claim another
+  measure, or leave the claim off. On a very short sound `decay`, `swing`
+  and `crest` are unreliable: claim `density`, `attack`, `spacing` or
+  `ring`. What each measure is, when it falls back to the knob's own layer,
+  the `density` range (10-500 events/s) and the flatness caveat:
+  `docs/macros.md`, "Claims".
 - `game: true` exports the knob in the manifest `inputs` (name, default, doc,
   map) for the game to set at runtime; others are baked at their value.
 - A macro **overrides** the fields it maps: editing such a field with `sound_ops`
@@ -709,109 +571,38 @@ until it fits; you read their moves in `summary`.
 
 ## Senses
 
-- `listen`: one PNG (log-frequency spectrogram, waveform with peak and RMS
-  envelopes, loudness curve; seeds / sweep values tile as labelled columns, 8
-  at most) and the descriptor table, one line each: length, level, time
-  (attack, decay -20 / -60 dB), the headline swell/attack, onsets (40 ms
-  merge and a fine 5 ms count), pitch, events strong / weak, spectrum
-  start / middle / end and whole-sound (occupied-band flatness), energy
-  shares by role band, centroid and pitch by tenth, the 8 octave x 5 segment
-  dB table (the main "what does it sound like"), modes, stereo, density, the
-  onset table, and aliasing / inharmonicity / modulation / roughness. Every
-  line is explained in `docs/senses.md`, "The descriptor table". `diff:
-  true` shows the previous render and a dB-difference spectrogram; `zoom
-  {t: [a, b], hz: [lo, hi]}` magnifies a window, and the text then
-  describes that window (times count from `a`); `descriptors: false` is the
-  image alone.
-- `heard_as` (a line in `listen`, on when a model is set up; `heard_as:
-  false` skips it): the five closest of about 100 sound descriptions
-  (`tools/hearing/vocabulary.txt`) an audio-text model
-  (`laion/larger_clap_general`, run by `tools/hearing/heard_as.py`) finds
-  for each column, and where the spec's brief ranks among them. **A hint,
-  not a check:** it called the crate drop the listener rated great "a snare
-  drum" and ranked its brief 83 of 102, while the approved door slam's brief
-  ranks 1. Read it as "what a stranger might mistake this for". The worker
-  starts on the first `listen` (about 4 s) and its Python is
-  `SOUNDER_HEARING_PYTHON`, else `~/.local/share/sounder-hearing/venv`;
-  without one the line says the hint is off. `SOUNDER_HEARING=off` turns it
-  off.
+- `listen`: one PNG (spectrogram, waveform, loudness; seeds / sweep values tile
+  as columns, 8 at most) and the descriptor table (length, level, attack,
+  decay, onsets, pitch, spectrum, energy by role band, the octave x segment
+  dB table, modes, density, ...). Options: `node`, `seeds`, `sweep`, `zoom
+  {t, hz}`, `diff: true`, `descriptors: false`, `heard_as: false`. Every
+  line and the `heard_as` hint (an audio-text model's guess: a hint, not a
+  check): `docs/senses.md`, "listen in full" and "The descriptor table".
 - `listen reference: "file.wav"` compares with one recording (aligned at the first onset, loudness-matched): an STFT distance in dB (about 10 dB is the spread between real recordings of one event: a coarse gate, not a judge) and the biggest band x time differences in words. `listen reference_set: "door_slam"` compares with a folder `<project>/refs/<set>/` of at least two WAVs: the distance to each, the set's own spread, and eight features (weight, body, crack, crest, tail, centroid, voiced, ringing) against the span the recordings cover; `verify expect reference_set {set, [max_distance]}` checks them. Details and measurements: `docs/senses.md`.
 - `verify` / `expect` checks: `peak_db` `true_peak_db` `lufs` `duration`
   `silent_edges` `clicks` `dc` `finite` `loop_seam` `bands` `pitch` `onsets`
-  `variations` `rebuild` `reference` `reference_set` `macros` `layers` `spec`, and the synthesis checks
-  `aliasing` `inharmonicity` `modulation` `roughness`. Each line is PASS /
-  FAIL with the measured value; a FAIL says what to change. Four ways to ask:
+  `variations` `rebuild` `reference` `reference_set` `macros` `layers`
+  `spec`, and `aliasing` `inharmonicity` `modulation` `roughness`. Each line
+  is PASS / FAIL with the value; a FAIL says what to change.
   - no arguments: the defaults (`finite`, `peak_db` max -0.3, `silent_edges`
-    (a loop: `loop_seam`), `dc`, `rebuild`, and `macros` when the sound has
-    knobs).
-  - `checks: ["clicks"]` adds checks to the defaults; `only: ["clicks", "dc"]`
-    runs just those. Only checks that **need no settings** can be named here:
-    `finite peak_db true_peak_db silent_edges clicks dc loop_seam variations
-    rebuild macros layers spec` (a bare `variations` runs 4 seeds, a bare `layers`
-    the `impact` preset). A check that needs settings errors and shows the `expect`
-    form to use.
-  - `expect` (verify's `expect`, `sound_ops`'s `expect`, or the same fields at
-    verify's top level) takes the checks with settings; given alone, only
-    those run: `{"duration": {"min": 0.4, "max": 1.2}, "onsets": {"min": 1,
-    "max": 3}, "lufs": {"min": -20, "max": -14}, "peak_db": {"max": -3},
-    "clicks": true, "pitch": {"hz": 440, "tol_cents": 25}}`. `onsets` takes
-    `spacing_ms` (default 40, the descriptors' merge distance, so a fast
-    double like a `switch` click or a 200/s tick train reads as one): under
-    30 counts with a fine detector above 1 kHz (`spacing_ms: 5` counted a 200/s
-    click train within 10 %), over 40 merges more. `onsets` also takes
-    `gap: [lo, hi]` (seconds): every gap between consecutive onsets, at the
-    `spacing_ms` resolution, must lie in the range, and a FAIL lists the
-    offending gap and its times. "Exactly 3 hits 0.15-0.3 s apart" is
-    `{"min": 3, "max": 3, "gap": [0.15, 0.3]}`; leave 10 ms of margin on the
-    gap bounds (onset times are measured, not exact).
-  - **`verify {seeds: N}`** (2..8) re-renders the sound with seeds 1..N (the
-    document's seed is replaced for those renders only; nothing is saved) and
-    runs the same checks on each; the report groups results by seed ("seed 3:
-    loop_seam FAIL ..."). A plain `verify` renders only the seed in the
-    document, so a loop or a random texture that passes at seed 1 can still
-    fail at another: run `seeds: 4` before calling it finished. `variations`
-    (bare, or with settings) is a different check: it compares the seeds with
-    each other.
-  - Settings of the rest: `bands [{band: "1k" (or Hz), segment 0..4, min_db,
-    max_db}]`; `variations {seeds 6, lufs_spread 1, peak_spread_db 1, min_distance 1}`
-    (it compares the quantity the output normalizes: the sample-peak spread,
-    `peak_spread_db`, when the output uses `peak_db`; the loudness spread,
-    `lufs_spread`, otherwise; the other is only reported; the closest pair of
-    seeds must also differ by `min_distance` dB of STFT distance);
-    a wrong shape (`"variations": 5`) errors with the check's name and its
-    fields, as `dc` and `aliasing` do;
-    `aliasing true` or `{max_db -40}` (it needs a steady pitch: on a sweep
-    it fails "no steady pitched segment", so leave it off a laser or a
-    riser); `inharmonicity {min, max}` cents (a
-    harmonic tone reads under 2, a bell tens); `modulation {rate_hz, tol_hz
-    0.5, min_depth (1 dB or 10 cents), mode "amplitude" | "pitch"}`;
-    `roughness {min, max}` percent; `dc {max}` dB; `reference {file,
-    max_distance}`.
-  - **`layers`**: is it a designed sound? `{"preset": "impact"}` (or bare in
-    `checks`) for a hit, slam, knock or blow, `{"preset": "footstep"}` for a
-    step (weight 20-70 %, body 10-60 %: a floor's mode under 200 Hz counts
-    as weight; crest at most 22), runs seven measures: `weight`
-    15-60 % of the energy under 200 Hz, `body` 30-80 % at 200 Hz-2 kHz,
-    `crack` at least 1.5 % above 2 kHz, `voiced_max` 0.3 (pitch tracker),
-    `ringing_max` 1 (partials within 6 dB of the strongest that take over
-    0.6 s to fall 60 dB, and not longer than 1.5 x the sound: a longer estimate
-    is a misread), `crest_db` at most 21 over the active frames (10 ms frames
-    within 40 dB of the loudest: silence between hits is not counted), and `dry` (no `reverb` or
-    `convolve` node, patches included). A field given beside the preset
-    replaces the preset's (`tail_ms {min, max}`, the time to -20 dB, has no
-    preset value). Each FAIL names the role and the layer to add. The
-    approved slam and the real recording pass; the round-0 and tuned-drum
-    builds fail (`tests/it/layers.rs`). Ringing metal (a pipe, a sign, a bell)
-    fails the preset's `ringing_max` and crest by design: give
-    `{"preset": "impact", "ringing_max": 6, "crest_db": {"max": 30}}` or skip
-    `layers` for it. Not a default: a UI blip or a drone has
-    no weight or crack. `summary` warns when 80 % of a oneshot's energy sits
-    in one role band, and `listen`'s energy shares line names the roles.
-  `aliasing`, `inharmonicity`, `modulation` and `roughness` cannot be named in
-  `checks` / `only`: put them in `expect`. `reference {file, max_distance}` fails
-  when the STFT distance to the WAV (aligned and loudness-matched as in
-  `listen reference`) exceeds `max_distance` dB, and then names the biggest
-  band differences. `variations` needs a node that reads the seed.
+    or for a loop `loop_seam`, `dc`, `rebuild`, `macros` with knobs, `spec`
+    with a spec).
+  - `checks: [..]` adds to the defaults, `only: [..]` runs just those; only
+    checks with no settings can be named there (`finite peak_db true_peak_db
+    silent_edges clicks dc loop_seam variations rebuild macros layers spec`).
+  - `expect {..}` takes the checks with settings, and **given alone runs only
+    those** (add `checks` to keep the defaults): `{"duration": {"min": 0.4,
+    "max": 1.2}, "onsets": {"min": 3, "max": 3, "gap": [0.15, 0.3]},
+    "pitch": {"hz": 440, "tol_cents": 25}}`. `aliasing` needs a steady pitch
+    (leave it off a sweep).
+  - **`seeds: N`** (2..8) runs the checks on seeds 1..N: do it before calling
+    a loop or a random texture finished. `variations` compares seeds.
+  - **`layers`** (`{"preset": "impact"}` or `"footstep"`) checks a designed
+    hit: weight, body, crack, voiced, ringing, crest, dry; each FAIL names
+    the layer to add. Ringing metal fails it by design: `{"preset":
+    "impact", "ringing_max": 6, "crest_db": {"max": 30}}` or skip it.
+  Every check's settings, the `onsets` `spacing_ms`, `variations` spreads
+  and the `layers` thresholds: `docs/senses.md`, "verify checks in full".
 - `extract_modes` fits a WAV's strongest partials as a ready `resonators` node (time-domain peeling; a rebuilt five-mode hit sits 0.69 dB from its original). A noisy recording (a slam) is not modal: the tool falls back to an envelope fit and says so ("NOTE the recording is not modal"), a tonal sketch rather than the object's modes. `residual` writes what the modes miss, but sounds are sample-free: use it only to study a recording. Details: `docs/senses.md`.
 Warnings in `summary`: a node nothing reads, a frequency above Nyquist, a
 silent output, DC over -40 dB, an output whose input is squashed by the
@@ -928,10 +719,13 @@ oil"), not which task set it.
   library and session (`.sounder/`), reference recordings (`refs/`), raw
   per-sound logs, feedback or score dumps, experiment sounds (`*_old`,
   `*_new`, `ab_*`). Use the scratch directory for those.
-- **This file stays under about 70 KB.** A new node gets a row in "Which
-  ready-made node for which sound" at most (a niche one goes in
-  `docs/nodes/README.md` "More ready-made nodes by brief" instead); its detail
-  goes in `docs/nodes/`.
+- **This file stays under about 70 KB, ideally near 50.** It holds rules,
+  the workflow and short routing. A new node gets a row in `docs/routing.md`
+  (the short table here only for a brief agents meet often); a part a row
+  in `docs/routing.md` "Parts the listener picked"; measured limits and
+  examples go in `docs/nodes/<family>.md`, claim details in
+  `docs/macros.md`, check and descriptor details in `docs/senses.md`. Each
+  moved detail leaves a pointer naming the file and section.
 - **Tests:** extend an existing module before adding one. Do not copy a helper
   into a module when `it/common.rs` has it or could. A measured limit belongs
   in the node's doc, not in an `#[ignore]`d test.
