@@ -21,6 +21,8 @@ Start from these. Each was picked best of its box, or rated good blind.
 | a struck sheet that bends or wobbles as it rings | `impact_bending_sheet` | |
 | objects acting on each other | `rig_ball_on_drum`, `rig_pan_and_lid`, `rig_tin_roof_screw`, `rig_string_on_box` (`rig`) | |
 | a wind chime in a breeze | `rig_wind_chime` (knob `breeze`) | one clapper per tube: `rig` is one axis |
+| a chair knocked over | `rig_chair_fall` (knob `weight`) | |
+| a hand bell shaken | `rig_hand_bell` (knob `shake`) | |
 | stone and metal hits | `brick_or_rock_drop`, `small_brick_drop`, `heavy_stone_hit` (a wall); `large_pipe_drop`, `large_metal_container_hit`, `metal_plate_gong_hit`, `metal_bell_hit`, `metal_into_small_glass` | `wooden_crate_drop` is a whole crate on concrete |
 | clicks and taps | `small_object_taps`, `mouse_click_tap`, `keyboard_button_hit` | |
 | creatures | `creature_roar`, `creature_growl`, `creature_snarl`, `creature_whine`, `small_frog` | `creature_snarl_breath` under any voice, `creature_roar_voice` for the voice alone |

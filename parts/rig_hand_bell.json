@@ -1,0 +1,132 @@
+{
+ "role": "whole",
+ "material": "metal",
+ "description": "heard as better than a noisy first version (2026-11-20); built as: `rig`, a held clean metal shell (f0 1300, loss 0.25, no noise) and a 50 g clapper on a spring with 6 mm of free play, shaken by a 3.5 Hz push of 0.8 N for 1.6 s, about two strikes per shake",
+ "tags": [
+  "bell",
+  "hand",
+  "handbell",
+  "shaken",
+  "ring",
+  "metal",
+  "rig"
+ ],
+ "origin": "batch 31 (reworks); picked over the first versions on 2026-11-20",
+ "doc": {
+  "name": "rig_hand_bell",
+  "format_version": 1,
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 3.5,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "osc",
+    "name": "shake",
+    "shape": "sine",
+    "freq": 3.5
+   },
+   {
+    "type": "env",
+    "name": "arm",
+    "points": [
+     [
+      0,
+      0
+     ],
+     [
+      0.08,
+      1
+     ],
+     [
+      1.5,
+      1
+     ],
+     [
+      1.7,
+      0
+     ]
+    ]
+   },
+   {
+    "type": "math",
+    "name": "push",
+    "op": "mul",
+    "a": "shake",
+    "b": "arm"
+   },
+   {
+    "type": "gain",
+    "name": "push_n",
+    "input": "push",
+    "gain": 0.8
+   },
+   {
+    "type": "rig",
+    "name": "hit",
+    "gravity": 0,
+    "at": 0.005,
+    "bodies": [
+     {
+      "name": "bell",
+      "mass": 0.5,
+      "fixed": true,
+      "material": "metal",
+      "shape": "shell",
+      "f0": 1300,
+      "loss": 0.25
+     },
+     {
+      "name": "clapper",
+      "mass": 0.05,
+      "drive": "push_n"
+     }
+    ],
+    "joints": [
+     {
+      "kind": "spring",
+      "a": "clapper",
+      "b": "bell",
+      "at_b": 0.5,
+      "gap": 0.006,
+      "stiffness": 200000,
+      "damping": 6
+     },
+     {
+      "kind": "spring",
+      "a": "clapper",
+      "b": "bell",
+      "at_b": 0.02,
+      "stiffness": 60,
+      "damping": 0.8
+     }
+    ]
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "hit",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "shake",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "how hard the bell is shaken: harder, brighter strikes",
+    "game": false,
+    "map": [
+     {
+      "node": "push_n",
+      "field": "gain",
+      "from": 0.4,
+      "to": 1.6
+     }
+    ]
+   }
+  ],
+  "version": 2
+ }
+}
