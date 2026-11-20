@@ -56,14 +56,16 @@
       "b": "pan",
       "at_b": 0.3,
       "hardness": 0.9,
-      "gap": 0.002
+      "gap": 0.002,
+      "damp": "point"
      },
      {
       "a": "lid",
       "b": "pan",
       "at_a": 0.95,
       "at_b": 0.9,
-      "bounce": 0.3
+      "bounce": 0.3,
+      "damp": "point"
      }
     ],
     "at": 0.005

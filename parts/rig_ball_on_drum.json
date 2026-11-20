@@ -43,7 +43,8 @@
       "at_b": 0.3,
       "gap": 0.3,
       "bounce": 0.6,
-      "hardness": 0.2
+      "hardness": 0.2,
+      "damp": "point"
      }
     ],
     "at": 0.005

@@ -47,6 +47,18 @@ thickness, loss, tilt, noise, noise_width, modes 24], [level_db]}`.
   a point mass uses `hardness` 0..1 as `contact` does), with Hunt-Crossley
   damping set at each touch so it keeps `bounce` of the incoming speed.
   `gap` is the starting distance (a ball 0.2 m above a plate is `gap` 0.2).
+- A contact's `damp` (default `"body"`) puts the Hunt-Crossley damping on
+  the bodies' own motion, so a bounce loses energy while the modes ring on,
+  and holds the rebound of a free body off a held one (or the ground) to
+  `bounce` x the speed it came in at; touches within 3 ms are chatter of the
+  same landing. `"point"` damps the full speed at the touch with no cap (the
+  batch 27 / 28 rigs and their parts use it).
+- A contact's `slide` (m/s, a signal), `friction` `[static, dynamic]` and
+  `stribeck` (0.1 m/s) drag `a` along `b`: a Stribeck stick-slip force on a
+  sliding copy of both sides' modes, as `impact`'s `friction`. A 50 g bow
+  pressed with 3 N at 0.01-0.06 m/s (`stribeck` 0.05) sings a metal bar on
+  its second mode (1655 Hz for f0 600) with its harmonics; at 0.15 m/s it is
+  quiet.
 - `spring`: `stiffness` N/m and `damping` N s/m; with `gap` it has that much
   free play either side of its rest length and only pulls past it, so a
   loose part slaps against its fixing: a rattle.
@@ -68,6 +80,7 @@ sample, 1 at its peak.
 - A hammer on a sheet with a screw on a spring: with 0.2 mm of free play the
   screw's band (2.5-3.5 kHz) carries over 3 dB more of the late sound,
   against the rest, than with none.
+- A free tube with `bounce` 0 dropped 0.3 m never flies again.
 - Bit-identical across thread counts.
 
 ## Honest limits
@@ -77,9 +90,10 @@ sample, 1 at its peak.
   sheet heard as good detail but strange (a clean 2.5 kHz bar mode); with
   `noise` 0.7 and 4 dB lower it was picked (batch 28): give a rattling part
   `noise`.
-- Vertical motion only: no rotation, no sliding (use `impact` for `slide`,
-  `friction` and rolling).
-- A contact keeps `bounce` through Hunt-Crossley alone: `impact`'s rebound
-  cap (the modes giving their energy back to the bounce) is not here, so a
-  body on a soft low mode can bounce more than `bounce` says.
+- Vertical motion and sliding along a contact; no rotation, no rolling.
+- A free body resting on the ground has its lowest mode pinned by the
+  contact: a 2 kg tube rings at its 160 Hz `f0` while it lands, then the
+  resting contact passes the vibration into its rigid motion and it quietens
+  (about 35 dB by 0.6 s). Without the cap and with `"point"` damping, it
+  bounced like rubber instead (0.26 s gaps for `bounce` 0.3).
 - Each mode keeps a buffer as long as the sound.

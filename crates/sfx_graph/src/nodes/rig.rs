@@ -123,6 +123,27 @@ pub struct RigJoint {
     /// Spring: damping, N s/m (default 1).
     #[serde(default)]
     pub damping: Option<f32>,
+    /// Contact: what its damping acts on (default "body"): "body" damps the
+    /// bodies' own motion, so a bounce keeps `bounce` while the modes ring
+    /// on (and the rebound off a held body is held to `bounce`); "point"
+    /// damps the full speed at the touch, vibration included, with no
+    /// rebound cap (how the batch 27 / 28 rigs were heard).
+    #[serde(default)]
+    pub damp: Option<String>,
+    /// Contact: speed of `a` along `b`'s surface, m/s (a signal, default 0):
+    /// a bow drawn, a box dragged, a stick scraped.
+    #[serde(default)]
+    pub slide: Option<In>,
+    /// Contact: `[static, dynamic]` friction coefficients (default none: no
+    /// drag). With `slide`, a Stribeck stick-slip drag drives a sliding copy
+    /// of both sides' modes (as `impact`'s `friction`): a bow sings near the
+    /// `stribeck` speed, a faster slide scrapes.
+    #[serde(default)]
+    pub friction: Option<[f32; 2]>,
+    /// Contact: the speed where friction falls from static to dynamic, m/s
+    /// (default 0.1, 0.001..10).
+    #[serde(default)]
+    pub stribeck: Option<f32>,
 }
 
 /// Bodies and joints stepped together.
@@ -153,7 +174,7 @@ pub struct Rig {
 
 impl Describe for Rig {
     const BLURB: &'static str = "bodies (point masses, modal objects) joined by contacts and springs (a gap makes a rattle), stepped together per sample: a hammer on a plate with a loose screw, a ball on a drum; vertical motion; port `force` is the summed contact force; peaks at -6 dBFS";
-    const WORDS: &'static [&'static str] = &["kind", "a", "b"];
+    const WORDS: &'static [&'static str] = &["kind", "a", "b", "damp"];
     fn example() -> serde_json::Value {
         serde_json::json!({
             "bodies": [
@@ -181,6 +202,9 @@ struct Live {
     s2: Vec<f32>,
     q: Vec<f32>,
     v: Vec<f32>,
+    // The same modes moving along the surface, driven by friction.
+    qt: Vec<f32>,
+    vt: Vec<f32>,
     r: Vec<f32>,
     modal_mass: f32,
     modes: Vec<(f32, f32, f32)>,
@@ -203,6 +227,15 @@ struct Join {
     bounce: f32,
     alpha: f32,
     touching: bool,
+    // The approach speed at the last touch, for the rebound cap.
+    v_in: f32,
+    // Substeps since it last let go: touches within 3 ms are chatter of the
+    // same landing and keep its cap.
+    apart: usize,
+    point_damp: bool,
+    slide: Option<Sig>,
+    friction: Option<(f32, f32)>,
+    vc: f32,
 }
 
 fn modal_of(b: &RigBody, pos: f32, seed: u64) -> Option<Modal> {
@@ -343,6 +376,8 @@ impl Eval for Rig {
                     .collect(),
                 q: vec![0.0; modes.len()],
                 v: vec![0.0; modes.len()],
+                qt: vec![0.0; modes.len()],
+                vt: vec![0.0; modes.len()],
                 r: modes
                     .iter()
                     .map(|m| m.2 / peak * 10f32.powf(tilt_db * (m.0 / f_low).log2() / 20.0))
@@ -433,6 +468,43 @@ impl Eval for Rig {
                     k
                 }
             };
+            if j.kind == JointKind::Spring
+                && (j.slide.is_some() || j.friction.is_some() || j.stribeck.is_some())
+            {
+                return Err(format!(
+                    "joint {n}: slide / friction / stribeck are for a contact joint, not a spring"
+                ));
+            }
+            let slide = match &j.slide {
+                Some(x) => Some(cx.mono("slide", x).map_err(|e| format!("joint {n}: {e}"))?),
+                None => None,
+            };
+            let friction = match j.friction {
+                None => None,
+                Some([s_, d_]) => {
+                    if !(s_.is_finite()
+                        && d_.is_finite()
+                        && (0.0..=3.0).contains(&s_)
+                        && (0.0..=s_).contains(&d_))
+                    {
+                        return Err(format!(
+                            "joint {n}: friction [{s_}, {d_}]: give [static, dynamic], 0..3, dynamic <= static"
+                        ));
+                    }
+                    Some((s_, d_))
+                }
+            };
+            let vc = j.stribeck.unwrap_or(0.1);
+            if !(vc.is_finite() && (0.001..=10.0).contains(&vc)) {
+                return Err(format!("joint {n}: stribeck {vc}: give 0.001..10 m/s"));
+            }
+            let point_damp = match j.damp.as_deref() {
+                None | Some("body") => false,
+                Some("point") => true,
+                Some(o) => {
+                    return Err(format!("joint {n}: damp {o:?}: give \"body\" or \"point\""));
+                }
+            };
             let bounce = j.bounce.unwrap_or(0.5);
             if !(0.0..=0.98).contains(&bounce) {
                 return Err(format!("joint {n}: bounce {bounce}: give 0..0.98"));
@@ -449,6 +521,12 @@ impl Eval for Rig {
                 bounce,
                 alpha: 0.0,
                 touching: false,
+                v_in: 0.0,
+                apart: usize::MAX / 2,
+                point_damp,
+                slide,
+                friction,
+                vc,
             });
         }
         let min_os = self.oversample.unwrap_or(4);
@@ -478,6 +556,9 @@ impl Eval for Rig {
         let mut contact = vec![0.0f32; n];
         let mut forces = vec![0.0f32; bodies.len()];
         let mut modal_f: Vec<Vec<f32>> = bodies.iter().map(|b| vec![0.0; b.modes.len()]).collect();
+        let mut drag_f: Vec<Vec<f32>> = bodies.iter().map(|b| vec![0.0; b.modes.len()]).collect();
+        let tangential =
+            |b: &Live, w: &[f32]| -> f32 { b.vt.iter().zip(w).map(|(v, w)| v * w).sum() };
         let disp = |b: &Live, w: &[f32]| -> (f32, f32) {
             let (mut u, mut ud) = (b.y, b.vy);
             for ((q, v), w) in b.q.iter().zip(&b.v).zip(w) {
@@ -496,6 +577,9 @@ impl Eval for Rig {
                 modal_f
                     .iter_mut()
                     .for_each(|f| f.iter_mut().for_each(|x| *x = 0.0));
+                drag_f
+                    .iter_mut()
+                    .for_each(|f| f.iter_mut().for_each(|x| *x = 0.0));
                 for j in joins.iter_mut() {
                     let (ua, va) = disp(&bodies[j.a], &j.wa);
                     let (ub, vb) = match j.b {
@@ -505,18 +589,47 @@ impl Eval for Rig {
                     // `a` sits `gap` above `b` at rest positions.
                     let sep = ua + j.gap - ub;
                     let rate = va - vb;
+                    // The bodies' own motion, without their vibration: the
+                    // contact's damping acts on this, so a bounce loses
+                    // energy while the modes ring against a lossless spring
+                    // (damping the full rate killed a resting pipe's lowest
+                    // mode).
+                    let rigid = if j.point_damp {
+                        rate
+                    } else {
+                        bodies[j.a].vy - j.b.map_or(0.0, |b| bodies[b].vy)
+                    };
                     let f = match j.kind {
                         JointKind::Contact => {
                             let d = -sep;
                             if d > 0.0 {
                                 if !j.touching {
                                     j.touching = true;
-                                    let v_in = (-rate).max(0.02);
-                                    j.alpha = 1.5 * (1.0 - j.bounce) / v_in;
+                                    let v_in = (-rigid).max(0.02);
+                                    if j.point_damp || j.apart as f32 * dt > 0.003 {
+                                        j.alpha = 1.5 * (1.0 - j.bounce) / v_in;
+                                        j.v_in = -rigid;
+                                    }
                                 }
-                                (j.k * d * d.sqrt() * (1.0 - j.alpha * rate)).max(0.0)
+                                j.apart = 0;
+                                (j.k * d * d.sqrt() * (1.0 - j.alpha * rigid)).max(0.0)
                             } else {
-                                j.touching = false;
+                                j.apart = j.apart.saturating_add(1);
+                                if j.touching {
+                                    j.touching = false;
+                                    // The modes are springs too and give their
+                                    // energy back to the bounce (a pipe with
+                                    // `bounce` 0 flew in `impact`): hold the
+                                    // rebound of a free body off a held one to
+                                    // `bounce` x the speed it came in at.
+                                    let b_held = j.b.is_none_or(|b| bodies[b].fixed);
+                                    if !j.point_damp && b_held && !bodies[j.a].fixed && j.v_in > 0.0
+                                    {
+                                        let vb = j.b.map_or(0.0, |b| bodies[b].vy);
+                                        let cap = vb + j.bounce * j.v_in;
+                                        bodies[j.a].vy = bodies[j.a].vy.min(cap);
+                                    }
+                                }
                                 0.0
                             }
                         }
@@ -536,6 +649,36 @@ impl Eval for Rig {
                     };
                     if j.kind == JointKind::Contact {
                         contact[i] = contact[i].max(f);
+                    }
+                    // Friction along the surface: Stribeck on the slip
+                    // between the slide and the two sides' sliding modes.
+                    if let (Some((mu_s, mu_d)), true) = (j.friction, f > 0.0) {
+                        let along = j.slide.as_ref().map_or(0.0, |x| x.at(i));
+                        if along != 0.0 {
+                            let vb = j.b.map_or(0.0, |b| tangential(&bodies[b], &j.wb));
+                            let va = tangential(&bodies[j.a], &j.wa);
+                            let slip = along - (vb - va);
+                            // The compliance both sides offer the drag.
+                            let soft = |bi: Option<usize>, w: &[f32]| {
+                                bi.map_or(0.0, |b| {
+                                    w.iter().map(|x| x * x).sum::<f32>()
+                                        / bodies[b].modal_mass.max(1e-9)
+                                })
+                            };
+                            let comp = (soft(Some(j.a), &j.wa) + soft(j.b, &j.wb)).max(1e-6);
+                            let eps = (2.0 * dt * f * mu_s * comp).max(1e-3);
+                            let r = slip / j.vc;
+                            let drag =
+                                (slip / eps).tanh() * (mu_d + (mu_s - mu_d) / (1.0 + r * r)) * f;
+                            for (m, w) in drag_f[j.a].iter_mut().zip(&j.wa) {
+                                *m -= w * drag;
+                            }
+                            if let Some(b) = j.b {
+                                for (m, w) in drag_f[b].iter_mut().zip(&j.wb) {
+                                    *m += w * drag;
+                                }
+                            }
+                        }
                     }
                     // +f on a (up), -f on b.
                     forces[j.a] += f;
@@ -558,12 +701,16 @@ impl Eval for Rig {
                         let a = modal_f[bi][k] / b.modal_mass - b.s2[k] * b.v[k] - b.w2[k] * b.q[k];
                         b.v[k] += dt * a;
                         b.q[k] += dt * b.v[k];
+                        let at =
+                            drag_f[bi][k] / b.modal_mass - b.s2[k] * b.vt[k] - b.w2[k] * b.qt[k];
+                        b.vt[k] += dt * at;
+                        b.qt[k] += dt * b.vt[k];
                     }
                 }
             }
             for (bi, b) in bodies.iter().enumerate() {
                 for k in 0..b.modes.len() {
-                    rings[bi][k][i] = b.r[k] * b.v[k] * b.level;
+                    rings[bi][k][i] = b.r[k] * (b.v[k] + b.vt[k]) * b.level;
                 }
             }
         }

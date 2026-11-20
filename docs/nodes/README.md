@@ -14,8 +14,8 @@ in this folder; `describe_op <type>` has the schema and an example.
 
 - `rig` {bodies: [{name, mass, [fixed], [velocity], [drive], [material ...
   as modal], [level_db]}], joints: [{kind contact | spring, a, b | "ground",
-  [at_a], [at_b], [gap], [hardness] [radius] [bounce] | [stiffness]
-  [damping]}], [gravity 9.81], [oversample], [at], [gain_db], [seed]}: several
+  [at_a], [at_b], [gap], [hardness] [radius] [bounce] [damp] [slide]
+  [friction] [stribeck] | [stiffness] [damping]}], [gravity 9.81], [oversample], [at], [gain_db], [seed]}: several
   bodies joined by contacts and springs (a spring with a `gap` is a rattle),
   stepped together. Details: `docs/nodes/rig.md`.
 - `impact` {material, shape, `size` or `f0`, [loss] [tilt] [noise] [noise_width]

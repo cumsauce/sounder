@@ -56,7 +56,9 @@ fn a_free_body_drops_on_the_ground_and_rings() {
         "joints": [{"a": "pipe", "b": "ground", "gap": 0.1, "bounce": 0.3}]})]);
     let x = node_audio(&n, "r", 1.0);
     assert_finite(&x, "rig");
-    let hz = peak_hz(&x[12_000..], 48_000);
+    // While it lands (0.14-0.25 s); once it rests the contact pins its
+    // lowest mode (see the limits in docs/nodes/rig.md).
+    let hz = peak_hz(&x[7000..12_000], 48_000);
     assert!((hz / 160.0 - 1.0).abs() < 0.05, "rings at {hz} Hz");
     assert!(!landings(&n, 1.0).is_empty());
 }
@@ -108,4 +110,51 @@ fn errors_name_the_body_and_joint() {
         1.0,
     );
     assert!(e.contains("two bodies are named `x`"), "{e}");
+}
+
+#[test]
+fn a_dead_drop_does_not_fly_again() {
+    // A free tube with `bounce` 0 on the ground: its modes would bounce it
+    // like rubber without the rebound cap; it buzzes but never flies.
+    let n = out(vec![json!({"type": "rig", "name": "r", "bodies": [
+        {"name": "pipe", "mass": 2.0, "material": "metal", "shape": "tube", "f0": 160, "loss": 0.4}],
+        "joints": [{"a": "pipe", "b": "ground", "gap": 0.3, "bounce": 0.0}]})]);
+    let t = landings(&n, 1.5);
+    assert!(t.iter().all(|x| *x < 0.4), "landings {t:?}");
+}
+
+#[test]
+fn a_bow_on_a_bar_sings_on_a_mode() {
+    let n = out(vec![
+        json!({"type": "rig", "name": "r", "gravity": 0, "bodies": [
+        {"name": "bow", "mass": 0.05, "drive": -3.0},
+        {"name": "bar", "mass": 0.3, "fixed": true, "material": "metal", "shape": "bar",
+         "f0": 600, "loss": 0.5}],
+        "joints": [{"a": "bow", "b": "bar", "at_b": 0.3, "hardness": 0.5,
+                    "slide": 0.03, "friction": [0.8, 0.3], "stribeck": 0.05}]}),
+    ]);
+    let x = node_audio(&n, "r", 1.0);
+    assert_finite(&x, "bow");
+    let tail = &x[24_000..];
+    assert!(
+        rms(tail) > 0.02,
+        "the bow should keep it sounding: {}",
+        rms(tail)
+    );
+    let f = peak_hz(tail, 48_000);
+    let near = [600.0f32, 1654.0, 3243.0]
+        .iter()
+        .any(|m| (f / m - 1.0).abs() < 0.04);
+    assert!(near, "bowed peak {f} Hz is not a bar mode of 600 Hz");
+}
+
+#[test]
+fn friction_belongs_to_a_contact() {
+    let e = render_error_raw(
+        out(vec![json!({"type": "rig", "name": "r", "bodies": [
+            {"name": "x", "mass": 1.0}], "joints": [
+            {"kind": "spring", "a": "x", "b": "ground", "friction": [0.5, 0.3]}]})]),
+        1.0,
+    );
+    assert!(e.contains("for a contact joint"), "{e}");
 }
