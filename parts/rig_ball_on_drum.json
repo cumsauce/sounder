@@ -1,0 +1,77 @@
+{
+ "role": "whole",
+ "material": "wood",
+ "description": "heard as the best ball dropped on a drum of its box in a blind listen; built as: `rig`, a 60 g ball (contact hardness 0.2, bounce 0.6) dropped 0.3 m on a fixed wood membrane, f0 110, loss 2, noise 0.3",
+ "tags": [
+  "drum",
+  "ball",
+  "bounce",
+  "membrane",
+  "rig"
+ ],
+ "origin": "batch 27 (rig); picked best of its box by the listener on 2026-11-19",
+ "doc": {
+  "name": "rig_ball_on_drum",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.5,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "rig",
+    "name": "hit",
+    "bodies": [
+     {
+      "name": "ball",
+      "mass": 0.06
+     },
+     {
+      "name": "skin",
+      "mass": 0.3,
+      "fixed": true,
+      "material": "wood",
+      "shape": "membrane",
+      "f0": 110,
+      "loss": 2.0,
+      "noise": 0.3
+     }
+    ],
+    "joints": [
+     {
+      "a": "ball",
+      "b": "skin",
+      "at_b": 0.3,
+      "gap": 0.3,
+      "bounce": 0.6,
+      "hardness": 0.2
+     }
+    ],
+    "at": 0.005
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "hit",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "drop",
+    "value": 0.5,
+    "doc": "drop height: harder, later first hit",
+    "map": [
+     {
+      "node": "hit",
+      "field": "joints",
+      "index": 0,
+      "key": "gap",
+      "from": 0.1,
+      "to": 0.6
+     }
+    ]
+   }
+  ]
+ }
+}

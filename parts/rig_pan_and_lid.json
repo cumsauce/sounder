@@ -1,0 +1,97 @@
+{
+ "role": "whole",
+ "material": "metal",
+ "description": "heard as the best pan struck with a spoon, its lid resting on it, of its box in a blind listen; built as: `rig`, a 50 g spoon at 2.5 m/s on a fixed 0.25 m, 2 mm metal plate, a 0.8 kg, 1 mm lid resting on its edge (contact, bounce 0.3), noise 0.4",
+ "tags": [
+  "pan",
+  "lid",
+  "spoon",
+  "metal",
+  "rattle",
+  "rig"
+ ],
+ "origin": "batch 27 (rig); picked best of its box by the listener on 2026-11-19",
+ "doc": {
+  "name": "rig_pan_and_lid",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "rig",
+    "name": "hit",
+    "bodies": [
+     {
+      "name": "spoon",
+      "mass": 0.05,
+      "velocity": -2.5
+     },
+     {
+      "name": "pan",
+      "mass": 1.5,
+      "fixed": true,
+      "material": "metal",
+      "size": 0.25,
+      "thickness": 0.002,
+      "loss": 0.5,
+      "noise": 0.4,
+      "noise_width": 0.1
+     },
+     {
+      "name": "lid",
+      "mass": 0.8,
+      "material": "metal",
+      "size": 0.24,
+      "thickness": 0.001,
+      "loss": 0.5,
+      "noise": 0.4,
+      "noise_width": 0.1,
+      "level_db": -3
+     }
+    ],
+    "joints": [
+     {
+      "a": "spoon",
+      "b": "pan",
+      "at_b": 0.3,
+      "hardness": 0.9,
+      "gap": 0.002
+     },
+     {
+      "a": "lid",
+      "b": "pan",
+      "at_a": 0.95,
+      "at_b": 0.9,
+      "bounce": 0.3
+     }
+    ],
+    "at": 0.005
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "hit",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "strike",
+    "value": 0.5,
+    "doc": "how hard the spoon hits",
+    "map": [
+     {
+      "node": "hit",
+      "field": "bodies",
+      "index": 0,
+      "key": "velocity",
+      "from": -1.0,
+      "to": -5.0
+     }
+    ]
+   }
+  ]
+ }
+}

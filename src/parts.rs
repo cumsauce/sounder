@@ -41,6 +41,8 @@ const FILES: &[&str] = &[
     include_str!("../parts/impact_bowed_bar.json"),
     include_str!("../parts/impact_box_scrape.json"),
     include_str!("../parts/impact_bending_sheet.json"),
+    include_str!("../parts/rig_ball_on_drum.json"),
+    include_str!("../parts/rig_pan_and_lid.json"),
     include_str!("../parts/large_metal_container_hit.json"),
     include_str!("../parts/metal_plate_gong_hit.json"),
     include_str!("../parts/metal_bell_hit.json"),
