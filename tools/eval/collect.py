@@ -1,7 +1,7 @@
 """Collect an evaluation run: save each brief's sound document and render
 it to WAV for the blind rating page.
 
-  python3 tools/eval/collect.py <autosave session json> <run dir> <wav dir>
+  python3 tools/eval/collect.py <autosave session json> <run dir> <wav dir> [briefs json]
 
 The documents come from the eval server's autosave (the agents never save
 to the catalog). Each is written to <run dir>/<id>.json, then rendered by a
@@ -14,8 +14,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 
 
-def main(session, run_dir, wav_dir):
-    briefs = json.load(open(os.path.join(HERE, "briefs.json")))
+def main(session, run_dir, wav_dir, briefs_file=None):
+    briefs = json.load(open(briefs_file or os.path.join(HERE, "briefs.json")))
     sounds = json.load(open(session))["sounds"]
     os.makedirs(run_dir, exist_ok=True)
     os.makedirs(wav_dir, exist_ok=True)
@@ -47,4 +47,4 @@ def main(session, run_dir, wav_dir):
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:4])
+    main(*sys.argv[1:5])

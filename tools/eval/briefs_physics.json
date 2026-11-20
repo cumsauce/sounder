@@ -1,0 +1,14 @@
+[
+ {"id": "p01", "name": "pipe_drop", "brief": "A steel pipe dropped on a concrete floor, bouncing a couple of times and ringing out."},
+ {"id": "p02", "name": "coin_drop", "brief": "A coin dropped on a stone floor, bouncing and settling."},
+ {"id": "p03", "name": "lid_rattle", "brief": "A loose metal lid rattling on a pot while the pot is shaken."},
+ {"id": "p04", "name": "sign_hit", "brief": "A metal street sign hit once by a thrown stone while the wind pushes on it."},
+ {"id": "p05", "name": "bowed_bar", "brief": "A metal bar played with a violin bow, a sustained eerie tone."},
+ {"id": "p06", "name": "box_drag", "brief": "A metal toolbox dragged across a stone floor."},
+ {"id": "p07", "name": "ball_drum", "brief": "A rubber ball dropped onto a drum, bouncing a few times."},
+ {"id": "p08", "name": "pan_lid", "brief": "A cooking pan struck with a metal spoon while its lid sits on it."},
+ {"id": "p09", "name": "tin_roof", "brief": "A hammer hitting a tin roof sheet that has a loose screw in it."},
+ {"id": "p10", "name": "string_box", "brief": "A single guitar-like string plucked on a small wooden box."},
+ {"id": "p11", "name": "door_slam", "brief": "A heavy wooden interior door slammed shut, for a game. Dry and mono."},
+ {"id": "p12", "name": "laser", "brief": "A short sci-fi laser zap for a game."}
+]

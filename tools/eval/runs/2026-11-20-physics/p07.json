@@ -1,0 +1,46 @@
+{
+ "name": "p07_ball_drum",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "sound",
+   "name": "ball",
+   "sound": "rig_ball_on_drum",
+   "at": 0,
+   "gain_db": 0,
+   "macros": {
+    "drop": 0.5
+   }
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "ball",
+   "peak_db": -1.5,
+   "fade_in": 0.0005
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "drop",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "drop height: more and harder bounces",
+   "game": false,
+   "map": [
+    {
+     "node": "ball",
+     "field": "macros",
+     "from": 0.0,
+     "to": 1.0,
+     "key": "drop"
+    }
+   ]
+  }
+ ],
+ "version": 1
+}

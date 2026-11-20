@@ -1,0 +1,55 @@
+{
+ "name": "p01_pipe_drop",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "sound",
+   "name": "pipe",
+   "sound": "impact_pipe_drop",
+   "at": 0,
+   "gain_db": 0,
+   "macros": {
+    "height": 0.5
+   }
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "pipe",
+   "peak_db": -1
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "height",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "drop height: harder hit, wider bounces",
+   "game": false,
+   "map": [
+    {
+     "node": "pipe",
+     "field": "macros",
+     "from": 0.0,
+     "to": 1.0,
+     "key": "height"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "brief": "A steel pipe dropped on a concrete floor, bouncing a couple of times and ringing out",
+  "components": [
+   {
+    "role": "whole",
+    "node": "pipe",
+    "material": "metal"
+   }
+  ]
+ },
+ "version": 1
+}

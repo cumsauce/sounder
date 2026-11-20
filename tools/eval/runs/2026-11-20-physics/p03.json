@@ -1,0 +1,57 @@
+{
+ "name": "p03_lid_rattle",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "duration": 2.0,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "sound",
+   "name": "rattle",
+   "sound": "impact_lid_rattle",
+   "at": 0,
+   "gain_db": 0,
+   "macros": {
+    "shake": 0.5
+   }
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "rattle",
+   "lufs": -20,
+   "fade_in": 0.0005
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "shake",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how hard the pot is shaken",
+   "game": false,
+   "map": [
+    {
+     "node": "rattle",
+     "field": "macros",
+     "from": 0.2,
+     "to": 0.9,
+     "key": "shake"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "brief": "a loose metal lid rattling on a pot while the pot is shaken",
+  "components": [
+   {
+    "role": "whole",
+    "node": "rattle",
+    "material": "metal"
+   }
+  ]
+ },
+ "version": 1
+}

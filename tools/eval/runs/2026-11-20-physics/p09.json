@@ -1,0 +1,55 @@
+{
+ "name": "p09_tin_roof",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "sound",
+   "name": "roof",
+   "sound": "rig_tin_roof_screw",
+   "at": 0.0,
+   "macros": {
+    "looseness": 0.5
+   }
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "roof",
+   "peak_db": -1.5,
+   "fade_in": 0.0005
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "looseness",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how loose the screw is",
+   "game": false,
+   "map": [
+    {
+     "node": "roof",
+     "field": "macros",
+     "from": 0.0,
+     "to": 1.0,
+     "key": "looseness"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "brief": "A hammer hitting a tin roof sheet that has a loose screw in it",
+  "components": [
+   {
+    "role": "whole",
+    "node": "roof",
+    "material": "metal"
+   }
+  ]
+ },
+ "version": 1
+}

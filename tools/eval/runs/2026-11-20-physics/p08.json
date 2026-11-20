@@ -1,0 +1,56 @@
+{
+ "name": "p08_pan_lid",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "sound",
+   "name": "pan",
+   "sound": "rig_pan_and_lid",
+   "at": 0,
+   "macros": {
+    "strike": 0.5
+   }
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "pan",
+   "peak_db": -1.5,
+   "fade_in": 0.0005
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "strike",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how hard the spoon hits",
+   "game": false,
+   "map": [
+    {
+     "node": "pan",
+     "field": "macros",
+     "from": 0.0,
+     "to": 1.0,
+     "key": "strike"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "brief": "A cooking pan struck with a metal spoon while its lid sits on it",
+  "components": [
+   {
+    "role": "whole",
+    "node": "pan",
+    "material": "metal",
+    "note": "approved rig part: spoon on pan, resting lid rattles"
+   }
+  ]
+ },
+ "version": 2
+}

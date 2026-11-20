@@ -1,0 +1,232 @@
+{
+ "name": "p04_sign_hit",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "duration": 3.5,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "noise",
+   "name": "wn",
+   "color": "white"
+  },
+  {
+   "type": "decay",
+   "name": "crk_env",
+   "time": 0.03,
+   "at": 0.5
+  },
+  {
+   "type": "math",
+   "name": "crk_raw",
+   "op": "mul",
+   "a": "wn",
+   "b": "crk_env"
+  },
+  {
+   "type": "filter",
+   "name": "crk_f",
+   "input": "crk_raw",
+   "mode": "bp",
+   "freq": 3500,
+   "q": 0.8
+  },
+  {
+   "type": "gain",
+   "name": "crk_g",
+   "input": "crk_f",
+   "db": -8
+  },
+  {
+   "type": "decay",
+   "name": "str_env",
+   "time": 0.012,
+   "at": 0.5
+  },
+  {
+   "type": "math",
+   "name": "strike",
+   "op": "mul",
+   "a": "wn",
+   "b": "str_env"
+  },
+  {
+   "type": "wind",
+   "name": "wind",
+   "speed": 14,
+   "gust": 0.5
+  },
+  {
+   "type": "filter",
+   "name": "push",
+   "input": "wind",
+   "mode": "lp",
+   "freq": 400
+  },
+  {
+   "type": "gain",
+   "name": "push_g",
+   "input": "push",
+   "db": -30
+  },
+  {
+   "type": "mix",
+   "name": "exc",
+   "inputs": [
+    "strike",
+    "push_g"
+   ]
+  },
+  {
+   "type": "modal",
+   "name": "sign",
+   "excite": "exc",
+   "material": "metal",
+   "shape": "plate",
+   "f0": 180,
+   "thickness": 0.002,
+   "noise": 0.4,
+   "noise_width": 0.1,
+   "loss": 0.5
+  },
+  {
+   "type": "gain",
+   "name": "sign_g",
+   "input": "sign",
+   "db": -4
+  },
+  {
+   "type": "noise",
+   "name": "bn",
+   "color": "brown"
+  },
+  {
+   "type": "decay",
+   "name": "thd_env",
+   "time": 0.25,
+   "at": 0.5
+  },
+  {
+   "type": "math",
+   "name": "thd_raw",
+   "op": "mul",
+   "a": "bn",
+   "b": "thd_env"
+  },
+  {
+   "type": "filter",
+   "name": "thd_f",
+   "input": "thd_raw",
+   "mode": "lp",
+   "freq": 220,
+   "slope": 24
+  },
+  {
+   "type": "gain",
+   "name": "thd_g",
+   "input": "thd_f",
+   "db": -6
+  },
+  {
+   "type": "gain",
+   "name": "wind_g",
+   "input": "wind",
+   "db": -10
+  },
+  {
+   "type": "mix",
+   "name": "dry",
+   "to": "mono",
+   "inputs": [
+    "crk_g",
+    "sign_g",
+    "thd_g",
+    "wind_g"
+   ]
+  },
+  {
+   "type": "finish",
+   "name": "bus",
+   "input": "dry",
+   "punch": 0.3,
+   "glue": 0.2
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "bus",
+   "peak_db": -1.5
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "wind",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "wind level",
+   "game": false,
+   "map": [
+    {
+     "node": "wind_g",
+     "field": "db",
+     "from": -22.0,
+     "to": -2.0
+    }
+   ]
+  },
+  {
+   "name": "ring",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how long the sign rings",
+   "game": false,
+   "map": [
+    {
+     "node": "sign",
+     "field": "loss",
+     "from": 1.0,
+     "to": 0.3,
+     "curve": "exp"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "brief": "A metal street sign hit once by a thrown stone while the wind pushes on it",
+  "components": [
+   {
+    "role": "crack",
+    "node": "crk_g",
+    "at": [
+     0.5,
+     0.56
+    ]
+   },
+   {
+    "role": "body",
+    "node": "sign_g",
+    "material": "metal",
+    "at": [
+     0.5,
+     3.5
+    ]
+   },
+   {
+    "role": "weight",
+    "node": "thd_g",
+    "at": [
+     0.5,
+     0.8
+    ]
+   },
+   {
+    "role": "bed",
+    "node": "wind_g",
+    "note": "wind on the sign"
+   }
+  ]
+ },
+ "version": 4
+}

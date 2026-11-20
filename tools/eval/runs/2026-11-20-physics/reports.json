@@ -1,0 +1,14 @@
+{
+ "p01": {"start": "part impact_pipe_drop", "notes": "sound-node knob mapping (field macros, key) undocumented; impact not in the families list; node counts disagree (118 / 144)"},
+ "p02": {"start": "part impact_coin_drop", "notes": "spacing claim on bounciness failed; a whole-part spec checks no material; unclear whether layering rules apply to a whole part"},
+ "p03": {"start": "part impact_lid_rattle", "notes": "knob mapping undocumented; no guidance for a whole part as the sound"},
+ "p04": {"start": "primitives (modal plate + noise crack + brown weight + wind + finish)", "notes": "missed impact_sign_wind; ring claim failed; layers impact preset fails ringing/crest on ringing metal"},
+ "p05": {"start": "primitives (friction -> modal bar)", "notes": "missed impact_bowed_bar: no bowed-bar row in the AGENTS.md table"},
+ "p06": {"start": "part impact_box_scrape", "notes": "knob mapping undocumented; spec checks no material on a sound node; node counts disagree"},
+ "p07": {"start": "part rig_ball_on_drum", "notes": "expect alone skips the defaults; knob mapping undocumented; 0.27 s of silence before the first bounce"},
+ "p08": {"start": "part rig_pan_and_lid", "notes": "no claim fits a strike-force knob under peak_db"},
+ "p09": {"start": "part rig_tin_roof_screw", "notes": "knob mapping undocumented; spec checks no material on a sound node"},
+ "p10": {"start": "part rig_string_on_box", "notes": "the instance came out 0.865 s (the part was heard at 2.5 s); described as struck, not plucked; knob mapping undocumented"},
+ "p11": {"start": "template door_slam", "notes": "none"},
+ "p12": {"start": "recipe pitch sweep", "notes": "aliasing expect needs a steady pitch, undocumented"}
+}

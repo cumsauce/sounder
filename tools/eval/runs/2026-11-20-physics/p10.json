@@ -1,0 +1,55 @@
+{
+ "name": "p10_string_box",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "sound",
+   "name": "pluck",
+   "sound": "rig_string_on_box",
+   "at": 0,
+   "gain_db": 0,
+   "macros": {
+    "coupling": 0.5
+   }
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "pluck",
+   "peak_db": -1
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "coupling",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how much the wooden box speaks under the string",
+   "game": false,
+   "map": [
+    {
+     "node": "pluck",
+     "field": "macros",
+     "from": 0.0,
+     "to": 1.0,
+     "key": "coupling"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "brief": "a single guitar-like string plucked on a small wooden box",
+  "components": [
+   {
+    "role": "whole",
+    "node": "pluck",
+    "material": "wood"
+   }
+  ]
+ },
+ "version": 1
+}

@@ -1,0 +1,61 @@
+{
+ "name": "p06_box_drag",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "sound",
+   "name": "drag",
+   "sound": "impact_box_scrape",
+   "at": 0,
+   "macros": {
+    "speed": 0.5
+   }
+  },
+  {
+   "type": "gain",
+   "name": "lvl",
+   "input": "drag",
+   "db": 0
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "lvl",
+   "lufs": -20
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "speed",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how fast the box is dragged",
+   "game": false,
+   "map": [
+    {
+     "node": "drag",
+     "field": "macros",
+     "from": 0.0,
+     "to": 1.0,
+     "key": "speed"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "brief": "A metal toolbox dragged across a stone floor",
+  "components": [
+   {
+    "role": "whole",
+    "node": "drag",
+    "material": "metal",
+    "note": "approved impact_box_scrape part"
+   }
+  ]
+ },
+ "version": 1
+}

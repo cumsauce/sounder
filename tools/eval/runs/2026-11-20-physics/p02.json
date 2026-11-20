@@ -1,0 +1,56 @@
+{
+ "name": "p02_coin_drop",
+ "format_version": 1,
+ "kind": "oneshot",
+ "sample_rate": 48000,
+ "seed": 1,
+ "nodes": [
+  {
+   "type": "sound",
+   "name": "coin",
+   "sound": "impact_coin_drop",
+   "at": 0,
+   "gain_db": 0,
+   "macros": {
+    "bounciness": 0.5
+   }
+  },
+  {
+   "type": "output",
+   "name": "out",
+   "input": "coin",
+   "peak_db": -1.5,
+   "fade_in": 0.0005
+  }
+ ],
+ "params": {},
+ "macros": [
+  {
+   "name": "bounciness",
+   "value": 0.5,
+   "default": 0.5,
+   "doc": "how much each bounce keeps",
+   "game": false,
+   "map": [
+    {
+     "node": "coin",
+     "field": "macros",
+     "from": 0.2,
+     "to": 0.8,
+     "key": "bounciness"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "brief": "A coin dropped on a stone floor, bouncing and settling",
+  "components": [
+   {
+    "role": "whole",
+    "node": "coin",
+    "material": "metal"
+   }
+  ]
+ },
+ "version": 2
+}
