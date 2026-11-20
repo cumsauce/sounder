@@ -15,3 +15,10 @@ Three boxes, two designs each, dry and dressed, blind. Key:
   tone; a `noise` on the screw (0.6-0.8) and a lower `level_db` would make it
   read as a loose part rather than a chime.
 - Saved as parts: `rig_ball_on_drum`, `rig_pan_and_lid`.
+
+## Batch 28 (2026-11-20): the screw again
+
+Picked: the screw as noise bands (`noise` 0.7, `noise_width` 0.4), 4 dB
+lower (`level_db` -10), dry; over a noisier, lower screw (1.5 kHz, -12 dB)
+and the tight screw. The guess held: a rattling part needs `noise`. Saved
+as the part `rig_tin_roof_screw` (knob: looseness, the free play).

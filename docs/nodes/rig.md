@@ -74,8 +74,9 @@ sample, 1 at its peak.
 
 - Heard once (batch 27, `docs/history/labels/batch27_findings.md`): the
   ball on a drum and the pan with its lid picked; the loose screw on a tin
-  sheet heard as good detail but strange (a clean 2.5 kHz bar mode: give a
-  rattling part `noise`).
+  sheet heard as good detail but strange (a clean 2.5 kHz bar mode); with
+  `noise` 0.7 and 4 dB lower it was picked (batch 28): give a rattling part
+  `noise`.
 - Vertical motion only: no rotation, no sliding (use `impact` for `slide`,
   `friction` and rolling).
 - A contact keeps `bounce` through Hunt-Crossley alone: `impact`'s rebound

@@ -1,0 +1,102 @@
+{
+ "role": "whole",
+ "material": "metal",
+ "description": "heard as the best tin roof hit of its box in a blind listen (over a quieter, lower screw and a tight one); built as: `rig`, a 0.4 kg hammer at 3 m/s on a fixed 0.5 m, 2 mm metal sheet, a 5 g screw (bar f0 2500, noise 0.7, noise_width 0.4, level -10 dB) on a spring with 0.2 mm of free play",
+ "tags": [
+  "tin",
+  "roof",
+  "sheet",
+  "metal",
+  "hammer",
+  "screw",
+  "rattle",
+  "rig"
+ ],
+ "origin": "batch 28 (the loose screw again); picked best of its box by the listener on 2026-11-20",
+ "doc": {
+  "name": "rig_tin_roof_screw",
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 2.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "rig",
+    "name": "hit",
+    "bodies": [
+     {
+      "name": "hammer",
+      "mass": 0.4,
+      "velocity": -3.0
+     },
+     {
+      "name": "sheet",
+      "mass": 2.0,
+      "fixed": true,
+      "material": "metal",
+      "size": 0.5,
+      "thickness": 0.002,
+      "loss": 0.4,
+      "noise": 0.3,
+      "noise_width": 0.1
+     },
+     {
+      "name": "screw",
+      "mass": 0.005,
+      "material": "metal",
+      "shape": "bar",
+      "f0": 2500,
+      "loss": 0.6,
+      "level_db": -10,
+      "noise": 0.7,
+      "noise_width": 0.4
+     }
+    ],
+    "joints": [
+     {
+      "a": "hammer",
+      "b": "sheet",
+      "at_b": 0.4,
+      "hardness": 0.9
+     },
+     {
+      "kind": "spring",
+      "a": "screw",
+      "b": "sheet",
+      "at_b": 0.8,
+      "gap": 0.0002,
+      "stiffness": 200000.0,
+      "damping": 2
+     }
+    ],
+    "at": 0.005,
+    "gravity": 0
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "hit",
+    "fade_in": 0.0005
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "looseness",
+    "value": 0.5,
+    "doc": "free play of the screw: more, more rattle",
+    "map": [
+     {
+      "node": "hit",
+      "field": "joints",
+      "index": 1,
+      "key": "gap",
+      "from": 5e-05,
+      "to": 0.0005,
+      "curve": "exp"
+     }
+    ]
+   }
+  ]
+ }
+}
