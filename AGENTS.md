@@ -326,6 +326,9 @@ asks for, so the graph can be checked against the request, not only against
   band-passed noise body 94 ms, the weight 73 ms: a modal body is mostly
   its strike, and a hit's length comes from a noise body and the weight.
   A body made of a modal alone fails a `length_ms` of [40, 300].
+- A `sound` node (a part) has no `material` field, so a component naming
+  one reports "no material field to check": leave `material` off a part's
+  component (the part's own material is in `catalog describe`).
 - A sound with no nodes yet keeps a spec-only `sound_ops` call unrendered,
   so the spec can come first.
 - `spec_update: [{"index": 1, "node": "boards_g"}]` edits one component
@@ -357,6 +360,18 @@ Before building a layer from nodes, look for one:
   hit goes at `at: 0.045`. Parts carry no loudness target, so their levels
   are the balance they were approved at: move them with `gain_db`, then
   `mix`, `finish`, `output` as for any layered sound.
+- A part can be the whole sound (role `whole`, most `impact` / `rig` parts):
+  one `sound` node into `output` with `peak_db`; it needs no extra layers.
+  Give the document the part's `duration` (`catalog describe` shows it):
+  with automatic length the instance is cut at 60 dB under its peak (a
+  struck string part came out 0.87 s instead of its heard 2.5 s). A part
+  that starts with a fall (`rig_ball_on_drum`: 0.27 s before the first
+  hit) can go through `trim` to lose the silence.
+- A knob on the outer sound can drive a part's own knob: `{"node": "body",
+  "field": "macros", "key": "size", "from": 0.2, "to": 0.9}` (`node` is the
+  `sound` node, `key` the part's knob). Knobs on parts are usually
+  unclaimed: an event part's spacing and a strike knob's centroid move
+  unevenly under a `peak_db` output.
 - `catalog load` a part to edit a copy; a library sound with a built-in's
   name is used instead of the built-in.
 - Save a layer worth reusing with `catalog {action: "save", role: "crack",
@@ -378,7 +393,12 @@ Start from these. Each was picked best of its box, or rated good blind.
 |---|---|---|
 | a door slam | the `door_slam` template; its layers `wood_brush`, `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock` | the template is the approved slam |
 | footsteps | `all_purpose_step`, `concrete_step`, `gravel_step`, `grass_step`, `dirt_step`, `wood_step`, `carpet_step`, `metal_step` (all `step`) | `gravel_crunch` or `grass_swish` (step textures) over `all_purpose_step`; a walk is `step` with an `at` list |
-| a hit that plays out (drop, bounces, rattle, scrape, bow, bend) | `impact_pipe_drop`, `impact_coin_drop`, `impact_block_drop`, `impact_lid_rattle`, `impact_sign_wind`, `impact_bowed_bar`, `impact_box_scrape`, `impact_bending_sheet` (`impact`) | a crack from the part's `force` over it |
+| a pipe, coin or wooden block dropped, bouncing | `impact_pipe_drop`, `impact_coin_drop`, `impact_block_drop` (`impact`) | a crack from the part's `force` over it |
+| a loose lid or part rattling, shaken | `impact_lid_rattle` | |
+| a sign, panel or sheet hit while the wind pushes it | `impact_sign_wind` | |
+| a metal bar (or glass, a saw) bowed: a sustained eerie tone | `impact_bowed_bar` | |
+| a box or crate dragged, scraped | `impact_box_scrape` | |
+| a struck sheet that bends or wobbles as it rings | `impact_bending_sheet` | |
 | objects acting on each other | `rig_ball_on_drum`, `rig_pan_and_lid`, `rig_tin_roof_screw`, `rig_string_on_box` (`rig`) | |
 | stone and metal hits | `brick_or_rock_drop`, `small_brick_drop`, `heavy_stone_hit` (a wall); `large_pipe_drop`, `large_metal_container_hit`, `metal_plate_gong_hit`, `metal_bell_hit`, `metal_into_small_glass` | `wooden_crate_drop` is a whole crate on concrete |
 | clicks and taps | `small_object_taps`, `mouse_click_tap`, `keyboard_button_hit` | |
@@ -777,7 +797,9 @@ until it fits; you read their moves in `summary`.
     seeds must also differ by `min_distance` dB of STFT distance);
     a wrong shape (`"variations": 5`) errors with the check's name and its
     fields, as `dc` and `aliasing` do;
-    `aliasing true` or `{max_db -40}`; `inharmonicity {min, max}` cents (a
+    `aliasing true` or `{max_db -40}` (it needs a steady pitch: on a sweep
+    it fails "no steady pitched segment", so leave it off a laser or a
+    riser); `inharmonicity {min, max}` cents (a
     harmonic tone reads under 2, a bell tens); `modulation {rate_hz, tol_hz
     0.5, min_depth (1 dB or 10 cents), mode "amplitude" | "pitch"}`;
     `roughness {min, max}` percent; `dc {max}` dB; `reference {file,
@@ -796,7 +818,10 @@ until it fits; you read their moves in `summary`.
     replaces the preset's (`tail_ms {min, max}`, the time to -20 dB, has no
     preset value). Each FAIL names the role and the layer to add. The
     approved slam and the real recording pass; the round-0 and tuned-drum
-    builds fail (`tests/it/layers.rs`). Not a default: a UI blip or a drone has
+    builds fail (`tests/it/layers.rs`). Ringing metal (a pipe, a sign, a bell)
+    fails the preset's `ringing_max` and crest by design: give
+    `{"preset": "impact", "ringing_max": 6, "crest_db": {"max": 30}}` or skip
+    `layers` for it. Not a default: a UI blip or a drone has
     no weight or crack. `summary` warns when 80 % of a oneshot's energy sits
     in one role band, and `listen`'s energy shares line names the roles.
   `aliasing`, `inharmonicity`, `modulation` and `roughness` cannot be named in
