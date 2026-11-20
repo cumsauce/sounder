@@ -34,3 +34,8 @@ Runs:
 - `runs/2026-11-18b/`: run 2, after the baseline's fixes, rated blind beside
   the baseline ("Sound Brief Ratings, Round Two"): 18 points against 17.
   The whoosh (e10) failed in both and is dropped from `briefs.json`.
+- `runs/2026-11-20-physics/`: 12 physics briefs (`briefs_physics.json`)
+  after the impact / rig routing: 10 agents started from the matching part
+  or template, 2 (the sign, the bowed bar) from primitives. Rating page
+  "Physics Brief Ratings": 11 good, 1 OK (the laser control: "cute tiny but
+  not realistic"); the lid rattle "good but sounds a bit large".

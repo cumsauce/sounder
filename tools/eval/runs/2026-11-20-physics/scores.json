@@ -1,0 +1,62 @@
+{
+ "p03": {
+  "cue": "q01",
+  "rating": "good",
+  "note": "good but sounds a bit large"
+ },
+ "p12": {
+  "cue": "q02",
+  "rating": "ok",
+  "note": "cute tiny but not realistic"
+ },
+ "p01": {
+  "cue": "q03",
+  "rating": "good",
+  "note": ""
+ },
+ "p04": {
+  "cue": "q04",
+  "rating": "good",
+  "note": ""
+ },
+ "p11": {
+  "cue": "q05",
+  "rating": "good",
+  "note": ""
+ },
+ "p02": {
+  "cue": "q06",
+  "rating": "good",
+  "note": ""
+ },
+ "p06": {
+  "cue": "q07",
+  "rating": "good",
+  "note": ""
+ },
+ "p05": {
+  "cue": "q08",
+  "rating": "good",
+  "note": ""
+ },
+ "p07": {
+  "cue": "q09",
+  "rating": "good",
+  "note": ""
+ },
+ "p09": {
+  "cue": "q10",
+  "rating": "good",
+  "note": ""
+ },
+ "p10": {
+  "cue": "q11",
+  "rating": "good",
+  "note": ""
+ },
+ "p08": {
+  "cue": "q12",
+  "rating": "good",
+  "note": ""
+ }
+}
