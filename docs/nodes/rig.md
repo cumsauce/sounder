@@ -69,7 +69,11 @@ thickness, loss, tilt, noise, noise_width, modes 24], [level_db]}`.
 shortest contact or spring period spans 20 substeps, and the highest mode
 stays stable; at most 64), `at`, `gain_db`, `seed`. The output peaks at
 -6 dBFS before `gain_db`. Port `force`: the largest contact force each
-sample, 1 at its peak.
+sample above the upper body's resting load (its weight and a steady
+downward `drive`), 1 at its peak, so it reads 0 once a body rests and a
+layer multiplied by it stops (the raw force kept a crack hissing under a
+chair at rest). Port `contact`: the raw contact force, 1 at its peak (it
+reads the weight at rest: use it to detect touches).
 
 ## Measured (`crates/sfx_analysis/tests/it/rig.rs`)
 
@@ -91,6 +95,14 @@ sample, 1 at its peak.
   `noise` 0.7 and 4 dB lower it was picked (batch 28): give a rattling part
   `noise`.
 - Vertical motion and sliding along a contact; no rotation, no rolling.
+  One axis means a clapper meets only what is above or below it, never
+  several objects around it in turn: a wind chime is one clapper per tube,
+  each driven by its own `wander` (built that way in batch 30 and picked).
+- With `damp` "body", a real rebound off a held body leaves at exactly
+  `bounce` x its landing speed (a touch that leaves slower than 30 % of that
+  is chatter and is only capped): a 5 g marble in a held glass bowl at
+  `bounce` 0.75 keeps landing with flights 0.75 of the one before; before
+  this the bowl's modes took its bounce and it stopped after 3 landings.
 - A free body resting on the ground has its lowest mode pinned by the
   contact: a 2 kg tube rings at its 160 Hz `f0` while it lands, then the
   resting contact passes the vibration into its rigid motion and it quietens

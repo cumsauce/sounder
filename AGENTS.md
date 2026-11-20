@@ -79,7 +79,7 @@ modeler's `MODELER_*`.
 | Tool | What it does |
 |---|---|
 | `summary` | state, nodes (what reads what), params, macros + claim status, the human's knob moves since last read (reading clears them), open comments, warnings, causal yes/no, descriptors |
-| `sound_ops` | atomic batch: `ops` (node upserts; `{"type": "delete", "name": ...}` removes), `params`, `macros`, `delete_macros`, `kind`, `duration` (null or 0 = automatic length again), `seed`, `sample_rate`, `expect`, `spec` (the brief as data; null removes it); renders for real; one history step if anything changed |
+| `sound_ops` | atomic batch: `ops` (node upserts; `{"type": "delete", "name": ...}` removes), `params`, `macros`, `delete_macros`, `kind`, `duration` (0 = automatic length again; null changes nothing), `seed`, `sample_rate`, `expect`, `spec` (the brief as data; `{}` removes it); renders for real; one history step if anything changed |
 | `listen` | the image + descriptor table; `node`, `seeds`, `sweep {param, values: [..]}`, `zoom {t: [a, b], hz: [lo, hi]}`, `diff`, `reference`, `reference_set` (a bad `zoom` / `sweep` error shows the accepted shape) |
 | `verify` | PASS / FAIL checks (`checks`, `only`, `expect`; see Senses); any FAIL is an error |
 | `describe_op` | node types, one line each; or one type's example + schema (`kind`, aliases `type` / `node`) and the built-in parts built on it |
@@ -111,8 +111,8 @@ every call.
 - `kind` `oneshot` with no `duration` renders until the output stays under
   -80 dBFS or 60 dB under its own peak (the higher) for 50 ms (doubling 2 s up to 30 s; then a warning that it never
   decays), then trims the trailing silence. A `loop` needs a `duration`.
-- `duration` in `sound_ops`: a number fixes the length; **`null` (or `0`)
-  returns to automatic length** (leaving it out changes nothing). Nodes that
+- `duration` in `sound_ops`: a number fixes the length; **`0` returns to
+  automatic length** (leaving it out, or `null`, changes nothing). Nodes that
   end after the document (`time_stretch`, `smear`, a long `reverb` tail,
   `thunder`) need a `duration` long enough, or they are cut.
 - `seed` drives every random node (mixed with the node's name and its own
@@ -353,7 +353,7 @@ Before building a layer from nodes, look for one:
 
 - `catalog {action: "search", role: "body", material: "wood"}` (also `text`:
   any word of a name, tag or description, plurals and endings folded, most
-  hits first; `approved`): the library's parts and saved sounds plus the 130 built-in
+  hits first; `approved`): the library's parts and saved sounds plus the 131 built-in
   parts in `parts/` (by use: `docs/routing.md`, "Parts the listener picked"). Each is named and described by what the
   listener heard (`heard as "..."`), which is often not what it was built
   as: search by the sound you need, not by the node. Approved ones come
@@ -393,7 +393,7 @@ bus above they pass `layers` (`tests/parts.rs`).
 
 **Search first.** `new_sound {name, brief: "<the brief>"}` lists the parts,
 templates and ready-made nodes that fit it; `catalog {action: "search", text: "<the sound you need>"}`
-(plus `role` / `material`) finds the 130 built-in parts by what the listener
+(plus `role` / `material`) finds the 131 built-in parts by what the listener
 heard: two eval agents who matched their brief against a table row instead
 missed `impact_sign_wind` and `impact_bowed_bar`. Then this short table; the
 full one (every ready-made node, its knobs, how it was heard, the
@@ -404,7 +404,7 @@ listener's notes on knocks, metal, stone) is `docs/routing.md`.
 | a door slam | `new_sound {template: "door_slam"}` (knobs `weight snap stick knock latch`); never a click over one `modal` |
 | footsteps | `step` or its parts (`all_purpose_step`, `concrete_step`, `gravel_step`, ...); not `footstep`, not an impact |
 | a dropped / bouncing / rattling / scraped / bowed object | the `impact_*` parts (`impact_pipe_drop`, `impact_coin_drop`, `impact_block_drop`, `impact_lid_rattle`, `impact_sign_wind`, `impact_bowed_bar`, `impact_box_scrape`, `impact_bending_sheet`) |
-| objects acting on each other | the `rig_*` parts (`rig_ball_on_drum`, `rig_pan_and_lid`, `rig_tin_roof_screw`, `rig_string_on_box`) |
+| objects acting on each other | the `rig_*` parts (`rig_ball_on_drum`, `rig_pan_and_lid`, `rig_tin_roof_screw`, `rig_string_on_box`, `rig_wind_chime`) |
 | none of those parts fits, but objects move each other | the nodes: `impact` (one striker or the floor on one object: `height` / `speed`, `drive`, `slide` + `friction`), `rig` (several bodies, `contact` / `spring` joints; a spring `gap` rattles); `docs/nodes/modal.md`, `docs/nodes/rig.md` |
 | a knock | `pattern` -> `voices` of `contact` -> wood `modal` (`noise` 0.6, `tilt` 4, `loss` ~3) + crack + thud (`docs/routing.md`) |
 | metal: pipe, bar, lid, coin | `modal` metal, `noise` 0.4, `noise_width` 0.1, `loss` 0.3-0.6, lowest mode 120-200 Hz for a pipe |

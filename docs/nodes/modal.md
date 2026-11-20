@@ -485,6 +485,14 @@ the contact force follows how the surface moves under it.
 
 ### `force` as a trigger
 
+`force` is the contact force above the resting load (the body's weight
+and a steady press), 1 at its peak: it reads 0 once the body rests, so a
+crack or thud multiplied by it stops (with the raw force a chair's crack
+hissed on at rest, batch 30). `contact` is the raw force, 1 at its peak,
+for detecting touches. `rebound` (default "exact") makes a real rebound
+leave at exactly `bounce` x the landing speed; "cap" only limits it (the
+batch 22-24 parts use it, to stay as heard).
+
 The `force` port is the contact force, 1 at its peak. It sets the rhythm of
 the layers above the body:
 

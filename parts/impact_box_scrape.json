@@ -47,7 +47,8 @@
     ],
     "stribeck": 0.1,
     "at": 0.005,
-    "octaves": 1
+    "octaves": 1,
+    "rebound": "cap"
    },
    {
     "type": "output",

@@ -50,7 +50,8 @@
     "hardness": 0.8,
     "speed": 2.0,
     "excite": "wind",
-    "at": 0.005
+    "at": 0.005,
+    "rebound": "cap"
    },
    {
     "type": "output",

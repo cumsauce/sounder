@@ -1,0 +1,311 @@
+{
+ "role": "whole",
+ "material": "metal",
+ "description": "heard as great (batch 30, 2026-11-20); built as: `rig`, five fixed metal tubes (f0 880 / 988 / 1175 / 1319 / 1568 Hz, loss 0.2, noise 0.15) each struck by its own 20 g clapper on a soft spring, pushed by its own `wander` (rate 3) through a 6 mm gap: a metal wind chime in a light breeze",
+ "tags": [
+  "wind",
+  "chime",
+  "chimes",
+  "tubes",
+  "metal",
+  "breeze",
+  "rig"
+ ],
+ "origin": "batch 30 (five new sounds); the listener called it great on 2026-11-20",
+ "doc": {
+  "name": "rig_wind_chime",
+  "format_version": 1,
+  "kind": "oneshot",
+  "sample_rate": 48000,
+  "duration": 5.0,
+  "seed": 1,
+  "nodes": [
+   {
+    "type": "rig",
+    "name": "hit",
+    "gravity": 0,
+    "at": 0.005,
+    "bodies": [
+     {
+      "name": "c1",
+      "mass": 0.02,
+      "drive": "g1"
+     },
+     {
+      "name": "c2",
+      "mass": 0.02,
+      "drive": "g2"
+     },
+     {
+      "name": "c3",
+      "mass": 0.02,
+      "drive": "g3"
+     },
+     {
+      "name": "c4",
+      "mass": 0.02,
+      "drive": "g4"
+     },
+     {
+      "name": "c5",
+      "mass": 0.02,
+      "drive": "g5"
+     },
+     {
+      "name": "t1",
+      "mass": 0.15,
+      "fixed": true,
+      "material": "metal",
+      "shape": "tube",
+      "f0": 880,
+      "loss": 0.2,
+      "noise": 0.15,
+      "noise_width": 0.05
+     },
+     {
+      "name": "t2",
+      "mass": 0.14,
+      "fixed": true,
+      "material": "metal",
+      "shape": "tube",
+      "f0": 988,
+      "loss": 0.2,
+      "noise": 0.15,
+      "noise_width": 0.05
+     },
+     {
+      "name": "t3",
+      "mass": 0.13,
+      "fixed": true,
+      "material": "metal",
+      "shape": "tube",
+      "f0": 1175,
+      "loss": 0.2,
+      "noise": 0.15,
+      "noise_width": 0.05
+     },
+     {
+      "name": "t4",
+      "mass": 0.12,
+      "fixed": true,
+      "material": "metal",
+      "shape": "tube",
+      "f0": 1319,
+      "loss": 0.2,
+      "noise": 0.15,
+      "noise_width": 0.05
+     },
+     {
+      "name": "t5",
+      "mass": 0.11,
+      "fixed": true,
+      "material": "metal",
+      "shape": "tube",
+      "f0": 1568,
+      "loss": 0.2,
+      "noise": 0.15,
+      "noise_width": 0.05
+     }
+    ],
+    "joints": [
+     {
+      "kind": "spring",
+      "a": "c1",
+      "b": "ground",
+      "stiffness": 15,
+      "damping": 0.04
+     },
+     {
+      "kind": "spring",
+      "a": "c2",
+      "b": "ground",
+      "stiffness": 15,
+      "damping": 0.04
+     },
+     {
+      "kind": "spring",
+      "a": "c3",
+      "b": "ground",
+      "stiffness": 15,
+      "damping": 0.04
+     },
+     {
+      "kind": "spring",
+      "a": "c4",
+      "b": "ground",
+      "stiffness": 15,
+      "damping": 0.04
+     },
+     {
+      "kind": "spring",
+      "a": "c5",
+      "b": "ground",
+      "stiffness": 15,
+      "damping": 0.04
+     },
+     {
+      "a": "c1",
+      "b": "t1",
+      "at_b": 0.3,
+      "gap": 0.006,
+      "hardness": 0.6,
+      "bounce": 0.6
+     },
+     {
+      "a": "c2",
+      "b": "t2",
+      "at_b": 0.3,
+      "gap": 0.006,
+      "hardness": 0.6,
+      "bounce": 0.6
+     },
+     {
+      "a": "c3",
+      "b": "t3",
+      "at_b": 0.3,
+      "gap": 0.006,
+      "hardness": 0.6,
+      "bounce": 0.6
+     },
+     {
+      "a": "c4",
+      "b": "t4",
+      "at_b": 0.3,
+      "gap": 0.006,
+      "hardness": 0.6,
+      "bounce": 0.6
+     },
+     {
+      "a": "c5",
+      "b": "t5",
+      "at_b": 0.3,
+      "gap": 0.006,
+      "hardness": 0.6,
+      "bounce": 0.6
+     }
+    ]
+   },
+   {
+    "type": "output",
+    "name": "out",
+    "input": "hit",
+    "fade_in": 0.0005,
+    "fade_out": 0.4,
+    "peak_db": -1.5
+   },
+   {
+    "type": "wander",
+    "name": "g1",
+    "rate": 3,
+    "min": -0.5,
+    "max": 0.5,
+    "seed": 1
+   },
+   {
+    "type": "wander",
+    "name": "g2",
+    "rate": 3,
+    "min": -0.5,
+    "max": 0.5,
+    "seed": 2
+   },
+   {
+    "type": "wander",
+    "name": "g3",
+    "rate": 3,
+    "min": -0.5,
+    "max": 0.5,
+    "seed": 3
+   },
+   {
+    "type": "wander",
+    "name": "g4",
+    "rate": 3,
+    "min": -0.5,
+    "max": 0.5,
+    "seed": 4
+   },
+   {
+    "type": "wander",
+    "name": "g5",
+    "rate": 3,
+    "min": -0.5,
+    "max": 0.5,
+    "seed": 5
+   }
+  ],
+  "params": {},
+  "macros": [
+   {
+    "name": "breeze",
+    "value": 0.5,
+    "default": 0.5,
+    "doc": "how hard the wind pushes: more strikes",
+    "game": false,
+    "map": [
+     {
+      "node": "g1",
+      "field": "max",
+      "from": 0.2,
+      "to": 1.0
+     },
+     {
+      "node": "g1",
+      "field": "min",
+      "from": -0.2,
+      "to": -1.0
+     },
+     {
+      "node": "g2",
+      "field": "max",
+      "from": 0.2,
+      "to": 1.0
+     },
+     {
+      "node": "g2",
+      "field": "min",
+      "from": -0.2,
+      "to": -1.0
+     },
+     {
+      "node": "g3",
+      "field": "max",
+      "from": 0.2,
+      "to": 1.0
+     },
+     {
+      "node": "g3",
+      "field": "min",
+      "from": -0.2,
+      "to": -1.0
+     },
+     {
+      "node": "g4",
+      "field": "max",
+      "from": 0.2,
+      "to": 1.0
+     },
+     {
+      "node": "g4",
+      "field": "min",
+      "from": -0.2,
+      "to": -1.0
+     },
+     {
+      "node": "g5",
+      "field": "max",
+      "from": 0.2,
+      "to": 1.0
+     },
+     {
+      "node": "g5",
+      "field": "min",
+      "from": -0.2,
+      "to": -1.0
+     }
+    ]
+   }
+  ],
+  "version": 3
+ }
+}

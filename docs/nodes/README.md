@@ -31,7 +31,7 @@ in this folder; `describe_op <type>` has the schema and an example.
   along the surface), [roughness] [grain] [octaves] [wobble] (a roll), [friction] [stribeck]
   (stick-slip: scrape, creak, bow)}: the strike solved as one system, a point mass and
   the modes coupled per sample by a Hunt-Crossley contact. Bounces, chatter and
-  buzz on the floor come from it; port `force` is the contact force. Unheard:
+  buzz on the floor come from it; port `force` is the contact force above the resting load (0 at rest), `contact` the raw force; [rebound "exact"]. Heard in batches 22-24, 30:
   details in `docs/nodes/modal.md`, "`impact`".
 - `modal` {excite, material, **`size` or `f0`** (one of the two), [strike_position
   0.3], [modes 48], [loss 1], [tilt 0], [thickness], [f_min], [f_max], [seed]}:

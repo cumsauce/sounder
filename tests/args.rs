@@ -649,7 +649,8 @@ fn server_new_sound_null_duration_and_catalog_doc() {
         {"name": "sound_ops", "args": {"sound": "one", "ops": graph(), "duration": 0.6}},
         // 3: omitting duration changes nothing.
         {"name": "sound_ops", "args": {"doc": "one", "seed": 2}},
-        // 4: null clears it: automatic length (the decay ends before 0.6 s).
+        // 4: null changes nothing either (MCP clients may fill a left-out
+        // field with the schema's null default).
         {"name": "sound_ops", "args": {"doc": "one", "duration": null}},
         // 5: 0 still works the same way.
         {"name": "sound_ops", "args": {"doc": "one", "duration": 0.25}},
@@ -672,8 +673,8 @@ fn server_new_sound_null_duration_and_catalog_doc() {
     assert!(ok(3) && (secs(3) - 0.6).abs() < 1e-3, "missing keeps it");
     assert!(ok(4), "{}", text_of(&r[4]));
     assert!(
-        secs(4) < 0.45,
-        "null should clear the duration: {}",
+        (secs(4) - 0.6).abs() < 1e-3,
+        "null should keep the duration: {}",
         secs(4)
     );
     assert!(ok(5) && (secs(5) - 0.25).abs() < 1e-3);

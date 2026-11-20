@@ -32,7 +32,8 @@
     "bounce": 0.35,
     "scatter": 0.4,
     "floor": "stone",
-    "at": 0.005
+    "at": 0.005,
+    "rebound": "cap"
    },
    {
     "type": "output",

@@ -184,7 +184,7 @@ pub struct Rig {
 }
 
 impl Describe for Rig {
-    const BLURB: &'static str = "bodies (point masses, modal objects) joined by contacts and springs (a gap makes a rattle), stepped together per sample: a hammer on a plate with a loose screw, a ball on a drum; vertical motion; port `force` is the summed contact force; peaks at -6 dBFS";
+    const BLURB: &'static str = "bodies (point masses, modal objects) joined by contacts and springs (a gap makes a rattle), stepped together per sample: a hammer on a plate with a loose screw, a ball on a drum; vertical motion; port `force` is the largest contact force above the resting load; peaks at -6 dBFS";
     const WORDS: &'static [&'static str] = &["kind", "a", "b", "damp", "ends"];
     fn example() -> serde_json::Value {
         serde_json::json!({
@@ -598,6 +598,7 @@ impl Eval for Rig {
             .map(|b| vec![vec![0.0; n]; b.modes.len()])
             .collect();
         let mut contact = vec![0.0f32; n];
+        let mut touching = vec![0.0f32; n];
         let mut guided = vec![0.0f32; n];
         let mut forces = vec![0.0f32; bodies.len()];
         let mut modal_f: Vec<Vec<f32>> = bodies.iter().map(|b| vec![0.0; b.modes.len()]).collect();
@@ -677,8 +678,19 @@ impl Eval for Rig {
                                     if !j.point_damp && b_held && !bodies[j.a].fixed && j.v_in > 0.0
                                     {
                                         let vb = j.b.map_or(0.0, |b| bodies[b].vy);
-                                        let cap = vb + j.bounce * j.v_in;
-                                        bodies[j.a].vy = bodies[j.a].vy.min(cap);
+                                        let target = j.bounce * j.v_in;
+                                        let rel = bodies[j.a].vy - vb;
+                                        // A real rebound (not chatter within
+                                        // the landing) leaves at exactly
+                                        // `bounce` x the landing speed: the
+                                        // modes took most of a light ball's
+                                        // bounce (a marble on a bowl stopped
+                                        // after 3 landings at `bounce` 0.75).
+                                        bodies[j.a].vy = if rel > 0.3 * target {
+                                            vb + target
+                                        } else {
+                                            bodies[j.a].vy.min(vb + target)
+                                        };
                                     }
                                 }
                                 0.0
@@ -719,7 +731,16 @@ impl Eval for Rig {
                         _ => f,
                     };
                     if j.kind == JointKind::Contact {
-                        contact[i] = contact[i].max(f);
+                        // Above the resting load of the upper body (its
+                        // weight and a steady downward drive), so the port
+                        // reads 0 once it rests.
+                        let load = if bodies[j.a].fixed {
+                            0.0
+                        } else {
+                            bodies[j.a].mass * gravity + (-pushes[j.a]).max(0.0)
+                        };
+                        contact[i] = contact[i].max(f - load);
+                        touching[i] = touching[i].max(f);
                     }
                     // Friction along the surface: Stribeck on the slip
                     // between the slide and the two sides' sliding modes.
@@ -833,9 +854,14 @@ impl Eval for Rig {
         if fmax > 0.0 {
             contact.iter_mut().for_each(|c| *c /= fmax);
         }
+        let tmax = touching.iter().fold(0.0f32, |a, x| a.max(*x));
+        if tmax > 0.0 {
+            touching.iter_mut().for_each(|c| *c /= tmax);
+        }
         Ok(vec![
             ("out", Buf::Audio(out)),
             ("force", Buf::Audio(contact)),
+            ("contact", Buf::Audio(touching)),
         ])
     }
 }

@@ -1794,7 +1794,7 @@ mod impact {
 
     /// Start times (s) of each contact, from the `force` port.
     fn contacts(nodes: &[Value], secs: f32) -> Vec<f32> {
-        let f = node_audio(nodes, "hit.force", secs);
+        let f = node_audio(nodes, "hit.contact", secs);
         let mut on = false;
         let mut t = Vec::new();
         for (i, x) in f.iter().enumerate() {
@@ -1848,7 +1848,7 @@ mod impact {
                 "object_mass": 50.0, "striker_mass": 0.2, "hardness": 0.3, "speed": 1.5}),
             json!({"type": "output", "name": "out", "input": "hit"}),
         ];
-        let f = node_audio(&n, "hit.force", 0.5);
+        let f = node_audio(&n, "hit.contact", 0.5);
         let on = f.iter().filter(|x| **x > 1e-4).count() as f32 / 48_000.0;
         let radius = (3.0f32 * 0.2 / (4.0 * std::f32::consts::PI * 2000.0)).cbrt();
         let e_s = 1e6 * 2e5f32.powf(0.3);
@@ -1911,7 +1911,7 @@ mod impact {
 
     /// Landings: touches more than 3 ms after the last one ended.
     fn landings(nodes: &[Value], secs: f32) -> usize {
-        let f = node_audio(nodes, "hit.force", secs);
+        let f = node_audio(nodes, "hit.contact", secs);
         let (mut n, mut off) = (0, usize::MAX / 2);
         for x in f {
             if x > 1e-4 {
@@ -1998,7 +1998,7 @@ mod impact {
     #[test]
     fn a_roll_stays_in_contact_and_sounds_all_along() {
         let n = roller(json!({}));
-        let f = node_audio(&n, "hit.force", 1.0);
+        let f = node_audio(&n, "hit.contact", 1.0);
         let on = f[4800..].iter().filter(|x| **x > 0.0).count() as f32 / (f.len() - 4800) as f32;
         assert!(on > 0.7, "in contact {on}");
         let x = node_audio(&n, "hit", 1.0);
@@ -2073,7 +2073,7 @@ mod impact {
             ]
         };
         let lifts = |n: &[Value]| {
-            let f = node_audio(n, "hit.force", 2.0);
+            let f = node_audio(n, "hit.contact", 2.0);
             f.windows(2).filter(|w| w[0] > 0.0 && w[1] == 0.0).count()
         };
         let smooth = marble(5e-6);
@@ -2083,6 +2083,18 @@ mod impact {
         let crest = 20.0 * (peak(t) / rms(t)).log10();
         assert!(crest < 15.0, "crest {crest} dB");
         assert!(lifts(&marble(2e-5)) > 20);
+    }
+
+    #[test]
+    fn force_reads_zero_once_it_rests() {
+        // A dead drop: after it settles, `force` (above the resting load)
+        // is near 0, while `contact` (the raw force) still reads the weight.
+        let n = drop(json!({"bounce": 0.0, "loss": 4.0}));
+        let f = node_audio(&n, "hit.force", 1.5);
+        let c = node_audio(&n, "hit.contact", 1.5);
+        let late = |x: &[f32]| x[48_000..].iter().fold(0.0f32, |a, v| a.max(v.abs()));
+        assert!(late(&f) < 0.01, "force at rest {}", late(&f));
+        assert!(late(&c) > 0.0, "contact at rest {}", late(&c));
     }
 
     #[test]

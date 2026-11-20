@@ -44,7 +44,8 @@
      0.3
     ],
     "stribeck": 0.05,
-    "at": 0.005
+    "at": 0.005,
+    "rebound": "cap"
    },
    {
     "type": "output",

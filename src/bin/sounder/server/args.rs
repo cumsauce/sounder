@@ -67,9 +67,9 @@ pub(crate) struct SoundOpsArgs {
     /// (needs a duration).
     #[serde(default)]
     pub(crate) kind: Option<String>,
-    /// Seconds. Omit to leave it as it is. A oneshot with no duration renders
+    /// Seconds. Omit (or null) to leave it as it is. A oneshot with no duration renders
     /// until it falls under -80 dBFS or 60 dB under its peak (up to 30 s); a loop needs one. Pass
-    /// null (or 0) to clear a fixed duration and go back to automatic length.
+    /// 0 to clear a fixed duration and go back to automatic length.
     #[serde(default, deserialize_with = "present_or_null")]
     #[schemars(with = "Option<f32>")]
     pub(crate) duration: Option<Option<f32>>,
@@ -88,7 +88,7 @@ pub(crate) struct SoundOpsArgs {
     /// error but the batch stays applied.
     #[serde(default)]
     pub(crate) expect: Option<Expect>,
-    /// The brief as data, replacing any earlier spec (null removes it):
+    /// The brief as data, replacing any earlier spec (`{}` removes it; null changes nothing):
     /// {"brief": "a heavy wooden door slammed shut", "components": [{"role":
     /// "crack", "node": "crk_g", "at": [0.05, 0.08], "band": [1500, 16000],
     /// "note": "the edge meeting the frame"}, {"role": "body", "node":

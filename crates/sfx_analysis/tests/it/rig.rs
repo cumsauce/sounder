@@ -12,7 +12,7 @@ fn out(nodes: Vec<Value>) -> Vec<Value> {
 /// Start times of each contact (s), from the `force` port, touches within
 /// 3 ms of the last merged.
 fn landings(nodes: &[Value], secs: f32) -> Vec<f32> {
-    let f = node_audio(nodes, "r.force", secs);
+    let f = node_audio(nodes, "r.contact", secs);
     let (mut t, mut off) = (Vec::new(), usize::MAX / 2);
     for (i, x) in f.iter().enumerate() {
         if *x > 1e-4 {
@@ -265,4 +265,22 @@ fn a_string_held_by_a_stiff_spring_stays_finite() {
         ]);
         assert_finite(&node_audio(&n, "r", 0.5), "string on a spring");
     }
+}
+
+#[test]
+fn a_light_ball_keeps_its_bounce() {
+    // A 5 g marble dropped 0.25 m into a held glass bowl, `bounce` 0.75: it
+    // lands again and again, each flight about 0.75 of the one before (the
+    // modes used to take most of its bounce: it stopped after 3 landings).
+    let n = out(vec![json!({"type": "rig", "name": "r", "bodies": [
+        {"name": "marble", "mass": 0.005},
+        {"name": "bowl", "mass": 0.5, "fixed": true, "material": "glass", "shape": "shell",
+         "f0": 950, "loss": 0.6}],
+        "joints": [{"a": "marble", "b": "bowl", "gap": 0.25, "bounce": 0.75, "hardness": 1,
+                    "radius": 0.006}]})]);
+    let t = landings(&n, 2.5);
+    assert!(t.len() >= 6, "landings {t:?}");
+    let g: Vec<f32> = t.windows(2).map(|w| w[1] - w[0]).collect();
+    let r = g[1] / g[0];
+    assert!((r - 0.75).abs() < 0.1, "flight ratio {r}, gaps {g:?}");
 }

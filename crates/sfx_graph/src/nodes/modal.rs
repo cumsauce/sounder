@@ -1621,6 +1621,12 @@ pub struct Impact {
     /// from a scrape.
     #[serde(default)]
     pub wobble: Option<f32>,
+    /// How a landing rebounds (default "exact"): "exact" leaves at
+    /// `bounce` x the landing speed (the modes no longer swallow a light
+    /// striker's bounce); "cap" only limits it to that, so the modes can take
+    /// more (how batches 22-24 were heard; their parts use it).
+    #[serde(default)]
+    pub rebound: Option<String>,
     /// `[static, dynamic]` friction coefficients (default none: no friction,
     /// a pure roll). With `slide`, a stick-slip force drags the surface
     /// along: a scrape, a creak, a bowed squeal that locks to a mode.
@@ -1636,8 +1642,8 @@ pub struct Impact {
 }
 
 impl Describe for Impact {
-    const WORDS: &'static [&'static str] = &["floor"];
-    const BLURB: &'static str = "a strike or drop solved as one system: a striker (or the floor, when the object is dropped) and modal's modes coupled by a Hunt-Crossley contact per sample; bounces under gravity, chatter and buzz come from the physics; peaks at -6 dBFS; port `force` is the contact force (1 at its peak, 0 off contact): a trigger for crack layers";
+    const WORDS: &'static [&'static str] = &["floor", "rebound"];
+    const BLURB: &'static str = "a strike or drop solved as one system: a striker (or the floor, when the object is dropped) and modal's modes coupled by a Hunt-Crossley contact per sample; bounces under gravity, chatter and buzz come from the physics; peaks at -6 dBFS; port `force` is the contact force above the resting load (1 at its peak, 0 off contact and at rest): a trigger for crack layers";
     fn example() -> serde_json::Value {
         serde_json::json!({"material": "metal", "shape": "tube", "f0": 160, "loss": 0.4,
             "noise": 0.4, "noise_width": 0.1, "object_mass": 2.0, "height": 0.5, "floor": "stone"})
@@ -1808,6 +1814,11 @@ impl Eval for Impact {
         // height per octave made the fine bumps' curvature grow, so the ball
         // hopped (contact fell from 100 % to 39 %, and to 38 % at 0.3); at 0.2 the curvature falls
         // per octave, as a ball that cannot follow detail finer than itself.
+        let exact_rebound = match self.rebound.as_deref() {
+            None | Some("exact") => true,
+            Some("cap") => false,
+            Some(o) => return Err(format!("rebound {o:?}: give \"exact\" or \"cap\"")),
+        };
         let octaves = self.octaves.unwrap_or(6);
         if !(1..=8).contains(&octaves) {
             return Err(format!("octaves: {octaves}: give 1..8"));
@@ -1982,6 +1993,7 @@ impl Eval for Impact {
         let n = cx.n;
         let mut rings: Vec<Vec<f32>> = vec![vec![0.0; n]; ms.len()];
         let mut contact = vec![0.0f32; n];
+        let mut touching = vec![0.0f32; n];
         let mut ratios = vec![1.0f32; n];
         for i in start..n {
             let push = drive.as_ref().map_or(0.0, |d| d.at(i));
@@ -2035,7 +2047,14 @@ impl Eval for Impact {
                     (ki * d * d.sqrt() * (1.0 + alpha * ddot)).max(0.0)
                 } else {
                     if in_contact {
-                        vy = vy.min(rebound_cap);
+                        // A real rebound leaves at exactly the cap (the
+                        // modes take most of a light striker's bounce);
+                        // chatter within the landing is only capped.
+                        vy = if exact_rebound && rebound_cap.is_finite() && vy > 0.3 * rebound_cap {
+                            rebound_cap
+                        } else {
+                            vy.min(rebound_cap)
+                        };
                         left_at = step;
                     }
                     in_contact = false;
@@ -2046,7 +2065,12 @@ impl Eval for Impact {
                 } else {
                     (force, object_mass)
                 };
-                contact[i] = contact[i].max(force);
+                // The port is the force above the static load (weight and a
+                // steady press), so it reads 0 once the body rests: a layer
+                // multiplied by it stops instead of hissing on.
+                let load = mover * gravity + push.max(0.0);
+                contact[i] = contact[i].max(force - load);
+                touching[i] = touching[i].max(force);
                 vy += dt * ((force - push) / mover - gravity);
                 y += dt * vy;
                 // Friction: a Stribeck curve on the slip between the slider
@@ -2130,9 +2154,14 @@ impl Eval for Impact {
                 *c /= fmax;
             }
         }
+        let tmax = touching.iter().fold(0.0f32, |a, x| a.max(*x));
+        if tmax > 0.0 {
+            touching.iter_mut().for_each(|c| *c /= tmax);
+        }
         Ok(vec![
             ("out", Buf::Audio(out)),
             ("force", Buf::Audio(contact)),
+            ("contact", Buf::Audio(touching)),
         ])
     }
 }

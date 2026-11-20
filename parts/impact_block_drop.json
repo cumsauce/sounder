@@ -32,7 +32,8 @@
     "bounce": 0.3,
     "scatter": 0.4,
     "floor": "stone",
-    "at": 0.005
+    "at": 0.005,
+    "rebound": "cap"
    },
    {
     "type": "noise",
@@ -44,7 +45,7 @@
     "name": "crk",
     "op": "mul",
     "a": "wn",
-    "b": "hit.force"
+    "b": "hit.contact"
    },
    {
     "type": "filter",
