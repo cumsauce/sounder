@@ -1076,6 +1076,7 @@ async function boot() {
     sounder.call('node_types', {}).then(t => { TYPES = t; if (ST) renderRight(); }).catch(() => {});
     applyState(await sounder.call('state', {}));
     requestAnimationFrame(overlay);
+    loadProcs(undefined, undefined, true);
     if (BRIDGE) (async function poll(since) { // the session's `rev` moved: the page pulls `state` (as sounder.changed does)
       try { const r = await (await fetch(`${BRIDGE}/poll?since=${since}`)).json(); if (r.rev > since) onChanged(r.rev); setTimeout(() => poll(Math.max(since, r.rev)), 50); }
       catch (e) { setTimeout(() => poll(since), 1000); }
@@ -1093,3 +1094,32 @@ boot();
   const end = () => { if (!on) return; on = false; try { localStorage.setItem('sounder.dockh', String(Math.round(dk.getBoundingClientRect().height))); } catch (e) { /* ignore */ } };
   dk.addEventListener('pointerup', end); dk.addEventListener('pointercancel', end);
 })();
+
+
+// ---------- servers panel: the sounder daemons and servers on this machine ----------
+let PROCS = null;
+async function loadProcs(call = 'processes', args = {}, quiet = false) {
+  try { PROCS = await sounder.call(call, args); } catch (e) { if (!quiet) toast(errText(e)); return; }
+  $('#srvcount').textContent = PROCS.daemons.length + PROCS.servers.length;
+  renderProcs();
+}
+function renderProcs() {
+  if (!PROCS) return; const p = PROCS;
+  const srv = x => `<div class="srvrow"><i class="dot" style="background:${x.windowed ? 'var(--accent)' : 'var(--faint)'}"></i><div class="what"><b>${x.windowed ? 'window server' : 'headless server'}</b> <span class="tag">pid ${x.pid}</span>${x.self ? ' <span class="tag">this window</span>' : ''}<div class="sub" title="${esc(x.binary || '')}">${esc(x.via ? 'started by ' + x.via : 'parent ' + x.parent)} · up ${esc(x.age)}${x.project ? ' · ' + esc(x.project) : ''}</div></div><button class="tbtn danger" data-stopproc="${x.pid}" data-self="${x.self ? 1 : 0}">Stop</button></div>`;
+  const dmn = d => `<div class="srvrow"><i class="dot live" style="background:var(--ok)"></i><div class="what"><b>daemon</b> <span class="tag">pid ${d.pid}</span> <span class="tag">${d.windowed ? 'windowed' : 'headless'}</span><div class="sub">${esc(d.socket)} · up ${esc(d.age)}</div></div><button class="tbtn danger" data-stopproc="${d.pid}">Stop</button></div>`;
+  const windows = p.servers.filter(x => x.windowed).length;
+  $('#srvpop').innerHTML =
+    `<h4>Daemons (shared by agents)</h4>${p.daemons.map(dmn).join('') || '<div class="srvnote">none running; the next agent call starts one</div>'}` +
+    `<h4>Servers</h4>${p.servers.map(srv).join('') || '<div class="srvnote">none</div>'}` +
+    `<div class="srvnote">${p.proxies} agent session${p.proxies === 1 ? '' : 's'} connected through a proxy. ${windows > 1 ? `<b>${windows} windows are open.</b> Only the first server a launch finds takes the window; stop the others.` : 'Stopping a daemon ends its server; the next agent call starts it again from the autosave.'}</div>` +
+    `<div class="srvnote"><button class="tbtn" data-refreshproc>Refresh</button></div>`;
+}
+$('#srvbtn').onclick = () => { const p = $('#srvpop'); p.hidden = !p.hidden; if (!p.hidden) loadProcs(); };
+$('#srvpop').addEventListener('click', async e => {
+  if (e.target.closest('[data-refreshproc]')) { loadProcs(); return; }
+  const b = e.target.closest('[data-stopproc]'); if (!b) return;
+  if (b.dataset.self === '1' && b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Close this window?'; return; }
+  await loadProcs('stop_process', { pid: +b.dataset.stopproc });
+  setTimeout(() => loadProcs(), 1200); // the process takes a moment to exit
+});
+document.addEventListener('mousedown', e => { if (!e.target.closest('#srvpop, #srvbtn')) $('#srvpop').hidden = true; });

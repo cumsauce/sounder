@@ -14,6 +14,7 @@
 pub mod api;
 pub mod dev;
 pub mod player_iface;
+pub mod processes;
 pub mod protocol;
 
 /// Bulk-data requests being served (bounded: each renders a spectrogram).

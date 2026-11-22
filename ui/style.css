@@ -416,3 +416,14 @@ body.mapping input[type=range][data-fnum], body.mapping input[type=range][data-r
 /* dragging cards and bodies must not select their labels */
 .graph, .gnode, .rig, .rbody, .gtool, .rigbar { -webkit-user-select: none; user-select: none; }
 .rig input, .rpop input { -webkit-user-select: text; user-select: text; }
+
+/* Servers panel: the sounder daemons and servers on this machine */
+.srvpop { position: absolute; top: 44px; right: 10px; width: 460px; max-width: calc(100vw - 20px); max-height: min(520px, 70vh); overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 18px 50px rgba(0,0,0,.5); z-index: 30; padding: 6px 10px 10px; }
+.srvpop[hidden] { display: none !important; }
+.srvpop h4 { margin: 10px 0 4px; font: 11px var(--mono); color: var(--faint); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; }
+.srvrow { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-top: 1px solid var(--line); font-size: 12px; }
+.srvrow .what { flex: 1; min-width: 0; } .srvrow .what b { font-weight: 500; color: var(--fg); }
+.srvrow .sub { color: var(--faint); font: 11px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srvrow .tag { font: 10px var(--mono); color: var(--dim); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
+.srvrow .tbtn { padding: 3px 8px; font-size: 12px; }
+.srvnote { color: var(--dim); font-size: 12px; padding: 4px 4px 0; }

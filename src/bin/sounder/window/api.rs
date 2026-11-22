@@ -241,8 +241,13 @@ fn run(s: &mut Session, sh: &Arc<Shared>, name: &str, a: &Value) -> Result<Value
             sh.set_solo(None);
             state(s, sh, Some(&opened))
         }
+        "processes" => super::processes::list(),
+        "stop_process" => {
+            let pid = num_arg(a, "pid")? as u32;
+            super::processes::stop(pid)
+        }
         other => Err(format!(
-            "unknown window call `{other}` (state, select_sound, move_knob, reset_knobs, set_field, set_seed, add_annotation, jump, solo, play, stop, seek, catalog_list, catalog_load, catalog_approve)"
+            "unknown window call `{other}` (state, select_sound, move_knob, reset_knobs, set_field, set_seed, add_annotation, jump, solo, play, stop, seek, catalog_list, catalog_load, catalog_approve, processes, stop_process)"
         )),
     }
 }

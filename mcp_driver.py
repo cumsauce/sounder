@@ -423,6 +423,9 @@ def daemon_slot(socket_path):
 
 def daemon_mode(socket_path, mode):
     claim_socket(socket_path)
+    # SIGTERM (the window's Servers panel, `kill`) takes the normal exit: the
+    # server it owns is closed and the socket removed.
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     srv.bind(socket_path)  # before spawning: a racing second daemon fails here
     srv.listen(16)

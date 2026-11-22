@@ -32,6 +32,15 @@ Data flow (the contract is `design/window-api.md`):
 - Playback goes through `PlayerControl` (`window/player_iface.rs`, a re-export
   of `src/player.rs`); player events become `sounder.played({...})`.
 
+The **Servers** button (top right) lists the sounder daemons
+(`mcp_driver.py --daemon`), servers (the `sounder` binary, windowed or
+headless, with who started each) and the number of agent proxies, found with
+`ps` (`window/processes.rs`; the `processes` and `stop_process` calls). Stop
+sends SIGTERM to a daemon or server from that list and nothing else; the
+daemon's handler closes its server and removes its socket. Only one process
+holds the window (`$TMPDIR/sounder-window.lock`); a second windowed launch runs
+headless, and the panel says when more than one window is open.
+
 What the window cannot do yet: no Edit menu (so no Cmd-C / Cmd-V in text
 fields), no `catalog_save` call, no resolving comments (the agent does that).
 

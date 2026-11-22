@@ -100,6 +100,8 @@ window.FIX = (() => {
     stop: () => emit({ playing: false, pos: 0 }),
     seek: a => emit({ pos: a.t }),
     catalog_list: () => clone(J.catalog),
+    processes: () => ({ self: 1, proxies: 2, daemons: [{ pid: 100, age: '2-03:10:00', socket: '/tmp/sounder-mcp.sock', windowed: true }], servers: [{ pid: 101, parent: 100, via: 'daemon 100', age: '2-03:10:00', windowed: true, project: null, binary: 'sounder-server', self: true }, { pid: 202, parent: 9, via: 'zcode-cli', age: '04:12', windowed: true, project: '/code/game', binary: 'sounder', self: false }] }),
+    stop_process: () => ({ self: 1, proxies: 2, daemons: [], servers: [] }),
     node_types: () => clone(J.node_types || []),
     layout: a => { const s = cur(), L = s.layout ||= {}; const p = a.layout || {};
       if ('nodes' in p) { if (p.nodes === null) L.nodes = {}; else { L.nodes ||= {}; for (const [k, v] of Object.entries(p.nodes)) { if (v == null) delete L.nodes[k]; else L.nodes[k] = v; } } }
