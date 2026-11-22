@@ -5,13 +5,13 @@
 #   tools/app/install.sh --force    rebuild even when up to date
 #   tools/app/install.sh --agent    also install the LaunchAgent that reruns this when the branch moves
 #
-# It builds from a clean worktree of the branch (SOUNDER_APP_BRANCH, default swarm/main), never from the
+# It builds from a clean worktree of the branch (SOUNDER_APP_BRANCH, default main), never from the
 # shared checkout, so other sessions' uncommitted edits never reach the app. Build output is cached in
 # ~/Library/Caches/sounder-app, so an update rebuilds only what changed.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-BRANCH="${SOUNDER_APP_BRANCH:-swarm/main}"
+BRANCH="${SOUNDER_APP_BRANCH:-main}"
 CACHE="$HOME/Library/Caches/sounder-app"
 WT="$CACHE/src"
 DEST="${SOUNDER_APP_DEST:-/Applications/Sounder.app}"
