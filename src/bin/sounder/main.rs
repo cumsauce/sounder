@@ -99,6 +99,26 @@ fn main() {
         std::process::exit(2);
     }
 
+    // One window per user: a second windowed launch (an agent whose MCP config
+    // runs the bare binary, a second daemon on another socket) keeps serving
+    // MCP but opens no window. The lock lives in the temp dir, not a library,
+    // so it holds across projects.
+    let window_lock = std::env::temp_dir().join("sounder-window.lock");
+    let mut holds_window = false;
+    if !headless {
+        match store::acquire_lock_at(&window_lock, std::process::id()) {
+            Ok(store::LockOutcome::Owner) => holds_window = true,
+            Ok(store::LockOutcome::HeldBy(other)) => {
+                eprintln!(
+                    "sounder: the window is already open (pid {other}); this server runs headless"
+                );
+                headless = true;
+            }
+            // No lock file to be had: better a window than none.
+            Err(e) => eprintln!("sounder: window lock: {e}"),
+        }
+    }
+
     // One autosaving server per library: a second live one writes its own slot.
     let lib = match session.library_dir() {
         Ok(d) => d,
@@ -216,6 +236,9 @@ fn main() {
         done.set();
         let _ = session_thread.join();
         store::release_lock_at(&lock, pid);
+        if holds_window {
+            store::release_lock_at(&window_lock, pid);
+        }
         if let Err(e) = shown {
             eprintln!("sounder: {e}");
             std::process::exit(1);

@@ -46,6 +46,11 @@ open in the next.
 `SOUNDER_BINARY`, `SOUNDER_SOCKET`, `SOUNDER_PROJECT`, `SOUNDER_STDERR` mirror
 modeler's `MODELER_*`.
 
+**One window per user.** A windowed `sounder` takes `$TMPDIR/sounder-window.lock`;
+any further windowed launch (an MCP config that runs the bare binary, a second
+daemon) logs "the window is already open" and runs headless instead. Point
+every agent at the `--proxy` command so they share the one window's sounds.
+
 1. `summary` — what is open, what the human asked for (open comments).
 2. **`new_sound {name, brief: "<the brief, word for word>"}`**: it lists the
    approved parts, templates and nodes that fit the brief, best first. When
