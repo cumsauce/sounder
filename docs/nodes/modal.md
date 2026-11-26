@@ -411,6 +411,14 @@ the contact force follows how the surface moves under it.
   so the rebound of each landing is held to `bounce` x the speed it came in
   at. Touches within 3 ms of the last one are chatter of the same landing,
   not a new one.
+- Limits: `object_mass` and `striker_mass` 0.001..100000 kg, `speed`
+  0.01..300 m/s, `height` 0.001..1000 m, `radius` 0.0001..100 m, `thickness`
+  0.0001..0.5 m, `size` whatever puts the lowest mode in the band (a metal
+  plate 0.1 m thick takes 100 m). A heavier striker holds the contact longer
+  and sounds lower (a 100 kg, 3 t and 100 t striker on a 50 t plate at 20 m/s
+  touch for 1.4, 7.5 and 46 ms). A striker far heavier than the object it
+  hits (100 t at 300 m/s on 1 g) cannot be stepped even at 64 substeps: it is
+  an error ("the contact blew up"), never silence or NaN.
 - Gravity is on for a drop and for a striker given a `height`; a striker given
   a `speed` flies without it (it would fall back for a second hit).
 - `scatter` jitters each landing's restitution (x 1 +- 0.3 scatter) and each
@@ -419,7 +427,10 @@ the contact force follows how the surface moves under it.
   under 2 cm/s, restitution is 0 and it settles.
 - Integration: symplectic Euler, `oversample` substeps a sample at least,
   raised so the Hertz contact time of the first landing spans 20 substeps
-  (at most 64). The output is normalized to peak at -6 dBFS before `gain_db`
+  (at most 64). Past the old limits (striker over 100 kg, object over 1000
+  kg, over 50 m/s, or a drop over 20 m) the substeps also rise until the
+  contact at its hardest push, a spring on the striker and the modes
+  together, steps stably. The output is normalized to peak at -6 dBFS before `gain_db`
   (a macro on `height` moves the timing, not the level). Port `force`: the
   contact force, 1 at its peak, 0 off contact.
 

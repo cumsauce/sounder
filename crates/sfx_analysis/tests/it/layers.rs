@@ -262,3 +262,179 @@ mod spec {
         }
     }
 }
+
+/// The `heavy` and `tear` presets, on synthetic sounds built from
+/// band-limited noise with envelopes.
+mod presets {
+    use super::*;
+
+    /// One layer: `color` noise x a decay of `time` s starting at `at`,
+    /// through a filter (`mode` at `freq`, slope 24), `db` dB.
+    fn layer(
+        name: &str,
+        color: &str,
+        mode: &str,
+        freq: f32,
+        time: f32,
+        at: f32,
+        db: f32,
+    ) -> Vec<serde_json::Value> {
+        vec![
+            json!({"type": "noise", "name": format!("{name}_n"), "color": color}),
+            json!({"type": "decay", "name": format!("{name}_e"), "time": time, "at": at}),
+            json!({"type": "math", "name": format!("{name}_r"), "op": "mul",
+                   "a": format!("{name}_n"), "b": format!("{name}_e")}),
+            {
+                let mut f = json!({"type": "filter", "name": format!("{name}_f"),
+                    "input": format!("{name}_r"), "mode": mode, "freq": freq});
+                if mode != "bp" {
+                    f["slope"] = json!(24);
+                }
+                f
+            },
+            json!({"type": "gain", "name": name, "input": format!("{name}_f"), "db": db}),
+        ]
+    }
+
+    fn sound(name: &str, layers: Vec<Vec<serde_json::Value>>, duration: f32) -> SoundDoc {
+        let mut nodes: Vec<serde_json::Value> = layers.iter().flatten().cloned().collect();
+        let inputs: Vec<String> = layers
+            .iter()
+            .map(|l| l.last().unwrap()["name"].as_str().unwrap().to_string())
+            .collect();
+        nodes.push(json!({"type": "mix", "name": "sum", "inputs": inputs}));
+        nodes.push(json!({"type": "output", "name": "out", "input": "sum", "peak_db": -3}));
+        let mut doc = SoundDoc::named(name);
+        doc.nodes = nodes;
+        doc.duration = Some(duration);
+        doc
+    }
+
+    fn preset(p: &str) -> LayersCheck {
+        LayersCheck {
+            preset: Some(p.into()),
+            ..LayersCheck::default()
+        }
+    }
+
+    /// A crash: a 3 s rumble, a 0.5 s mid body, a short quiet crack.
+    fn crash() -> SoundDoc {
+        sound(
+            "crash",
+            vec![
+                layer("rumble", "brown", "lp", 160.0, 1.2, 0.02, -12.0),
+                layer("mid", "pink", "bp", 700.0, 0.3, 0.02, -3.0),
+                layer("crk", "white", "hp", 3000.0, 0.02, 0.02, -26.0),
+            ],
+            3.0,
+        )
+    }
+
+    /// A metal tear: noise above 1 kHz with a slow envelope and a little
+    /// low end.
+    fn tear() -> SoundDoc {
+        sound(
+            "tear",
+            vec![
+                layer("hi", "white", "hp", 2500.0, 1.2, 0.02, -14.0),
+                layer("mid", "pink", "bp", 1200.0, 1.0, 0.02, 0.0),
+                layer("lo", "brown", "lp", 150.0, 0.8, 0.02, -30.0),
+            ],
+            2.0,
+        )
+    }
+
+    /// A small knock: a wood-ish mid body with a thud and a crack.
+    fn knock() -> SoundDoc {
+        sound(
+            "knock",
+            vec![
+                layer("thud", "brown", "lp", 200.0, 0.1, 0.01, -16.0),
+                layer("body", "pink", "bp", 700.0, 0.05, 0.01, 0.0),
+                layer("crk", "white", "hp", 3000.0, 0.01, 0.01, -14.0),
+            ],
+            0.4,
+        )
+    }
+
+    fn fail_names(r: &[CheckResult]) -> Vec<String> {
+        failed(r).into_iter().map(String::from).collect()
+    }
+
+    #[test]
+    fn a_crash_passes_heavy_and_fails_impact() {
+        let h = layers(&crash(), preset("heavy"));
+        assert!(failed(&h).is_empty(), "heavy: {:?}", fail_names(&h));
+        let i = layers(&crash(), preset("impact"));
+        assert!(
+            failed(&i).contains(&"weight"),
+            "impact: {:?}",
+            fail_names(&i)
+        );
+    }
+
+    #[test]
+    fn a_tear_passes_tear_and_fails_impact() {
+        let t = layers(&tear(), preset("tear"));
+        assert!(failed(&t).is_empty(), "tear: {:?}", fail_names(&t));
+        assert_eq!(t.len(), 5, "weight, body, crack, voiced, dry");
+        let i = layers(&tear(), preset("impact"));
+        assert!(
+            failed(&i).contains(&"weight"),
+            "impact: {:?}",
+            fail_names(&i)
+        );
+    }
+
+    #[test]
+    fn a_small_knock_passes_impact_and_fails_heavy() {
+        let i = layers(&knock(), preset("impact"));
+        assert!(failed(&i).is_empty(), "impact: {:?}", fail_names(&i));
+        let h = layers(&knock(), preset("heavy"));
+        assert!(
+            failed(&h).contains(&"weight"),
+            "heavy: {:?}",
+            fail_names(&h)
+        );
+    }
+
+    #[test]
+    fn a_tear_is_not_a_heavy_hit_and_a_crash_is_not_a_tear() {
+        let h = layers(&tear(), preset("heavy"));
+        assert!(failed(&h).contains(&"weight"), "{:?}", fail_names(&h));
+        let t = layers(&crash(), preset("tear"));
+        assert!(failed(&t).contains(&"weight"), "{:?}", fail_names(&t));
+    }
+
+    #[test]
+    fn failures_speak_in_the_terms_of_the_kind_of_sound() {
+        let h = layers(&knock(), preset("heavy"));
+        let w = h.iter().find(|c| c.name == "layers weight").unwrap();
+        assert!(w.detail.contains("rumble"), "{}", w.detail);
+        let t = layers(&crash(), preset("tear"));
+        let w = t.iter().find(|c| c.name == "layers weight").unwrap();
+        assert!(w.detail.contains("high-pass"), "{}", w.detail);
+    }
+
+    #[test]
+    fn heavy_judges_the_tail_and_tear_does_not() {
+        let h = layers(&crash(), preset("heavy"));
+        assert!(h.iter().any(|c| c.name == "layers tail" && c.pass));
+        let t = layers(&tear(), preset("tear"));
+        assert!(
+            !t.iter()
+                .any(|c| c.name == "layers tail" || c.name == "layers crest")
+        );
+    }
+
+    #[test]
+    fn the_presets_are_listed_in_the_error_for_an_unknown_one() {
+        for p in ["heavy", "tear"] {
+            assert!(preset(p).resolved().is_ok());
+        }
+        let e = preset("whisper").resolved().unwrap_err();
+        for name in ["impact", "heavy", "tear", "footstep"] {
+            assert!(e.contains(name), "{e}");
+        }
+    }
+}

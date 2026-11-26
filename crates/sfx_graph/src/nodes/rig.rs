@@ -23,13 +23,13 @@ use crate::node::{Cx, Describe, Eval, In, Outs};
 pub struct RigBody {
     /// Its name, for the joints.
     pub name: String,
-    /// Mass, kg (0.0001..10000).
+    /// Mass, kg (0.0001..100000).
     pub mass: f32,
     /// Held in place (default false): a fixed body does not translate (a
     /// clamped plate, a bell on its stand); its modes still ring.
     #[serde(default)]
     pub fixed: bool,
-    /// Starting speed, m/s (default 0; positive is up, so a thrown hammer
+    /// Starting speed, m/s (-300..300, default 0; positive is up, so a thrown hammer
     /// coming down is negative).
     #[serde(default)]
     pub velocity: Option<f32>,
@@ -119,7 +119,7 @@ pub struct RigJoint {
     /// as `contact`'s, when neither side has a material.
     #[serde(default)]
     pub hardness: Option<f32>,
-    /// Contact: radius of curvature at the touch, metres (default 0.01).
+    /// Contact: radius of curvature at the touch, metres (0.0001..100, default 0.01).
     #[serde(default)]
     pub radius: Option<f32>,
     /// Contact: restitution 0..0.98 (default 0.5).
@@ -332,10 +332,18 @@ impl Eval for Rig {
             if self.bodies[..i].iter().any(|o| o.name == b.name) {
                 return Err(format!("two bodies are named `{}`", b.name));
             }
-            if !(b.mass.is_finite() && (0.0001..=10000.0).contains(&b.mass)) {
+            if !(b.mass.is_finite() && (0.0001..=100_000.0).contains(&b.mass)) {
                 return Err(format!(
-                    "body `{}`: mass {}: give 0.0001..10000 kg",
+                    "body `{}`: mass {}: give 0.0001..100000 kg",
                     b.name, b.mass
+                ));
+            }
+            if let Some(v) = b.velocity
+                && !(v.is_finite() && v.abs() <= 300.0)
+            {
+                return Err(format!(
+                    "body `{}`: velocity {v}: give -300..300 m/s",
+                    b.name
                 ));
             }
             if b.material.is_none() && (b.size.is_some() || b.f0.is_some()) {
@@ -450,8 +458,8 @@ impl Eval for Rig {
                 None => Vec::new(),
             };
             let gap = j.gap.unwrap_or(0.0);
-            if !(gap.is_finite() && (0.0..=50.0).contains(&gap)) {
-                return Err(format!("joint {n}: gap {gap}: give 0..50 m"));
+            if !(gap.is_finite() && (0.0..=1000.0).contains(&gap)) {
+                return Err(format!("joint {n}: gap {gap}: give 0..1000 m"));
             }
             let k = match j.kind {
                 JointKind::Contact => {
@@ -474,8 +482,8 @@ impl Eval for Rig {
                     let (eb, nb) = e_of(b)?;
                     let e_star = 1.0 / ((1.0 - na * na) / ea + (1.0 - nb * nb) / eb);
                     let radius = j.radius.unwrap_or(0.01);
-                    if !(radius.is_finite() && (0.0001..=1.0).contains(&radius)) {
-                        return Err(format!("joint {n}: radius {radius}: give 0.0001..1 m"));
+                    if !(radius.is_finite() && (0.0001..=100.0).contains(&radius)) {
+                        return Err(format!("joint {n}: radius {radius}: give 0.0001..100 m"));
                     }
                     let m_a = bodies[a].mass;
                     let m_eff = b.map_or(m_a, |b| m_a * bodies[b].mass / (m_a + bodies[b].mass));
@@ -861,7 +869,7 @@ impl Eval for Rig {
         }
         out.iter_mut().zip(&guided).for_each(|(o, g)| *o += g);
         let peak = out.iter().fold(0.0f32, |a, x| a.max(x.abs()));
-        if !peak.is_finite() {
+        if !peak.is_finite() || out.iter().any(|x| !x.is_finite()) {
             return Err("the rig blew up: raise `oversample`, or soften a joint (lower stiffness or hardness)".into());
         }
         let scale = if peak > 0.0 { 0.5 / peak } else { 0.0 } * level.unwrap_or(1.0);

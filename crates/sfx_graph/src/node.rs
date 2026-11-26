@@ -427,6 +427,11 @@ node_types! {
     "click" => Click,
 
     "crumple" => Crumple,
+    "buckle" => Buckle,
+    "tear" => Tear,
+    "structure" => Structure,
+    "rumble" => Rumble,
+    "plate" => Plate,
 }
 
 /// "unknown node type", naming the closest types.

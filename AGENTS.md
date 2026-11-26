@@ -72,7 +72,7 @@ daemon opens the window so the human sees every agent's sounds in one place
 4. **Build with `sound_ops`.** For an impact, a hit or a mechanism, read
    "Layering a designed sound": the ready-made node is the body layer, and a
    designed sound adds pre, crack, weight and after layers on a dry bus.
-   `describe_op` lists the 154 node types; `describe_op {kind: "filter"}`
+   `describe_op` lists the 159 node types; `describe_op {kind: "filter"}`
    gives one's example and schema.
 5. **`listen`, `verify`, fix, repeat.**
 6. **Add macros (knobs)**, unasked, on every sound: usually 1-4, on the 1-2
@@ -237,7 +237,7 @@ another node** (`"freq": "sweep"`: audio-rate modulation; a port as
 `"2*$rand"`) is an expression even without the `=`; a string that is a valid
 node or port name (`"verb.wet"`, `"a_b"`) is always a node.
 
-Families (154 types; * = a section in `docs/nodes/README.md`):
+Families (159 types; * = a section in `docs/nodes/README.md`):
 
 - **sources** `osc noise impulse sample`, `fm wavetable`*; **control** `lfo
   wander sample_hold slew ramp`, `chaos fbm curve switch pitch_follow
@@ -254,7 +254,9 @@ Families (154 types; * = a section in `docs/nodes/README.md`):
 - **events** `once pattern poisson bounce burst on_threshold shatter
   collapse cascade fracture_on contacts`*, with `grains cloud debris grind
   dust`* and `voices`; `sound` (an instance of another sound).
-- **physical models** `modal contact friction impact rig`*, mechanism
+- **physical models** `modal contact friction impact rig`*, large metal
+  `plate structure rumble buckle tear` (`docs/nodes/plate.md`,
+  `structure.md`, `sheet_metal.md`), mechanism
   `click`*, foley `bubble air glottis tract syrinx thunder`*, waveguides
   `tube string`*, surfaces `rolling cloth crumple footstep`*, water `water
   splash`*, elements `fire wind spark`*, machines `engine motor clock fan`*,
@@ -608,7 +610,13 @@ value; a FAIL says what to change.
   "max": 1.2}, "onsets": {"min": 3, "max": 3, "gap": [0.15, 0.3]}, "pitch":
   {"hz": 440, "tol_cents": 25}}`.
 - `layers` (`{"preset": "impact"}` or `"footstep"`) checks a designed hit;
-  each FAIL names the layer to add. Ringing metal fails it by design:
+  each FAIL names the layer to add. Pick the preset by scale and kind, never
+  by which one passes: `impact` is small and medium hits; `heavy` is a
+  vehicle-, building- or aircraft-sized crash or slam (weight 40-92 % under
+  200 Hz, body 6-55 %, a rumble of 250 ms or more); `tear` is sustained
+  tearing, scraping or screeching (weight at most 30 %, no ringing, crest or
+  tail rule). Bare `checks: ["layers"]` means `impact` and wrongly pushes a
+  big hit's low end down (`docs/senses.md`). Ringing metal fails it by design:
   `{"preset": "impact", "ringing_max": 6, "crest_db": {"max": 30}}` or skip
   it.
 - Every check's settings and thresholds: `docs/senses.md`, "verify checks in

@@ -2107,6 +2107,164 @@ mod impact {
         assert!(late(&c) > 0.0, "contact at rest {}", late(&c));
     }
 
+    /// In-range documents: (name, impact node). Their renders were pinned
+    /// before the limits were raised.
+    fn pinned_docs() -> Vec<(&'static str, Vec<Value>)> {
+        let o = |n: Value| vec![n, json!({"type": "output", "name": "out", "input": "hit"})];
+        vec![
+            (
+                "drop",
+                o(
+                    json!({"type": "impact", "name": "hit", "material": "metal", "shape": "tube", "f0": 160, "loss": 0.4, "object_mass": 2.0, "height": 0.5, "scatter": 0.0}),
+                ),
+            ),
+            (
+                "glass_ball",
+                o(
+                    json!({"type": "impact", "name": "hit", "material": "glass", "size": 0.1, "striker_mass": 0.001, "hardness": 1.0, "height": 0.2}),
+                ),
+            ),
+            (
+                "old_ceiling",
+                o(
+                    json!({"type": "impact", "name": "hit", "material": "metal", "size": 2.0, "object_mass": 1000.0, "striker_mass": 100.0, "speed": 50.0, "hardness": 1.0}),
+                ),
+            ),
+            (
+                "light_object",
+                o(
+                    json!({"type": "impact", "name": "hit", "material": "glass", "size": 0.1, "object_mass": 0.05, "striker_mass": 1.0, "speed": 10.0}),
+                ),
+            ),
+            (
+                "tall_drop",
+                o(
+                    json!({"type": "impact", "name": "hit", "material": "stone", "size": 0.5, "object_mass": 800.0, "height": 20.0, "bounce": 0.3}),
+                ),
+            ),
+        ]
+    }
+
+    #[test]
+    fn in_range_renders_are_unchanged_by_the_wider_limits() {
+        // Hashes of the renders made before the limits were raised.
+        let want: [(&str, u64); 5] = [
+            ("drop", 0xfdcb4b0c5a599743),
+            ("glass_ball", 0x766f93ee5681d5bb),
+            ("old_ceiling", 0xda8998a10639c7aa),
+            ("light_object", 0xd8d01d013dc9f31c),
+            ("tall_drop", 0xcce69f9e3ffb5f71),
+        ];
+        for ((name, n), (wname, hash)) in pinned_docs().into_iter().zip(want) {
+            assert_eq!(name, wname);
+            let got = fnv(&node_audio(&n, "hit", 1.0));
+            assert_eq!(got, hash, "{name}: {got:016x}");
+        }
+    }
+
+    fn big(extra: Value) -> Vec<Value> {
+        vec![
+            with_fields(
+                json!({"type": "impact", "name": "hit", "material": "metal", "size": 1.0, "scatter": 0.0}),
+                extra,
+            ),
+            json!({"type": "output", "name": "out", "input": "hit"}),
+        ]
+    }
+
+    #[test]
+    fn airliner_scale_strikes_render_finite_at_the_documented_peak() {
+        let cases = [
+            // 50 t into a 50 t wall plate at 100 m/s.
+            json!({"size": 20.0, "object_mass": 50_000.0, "striker_mass": 50_000.0, "speed": 100.0, "radius": 2.0}),
+            // The top of every range at once.
+            json!({"size": 100.0, "thickness": 0.1, "object_mass": 100_000.0, "striker_mass": 100_000.0, "speed": 300.0}),
+            // A body dropped from 1000 m onto stone.
+            json!({"size": 10.0, "object_mass": 100_000.0, "height": 1000.0}),
+            // The lightest, fastest striker.
+            json!({"material": "glass", "size": 0.1, "striker_mass": 0.001, "speed": 300.0, "hardness": 1.0}),
+        ];
+        for c in cases {
+            let n = big(c.clone());
+            let x = node_audio(&n, "hit", 3.0);
+            assert_finite(&x, &c.to_string());
+            assert!((peak(&x) - 0.5).abs() < 0.005, "{c}: peak {}", peak(&x));
+        }
+    }
+
+    #[test]
+    fn a_striker_far_heavier_than_its_target_errors_instead_of_going_silent() {
+        let n = big(
+            json!({"material": "glass", "size": 0.1, "object_mass": 0.001,
+            "striker_mass": 100_000.0, "speed": 300.0}),
+        );
+        let e = render_error_raw(n, 1.0);
+        assert!(e.contains("blew up"), "{e}");
+    }
+
+    #[test]
+    fn a_heavier_striker_holds_the_contact_longer_and_sounds_lower() {
+        let run = |m: f32| {
+            let n = big(
+                json!({"size": 5.0, "object_mass": 50_000.0, "striker_mass": m,
+                "speed": 20.0, "radius": 1.0}),
+            );
+            let c = node_audio(&n, "hit.contact", 1.0);
+            let on = c.iter().position(|v| *v > 1e-4).expect("contact");
+            let len = c[on..].iter().position(|v| *v <= 1e-4).unwrap_or(c.len());
+            (
+                len as f32 / 48.0,
+                stft_centroid(&node_audio(&n, "hit", 1.0)),
+            )
+        };
+        let runs: Vec<(f32, f32)> = [100.0, 3_000.0, 100_000.0]
+            .iter()
+            .map(|m| run(*m))
+            .collect();
+        println!("contact ms and centroid Hz by striker mass: {runs:?}");
+        assert!(
+            runs[0].0 < runs[1].0 && runs[1].0 < runs[2].0,
+            "contact ms {runs:?}"
+        );
+        assert!(
+            runs[0].1 > runs[1].1 && runs[1].1 > runs[2].1,
+            "centroid {runs:?}"
+        );
+    }
+
+    #[test]
+    fn past_the_widest_limits_the_error_names_the_new_range() {
+        for (extra, want) in [
+            (
+                json!({"object_mass": 100_001.0, "height": 1.0}),
+                "object_mass: 100001: give 0.001..100000",
+            ),
+            (
+                json!({"striker_mass": 100_001.0, "speed": 1.0}),
+                "striker_mass: 100001: give 0.001..100000",
+            ),
+            (
+                json!({"striker_mass": 1.0, "height": 1001.0}),
+                "height: 1001: give 0.001..1000",
+            ),
+            (
+                json!({"striker_mass": 1.0, "speed": 301.0}),
+                "speed: 301: give 0.01..300",
+            ),
+            (
+                json!({"striker_mass": 1.0, "speed": 1.0, "radius": 101.0}),
+                "radius: 101: give 0.0001..100",
+            ),
+            (
+                json!({"size": 1.0, "thickness": 0.6, "striker_mass": 1.0, "speed": 1.0}),
+                "0.0001..0.5",
+            ),
+        ] {
+            let e = render_error_raw(big(extra.clone()), 1.0);
+            assert!(e.contains(want), "{extra}: {e}");
+        }
+    }
+
     #[test]
     fn errors_name_the_field() {
         let e = render_error_raw(drop(json!({"speed": 1.0})), 1.0);

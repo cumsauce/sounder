@@ -284,3 +284,88 @@ fn a_light_ball_keeps_its_bounce() {
     let r = g[1] / g[0];
     assert!((r - 0.75).abs() < 0.1, "flight ratio {r}, gaps {g:?}");
 }
+
+fn ship_and_wall(ship: f32, v: f32, wall: f32, size: f32, thick: f32, extra: Value) -> Vec<Value> {
+    out(vec![json!({"type": "rig", "name": "r", "bodies": [
+        {"name": "ship", "mass": ship, "velocity": v},
+        {"name": "wall", "mass": wall, "material": "metal", "size": size, "thickness": thick}],
+        "joints": [with_fields(json!({"a": "ship", "b": "wall", "radius": 2.0}), extra)]})])
+}
+
+#[test]
+fn free_bodies_of_tens_of_tons_render_finite_at_the_documented_peak() {
+    let cases = [
+        ship_and_wall(50_000.0, -100.0, 50_000.0, 20.0, 0.1, json!({})),
+        ship_and_wall(
+            100_000.0,
+            -300.0,
+            100_000.0,
+            50.0,
+            0.1,
+            json!({"radius": 10.0}),
+        ),
+        // A heavy body on a gram-light one.
+        ship_and_wall(
+            100_000.0,
+            -300.0,
+            0.001,
+            0.1,
+            0.002,
+            json!({"radius": 0.01}),
+        ),
+    ];
+    for n in cases {
+        let x = node_audio(&n, "r", 3.0);
+        assert_finite(&x, "rig");
+        assert!((peak(&x) - 0.5).abs() < 0.005, "peak {}", peak(&x));
+    }
+}
+
+#[test]
+fn a_body_dropped_from_a_kilometre_lands() {
+    let n = out(vec![json!({"type": "rig", "name": "r", "bodies": [
+        {"name": "ship", "mass": 100_000.0},
+        {"name": "wall", "mass": 100_000.0, "fixed": true, "material": "metal", "size": 20.0,
+         "thickness": 0.1}],
+        "joints": [{"a": "ship", "b": "wall", "gap": 1000.0, "radius": 2.0}]})]);
+    let x = node_audio(&n, "r", 16.0);
+    assert_finite(&x, "rig");
+    assert!((peak(&x) - 0.5).abs() < 0.005, "peak {}", peak(&x));
+}
+
+#[test]
+fn a_heavier_body_holds_the_contact_longer() {
+    let run = |m: f32| {
+        let n = ship_and_wall(m, -20.0, 50_000.0, 5.0, 0.1, json!({"radius": 1.0}));
+        let c = node_audio(&n, "r.contact", 1.0);
+        let on = c.iter().position(|v| *v > 1e-4).expect("contact");
+        c[on..].iter().position(|v| *v <= 1e-4).unwrap_or(c.len()) as f32 / 48.0
+    };
+    let t: Vec<f32> = [100.0, 3_000.0, 100_000.0]
+        .iter()
+        .map(|m| run(*m))
+        .collect();
+    println!("rig contact ms by mass: {t:?}");
+    assert!(t[0] < t[1] && t[1] < t[2], "contact ms {t:?}");
+}
+
+#[test]
+fn past_the_widest_limits_the_error_names_the_new_range() {
+    let e = render_error_raw(
+        ship_and_wall(100_001.0, 0.0, 1.0, 1.0, 0.01, json!({})),
+        1.0,
+    );
+    assert!(e.contains("mass 100001: give 0.0001..100000 kg"), "{e}");
+    let e = render_error_raw(ship_and_wall(1.0, -301.0, 1.0, 1.0, 0.01, json!({})), 1.0);
+    assert!(e.contains("velocity -301: give -300..300 m/s"), "{e}");
+    let e = render_error_raw(
+        ship_and_wall(1.0, 0.0, 1.0, 1.0, 0.01, json!({"gap": 1001.0})),
+        1.0,
+    );
+    assert!(e.contains("gap 1001: give 0..1000 m"), "{e}");
+    let e = render_error_raw(
+        ship_and_wall(1.0, 0.0, 1.0, 1.0, 0.01, json!({"radius": 101.0})),
+        1.0,
+    );
+    assert!(e.contains("radius 101: give 0.0001..100 m"), "{e}");
+}

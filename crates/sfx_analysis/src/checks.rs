@@ -203,6 +203,12 @@ pub struct Variations {
 #[derive(Clone, Debug, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct LayersCheck {
+    /// "heavy" (a vehicle-, building- or aircraft-sized hit: weight 40..92 %,
+    /// body 6..55 %, crack at least 0.3 %, voiced at most 0.3, at most 1
+    /// ringing partial, crest at most 21 dB, at least 250 ms to -20 dB,
+    /// dry) or "tear" (sustained tearing, scraping, screeching: weight at
+    /// most 30 %, body 5..80 %, crack at least 5 %, voiced at most 0.3, dry,
+    /// no ringing / crest / tail rule) or "footstep"; otherwise
     /// "impact" (a hit, a slam, a knock, a blow): weight 15..60 %, body
     /// 30..80 %, crack at least 1.5 %, voiced at most 0.3, at most 1 ringing
     /// partial, crest at most 21 dB (active frames), dry. The Phase 0 door slams: the round-0
@@ -297,9 +303,78 @@ impl LayersCheck {
                 tail_ms: None,
                 dry: Some(true),
             },
+            // A vehicle-, building- or aircraft-sized hit. Recordings the
+            // listener preferred for crashes and ground slams carry 56-89 %
+            // of their energy under 200 Hz (the mid body is gone within
+            // about a second, a rumble runs 2.5 s or more).
+            Some("heavy") => LayersCheck {
+                preset: None,
+                // 56-89 % measured: 40 leaves room under the lowest, 92 over
+                // the highest, while still demanding a body and a crack.
+                weight: Some(Range {
+                    min: Some(40.0),
+                    max: Some(92.0),
+                }),
+                // What is left once the weight takes 56-89 %: down to 6 %.
+                body: Some(Range {
+                    min: Some(6.0),
+                    max: Some(55.0),
+                }),
+                // A trace of crack (the contact itself) is enough.
+                crack: Some(Range {
+                    min: Some(0.3),
+                    max: None,
+                }),
+                voiced_max: Some(0.3),
+                // A huge structure does not ring like a bell: same as impact.
+                ringing_max: Some(1),
+                crest_db: Some(Range {
+                    min: None,
+                    max: Some(21.0),
+                }),
+                // The rumble lasts seconds. `tail_ms` is the time from the
+                // peak to 20 dB under it (judged on the whole sound), so a
+                // loud first crack over a quieter rumble can read short:
+                // only a floor of 250 ms, to catch a hit that stops dead;
+                // no upper bound (a long tail is wanted).
+                tail_ms: Some(Range {
+                    min: Some(250.0),
+                    max: None,
+                }),
+                dry: Some(true),
+            },
+            // Sustained tearing, scraping or screeching: a texture, not a
+            // hit. A metal tear has 1-4 % under 200 Hz and is nearly all
+            // above 1 kHz.
+            Some("tear") => LayersCheck {
+                preset: None,
+                weight: Some(Range {
+                    min: None,
+                    max: Some(30.0),
+                }),
+                // 5 % so something sits under 2 kHz; up to 80 % for a
+                // scrape that is mostly mid.
+                body: Some(Range {
+                    min: Some(5.0),
+                    max: Some(80.0),
+                }),
+                // Most energy is up here: no upper bound, a floor of 5 % so
+                // a dull rumble is not called a tear.
+                crack: Some(Range {
+                    min: Some(5.0),
+                    max: None,
+                }),
+                voiced_max: Some(0.3),
+                // No ringing, crest or tail expectation: a texture has no
+                // single hit to judge them by.
+                ringing_max: None,
+                crest_db: None,
+                tail_ms: None,
+                dry: Some(true),
+            },
             Some(other) => {
                 return Err(format!(
-                    "layers: preset `{other}`: the presets are impact and footstep (or leave preset out and give the measures)"
+                    "layers: preset `{other}`: the presets are impact (a hit, a slam, a knock), heavy (a vehicle-, building- or aircraft-sized hit), tear (sustained tearing, scraping, screeching) and footstep (or leave preset out and give the measures)"
                 ));
             }
         };
@@ -385,6 +460,9 @@ fn layers_results(
 ) -> Vec<(String, bool, String)> {
     let mut out = Vec::new();
     let [low, mid, hi, air] = d.band_shares;
+    let kind = l.preset.as_deref().unwrap_or("");
+    let heavy = kind == "heavy";
+    let tear = kind == "tear";
     let share = |out: &mut Vec<(String, bool, String)>,
                  role: &str,
                  band: &str,
@@ -416,8 +494,20 @@ fn layers_results(
         "under 200 Hz",
         low,
         &l.weight,
-        "add a weight layer (brown noise x decay through a lp at 150-250 Hz, slope 24; or finish weight_db)",
-        "the low end carries the sound: lower the weight / sub layer, or add a body layer at 200 Hz-2 kHz",
+        if heavy {
+            "add a long low rumble (brown noise x a decay of 1.5-3 s through a lp at 120-200 Hz, slope 24; or finish weight_db): a vehicle- or building-sized hit is mostly low end"
+        } else if tear {
+            "a tear needs no weight; a minimum was given by hand: add a low layer (lp noise under 200 Hz) or drop that bound"
+        } else {
+            "add a weight layer (brown noise x decay through a lp at 150-250 Hz, slope 24; or finish weight_db)"
+        },
+        if heavy {
+            "even a huge hit needs something above the rumble: shorten or lower the rumble, or add a mid body (a metal or concrete modal, band-passed noise at 200 Hz-2 kHz)"
+        } else if tear {
+            "too much low end for a tear: high-pass the layers (hp at 300-800 Hz), drop the sub or rumble layer, or this is a hit: use the heavy or impact preset"
+        } else {
+            "the low end carries the sound: lower the weight / sub layer, or add a body layer at 200 Hz-2 kHz"
+        },
     );
     share(
         &mut out,
@@ -425,8 +515,20 @@ fn layers_results(
         "from 200 Hz to 2 kHz",
         mid,
         &l.body,
-        "add a body layer (a modal of the object's material struck by a noise burst, or band-passed noise at 200 Hz-2 kHz)",
-        "the body crowds out the rest: add weight under 200 Hz or a crack above 2 kHz, or lower the body",
+        if heavy {
+            "add a short mid body (about 0.3-1 s of band-passed noise at 200 Hz-2 kHz, or a metal / concrete modal struck by a noise burst) over the rumble"
+        } else if tear {
+            "add a mid layer (band-passed noise at 300 Hz-2 kHz modulated like the tear's grabbing)"
+        } else {
+            "add a body layer (a modal of the object's material struck by a noise burst, or band-passed noise at 200 Hz-2 kHz)"
+        },
+        if heavy {
+            "the mid crowds out the rumble: lengthen and raise the low rumble (lp at 120-200 Hz), shorten the body decay, or this is a smaller hit: use the impact preset"
+        } else if tear {
+            "too much mid for a tear: add a high band (bp or hp at 2-8 kHz, modulated) or lower the body"
+        } else {
+            "the body crowds out the rest: add weight under 200 Hz or a crack above 2 kHz, or lower the body"
+        },
     );
     share(
         &mut out,
@@ -434,7 +536,13 @@ fn layers_results(
         "above 2 kHz",
         hi + air,
         &l.crack,
-        "add a crack (white noise x a decay of 0.008-0.03 s through a bp or hp at 2-6 kHz; or finish air_db)",
+        if heavy {
+            "add a brief crack (white noise x a decay of 0.01-0.05 s through a bp or hp at 2-6 kHz, quiet) for the first contact"
+        } else if tear {
+            "add the bright part of the tear: noise through a bp / hp at 2-8 kHz, with a jagged amplitude (sample_hold or noise as an lfo), or lengthen it"
+        } else {
+            "add a crack (white noise x a decay of 0.008-0.03 s through a bp or hp at 2-6 kHz; or finish air_db)"
+        },
         "too bright: lower the crack, or low-pass it",
     );
     if let Some(m) = l.voiced_max {
@@ -446,9 +554,16 @@ fn layers_results(
                 format!("{:.2} of the frames voiced (max {m})", d.voiced)
             } else {
                 format!(
-                    "{:.2} of the frames voiced (max {m}), pitch {}: the sound has a pitch; build weight from band-limited noise instead of a sine, strike modal with a noise burst, raise its loss",
+                    "{:.2} of the frames voiced (max {m}), pitch {}: {}",
                     d.voiced,
-                    d.pitch_hz.map_or("n/a".into(), |p| format!("{p:.0} Hz"))
+                    d.pitch_hz.map_or("n/a".into(), |p| format!("{p:.0} Hz")),
+                    if tear {
+                        "the tear has a pitch (a whine or a whistle): add noise to the screech, lower the modal Q / raise its loss, widen the band-pass, or replace a sine / saw with noise"
+                    } else if heavy {
+                        "the rumble has a pitch: build it from band-limited noise instead of a sine, and strike any modal with a noise burst, raise its loss"
+                    } else {
+                        "the sound has a pitch; build weight from band-limited noise instead of a sine, strike modal with a noise burst, raise its loss"
+                    }
                 )
             },
         ));
@@ -467,9 +582,14 @@ fn layers_results(
                 )
             } else {
                 format!(
-                    "{} strong partials ring over {RING_S} s (max {m}): {}: that reads as a tuned drum; raise the modal loss, strike it with a noise burst, or replace a sine (a sub drop) with band-limited noise",
+                    "{} strong partials ring over {RING_S} s (max {m}): {}: {}",
                     ringing.len(),
-                    ringing.join(", ")
+                    ringing.join(", "),
+                    if heavy {
+                        "a huge structure does not ring like a bell: raise the modal loss (a large metal or concrete body is damped), strike it with a noise burst, or replace a sine (a sub drop) with band-limited noise"
+                    } else {
+                        "that reads as a tuned drum; raise the modal loss, strike it with a noise burst, or replace a sine (a sub drop) with band-limited noise"
+                    }
                 )
             },
         ));
@@ -483,7 +603,15 @@ fn layers_results(
             if ok {
                 format!("{v:.1} dB ({})", range_text(r))
             } else if r.max.is_some_and(|m| v > m) {
-                format!("{v:.1} dB, want {}: too spiky: finish glue, or longer body and weight layers under the hit", range_text(r))
+                format!(
+                    "{v:.1} dB, want {}: {}",
+                    range_text(r),
+                    if heavy {
+                        "too spiky for a heavy hit: lower the crack, or lengthen and raise the rumble and body under it (finish glue)"
+                    } else {
+                        "too spiky: finish glue, or longer body and weight layers under the hit"
+                    }
+                )
             } else {
                 format!("{v:.1} dB, want {}: too flat: finish punch, or a sharper crack", range_text(r))
             },
@@ -500,7 +628,15 @@ fn layers_results(
                     if ok {
                         format!("{v:.0} ms to -20 dB ({})", range_text(r))
                     } else {
-                        format!("{v:.0} ms to -20 dB, want {}: lengthen or shorten the body and weight decays (or finish tail_db)", range_text(r))
+                        format!(
+                            "{v:.0} ms to -20 dB, want {}: {}",
+                            range_text(r),
+                            if heavy {
+                                "the rumble dies as fast as the hit: lengthen the low layer's decay to 1.5-3 s (or finish tail_db) and keep it within 10 dB of the crack"
+                            } else {
+                                "lengthen or shorten the body and weight decays (or finish tail_db)"
+                            }
+                        )
                     },
                 ));
             }

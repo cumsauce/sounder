@@ -490,7 +490,11 @@ mod brief_tests {
         assert_eq!(nodes("a car engine revving"), ["engine"]);
         assert!(nodes("footsteps on gravel").contains(&"step".to_string()));
         assert!(nodes("a metal sign hit while the wind pushes it").contains(&"wind".to_string()));
-        assert!(nodes("a struck plate").contains(&"modal".to_string()));
+        // `plate` is a node of its own (the nonlinear one), and a name hit wins;
+        // its blurb points back at `modal` for the linear plate.
+        assert!(nodes("a struck plate").contains(&"plate".to_string()));
+        assert!(sfx_graph::blurb("plate").contains("modal"));
+        assert!(nodes("a struck object ringing its modes").contains(&"modal".to_string()));
         assert!(brief_matches("the", 5).1.is_empty());
         assert!(brief_matches("heavy", 5).0.is_empty());
     }

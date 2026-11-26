@@ -254,7 +254,35 @@ A periodic envelope under 200 Hz counts as a tick train only if it dips 12 dB or
     builds fail (`tests/it/layers.rs`). Ringing metal (a pipe, a sign, a bell)
     fails the preset's `ringing_max` and crest by design: give
     `{"preset": "impact", "ringing_max": 6, "crest_db": {"max": 30}}` or skip
-    `layers` for it. Not a default: a UI blip or a drone has
+    `layers` for it. Two more presets exist for sounds the `impact` bounds
+    were not tuned on (small and medium hits); an `impact` result is
+    unchanged by them. Pick by scale and kind, not by what passes:
+    - `{"preset": "heavy"}`: a vehicle-, building- or aircraft-sized hit (a
+      crash, a ground slam). Recordings the listener preferred carry 56-89 %
+      of their energy under 200 Hz, the mid body gone within about a second,
+      a rumble of 2.5 s or more. `weight` 40-92 % (under the lowest recording,
+      over the highest), `body` 6-55 % (what is left after the weight),
+      `crack` at least 0.3 % (a trace of the first contact), `voiced_max` 0.3,
+      `ringing_max` 1 and `crest_db` at most 21 (as `impact`: a huge structure
+      does not ring like a bell), `tail_ms` at least 250 (time from the peak
+      to -20 dB over the whole sound: a floor that catches a hit which
+      stops dead; a loud crack over a quieter rumble can read short, so it is
+      not higher; no upper bound), `dry`. FAIL texts talk about the rumble
+      (lengthen the low layer to 1.5-3 s, lower the crack, raise the loss of
+      a modal), never "lower the weight" for a low weight.
+    - `{"preset": "tear"}`: sustained tearing, scraping, screeching: a texture,
+      not a hit. A metal tear has 1-4 % under 200 Hz and nearly everything
+      above 1 kHz. `weight` at most 30 %, `body` 5-80 %, `crack` at least 5 %
+      with no upper bound, `voiced_max` 0.3 (a whine is a pitch, not a tear),
+      `dry`. No `ringing_max`, `crest_db` or `tail_ms`: a texture has no single hit to
+      judge them by (a scrape of many partials would fail a ringing rule).
+      FAIL texts say to high-pass, add a bright jagged band, or lengthen it.
+    Tested on synthetic noise sounds (`tests/it/layers.rs`, `presets`): a
+    crash passes `heavy` and fails `impact`, a tear passes `tear` and fails
+    `impact`, a small knock passes `impact` and fails `heavy`. The bounds come
+    from the listener's recordings (numbers above), not from a corpus: say
+    so when a result is borderline. An unknown preset errors and lists
+    impact, heavy, tear, footstep. Not a default: a UI blip or a drone has
     no weight or crack. `summary` warns when 80 % of a oneshot's energy sits
     in one role band, and `listen`'s energy shares line names the roles.
   `aliasing`, `inharmonicity`, `modulation` and `roughness` cannot be named in

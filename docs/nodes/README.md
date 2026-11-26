@@ -12,6 +12,10 @@ in this folder; `describe_op <type>` has the schema and an example.
 {"type": "friction", "name": "hinge", "speed": "swing", "pressure": 0.8, "roughness": 0.3}
 ```
 
+- `plate` {excite, material, `size` or `f0`, [thickness] [loss 1] [modes 128] [strike_position 0.3] [tilt 0] (as `modal`), [drive 1] (0..10, alias `strength`; for the loudest strike in `excite`), [cascade 1] (0..4), [gain_db], [seed]}: `modal`'s plate with its modes coupled, so a hard strike brightens within tens of ms, glides down in pitch and darkens as it decays; drive 0 is `modal`. Not causal (the loudest strike is found first). Details: `docs/nodes/plate.md`.
+- `structure` {excite, material, size (m, plate side / shell diameter), [shape plate|shell], [length], [thickness], [loss 1], [edge_loss 0.1], [panel], [tilt 0], [low_modes 32], [gain_db], [seed]} (`docs/nodes/structure.md`): a body too big to hear as partials, the excitation convolved with noise whose decay follows T60(f) from the body's loss (material, radiation, joints); the few lowest modes discrete where sparse; a unit impulse peaks at 0 dBFS.
+- `rumble` {[top 120], [bottom 25], [flutter_rate 12], [flutter_depth 0.5], [onset 0.04], [decay 3], [energy 1], [follow] or [at], [gain_db], [seed]} (`docs/nodes/structure.md`): pitchless low noise under `top` with a slow random flutter, one hit or following a signal.
+- Limits: `impact` masses 0.001..100000 kg, `speed` 0.01..300 m/s, `height` 0.001..1000 m, `radius` 0.0001..100 m; `rig` body `mass` 0.0001..100000 kg, `velocity` -300..300 m/s, contact `gap` 0..1000 m, `radius` 0.0001..100 m (`docs/nodes/modal.md`, `docs/nodes/rig.md`).
 - `rig` {bodies: [{name, mass, [fixed], [velocity], [drive], [material ...
   as modal], [level_db], [waveguide {kind string | tube, f0 | length
   [tension], [ends open | closed | stopped], [radius 0.02], [decay],
@@ -745,6 +749,18 @@ periodic in its duration; `true` forces it, `false` forces a plain render).
   .5 / 1 is 0.10 / 0.56 / 0.77; the wood low mode at weight 0.5 goes 78 Hz to
   305 Hz from `body` 0.5 to 2.
 
+- `buckle` {[load 0.5 signal] or [rate signal], [size 1 m], [thickness 0.002 m],
+  [material steel|aluminium|copper|titanium], [exponent 2], [ring 0.5], [seed]}
+  (`docs/nodes/sheet_metal.md`): sheet metal snapping through under load.
+  Ports `out`, `force` (for a body), `events` (value = strength, $size = facet
+  m). Measured at load 0.6: foil 0.2 m 120 events/s, centroid 5.6 kHz; steel
+  1 m 1 mm 15/s, 283 Hz; 3 mm 5.8/s, 190 Hz. Not heard.
+- `tear` {[speed 10 m/s signal], [thickness 0.001 m], [material aluminium],
+  [grain], [jitter 1], [pitch_m], [pop_db 6], [hiss 0.5], [rumble 0.3], [seed]}
+  (`docs/nodes/sheet_metal.md`): ductile metal tearing. Ports `out`, `force`,
+  `events` (ligament snaps, rivet pops). Measured: centroid 2.8 / 3.2 / 3.5 kHz
+  and 3.3 / 2.5 / 2.4 % under 200 Hz at 5 / 10 / 20 m/s, voiced 0; `pitch_m`
+  0.025 at 10 m/s is voiced at 400 Hz. Not heard.
 - `crumple` {density (signal, bursts/s, 0..400; 0 is silence), [size 0.5],
   [hardness 0.5], [seed]} (`docs/nodes/crumple.md`): paper, foil, plastic or
   leaves as a population of short band-passed noise bursts plus sparse louder

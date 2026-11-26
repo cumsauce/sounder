@@ -632,7 +632,7 @@ impl Table<'_> {
 const NORM_LEN: usize = 8192;
 
 /// The peak of the bank's response to a unit impulse (1.0 at sample 0).
-fn impulse_peak(modes: &[Mode], sr: f32) -> f32 {
+pub(crate) fn impulse_peak(modes: &[Mode], sr: f32) -> f32 {
     let mut bank: Vec<Resonator> = modes
         .iter()
         .map(|&(f, t60, g)| Resonator::new(f, t60, g, sr))
@@ -1520,11 +1520,11 @@ pub struct Impact {
     /// Most modes (default 32, 1..96: each is stepped per substep).
     #[serde(default)]
     pub modes: Option<usize>,
-    /// Mass of the object, kg (default 0.5). Each mode's modal mass is a
+    /// Mass of the object, kg (0.001..100000, default 0.5). Each mode's modal mass is a
     /// quarter of it; in a drop it is also the falling mass.
     #[serde(default)]
     pub object_mass: Option<f32>,
-    /// Mass of a striker, kg (0.001..100). Given: a striker falls or flies
+    /// Mass of a striker, kg (0.001..100000). Given: a striker falls or flies
     /// onto the held object. Left out: the object itself is dropped onto a
     /// rigid `floor`.
     #[serde(default)]
@@ -1535,15 +1535,15 @@ pub struct Impact {
     /// What a dropped object lands on (default "stone"), as `material`.
     #[serde(default)]
     pub floor: Option<MaterialSpec>,
-    /// Drop height, metres (0.001..20). Turns gravity on: things fall back
+    /// Drop height, metres (0.001..1000). Turns gravity on: things fall back
     /// and bounce. A drop defaults to 0.3.
     #[serde(default)]
     pub height: Option<f32>,
-    /// Impact speed, m/s (0.01..50), instead of `height` (no gravity for a
+    /// Impact speed, m/s (0.01..300), instead of `height` (no gravity for a
     /// striker; a drop keeps gravity and starts at this speed).
     #[serde(default)]
     pub speed: Option<f32>,
-    /// Radius of curvature at the contact, metres (default 0.01; a striker's
+    /// Radius of curvature at the contact, metres (0.0001..100, default 0.01; a striker's
     /// is its own ball radius when left out). Smaller = sharper, brighter.
     #[serde(default)]
     pub radius: Option<f32>,
@@ -1708,7 +1708,7 @@ impl Eval for Impact {
             "object_mass",
             self.object_mass.unwrap_or(0.5),
             0.001,
-            1000.0,
+            100_000.0,
         )?;
         let hardness = range("hardness", self.hardness.unwrap_or(0.7), 0.0, 1.0)?;
         let e = range("bounce", self.bounce.unwrap_or(0.5), 0.0, 0.98)?;
@@ -1724,7 +1724,7 @@ impl Eval for Impact {
         let at = non_negative("at", self.at.unwrap_or(0.0))?;
         let striker = match self.striker_mass {
             None => None,
-            Some(m) => Some(range("striker_mass", m, 0.001, 100.0)?),
+            Some(m) => Some(range("striker_mass", m, 0.001, 100_000.0)?),
         };
         if striker.is_some() && self.floor.is_some() {
             return Err("floor is for a drop (no striker_mass): drop one of them".into());
@@ -1741,10 +1741,10 @@ impl Eval for Impact {
                 return Err("height and speed are both given: give one (height turns gravity on and sets the speed)".into());
             }
             (Some(h), None) => {
-                let h = range("height", h, 0.001, 20.0)?;
+                let h = range("height", h, 0.001, 1000.0)?;
                 (Some(h), (2.0 * GRAVITY * h).sqrt())
             }
-            (None, Some(v)) => (None, range("speed", v, 0.01, 50.0)?),
+            (None, Some(v)) => (None, range("speed", v, 0.01, 300.0)?),
             (None, None) if striker.is_none() => (Some(0.3), (2.0 * GRAVITY * 0.3).sqrt()),
             (None, None) if self.drive.is_some() => (None, 0.0),
             (None, None) => {
@@ -1779,7 +1779,7 @@ impl Eval for Impact {
             }
         };
         let radius = match self.radius {
-            Some(r) => range("radius", r, 0.0001, 1.0)?,
+            Some(r) => range("radius", r, 0.0001, 100.0)?,
             None => radius,
         };
         let k = 4.0 / 3.0 * e_star * radius.sqrt();
@@ -1933,10 +1933,38 @@ impl Eval for Impact {
         // stable (omega dt under 1.2).
         let pmax = (0..cx.n).fold(1.0f32, |a, i| a.max(pitch.at(i).clamp(0.25, 4.0)));
         let w_top = 2.0 * PI * p.modes.iter().fold(0.0f32, |a, m| a.max(m.0)) * pmax;
-        let os = min_os
+        let mut os = min_os
             .max((20.0 / (tau * cx.sr)).ceil() as usize)
             .max((w_top / (1.2 * cx.sr)).ceil() as usize)
             .min(64);
+        // The contact at its hardest push is a spring on the striker and on
+        // the modes together. A heavy, fast striker on a light object
+        // squeezes it far deeper than the Hertz time (which assumes a
+        // light one) says, and the pair rings above anything the modes do;
+        // when that goes past the step's limit (omega dt over 2), the
+        // substeps rise until omega dt is 1.2 or the 64 cap.
+        // Only past the old limits (striker 100 kg, object 1000 kg, 50 m/s,
+        // 20 m), so a sound made inside them keeps its exact render.
+        let past_old_limits = moving_mass > 100.0
+            || object_mass > 1000.0
+            || speed > 50.0
+            || height.is_some_and(|h| h > 20.0);
+        if past_old_limits {
+            let modes_w2: f32 = {
+                let wm = p.modes.iter().map(|m| m.2.abs()).fold(1e-12f32, f32::max);
+                p.modes.iter().map(|m| (m.2 / wm).powi(2)).sum()
+            };
+            let ke = 4.0 / 3.0
+                * e_star
+                * radius.sqrt()
+                * (0..cx.n).fold(0.01f32, |a, i| a.max(stiff.at(i).clamp(0.01, 100.0)));
+            let depth = (1.25 * moving_mass * speed * speed / ke).powf(0.4);
+            let k_peak = 1.5 * ke * depth.sqrt();
+            let omega = (k_peak * (1.0 / moving_mass + modes_w2 / (object_mass / 4.0))).sqrt();
+            if omega.is_finite() && omega / (cx.sr * os as f32) > 2.0 {
+                os = os.max((omega / (1.2 * cx.sr)).ceil() as usize).min(64);
+            }
+        }
         let dt = 1.0 / (cx.sr * os as f32);
 
         // The modes: coupling at the contact point (the shape weights scaled
@@ -2150,8 +2178,8 @@ impl Eval for Impact {
             }
         }
         let peak = out.iter().fold(0.0f32, |a, x| a.max(x.abs()));
-        if !peak.is_finite() {
-            return Err("the contact blew up: raise `oversample` or soften it (lower hardness, larger radius)".into());
+        if !peak.is_finite() || out.iter().any(|x| !x.is_finite()) {
+            return Err("the contact blew up: raise `oversample` or soften it (lower hardness, larger radius), or make the object heavier against the striker".into());
         }
         let scale = if peak > 0.0 { 0.5 / peak } else { 0.0 } * level.unwrap_or(1.0);
         for o in &mut out {

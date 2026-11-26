@@ -12,6 +12,7 @@ mod mixing;
 mod modal;
 mod nonlinear;
 mod offline;
+mod plate;
 mod sources;
 mod spectral;
 mod time;
@@ -72,6 +73,7 @@ mod bands;
 mod mechanism;
 
 mod crackle;
+mod structure;
 // bodies and joints stepped together.
 mod rig;
 mod rig_waveguide;
@@ -91,6 +93,7 @@ pub use mixing::*;
 pub use modal::*;
 pub use nonlinear::*;
 pub use offline::*;
+pub use plate::*;
 pub use rig::*;
 pub use sources::*;
 pub use spectral::*;
@@ -154,6 +157,7 @@ pub use mechanism::*;
 pub use crackle::*;
 pub use exaggerate::*;
 pub use finish::*;
+pub use structure::*;
 
 use serde::Deserialize;
 

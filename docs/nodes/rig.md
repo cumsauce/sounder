@@ -33,7 +33,7 @@ thickness, loss, tilt, noise, noise_width, modes 24], [level_db]}`.
 - Modal mass is `mass` / 4 for every mode. `fixed` holds the body in place
   (its modes still ring); otherwise it translates under gravity and the
   joints.
-- `velocity` m/s (up is positive), `drive` a force signal in newtons (up is
+- `mass` 0.0001..100000 kg, `velocity` -300..300 m/s (up is positive), `drive` a force signal in newtons (up is
   positive).
 - `level_db` sets how loud this body is in the output; only modal bodies
   radiate.
@@ -47,6 +47,7 @@ thickness, loss, tilt, noise, noise_width, modes 24], [level_db]}`.
   a point mass uses `hardness` 0..1 as `contact` does), with Hunt-Crossley
   damping set at each touch so it keeps `bounce` of the incoming speed.
   `gap` is the starting distance (a ball 0.2 m above a plate is `gap` 0.2).
+  `gap` is 0..1000 m, `radius` 0.0001..100 m.
 - A contact's `damp` (default `"body"`) puts the Hunt-Crossley damping on
   the bodies' own motion, so a bounce loses energy while the modes ring on,
   and holds the rebound of a free body off a held one (or the ground) to
