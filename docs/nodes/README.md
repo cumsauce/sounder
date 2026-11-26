@@ -899,6 +899,8 @@ patch adds one 64-sample block to the loop, and the ports include it.
   a large mass failing over seconds; `debris` `scale` 0..1 lowers the bodies
   and makes the bed a long rumble (`docs/nodes/collapse.md`).
 
+**Breakage** (`docs/nodes/breakage.md`): `fracture_on` {events, [threshold 0.4], [sharpness], [chips 12], [spread], [exponent]} turns hard hits into chip event bursts; `dust` {events, [material masonry | wood | glass], [settle 0.8], [density], [gain_db -20]} is grit following the hits' energy.
+
 **Voice upgrades** (`docs/nodes/voice.md`): every new field is off by default
 (the old renders are hash-pinned).
 

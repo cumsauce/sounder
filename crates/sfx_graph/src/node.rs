@@ -408,6 +408,8 @@ node_types! {
     "cascade" => Cascade,
     "debris" => Debris,
     "contacts" => Contacts,
+    "fracture_on" => FractureOn,
+    "dust" => Dust,
 
 
 

@@ -63,6 +63,8 @@ mod surface;
 mod contacts;
 mod fracture;
 
+mod breakage;
+
 mod bands;
 
 mod mechanism;
@@ -138,6 +140,8 @@ pub use surface::*;
 
 pub use contacts::*;
 pub use fracture::*;
+
+pub use breakage::*;
 
 pub use bands::*;
 

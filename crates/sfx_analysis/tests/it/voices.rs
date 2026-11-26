@@ -428,3 +428,153 @@ fn unbounded_work_is_an_error_not_a_silent_cut() {
     let e = d.render(&RenderOpts::default()).unwrap_err();
     assert!(e.contains("size"), "{e}");
 }
+
+mod breakage {
+    use super::*;
+    use crate::common::{band_db, node_audio, rms};
+
+    /// `n` hits 0.1 s apart from `at`, every one of strength `v`.
+    fn hits(n: usize, v: f32, at: f32) -> Value {
+        let times: Vec<f32> = (0..n).map(|i| at + 0.1 * i as f32).collect();
+        json!({"type": "pattern", "name": "ev", "times": times, "values": {"min": v, "max": v}})
+    }
+
+    fn chips(extra: Value, n: usize, v: f32) -> usize {
+        let mut f = json!({"type": "fracture_on", "name": "f", "events": "ev", "seed": 3});
+        for (k, v) in extra.as_object().unwrap() {
+            f[k] = v.clone();
+        }
+        events_of(&[hits(n, v, 0.1), f], "f", 4.0)
+    }
+
+    #[test]
+    fn soft_hits_never_break_and_hard_ones_do() {
+        assert_eq!(chips(json!({"threshold": 0.5}), 5, 0.5), 0);
+        assert_eq!(chips(json!({"threshold": 0.5}), 5, 0.2), 0);
+        // value 1.0: s = 1, p = 1, 1 + chips events each.
+        assert_eq!(chips(json!({"threshold": 0.5, "chips": 10}), 1, 1.0), 11);
+    }
+
+    #[test]
+    fn count_and_probability_rise_with_strength() {
+        let n = |v: f32| chips(json!({"threshold": 0.2, "chips": 20}), 20, v);
+        let (lo, mid, hi) = (n(0.4), n(0.7), n(1.0));
+        println!("chips from 20 hits at 0.4 / 0.7 / 1.0: {lo} {mid} {hi}");
+        assert!(lo < mid && mid < hi, "{lo} {mid} {hi}");
+        assert_eq!(hi, 20 * 21);
+    }
+
+    #[test]
+    fn chips_follow_the_hit_and_spread_with_strength() {
+        let nodes = [
+            hits(1, 1.0, 0.5),
+            json!({"type": "fracture_on", "name": "f", "events": "ev", "spread": 0.2, "chips": 30}),
+        ];
+        let ctx = Ctx {
+            n: 2 * SR,
+            ..Ctx::default()
+        };
+        let ev = evaluate(&nodes, &Params::new(), &ctx, false).unwrap();
+        let Buf::Events(v) = &*ev.buf("f").unwrap() else {
+            panic!()
+        };
+        assert!((v[0].t - 0.5).abs() < 1e-9 && v[0].value > 0.99);
+        assert!(v.iter().all(|e| e.t >= 0.5 && e.t <= 0.7 + 1e-9));
+        assert!(v.windows(2).all(|w| w[0].t <= w[1].t));
+    }
+
+    #[test]
+    fn fracture_on_is_deterministic_and_composes_with_voices() {
+        let nodes = vec![
+            hits(2, 1.0, 0.1),
+            json!({"type": "fracture_on", "name": "f", "events": "ev", "chips": 8}),
+            json!({"type": "voices", "name": "v", "events": "f", "length": 0.1, "max": 64, "patch": click_patch()}),
+            json!({"type": "output", "name": "out", "input": "v", "peak_db": -3}),
+        ];
+        let a = doc(nodes.clone(), 1.5)
+            .render(&RenderOpts::default())
+            .unwrap();
+        let b = doc(nodes, 1.5).render(&RenderOpts::default()).unwrap();
+        assert_eq!(a.audio.channels, b.audio.channels);
+        assert!(describe(&a.audio).onsets.len() >= 4);
+    }
+
+    fn dust(extra: Value) -> Vec<f32> {
+        let mut d = json!({"type": "dust", "name": "d", "events": "ev", "seed": 2});
+        for (k, v) in extra.as_object().unwrap() {
+            d[k] = v.clone();
+        }
+        node_audio([hits(1, 1.0, 0.2), d], "d", 3.0)
+    }
+
+    fn window_rms(x: &[f32], a: f32, b: f32) -> f32 {
+        rms(&x[(a * SR as f32) as usize..(b * SR as f32) as usize])
+    }
+
+    #[test]
+    fn dust_is_silent_before_the_hit_then_settles() {
+        let x = dust(json!({"settle": 0.5}));
+        assert_eq!(window_rms(&x, 0.0, 0.19), 0.0);
+        let (early, mid, late) = (
+            window_rms(&x, 0.25, 0.4),
+            window_rms(&x, 0.7, 0.9),
+            window_rms(&x, 2.0, 3.0),
+        );
+        println!("dust rms early / mid / late: {early:.5} {mid:.5} {late:.6}");
+        assert!(early > mid && mid > late && early > 1e-4);
+        assert!(late < early * 0.05);
+    }
+
+    #[test]
+    fn longer_settle_keeps_the_dust_longer() {
+        let (short, long) = (dust(json!({"settle": 0.3})), dust(json!({"settle": 2.0})));
+        assert!(window_rms(&long, 1.0, 1.5) > 5.0 * window_rms(&short, 1.0, 1.5));
+    }
+
+    #[test]
+    fn dust_level_follows_hit_strength() {
+        let run = |v: f32| {
+            let x = node_audio(
+                [
+                    hits(1, v, 0.2),
+                    json!({"type": "dust", "name": "d", "events": "ev", "seed": 2}),
+                ],
+                "d",
+                1.5,
+            );
+            window_rms(&x, 0.2, 1.0)
+        };
+        assert!(run(1.0) > 2.0 * run(0.4));
+    }
+
+    #[test]
+    fn dust_materials_sit_in_their_bands() {
+        // Share of the energy under 3 kHz: wood > masonry > glass.
+        let low = |m: &str| {
+            let x = dust(json!({"material": m}));
+            band_db(&x, SR as u32, 300.0, 3000.0) - band_db(&x, SR as u32, 3000.0, 12000.0)
+        };
+        let (wood, mas, glass) = (low("wood"), low("masonry"), low("glass"));
+        println!("dust low-minus-high dB wood / masonry / glass: {wood:.1} {mas:.1} {glass:.1}");
+        assert!(wood > mas && mas > glass);
+        let x = dust(json!({"hz": 4000, "q": 3}));
+        assert!(
+            band_db(&x, SR as u32, 3000.0, 5500.0) > band_db(&x, SR as u32, 200.0, 1500.0) + 12.0
+        );
+    }
+
+    #[test]
+    fn dust_is_deterministic_and_rejects_audio_events() {
+        assert_eq!(dust(json!({})), dust(json!({})));
+        assert_ne!(dust(json!({})), dust(json!({"seed": 9})));
+        let e = crate::common::render_error_raw(
+            vec![
+                json!({"type": "noise", "name": "n"}),
+                json!({"type": "dust", "name": "d", "events": "n"}),
+                json!({"type": "output", "name": "out", "input": "d"}),
+            ],
+            0.5,
+        );
+        assert!(e.contains("events"), "{e}");
+    }
+}
