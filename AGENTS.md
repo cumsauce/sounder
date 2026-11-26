@@ -68,7 +68,7 @@ daemon opens the window so the human sees every agent's sounds in one place
 4. **Build with `sound_ops`.** For an impact, a hit or a mechanism, read
    "Layering a designed sound": the ready-made node is the body layer, and a
    designed sound adds pre, crack, weight and after layers on a dry bus.
-   `describe_op` lists the 146 node types; `describe_op {kind: "filter"}`
+   `describe_op` lists the 148 node types; `describe_op {kind: "filter"}`
    gives one's example and schema.
 5. **`listen`, `verify`, fix, repeat.**
 6. **Add macros (knobs)**, unasked, on every sound: usually 1-4, on the 1-2
@@ -104,7 +104,7 @@ after each holds the detail.
 - **`modal` needs `noise`** (wood 0.6; metal 0.4 with `noise_width` 0.1 and a
   low `loss`) or it reads as a tuned instrument. Impacts are atonal.
 - **An event stream is not audio**: `pattern poisson bounce burst once
-  on_threshold shatter` become sound through `voices` or `grains`, control
+  on_threshold shatter collapse` become sound through `voices`, `grains` or `debris`, control
   through `trigger_env`, `event_gate` or `seq`.
 - **A cycle is legal only through a `delay`**, with loop gain under 1.
 - **Sounds are sample-free**: recordings are references, never layers.
@@ -228,7 +228,7 @@ another node** (`"freq": "sweep"`: audio-rate modulation; a port as
 `"2*$rand"`) is an expression even without the `=`; a string that is a valid
 node or port name (`"verb.wet"`, `"a_b"`) is always a node.
 
-Families (146 types; * = a section in `docs/nodes/README.md`):
+Families (148 types; * = a section in `docs/nodes/README.md`):
 
 - **sources** `osc noise impulse sample`, `fm wavetable`*; **control** `lfo
   wander sample_hold slew ramp`, `chaos fbm curve switch pitch_follow
@@ -242,8 +242,8 @@ Families (146 types; * = a section in `docs/nodes/README.md`):
   loops** `crossfade_loop resample tape stutter`*.
 - **mix** `mix pan width`, `haas decorrelate doppler`*; **offline** `reverse
   normalize trim fade`, spectral `pitch_shift time_stretch spectral`*.
-- **events** `once pattern poisson bounce burst on_threshold shatter`*, with
-  `grains cloud`* and `voices`; `sound` (an instance of another sound).
+- **events** `once pattern poisson bounce burst on_threshold shatter
+  collapse`*, with `grains cloud debris`* and `voices`; `sound` (an instance of another sound).
 - **physical models** `modal contact friction impact rig`*, mechanism
   `click`*, foley `bubble air glottis tract syrinx thunder`*, waveguides
   `tube string`*, surfaces `rolling cloth crumple footstep`*, water `water
@@ -343,6 +343,7 @@ notes on knocks, metal, stone) is `docs/routing.md`.
 | a creature | `creature` or the `creature_*` parts |
 | a whoosh | the `whoosh_sweep` part (wide band, q ~1) |
 | breaking glass | `shatter` -> `voices` of a small `modal` |
+| many things falling at once (a wall of bricks, a rockfall) | `collapse` -> `debris` (shared bodies, physical timing), a few `collapse.hero` hits through `voices` of a `rig` (`docs/nodes/collapse.md`); not heard yet |
 | a laser, UI blip, drone | primitives (recipes in "Nodes") |
 | a cinematic hit | add `subdrop` / `riser` only when the brief asks |
 

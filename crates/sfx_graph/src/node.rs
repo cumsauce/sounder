@@ -404,6 +404,8 @@ node_types! {
     "footstep" => Footstep,
 
     "shatter" => Shatter,
+    "collapse" => Collapse,
+    "debris" => Debris,
 
 
 

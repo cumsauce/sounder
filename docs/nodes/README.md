@@ -851,7 +851,7 @@ patch adds one 64-sample block to the loop, and the ports include it.
   24 ms, x 0.6) summed through old `hip~` 12 and fed back through a 61 ms one
   (x 0.006), clipped at x 4, formants `bp~` 740 / 1400 / 1500 / 1600 Hz Q 12.
 
-**Modal shapes and `shatter`** (`docs/nodes/modal.md`):
+**Modal shapes, `shatter`, `collapse` and `debris`** (`docs/nodes/modal.md`, `docs/nodes/collapse.md`):
 
 - `modal` `shape` `plate` (default) | `bar` (free-free: 1 : 2.757 : 5.404) |
   `tube` (ring modes of a pipe wall; `size` = diameter) | `membrane` (Bessel
@@ -879,6 +879,15 @@ patch adds one 64-sample block to the loop, and the ports include it.
   `thickness` (metal is a 5 cm plate: pass `{young, density, poisson, loss,
   thickness}` for a thin pipe wall); sizes and times in `shatter` are drawn
   independently (a big piece is as likely late as early).
+- `collapse` {[rows 10], [cols 10], [brick 0.075], [mode topple | crumble],
+  [lean], [looseness 0.3], [restitution 0.25], [bounces 2], [pile 0.4], [hero
+  0], [at], [seed], ...}: a wall falling, its impacts timed by the fall
+  (sqrt(2h / g), bounces, a pile); value = impact speed; ports `ground` `pile`
+  `bounce` `hero`. `debris` {events, [material stone], [size | f0 900],
+  [banks 6], [spread 0.3], [contact_ms 0.6], [ground], [bed_db], ...}: many
+  hits through a few shared `modal` bodies, a contact pulse per hit (faster
+  is shorter and brighter); 100 or 10,000 hits cost the same. Heroes: a `rig`
+  patch in `voices` on `collapse.hero`. Full: `docs/nodes/collapse.md`.
 
 **Voice upgrades** (`docs/nodes/voice.md`): every new field is off by default
 (the old renders are hash-pinned).

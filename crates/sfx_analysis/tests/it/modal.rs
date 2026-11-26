@@ -2115,3 +2115,114 @@ mod impact {
         assert!(e.contains("striker"), "{e}");
     }
 }
+
+mod collapse {
+    //! `collapse` (a wall falling: impacts timed by the fall) and `debris`
+    //! (many hits through a few shared modal bodies).
+
+    use crate::common::*;
+    use serde_json::{Value, json};
+    use sfx_graph::{Buf, RenderOpts, SoundDoc};
+
+    fn events(node: Value, port: &str, duration: f32) -> Vec<(f64, f32)> {
+        let mut d = SoundDoc::named("t");
+        d.nodes = vec![
+            node,
+            json!({"type": "osc", "name": "o", "freq": 100}),
+            json!({"type": "output", "name": "out", "input": "o"}),
+        ];
+        d.duration = Some(duration);
+        let r = d.render(&RenderOpts::default()).unwrap();
+        match &*r.eval.buf(port).unwrap() {
+            Buf::Events(e) => {
+                assert!(e.windows(2).all(|w| w[0].t <= w[1].t));
+                e.iter().map(|e| (e.t, e.value)).collect()
+            }
+            other => panic!("{}", other.kind()),
+        }
+    }
+
+    /// A one-brick crumble with no looseness or pile lands at sqrt(2h/g).
+    #[test]
+    fn a_single_brick_lands_after_its_free_fall() {
+        let wall = json!({"type": "collapse", "name": "w", "rows": 1, "cols": 1, "brick": 2.0,
+            "mode": "crumble", "origin": [0.5, 0.5], "looseness": 0, "pile": 0, "bounces": 0, "at": 0.1});
+        let e = events(wall, "w", 2.0);
+        assert_eq!(e.len(), 1);
+        let t = 0.1 + (2.0 * 1.0 / 9.81f64).sqrt();
+        assert!((e[0].0 - t).abs() < 1e-3, "{e:?} vs {t}");
+        // Full fall from the wall's top would be value 1; from half, sqrt(0.5).
+        assert!((e[0].1 - 0.5f32.sqrt()).abs() < 0.01, "{e:?}");
+    }
+
+    /// A toppled 10 x 10 wall: 100 first hits, the ground and pile ports
+    /// split them, bounces follow, and the cascade lasts a toppling time
+    /// (not an instant, not a uniform spread).
+    #[test]
+    fn a_toppling_wall_gives_every_brick_a_first_hit() {
+        let wall = json!({"type": "collapse", "name": "w", "rows": 10, "cols": 10, "hero": 5});
+        let g = events(wall.clone(), "w.ground", 6.0);
+        let p = events(wall.clone(), "w.pile", 6.0);
+        let b = events(wall.clone(), "w.bounce", 6.0);
+        let all = events(wall.clone(), "w", 6.0);
+        let hero = events(wall, "w.hero", 6.0);
+        assert_eq!(g.len() + p.len(), 100, "{} + {}", g.len(), p.len());
+        assert!(!p.is_empty() && !b.is_empty());
+        assert_eq!(all.len(), g.len() + p.len() + b.len());
+        assert_eq!(hero.len(), 5);
+        let span = all.last().unwrap().0 - all[0].0;
+        assert!((0.15..3.0).contains(&span), "span {span}");
+        // The top courses fall farthest: the fastest hits are near 1.
+        assert!(g.iter().any(|e| e.1 > 0.6), "{g:?}");
+    }
+
+    #[test]
+    fn collapse_and_debris_are_deterministic_per_seed() {
+        let nodes = vec![
+            json!({"type": "collapse", "name": "w", "rows": 8, "cols": 8}),
+            json!({"type": "debris", "name": "d", "events": "w", "ground": "w.ground", "bed_db": -12}),
+            json!({"type": "output", "name": "out", "input": "d"}),
+        ];
+        assert_bit_identical(&nodes, 3.0);
+        let a = fnv(&node_audio(&nodes, "d", 3.0));
+        let mut d = bare_doc(nodes, Some(3.0));
+        d.seed = 2;
+        let r = d.render(&RenderOpts::default()).unwrap();
+        let x = match &*r.eval.buf("d").unwrap() {
+            Buf::Audio(v) => v.clone(),
+            o => panic!("{}", o.kind()),
+        };
+        assert_ne!(a, fnv(&x));
+    }
+
+    /// 2000 hits cost a handful of modal rings, finite and bounded.
+    #[test]
+    fn debris_takes_thousands_of_hits() {
+        let nodes = vec![
+            json!({"type": "poisson", "name": "ev", "rate": 1000, "values": {"min": 0.1, "max": 1}}),
+            json!({"type": "debris", "name": "d", "events": "ev", "banks": 4}),
+        ];
+        let t = std::time::Instant::now();
+        let x = node_audio(&nodes, "d", 2.0);
+        assert_finite(&x, "debris");
+        assert!(rms_db(&x) > -60.0);
+        assert!(t.elapsed().as_secs_f32() < 20.0);
+    }
+
+    /// A faster hit is a shorter contact: brighter.
+    #[test]
+    fn faster_hits_are_brighter() {
+        let at = |v: f32| {
+            let nodes = vec![
+                json!({"type": "pattern", "name": "ev", "start": 0.01, "every": 1, "count": 1, "values": {"min": v, "max": v}}),
+                json!({"type": "debris", "name": "d", "events": "ev", "banks": 1, "noise": 0}),
+            ];
+            // Normalized: the spectrum's dB floor would weigh a quiet hit.
+            let x = node_audio(&nodes, "d", 0.5);
+            let p = peak(&x);
+            spectrum_centroid(&x.iter().map(|v| v / p).collect::<Vec<_>>())
+        };
+        let (soft, hard) = (at(0.05), at(1.0));
+        assert!(hard > soft, "soft {soft} hard {hard}");
+    }
+}

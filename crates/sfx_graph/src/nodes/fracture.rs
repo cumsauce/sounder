@@ -8,7 +8,7 @@ use serde::Deserialize;
 use super::{non_negative, one, positive};
 use crate::buf::{Buf, Event};
 use crate::dsp::Rng;
-use crate::node::{Cx, Describe, Eval, Outs};
+use crate::node::{Cx, Describe, Eval, In, Outs};
 
 /// Most fragments one node may make (an error past it, not a clamp).
 const MAX_PIECES: usize = 200_000;
@@ -97,5 +97,499 @@ impl Eval for Shatter {
             })
             .collect();
         Ok(one(Buf::Events(out)))
+    }
+}
+
+/// Standard gravity, m/s^2.
+const G: f64 = 9.81;
+
+/// Most bricks one `collapse` may hold (rows x cols).
+const MAX_BRICKS: usize = 20_000;
+
+/// How a `collapse` fails.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum CollapseMode {
+    /// The wall rotates about its base as one slab; each brick leaves it at
+    /// an angle that grows toward the bottom rows, so the top lands first.
+    #[default]
+    Topple,
+    /// A failure point (`origin`) gives way and the release spreads through
+    /// the wall at `speed`; each brick drops from where it was.
+    Crumble,
+}
+
+/// A wall (or stack) of bricks falling: the impact times and speeds come
+/// from the fall itself (a slab rotating over, free fall from each brick's
+/// height, bounces with restitution, bricks landing on bricks), not from a
+/// statistical spread.
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Collapse {
+    /// Courses of bricks, bottom to top (default 10).
+    #[serde(default)]
+    pub rows: Option<usize>,
+    /// Bricks per course (default 10).
+    #[serde(default)]
+    pub cols: Option<usize>,
+    /// Height of one course, metres (default 0.075).
+    #[serde(default)]
+    pub brick: Option<f32>,
+    /// Length of one brick along the wall, metres (default 0.22; crumble only).
+    #[serde(default)]
+    pub width: Option<f32>,
+    /// topple (default) or crumble.
+    #[serde(default)]
+    pub mode: CollapseMode,
+    /// Starting lean of a toppling wall, radians (default 0.15): smaller is
+    /// a slower start.
+    #[serde(default)]
+    pub lean: Option<f32>,
+    /// Crumble: where it gives way, [column, row] as 0..1 of the wall
+    /// (default [0.5, 0.2]).
+    #[serde(default)]
+    pub origin: Option<[f32; 2]>,
+    /// Crumble: how fast the failure spreads, m/s (default 2).
+    #[serde(default)]
+    pub speed: Option<f32>,
+    /// How loose the bricks are, 0..1 (default 0.3): scatter on each
+    /// brick's release (a tight wall at 0 falls in lockstep).
+    #[serde(default)]
+    pub looseness: Option<f32>,
+    /// Bounce restitution, 0..0.9 (default 0.25).
+    #[serde(default)]
+    pub restitution: Option<f32>,
+    /// Most bounces per brick after its first hit (default 2, 0..6).
+    #[serde(default)]
+    pub bounces: Option<usize>,
+    /// Fraction of bricks that land on bricks already down, 0..1 (default
+    /// 0.4): a shorter fall, on the `pile` port.
+    #[serde(default)]
+    pub pile: Option<f32>,
+    /// The N fastest first impacts also go on the `hero` port, for a `rig`
+    /// or a close `voices` layer (default 0).
+    #[serde(default)]
+    pub hero: Option<usize>,
+    /// Time the wall starts to go, seconds (default 0).
+    #[serde(default)]
+    pub at: Option<f32>,
+    /// Mixed with the document seed and the node name (default 0).
+    #[serde(default)]
+    pub seed: u64,
+}
+
+impl Describe for Collapse {
+    const BLURB: &'static str = "a wall of bricks falling (topple or crumble): impact events timed by the fall (sqrt(2h/g), bounces, a pile), value = impact speed; ports ground pile bounce hero; drives debris";
+    const WORDS: &'static [&'static str] = &["mode"];
+    fn example() -> serde_json::Value {
+        serde_json::json!({"rows": 10, "cols": 10, "mode": "topple", "looseness": 0.3, "pile": 0.4})
+    }
+}
+
+/// One impact: (time, speed m/s, port 0 ground / 1 pile / 2 bounce, is a first hit).
+type Hit = (f64, f64, u8);
+
+/// Seconds to fall `h` metres starting at `v0` m/s downward, and the speed at the end.
+fn fall(h: f64, v0: f64) -> (f64, f64) {
+    let h = h.max(0.0);
+    let t = (-v0 + (v0 * v0 + 2.0 * G * h).sqrt()) / G;
+    (t, v0 + G * t)
+}
+
+/// A toppling slab of height `hw` from `lean` rad: (time, angle, angular speed)
+/// samples every millisecond until it lies flat. A thin rod about its base:
+/// theta'' = 3 g / (2 H) sin theta.
+fn topple_path(hw: f64, lean: f64) -> Vec<(f64, f64, f64)> {
+    let k = 1.5 * G / hw.max(1e-3);
+    let (mut th, mut w, mut t) = (lean, 0.0f64, 0.0f64);
+    let dt = 0.0005;
+    let mut out = vec![(t, th, w)];
+    while th < std::f64::consts::FRAC_PI_2 && t < 30.0 {
+        w += k * th.sin() * dt;
+        th += w * dt;
+        t += dt;
+        out.push((t, th, w));
+    }
+    out
+}
+
+impl Eval for Collapse {
+    fn random(&self) -> bool {
+        true
+    }
+    fn eval(&self, cx: &Cx) -> Result<Outs, String> {
+        let rows = self.rows.unwrap_or(10);
+        let cols = self.cols.unwrap_or(10);
+        if rows == 0 || cols == 0 || rows * cols > MAX_BRICKS {
+            return Err(format!(
+                "rows x cols: {rows} x {cols}: give 1.. each, at most {MAX_BRICKS} bricks"
+            ));
+        }
+        let brick = f64::from(positive("brick", self.brick.unwrap_or(0.075))?);
+        let width = f64::from(positive("width", self.width.unwrap_or(0.22))?);
+        let lean = f64::from(positive("lean", self.lean.unwrap_or(0.15))?).min(1.2);
+        let speed = f64::from(positive("speed", self.speed.unwrap_or(2.0))?);
+        let loose = f64::from(self.looseness.unwrap_or(0.3));
+        if !(0.0..=1.0).contains(&loose) {
+            return Err(format!("looseness: {loose}: give 0..1"));
+        }
+        let e = f64::from(self.restitution.unwrap_or(0.25));
+        if !(0.0..=0.9).contains(&e) {
+            return Err(format!("restitution: {e}: give 0..0.9"));
+        }
+        let bounces = self.bounces.unwrap_or(2);
+        if bounces > 6 {
+            return Err(format!("bounces: {bounces}: give 0..6"));
+        }
+        let pile = f64::from(self.pile.unwrap_or(0.4));
+        if !(0.0..=1.0).contains(&pile) {
+            return Err(format!("pile: {pile}: give 0..1"));
+        }
+        let at = f64::from(non_negative("at", self.at.unwrap_or(0.0))?);
+        let hw = rows as f64 * brick;
+        let mut rng = cx.rng(self.seed);
+        let mut u = || f64::from(rng.unit());
+        // Release time, height and downward speed of each brick.
+        let mut releases: Vec<(f64, f64, f64)> = Vec::with_capacity(rows * cols);
+        match self.mode {
+            CollapseMode::Topple => {
+                let path = topple_path(hw, lean);
+                let flat = path.last().copied().unwrap_or((0.0, 0.0, 0.0));
+                for r in 0..rows {
+                    let h0 = (r as f64 + 0.5) * brick;
+                    let frac = h0 / hw;
+                    for _ in 0..cols {
+                        // The top courses peel off early, the bottom ones
+                        // ride the slab down; looseness scatters the angle.
+                        let th_rel =
+                            (0.35 + 1.1 * (1.0 - frac)) * (1.0 + loose * 1.2 * (u() - 0.5));
+                        let p = path.iter().find(|p| p.1 >= th_rel).copied().unwrap_or(flat);
+                        let h = h0 * p.1.cos();
+                        let v0 = p.2 * h0 * p.1.sin();
+                        releases.push((p.0, h, v0));
+                    }
+                }
+            }
+            CollapseMode::Crumble => {
+                let o = self.origin.unwrap_or([0.5, 0.2]);
+                let (oc, or) = (f64::from(o[0]) * cols as f64 * width, f64::from(o[1]) * hw);
+                for r in 0..rows {
+                    let h0 = (r as f64 + 0.5) * brick;
+                    for c in 0..cols {
+                        let x = (c as f64 + 0.5) * width;
+                        let d = ((x - oc).powi(2) + (h0 - or).powi(2)).sqrt();
+                        let t = d / speed * (1.0 + loose * (u() - 0.5));
+                        releases.push((t, h0, 0.0));
+                    }
+                }
+            }
+        }
+        // Bricks land in release-plus-fall order; a pile grows under the
+        // later ones.
+        let mut firsts: Vec<(f64, f64, f64)> = releases
+            .iter()
+            .map(|&(t, h, v0)| {
+                let jit = loose * 0.15 * u() * u();
+                (t + jit, h, v0)
+            })
+            .collect();
+        firsts.sort_by(|a, b| (a.0 + fall(a.1, a.2).0).total_cmp(&(b.0 + fall(b.1, b.2).0)));
+        let n = firsts.len() as f64;
+        let mut hits: Vec<Hit> = Vec::with_capacity(firsts.len() * (bounces + 1));
+        let mut first_hits: Vec<(f64, f64)> = Vec::new();
+        for (i, &(t, h, v0)) in firsts.iter().enumerate() {
+            let on_pile = u() < pile * (i as f64 / n).sqrt();
+            let pile_h = if on_pile {
+                brick * (1.0 + 2.0 * (i as f64 / n)) * (0.5 + u())
+            } else {
+                0.0
+            };
+            let (tf, v) = fall(h - pile_h, v0);
+            let t1 = at + t + tf;
+            hits.push((t1, v, u8::from(on_pile)));
+            first_hits.push((t1, v));
+            // Bounces: up at e v, down after 2 e v / g; a tumbling brick
+            // loses more than the ideal (the 0.8).
+            let (mut tb, mut vb) = (t1, v);
+            for _ in 0..bounces {
+                vb *= e * (0.8 + 0.4 * u());
+                if vb < 0.25 {
+                    break;
+                }
+                tb += 2.0 * vb / G;
+                hits.push((tb, vb, 2));
+            }
+        }
+        let v_ref = (2.0 * G * hw).sqrt().max(1e-6);
+        let len = cx.n as f64 / f64::from(cx.sr);
+        let to_events = |mut v: Vec<(f64, f64)>| -> Buf {
+            v.retain(|(t, _)| *t >= 0.0 && *t < len);
+            v.sort_by(|a, b| a.0.total_cmp(&b.0));
+            Buf::Events(
+                v.into_iter()
+                    .enumerate()
+                    .map(|(i, (t, s))| Event {
+                        t,
+                        value: (s / v_ref).clamp(0.0, 1.0) as f32,
+                        id: i as u32,
+                    })
+                    .collect(),
+            )
+        };
+        let port = |k: u8| -> Vec<(f64, f64)> {
+            hits.iter()
+                .filter(|h| h.2 == k)
+                .map(|h| (h.0, h.1))
+                .collect()
+        };
+        let mut heroes = first_hits.clone();
+        heroes.sort_by(|a, b| b.1.total_cmp(&a.1));
+        heroes.truncate(self.hero.unwrap_or(0));
+        Ok(vec![
+            ("out", to_events(hits.iter().map(|h| (h.0, h.1)).collect())),
+            ("ground", to_events(port(0))),
+            ("pile", to_events(port(1))),
+            ("bounce", to_events(port(2))),
+            ("hero", to_events(heroes)),
+        ])
+    }
+}
+
+/// Most events one `debris` may take.
+const MAX_DEBRIS_EVENTS: usize = 200_000;
+
+/// The excitation port `debris` hands its banks.
+const DEBRIS_EXC: &str = "__debris_excite";
+
+/// Many objects through a few shared resonators (stochastic modal synthesis,
+/// after Cook's PhISEM): each event is a Hertz contact pulse (shorter and
+/// brighter the faster it hits, louder as speed^1.2) sent to one of `banks`
+/// `modal` bodies, each a slightly different size; a shared `ground` body
+/// takes the floor hits; a `bed` follows the event density. 100 or 10,000
+/// hits cost the same few modal rings, and they fuse as a real pile does.
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Debris {
+    /// The hits (a collapse, shatter, poisson, pattern...): value = speed 0..1.
+    pub events: In,
+    /// The objects' material (default "stone"), as `modal`.
+    #[serde(default)]
+    pub material: Option<serde_json::Value>,
+    /// Size of one object, metres, as `modal` (give it or `f0`).
+    #[serde(default)]
+    pub size: Option<f32>,
+    /// Lowest mode of one object, Hz (default 900 when `size` is not given:
+    /// a brick).
+    #[serde(default)]
+    pub f0: Option<f32>,
+    /// `modal` shape of the objects (default plate).
+    #[serde(default)]
+    pub shape: Option<serde_json::Value>,
+    /// How many shared bodies (default 6, 1..16).
+    #[serde(default)]
+    pub banks: Option<usize>,
+    /// Size spread across the banks, 0..1 (default 0.3: +-15 %).
+    #[serde(default)]
+    pub spread: Option<f32>,
+    /// `modal` noise on the banks (default 0.6: atonal).
+    #[serde(default)]
+    pub noise: Option<f32>,
+    /// `modal` loss on the banks (default 2).
+    #[serde(default)]
+    pub loss: Option<f32>,
+    /// `modal` tilt on the banks (default 2).
+    #[serde(default)]
+    pub tilt: Option<f32>,
+    /// Contact time of a full-speed hit, ms (default 0.6, 0.05..20); a hit at
+    /// speed v lasts this x v^-0.2.
+    #[serde(default)]
+    pub contact_ms: Option<f32>,
+    /// Hits on the floor (default none): rings `ground_material` too.
+    #[serde(default)]
+    pub ground: Option<In>,
+    /// The floor's material (default "earth").
+    #[serde(default)]
+    pub ground_material: Option<serde_json::Value>,
+    /// The floor body's size, metres (default 0.8).
+    #[serde(default)]
+    pub ground_size: Option<f32>,
+    /// Level of the floor body, dB (default -10).
+    #[serde(default)]
+    pub ground_db: Option<f32>,
+    /// Level of the density rumble, dB (default none: off): low noise whose
+    /// level follows the smoothed energy of the hits.
+    #[serde(default)]
+    pub bed_db: Option<f32>,
+    /// Output level, dB (default 0).
+    #[serde(default)]
+    pub gain_db: Option<f32>,
+    /// Mixed with the document seed and the node name (default 0).
+    #[serde(default)]
+    pub seed: u64,
+}
+
+impl Describe for Debris {
+    const BLURB: &'static str = "many hits through a few shared modal bodies (PhISEM-style): contact pulses by speed, a shared floor, a density bed; for a collapsing wall, a rockfall, a crowd of objects";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"events": "ev", "material": "stone", "f0": 900, "banks": 6, "bed_db": -12})
+    }
+}
+
+/// Adds one Hertz contact pulse (a half sine, roughened by noise) at `start`.
+fn add_pulse(x: &mut [f32], start: usize, len: usize, amp: f32, rng: &mut Rng) {
+    // The roughness is smooth over the pulse (its 2nd and 3rd harmonics), so
+    // the spectrum still ends near 3 / contact time: a fast hit is brighter.
+    let (a, b) = (0.4 * (rng.unit() - 0.5), 0.4 * (rng.unit() - 0.5));
+    for k in 0..len {
+        let Some(o) = x.get_mut(start + k) else { break };
+        let p = std::f32::consts::PI * (k as f32 + 0.5) / len as f32;
+        *o += amp * p.sin() * (1.0 + a * (2.0 * p).sin() + b * (3.0 * p).sin());
+    }
+}
+
+/// Rings `exc` through a `modal` built from `body` (the `excite` filled in).
+fn ring_modal(cx: &Cx, mut body: serde_json::Value, exc: Vec<f32>) -> Result<Vec<f32>, String> {
+    body["excite"] = serde_json::Value::String(DEBRIS_EXC.into());
+    let modal: crate::nodes::Modal =
+        serde_json::from_value(body).map_err(|e| format!("bank: {e}"))?;
+    let exc = std::sync::Arc::new(Buf::Audio(exc));
+    let get = |i: &In| -> Result<crate::buf::Sig, String> {
+        match i {
+            In::Name(n) if n == DEBRIS_EXC => Ok(crate::buf::Sig::Buf(exc.clone())),
+            other => (cx.get)(other),
+        }
+    };
+    let sub = Cx {
+        sr: cx.sr,
+        n: cx.n,
+        seed: cx.seed,
+        looped: cx.looped,
+        base_dir: cx.base_dir,
+        sources: cx.sources,
+        params: cx.params,
+        sounds: cx.sounds,
+        stack: cx.stack,
+        get: &get,
+    };
+    match modal.eval(&sub)?.into_iter().next() {
+        Some((_, Buf::Audio(v))) => Ok(v),
+        _ => Err("bank: modal gave no mono output".into()),
+    }
+}
+
+fn material_json(m: &Option<serde_json::Value>, default: &str) -> serde_json::Value {
+    m.clone().unwrap_or_else(|| serde_json::json!(default))
+}
+
+impl Eval for Debris {
+    fn random(&self) -> bool {
+        true
+    }
+    fn eval(&self, cx: &Cx) -> Result<Outs, String> {
+        let events = cx.events("events", &self.events)?;
+        if events.len() > MAX_DEBRIS_EVENTS {
+            return Err(format!(
+                "events: {}: at most {MAX_DEBRIS_EVENTS}",
+                events.len()
+            ));
+        }
+        let banks = self.banks.unwrap_or(6);
+        if !(1..=16).contains(&banks) {
+            return Err(format!("banks: {banks}: give 1..16"));
+        }
+        let (key, base) = match (self.size, self.f0) {
+            (Some(_), Some(_)) => return Err("give size or f0, not both".into()),
+            (Some(s), None) => ("size", positive("size", s)?),
+            (None, f) => ("f0", positive("f0", f.unwrap_or(900.0))?),
+        };
+        let spread = self.spread.unwrap_or(0.3);
+        if !(0.0..=1.0).contains(&spread) {
+            return Err(format!("spread: {spread}: give 0..1"));
+        }
+        let contact = positive("contact_ms", self.contact_ms.unwrap_or(0.6))?;
+        if !(0.05..=20.0).contains(&contact) {
+            return Err(format!("contact_ms: {contact}: give 0.05..20"));
+        }
+        let mut rng = cx.rng(self.seed);
+        let pulse_len = |v: f32| -> usize {
+            ((contact * 1e-3 * v.max(0.02).powf(-0.2) * cx.sr).round() as usize).max(2)
+        };
+        let place = |t: f64| (t.max(0.0) * f64::from(cx.sr)).round() as usize;
+        let mut exc = vec![vec![0.0f32; cx.n]; banks];
+        let mut energy = vec![0.0f32; cx.n];
+        for e in &events {
+            let b = (rng.unit() * banks as f32) as usize % banks;
+            let v = e.value.clamp(0.0, 1.0);
+            let amp = v.powf(1.2);
+            let start = place(e.t);
+            add_pulse(&mut exc[b], start, pulse_len(v), amp, &mut rng);
+            if let Some(o) = energy.get_mut(start) {
+                *o += amp * amp;
+            }
+        }
+        let shape = self
+            .shape
+            .clone()
+            .unwrap_or_else(|| serde_json::json!("plate"));
+        let material = material_json(&self.material, "stone");
+        let mut out = vec![0.0f32; cx.n];
+        for (k, x) in exc.into_iter().enumerate() {
+            if x.iter().all(|v| *v == 0.0) {
+                continue;
+            }
+            let off = if banks > 1 {
+                k as f32 / (banks - 1) as f32 - 0.5
+            } else {
+                0.0
+            };
+            let body = serde_json::json!({
+                "material": material, "shape": shape,
+
+                "noise": self.noise.unwrap_or(0.6), "loss": self.loss.unwrap_or(2.0),
+                "tilt": self.tilt.unwrap_or(2.0), "seed": self.seed.wrapping_add(k as u64 * 7919),
+            });
+            let mut body = body;
+            body[key] = serde_json::json!(base * (1.0 + spread * off));
+            for (o, y) in out.iter_mut().zip(ring_modal(cx, body, x)?) {
+                *o += y;
+            }
+        }
+        if let Some(g) = &self.ground {
+            let gev = cx.events("ground", g)?;
+            let mut x = vec![0.0f32; cx.n];
+            for e in &gev {
+                let v = e.value.clamp(0.0, 1.0);
+                add_pulse(&mut x, place(e.t), pulse_len(v) * 3, v.powf(1.2), &mut rng);
+            }
+            let body = serde_json::json!({
+                "material": material_json(&self.ground_material, "earth"),
+                "size": positive("ground_size", self.ground_size.unwrap_or(0.8))?,
+                "noise": 0.8, "loss": 1.5, "seed": self.seed ^ 0x0067_0001,
+            });
+            let gain = 10f32.powf(self.ground_db.unwrap_or(-10.0) / 20.0);
+            for (o, y) in out.iter_mut().zip(ring_modal(cx, body, x)?) {
+                *o += y * gain;
+            }
+        }
+        if let Some(db) = self.bed_db {
+            // Energy smoothed over ~60 ms -> amplitude -> low noise (two
+            // one-poles at 300 Hz).
+            let a_env = (-1.0 / (0.06 * cx.sr)).exp();
+            let a_lp = (-2.0 * std::f32::consts::PI * 300.0 / cx.sr).exp();
+            let (mut env, mut l1, mut l2) = (0.0f32, 0.0f32, 0.0f32);
+            let gain = 10f32.powf(db / 20.0) * 4.0;
+            for (o, en) in out.iter_mut().zip(&energy) {
+                env = en * (1.0 - a_env) * 200.0 + env * a_env;
+                let w = rng.unit() * 2.0 - 1.0;
+                l1 = w * (1.0 - a_lp) + l1 * a_lp;
+                l2 = l1 * (1.0 - a_lp) + l2 * a_lp;
+                *o += l2 * env.sqrt() * gain;
+            }
+        }
+        let g = 10f32.powf(self.gain_db.unwrap_or(0.0) / 20.0);
+        if g != 1.0 {
+            out.iter_mut().for_each(|v| *v *= g);
+        }
+        Ok(one(Buf::Audio(out)))
     }
 }
