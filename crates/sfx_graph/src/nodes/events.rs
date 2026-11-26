@@ -86,6 +86,7 @@ fn stream(
             t,
             value: base * values.as_ref().map_or(1.0, |v| v.draw(rng)),
             id: i as u32,
+            ..Default::default()
         })
         .collect();
     Ok(one(Buf::Events(events)))
@@ -463,6 +464,7 @@ impl Eval for OnThreshold {
                         t,
                         value: cur,
                         id: out.len() as u32,
+                        ..Default::default()
                     });
                     last = t;
                 }

@@ -491,6 +491,7 @@ impl Eval for Notes {
                     t: *start,
                     value: *f as f32,
                     id: ids,
+                    ..Default::default()
                 });
                 ids += 1;
             }

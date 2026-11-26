@@ -3,12 +3,66 @@
 use std::sync::Arc;
 
 /// One event of an event stream (the event nodes make these).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Event {
     /// Seconds from the start.
     pub t: f64,
     pub value: f32,
     pub id: u32,
+    /// Optional per-event detail (size, material, position, kind); empty for
+    /// the plain event nodes. Build with `..Default::default()`.
+    pub extra: EventExtra,
+}
+
+/// What an event may say about the object that made it. Every field is
+/// optional: a node that does not know one leaves it `None`.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct EventExtra {
+    /// Object size, metres.
+    pub size: Option<f32>,
+    /// A material id: an index into the importing node's material list.
+    pub material: Option<u16>,
+    /// What kind of contact.
+    pub kind: Option<ContactKind>,
+    /// The object that hit (a body id from the log).
+    pub body: Option<u32>,
+    /// Position [x, y, z], metres, relative to the listener (x right, y up,
+    /// z forward). Kept for a later spatializer; `pan` / `distance` are the
+    /// derived stereo view.
+    pub pos: Option<[f32; 3]>,
+    /// Stereo position, -1 (left) .. 1 (right).
+    pub pan: Option<f32>,
+    /// Metres from the listener.
+    pub distance: Option<f32>,
+}
+
+/// The kind of a contact (impact, slide or roll).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContactKind {
+    Impact = 0,
+    Slide = 1,
+    Roll = 2,
+}
+
+impl EventExtra {
+    /// `pan`, else from `pos` (x over the horizontal distance).
+    pub fn pan(&self) -> Option<f32> {
+        self.pan.or_else(|| {
+            self.pos.map(|[x, _, z]| {
+                let h = (x * x + z * z).sqrt();
+                if h > 1e-6 {
+                    (x / h).clamp(-1.0, 1.0)
+                } else {
+                    0.0
+                }
+            })
+        })
+    }
+    /// `distance`, else the length of `pos`.
+    pub fn distance(&self) -> Option<f32> {
+        self.distance
+            .or_else(|| self.pos.map(|[x, y, z]| (x * x + y * y + z * z).sqrt()))
+    }
 }
 
 /// A node output over the whole sound.

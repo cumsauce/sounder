@@ -24,11 +24,15 @@ pub struct Voices {
     /// outside). Its sound is the `output` node if it has one, else its last
     /// node. Inside it, `$value`, `$index`, `$rand` (0..1, seeded per event)
     /// and `$t` (the event's time) are params, plus the ones `map` makes, and
-    /// the sound's own params.
+    /// the sound's own params. Events that carry detail (`contacts`,
+    /// `collapse`) also give `$size` (m), `$pan` (-1..1), `$distance` (m),
+    /// `$material` (an id), `$kind` (0 impact, 1 slide, 2 roll) and `$body`,
+    /// each only when the event has it.
     pub patch: Vec<Value>,
     /// Per-event params: {"pitch": "300 + $rand * 600", "amp": "$value * 0.5"}.
-    /// Plain expressions (no leading `=`) over `$value $index $rand $t` and
-    /// the sound's params; the patch reads each as `$pitch`.
+    /// Plain expressions (no leading `=`) over `$value $index $rand $t`, the
+    /// event's detail (`$size $pan $distance $material $kind $body`) and the
+    /// sound's params; the patch reads each as `$pitch`.
     #[serde(default)]
     pub map: Option<BTreeMap<String, String>>,
     /// Most events rendered (default 64); more is an error, not a silent cut.
@@ -95,6 +99,22 @@ impl Eval for Voices {
             p.insert("index".into(), f64::from(e.id));
             p.insert("rand".into(), rand);
             p.insert("t".into(), e.t);
+            // Per-event detail, only when the event carries it (a sound
+            // param of the same name stays visible otherwise).
+            let x = &e.extra;
+            let extras = [
+                ("size", x.size.map(f64::from)),
+                ("pan", x.pan().map(f64::from)),
+                ("distance", x.distance().map(f64::from)),
+                ("material", x.material.map(f64::from)),
+                ("kind", x.kind.map(|k| f64::from(k as u8))),
+                ("body", x.body.map(f64::from)),
+            ];
+            for (k, v) in extras {
+                if let Some(v) = v {
+                    p.insert(k.into(), v);
+                }
+            }
             let base = p.clone();
             for (k, src) in &map {
                 let v = params::eval(src.trim_start_matches('='), &base)

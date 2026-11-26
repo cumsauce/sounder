@@ -60,6 +60,7 @@ mod waveguide;
 
 mod surface;
 
+mod contacts;
 mod fracture;
 
 mod bands;
@@ -135,6 +136,7 @@ pub use waveguide::*;
 
 pub use surface::*;
 
+pub use contacts::*;
 pub use fracture::*;
 
 pub use bands::*;

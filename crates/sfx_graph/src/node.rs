@@ -406,6 +406,7 @@ node_types! {
     "shatter" => Shatter,
     "collapse" => Collapse,
     "debris" => Debris,
+    "contacts" => Contacts,
 
 
 
@@ -532,7 +533,10 @@ pub fn resolve_file(file: &str, base_dir: Option<&Path>, sources: &[PathBuf]) ->
 
 pub fn is_file(s: &str) -> bool {
     let l = s.to_ascii_lowercase();
-    l.ends_with(".wav") || l.ends_with(".wave")
+    // .csv / .json: the logs `contacts` reads.
+    [".wav", ".wave", ".csv", ".json"]
+        .iter()
+        .any(|e| l.ends_with(e))
 }
 
 /// Node references in a node body: every string that is not a mode word or

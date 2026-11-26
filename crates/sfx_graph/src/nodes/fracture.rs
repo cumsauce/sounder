@@ -6,7 +6,7 @@
 use serde::Deserialize;
 
 use super::{non_negative, one, positive};
-use crate::buf::{Buf, Event};
+use crate::buf::{Buf, Event, EventExtra};
 use crate::dsp::Rng;
 use crate::node::{Cx, Describe, Eval, In, Outs};
 
@@ -94,6 +94,7 @@ impl Eval for Shatter {
                 t,
                 value,
                 id: i as u32,
+                ..Default::default()
             })
             .collect();
         Ok(one(Buf::Events(out)))
@@ -173,6 +174,15 @@ pub struct Collapse {
     /// Time the wall starts to go, seconds (default 0).
     #[serde(default)]
     pub at: Option<f32>,
+    /// How much of the stereo field the wall spans, 0..1 (default 1): each
+    /// event's pan is its column, -pan_width (first) .. pan_width (last).
+    #[serde(default)]
+    pub pan_width: Option<f32>,
+    /// Metres from the listener to the wall's middle, straight ahead
+    /// (default none): gives each event a position (x along the wall, y 0,
+    /// z this) and so a distance.
+    #[serde(default)]
+    pub distance: Option<f32>,
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
@@ -186,8 +196,8 @@ impl Describe for Collapse {
     }
 }
 
-/// One impact: (time, speed m/s, port 0 ground / 1 pile / 2 bounce, is a first hit).
-type Hit = (f64, f64, u8);
+/// One impact: (time, speed m/s, port 0 ground / 1 pile / 2 bounce, column).
+type Hit = (f64, f64, u8, usize);
 
 /// Seconds to fall `h` metres starting at `v0` m/s downward, and the speed at the end.
 fn fall(h: f64, v0: f64) -> (f64, f64) {
@@ -250,7 +260,7 @@ impl Eval for Collapse {
         let mut rng = cx.rng(self.seed);
         let mut u = || f64::from(rng.unit());
         // Release time, height and downward speed of each brick.
-        let mut releases: Vec<(f64, f64, f64)> = Vec::with_capacity(rows * cols);
+        let mut releases: Vec<(f64, f64, f64, usize)> = Vec::with_capacity(rows * cols);
         match self.mode {
             CollapseMode::Topple => {
                 let path = topple_path(hw, lean);
@@ -258,7 +268,7 @@ impl Eval for Collapse {
                 for r in 0..rows {
                     let h0 = (r as f64 + 0.5) * brick;
                     let frac = h0 / hw;
-                    for _ in 0..cols {
+                    for c in 0..cols {
                         // The top courses peel off early, the bottom ones
                         // ride the slab down; looseness scatters the angle.
                         let th_rel =
@@ -266,7 +276,7 @@ impl Eval for Collapse {
                         let p = path.iter().find(|p| p.1 >= th_rel).copied().unwrap_or(flat);
                         let h = h0 * p.1.cos();
                         let v0 = p.2 * h0 * p.1.sin();
-                        releases.push((p.0, h, v0));
+                        releases.push((p.0, h, v0, c));
                     }
                 }
             }
@@ -279,25 +289,25 @@ impl Eval for Collapse {
                         let x = (c as f64 + 0.5) * width;
                         let d = ((x - oc).powi(2) + (h0 - or).powi(2)).sqrt();
                         let t = d / speed * (1.0 + loose * (u() - 0.5));
-                        releases.push((t, h0, 0.0));
+                        releases.push((t, h0, 0.0, c));
                     }
                 }
             }
         }
         // Bricks land in release-plus-fall order; a pile grows under the
         // later ones.
-        let mut firsts: Vec<(f64, f64, f64)> = releases
+        let mut firsts: Vec<(f64, f64, f64, usize)> = releases
             .iter()
-            .map(|&(t, h, v0)| {
+            .map(|&(t, h, v0, c)| {
                 let jit = loose * 0.15 * u() * u();
-                (t + jit, h, v0)
+                (t + jit, h, v0, c)
             })
             .collect();
         firsts.sort_by(|a, b| (a.0 + fall(a.1, a.2).0).total_cmp(&(b.0 + fall(b.1, b.2).0)));
         let n = firsts.len() as f64;
         let mut hits: Vec<Hit> = Vec::with_capacity(firsts.len() * (bounces + 1));
-        let mut first_hits: Vec<(f64, f64)> = Vec::new();
-        for (i, &(t, h, v0)) in firsts.iter().enumerate() {
+        let mut first_hits: Vec<(f64, f64, usize)> = Vec::new();
+        for (i, &(t, h, v0, c)) in firsts.iter().enumerate() {
             let on_pile = u() < pile * (i as f64 / n).sqrt();
             let pile_h = if on_pile {
                 brick * (1.0 + 2.0 * (i as f64 / n)) * (0.5 + u())
@@ -306,8 +316,8 @@ impl Eval for Collapse {
             };
             let (tf, v) = fall(h - pile_h, v0);
             let t1 = at + t + tf;
-            hits.push((t1, v, u8::from(on_pile)));
-            first_hits.push((t1, v));
+            hits.push((t1, v, u8::from(on_pile), c));
+            first_hits.push((t1, v, c));
             // Bounces: up at e v, down after 2 e v / g; a tumbling brick
             // loses more than the ideal (the 0.8).
             let (mut tb, mut vb) = (t1, v);
@@ -317,36 +327,63 @@ impl Eval for Collapse {
                     break;
                 }
                 tb += 2.0 * vb / G;
-                hits.push((tb, vb, 2));
+                hits.push((tb, vb, 2, c));
             }
         }
         let v_ref = (2.0 * G * hw).sqrt().max(1e-6);
         let len = cx.n as f64 / f64::from(cx.sr);
-        let to_events = |mut v: Vec<(f64, f64)>| -> Buf {
-            v.retain(|(t, _)| *t >= 0.0 && *t < len);
+        let pan_width = self.pan_width.unwrap_or(1.0);
+        if !(0.0..=1.0).contains(&pan_width) {
+            return Err(format!("pan_width: {pan_width}: give 0..1"));
+        }
+        let distance = match self.distance {
+            Some(d) => Some(positive("distance", d)?),
+            None => None,
+        };
+        let wall_w = cols as f64 * width;
+        let extra = |c: usize| {
+            let x = ((c as f64 + 0.5) * width - wall_w / 2.0) as f32;
+            let side = if cols > 1 {
+                (c as f32 + 0.5) / cols as f32 * 2.0 - 1.0
+            } else {
+                0.0
+            };
+            EventExtra {
+                size: Some(brick as f32),
+                pan: Some(side * pan_width),
+                pos: distance.map(|z| [x, 0.0, z]),
+                ..Default::default()
+            }
+        };
+        let to_events = |mut v: Vec<(f64, f64, usize)>| -> Buf {
+            v.retain(|(t, _, _)| *t >= 0.0 && *t < len);
             v.sort_by(|a, b| a.0.total_cmp(&b.0));
             Buf::Events(
                 v.into_iter()
                     .enumerate()
-                    .map(|(i, (t, s))| Event {
+                    .map(|(i, (t, s, c))| Event {
                         t,
                         value: (s / v_ref).clamp(0.0, 1.0) as f32,
                         id: i as u32,
+                        extra: extra(c),
                     })
                     .collect(),
             )
         };
-        let port = |k: u8| -> Vec<(f64, f64)> {
+        let port = |k: u8| -> Vec<(f64, f64, usize)> {
             hits.iter()
                 .filter(|h| h.2 == k)
-                .map(|h| (h.0, h.1))
+                .map(|h| (h.0, h.1, h.3))
                 .collect()
         };
         let mut heroes = first_hits.clone();
         heroes.sort_by(|a, b| b.1.total_cmp(&a.1));
         heroes.truncate(self.hero.unwrap_or(0));
         Ok(vec![
-            ("out", to_events(hits.iter().map(|h| (h.0, h.1)).collect())),
+            (
+                "out",
+                to_events(hits.iter().map(|h| (h.0, h.1, h.3)).collect()),
+            ),
             ("ground", to_events(port(0))),
             ("pile", to_events(port(1))),
             ("bounce", to_events(port(2))),
@@ -423,6 +460,17 @@ pub struct Debris {
     /// Output level, dB (default 0).
     #[serde(default)]
     pub gain_db: Option<f32>,
+    /// Distance at which an event with a `distance` plays at full level,
+    /// metres (default 1). Farther hits are quieter (ref / d) and softer
+    /// (a longer contact pulse: a gentle high cut); events without a
+    /// distance are untouched.
+    #[serde(default)]
+    pub distance_ref: Option<f32>,
+    /// Stereo output panned per event (default false: mono). Only takes
+    /// effect when the events carry a pan or a position; costs two rings
+    /// per bank.
+    #[serde(default)]
+    pub stereo: bool,
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
@@ -439,7 +487,12 @@ impl Describe for Debris {
 fn add_pulse(x: &mut [f32], start: usize, len: usize, amp: f32, rng: &mut Rng) {
     // The roughness is smooth over the pulse (its 2nd and 3rd harmonics), so
     // the spectrum still ends near 3 / contact time: a fast hit is brighter.
-    let (a, b) = (0.4 * (rng.unit() - 0.5), 0.4 * (rng.unit() - 0.5));
+    let rough = (0.4 * (rng.unit() - 0.5), 0.4 * (rng.unit() - 0.5));
+    write_pulse(x, start, len, amp, rough);
+}
+
+/// One pulse with a drawn roughness (so a stereo pair shares it).
+fn write_pulse(x: &mut [f32], start: usize, len: usize, amp: f32, (a, b): (f32, f32)) {
     for k in 0..len {
         let Some(o) = x.get_mut(start + k) else { break };
         let p = std::f32::consts::PI * (k as f32 + 0.5) / len as f32;
@@ -515,14 +568,41 @@ impl Eval for Debris {
             ((contact * 1e-3 * v.max(0.02).powf(-0.2) * cx.sr).round() as usize).max(2)
         };
         let place = |t: f64| (t.max(0.0) * f64::from(cx.sr)).round() as usize;
+        let d_ref = positive("distance_ref", self.distance_ref.unwrap_or(1.0))?;
+        let stereo = self.stereo && events.iter().any(|e| e.extra.pan().is_some());
         let mut exc = vec![vec![0.0f32; cx.n]; banks];
+        let mut exc_r = if stereo {
+            vec![vec![0.0f32; cx.n]; banks]
+        } else {
+            Vec::new()
+        };
         let mut energy = vec![0.0f32; cx.n];
         for e in &events {
             let b = (rng.unit() * banks as f32) as usize % banks;
             let v = e.value.clamp(0.0, 1.0);
-            let amp = v.powf(1.2);
+            let mut amp = v.powf(1.2);
+            let mut len = pulse_len(v);
+            if let Some(d) = e.extra.distance() {
+                // Level falls as 1 / d (at most +12 dB closer than d_ref);
+                // past d_ref the pulse lengthens by half per doubling, which
+                // lowers its upper edge: air and grazing angles.
+                let d = d.max(d_ref * 0.25);
+                amp *= d_ref / d;
+                if d > d_ref {
+                    len = (len as f32 * (1.0 + 0.5 * (d / d_ref).log2())).round() as usize;
+                }
+            }
             let start = place(e.t);
-            add_pulse(&mut exc[b], start, pulse_len(v), amp, &mut rng);
+            let rough = (0.4 * (rng.unit() - 0.5), 0.4 * (rng.unit() - 0.5));
+            if stereo {
+                // Constant-power pan; no pan is the middle.
+                let th = (e.extra.pan().unwrap_or(0.0).clamp(-1.0, 1.0) + 1.0)
+                    * std::f32::consts::FRAC_PI_4;
+                write_pulse(&mut exc[b], start, len, amp * th.cos(), rough);
+                write_pulse(&mut exc_r[b], start, len, amp * th.sin(), rough);
+            } else {
+                write_pulse(&mut exc[b], start, len, amp, rough);
+            }
             if let Some(o) = energy.get_mut(start) {
                 *o += amp * amp;
             }
@@ -533,8 +613,17 @@ impl Eval for Debris {
             .unwrap_or_else(|| serde_json::json!("plate"));
         let material = material_json(&self.material, "stone");
         let mut out = vec![0.0f32; cx.n];
+        let mut out_r = if stereo {
+            vec![0.0f32; cx.n]
+        } else {
+            Vec::new()
+        };
+        let mut exc_r = exc_r.into_iter();
         for (k, x) in exc.into_iter().enumerate() {
-            if x.iter().all(|v| *v == 0.0) {
+            let xr = exc_r.next();
+            if x.iter().all(|v| *v == 0.0)
+                && xr.as_ref().is_none_or(|r| r.iter().all(|v| *v == 0.0))
+            {
                 continue;
             }
             let off = if banks > 1 {
@@ -550,10 +639,16 @@ impl Eval for Debris {
             });
             let mut body = body;
             body[key] = serde_json::json!(base * (1.0 + spread * off));
+            if let Some(xr) = xr {
+                for (o, y) in out_r.iter_mut().zip(ring_modal(cx, body.clone(), xr)?) {
+                    *o += y;
+                }
+            }
             for (o, y) in out.iter_mut().zip(ring_modal(cx, body, x)?) {
                 *o += y;
             }
         }
+        let mono_banks_l = if stereo { out.clone() } else { Vec::new() };
         if let Some(g) = &self.ground {
             let gev = cx.events("ground", g)?;
             let mut x = vec![0.0f32; cx.n];
@@ -587,6 +682,23 @@ impl Eval for Debris {
             }
         }
         let g = 10f32.powf(self.gain_db.unwrap_or(0.0) / 20.0);
+        if stereo {
+            // `out` holds the left banks plus the shared floor and bed;
+            // the floor and bed sit in the middle (-3 dB each side).
+            let centre: Vec<f32> = out.iter().zip(&mono_banks_l).map(|(o, l)| o - l).collect();
+            let h = std::f32::consts::FRAC_1_SQRT_2;
+            let l: Vec<f32> = mono_banks_l
+                .iter()
+                .zip(&centre)
+                .map(|(l, c)| (l + c * h) * g)
+                .collect();
+            let r: Vec<f32> = out_r
+                .iter()
+                .zip(&centre)
+                .map(|(r, c)| (r + c * h) * g)
+                .collect();
+            return Ok(one(Buf::from_channels(vec![l, r])));
+        }
         if g != 1.0 {
             out.iter_mut().for_each(|v| *v *= g);
         }

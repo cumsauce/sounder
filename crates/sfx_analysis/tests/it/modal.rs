@@ -2225,4 +2225,223 @@ mod collapse {
         let (soft, hard) = (at(0.05), at(1.0));
         assert!(hard > soft, "soft {soft} hard {hard}");
     }
+
+    /// Each event carries its column as a pan and the brick as its size;
+    /// `distance` gives it a position.
+    #[test]
+    fn collapse_events_carry_pan_size_and_position() {
+        let mut d = SoundDoc::named("t");
+        d.nodes = vec![
+            json!({"type": "collapse", "name": "w", "rows": 2, "cols": 5, "pan_width": 0.5, "distance": 4}),
+            json!({"type": "osc", "name": "o", "freq": 100}),
+            json!({"type": "output", "name": "out", "input": "o"}),
+        ];
+        d.duration = Some(4.0);
+        let r = d.render(&RenderOpts::default()).unwrap();
+        let Buf::Events(e) = &*r.eval.buf("w").unwrap() else {
+            panic!()
+        };
+        assert!(e.iter().all(|e| e.extra.size == Some(0.075)));
+        let pans: Vec<f32> = e.iter().map(|e| e.extra.pan.unwrap()).collect();
+        assert!(pans.iter().all(|p| (-0.5..=0.5).contains(p)), "{pans:?}");
+        assert!(pans.iter().any(|p| *p < -0.3) && pans.iter().any(|p| *p > 0.3));
+        let dist = e[0].extra.distance().unwrap();
+        assert!((4.0..4.5).contains(&dist), "{dist}");
+    }
+
+    /// Farther hits are quieter and darker; events without a distance are
+    /// as before.
+    #[test]
+    fn debris_follows_event_distance() {
+        let at = |dist: f32| {
+            let wall =
+                json!({"type": "collapse", "name": "w", "rows": 4, "cols": 4, "distance": dist});
+            let nodes = vec![
+                wall,
+                json!({"type": "debris", "name": "d", "events": "w", "banks": 2}),
+            ];
+            node_audio(&nodes, "d", 3.0)
+        };
+        let (near, far) = (at(1.0), at(8.0));
+        let drop = rms_db(&near) - rms_db(&far);
+        assert!(drop > 12.0, "drop {drop} dB");
+        let norm = |x: &[f32]| {
+            let p = peak(x);
+            x.iter().map(|v| v / p).collect::<Vec<_>>()
+        };
+        let (cn, cf) = (
+            spectrum_centroid(&norm(&near)),
+            spectrum_centroid(&norm(&far)),
+        );
+        assert!(cf < cn, "near {cn} far {cf}");
+    }
+
+    /// `stereo: true` pans each hit by its column; mono is the default.
+    #[test]
+    fn debris_goes_stereo_only_when_asked() {
+        let wall = json!({"type": "collapse", "name": "w", "rows": 4, "cols": 6, "mode": "crumble", "origin": [0, 0.5], "looseness": 0});
+        let out = json!({"type": "output", "name": "out", "input": "d"});
+        let mono = vec![
+            wall.clone(),
+            json!({"type": "debris", "name": "d", "events": "w", "banks": 2}),
+            out.clone(),
+        ];
+        let st = vec![
+            wall,
+            json!({"type": "debris", "name": "d", "events": "w", "banks": 2, "stereo": true}),
+            out,
+        ];
+        let run = |nodes: Vec<Value>| {
+            let r = bare_doc(nodes, Some(3.0))
+                .render(&RenderOpts::default())
+                .unwrap();
+            r.eval.buf("d").unwrap()
+        };
+        assert!(matches!(&*run(mono), Buf::Audio(_)));
+        let Buf::Stereo(s) = &*run(st) else {
+            panic!("not stereo")
+        };
+        let (l, r): (Vec<f32>, Vec<f32>) = s.iter().map(|f| (f[0], f[1])).unzip();
+        // The release spreads from the left column: the left channel's
+        // energy comes first.
+        let centre = |x: &[f32]| {
+            let e: f32 = x.iter().map(|v| v * v).sum();
+            x.iter()
+                .enumerate()
+                .map(|(i, v)| i as f32 * v * v)
+                .sum::<f32>()
+                / e
+        };
+        assert!(centre(&l) < centre(&r), "{} {}", centre(&l), centre(&r));
+        assert!(rms_db(&l) > -80.0 && rms_db(&r) > -80.0);
+    }
+}
+
+mod contacts {
+    //! `contacts`: events from a physics log, and their detail in `voices`.
+
+    use crate::common::*;
+    use serde_json::{Value, json};
+    use sfx_graph::{Buf, ContactKind, Event, RenderOpts};
+
+    fn log(name: &str, body: &str) -> String {
+        let p =
+            std::env::temp_dir().join(format!("sounder_contacts_{}_{name}", std::process::id()));
+        std::fs::write(&p, body).unwrap();
+        p.to_string_lossy().into_owned()
+    }
+
+    fn events(node: Value, port: &str) -> Result<Vec<Event>, String> {
+        let nodes = vec![
+            node,
+            json!({"type": "osc", "name": "o", "freq": 100}),
+            json!({"type": "output", "name": "out", "input": "o"}),
+        ];
+        let r = bare_doc(nodes, Some(3.0))
+            .render(&RenderOpts::default())
+            .map_err(|e| e.to_string())?;
+        match &*r.eval.buf(port).unwrap() {
+            Buf::Events(e) => Ok(e.clone()),
+            o => panic!("{}", o.kind()),
+        }
+    }
+
+    const CSV: &str = "time,impulse,body,size,material,kind,x,y,z
+0.50,4.0,7,0.2,Wood,impact,2,0,2
+0.10,8.0,3,0.1,metal,impact,-1,0,0
+0.30,1.0,3,0.1,metal,slide,0,0,5
+0.70,0.2,9,0.3,wood,roll,0,0,1
+";
+
+    #[test]
+    fn a_csv_log_becomes_sorted_events_with_detail() {
+        let f = log("a.csv", CSV);
+        let e = events(json!({"type": "contacts", "name": "c", "file": f}), "c").unwrap();
+        assert_eq!(
+            e.iter().map(|e| e.t).collect::<Vec<_>>(),
+            vec![0.1, 0.3, 0.5, 0.7]
+        );
+        // Strongest is 1 by default.
+        assert_eq!(e[0].value, 1.0);
+        assert_eq!(e[2].value, 0.5);
+        assert_eq!(e[0].extra.body, Some(3));
+        assert_eq!(e[0].extra.size, Some(0.1));
+        // Materials numbered in sorted order, case folded: metal 0, wood 1.
+        assert_eq!(e[0].extra.material, Some(0));
+        assert_eq!(e[2].extra.material, Some(1));
+        assert_eq!(e[1].extra.kind, Some(ContactKind::Slide));
+        assert_eq!(e[0].extra.pan, Some(-1.0));
+        assert!((e[2].extra.pan.unwrap() - 0.5f32.sqrt()).abs() < 1e-4);
+        assert!((e[1].extra.distance.unwrap() - 5.0).abs() < 1e-4);
+        assert_eq!(
+            events(
+                json!({"type": "contacts", "name": "c", "file": f}),
+                "c.impact"
+            )
+            .unwrap()
+            .len(),
+            2
+        );
+        assert_eq!(
+            events(
+                json!({"type": "contacts", "name": "c", "file": f}),
+                "c.roll"
+            )
+            .unwrap()
+            .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn filters_reference_and_frames() {
+        let f = log("b.csv", CSV);
+        let e = events(
+            json!({"type": "contacts", "name": "c", "file": f, "kinds": ["impact", "slide"],
+            "materials": ["wood", "metal"], "min_strength": 2, "reference": 16}),
+            "c",
+        )
+        .unwrap();
+        assert_eq!(e.len(), 2);
+        assert_eq!(e[0].value, 0.5);
+        assert_eq!(e[0].extra.material, Some(1));
+        let j = log(
+            "c.json",
+            r#"{"contacts": [{"frame": 30, "speed": -3}, {"frame": 6, "speed": 1.5}]}"#,
+        );
+        let e = events(
+            json!({"type": "contacts", "name": "c", "file": j, "fps": 60, "at": 0.5}),
+            "c",
+        )
+        .unwrap();
+        assert_eq!(e.len(), 2);
+        assert!((e[0].t - 0.6).abs() < 1e-9 && (e[1].t - 1.0).abs() < 1e-9);
+        assert_eq!(e[1].value, 1.0);
+        let e = events(json!({"type": "contacts", "name": "c", "file": j}), "c").unwrap_err();
+        assert!(e.contains("fps"), "{e}");
+        let k = log("d.csv", "when,hit\n0.1,3\n");
+        let e = events(json!({"type": "contacts", "name": "c", "file": k}), "c").unwrap_err();
+        assert!(e.contains("columns.time"), "{e}");
+        let e = events(json!({"type": "contacts", "name": "c", "file": k, "columns": {"time": "when", "strength": "hit"}}), "c").unwrap();
+        assert_eq!(e.len(), 1);
+    }
+
+    /// `voices` sees `$size`, `$pan`, `$distance`, `$material` and `$kind`.
+    #[test]
+    fn voices_read_the_event_detail() {
+        let f = log(
+            "e.csv",
+            "t,strength,size,material,kind,x,z\n0.1,1,0.25,b,slide,3,4\n",
+        );
+        let nodes = vec![
+            json!({"type": "contacts", "name": "c", "file": f}),
+            json!({"type": "voices", "name": "v", "events": "c", "length": 0.1,
+                "map": {"f": "1000 * $size + 100 * $material + 10 * $kind + $distance + $pan"},
+                "patch": [{"type": "osc", "name": "o", "freq": "$f"}]}),
+        ];
+        let x = node_audio(&nodes, "v", 0.5);
+        // 250 + 0 (the only material) + 10 + 5 + 0.6
+        let hz = peak_hz(&x, 48000);
+        assert!((hz - 265.6).abs() < 6.0, "{hz}");
+    }
 }

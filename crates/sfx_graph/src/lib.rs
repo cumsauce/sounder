@@ -30,7 +30,7 @@ pub mod params;
 pub mod spec;
 pub mod wav;
 
-pub use buf::{Audio, Buf, Event, Sig};
+pub use buf::{Audio, Buf, ContactKind, Event, EventExtra, Sig};
 pub use doc::{
     ApplyReport, DocEdit, Kind, Layout, RenderOpts, Rendered, SOUND_FORMAT_VERSION, SoundDoc,
 };

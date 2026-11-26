@@ -888,6 +888,13 @@ patch adds one 64-sample block to the loop, and the ports include it.
   hits through a few shared `modal` bodies, a contact pulse per hit (faster
   is shorter and brighter); 100 or 10,000 hits cost the same. Heroes: a `rig`
   patch in `voices` on `collapse.hero`. Full: `docs/nodes/collapse.md`.
+- `contacts` {file, [columns], [fps], [reference], [min_strength], [kinds],
+  [materials], [listener], [at]}: events from a physics log (CSV or JSON:
+  time or frame, strength, body, size, material, position, kind); ports
+  `impact` `slide` `roll`. Events carry detail that `voices` reads as `$size
+  $pan $distance $material $kind $body`; `collapse` fills size and pan
+  (`pan_width`, `distance`); `debris` falls off with distance and takes
+  `stereo: true`. Full: `docs/nodes/contacts.md`.
 
 **Voice upgrades** (`docs/nodes/voice.md`): every new field is off by default
 (the old renders are hash-pinned).
