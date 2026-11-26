@@ -2124,7 +2124,7 @@ mod collapse {
     use serde_json::{Value, json};
     use sfx_graph::{Buf, RenderOpts, SoundDoc};
 
-    fn events(node: Value, port: &str, duration: f32) -> Vec<(f64, f32)> {
+    pub(super) fn events(node: Value, port: &str, duration: f32) -> Vec<(f64, f32)> {
         let mut d = SoundDoc::named("t");
         d.nodes = vec![
             node,
@@ -2450,15 +2450,15 @@ mod contacts {
     #[test]
     fn a_cascade_follows_its_surge() {
         let node = json!({"type": "cascade", "name": "c", "count": 3000, "duration": 6, "surge": 0.25, "hero": 4});
-        let e = events(node.clone(), "c", 8.0);
+        let e = super::collapse::events(node.clone(), "c", 8.0);
         assert_eq!(e.len(), 3000);
         assert!(e.last().unwrap().0 <= 6.0);
         let mid = e.iter().filter(|x| (0.8..2.2).contains(&x.0)).count();
         let tail = e.iter().filter(|x| x.0 > 4.5).count();
         assert!(mid > 1000 && tail < mid / 3, "mid {mid} tail {tail}");
-        assert_eq!(events(node, "c.hero", 8.0).len(), 4);
+        assert_eq!(super::collapse::events(node, "c.hero", 8.0).len(), 4);
         let f = json!({"type": "cascade", "name": "c", "count": 3000, "duration": 6, "floors": 4});
-        let e = events(f, "c", 8.0);
+        let e = super::collapse::events(f, "c", 8.0);
         let bins: Vec<usize> = (0..12)
             .map(|k| e.iter().filter(|x| (x.0 / 0.5) as usize == k).count())
             .collect();

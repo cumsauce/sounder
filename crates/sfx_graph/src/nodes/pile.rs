@@ -80,7 +80,7 @@ pub struct Grind {
 impl Describe for Grind {
     const BLURB: &'static str = "scraping, grinding and rolling that follows how much is moving: an activity envelope from events (rises with hits, falls over `settle`) and/or a speed signal drives rolling + modal + micro-impacts; material-aware; for a settling pile or one rolling ball";
     fn example() -> serde_json::Value {
-        serde_json::json!({"events": "wall", "material": "stone", "settle": 1.5, "micro_rate": 40})
+        serde_json::json!({"events": "ev", "material": "stone", "settle": 1.5, "micro_rate": 40})
     }
 }
 

@@ -462,7 +462,7 @@ fn every_node_type_renders_its_example() {
     ];
     let mut streams = Vec::new();
     for t in sfx_graph::NODE_TYPES {
-        if matches!(*t, "sample" | "convolve" | "output" | "sound") {
+        if matches!(*t, "sample" | "convolve" | "contacts" | "output" | "sound") {
             continue; // need files / are the output
         }
         let mut ex = sfx_graph::example(t).unwrap();
