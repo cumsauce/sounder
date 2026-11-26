@@ -478,8 +478,11 @@ impl Session {
         let sound = self.sounds.get_mut(&name).ok_or("no such sound")?;
         sound.doc.project = project;
         sound.doc.group = group;
+        // Its saved copy follows, when it is saved in this caller's library
+        // (a sound opened from another project's library has none here).
         if !sound.unsaved
             && let Some(cn) = sound.catalog_name.clone()
+            && crate::catalog::list(&lib).iter().any(|e| e.name == cn)
         {
             crate::catalog::set_filing(
                 &lib,
