@@ -447,6 +447,17 @@ frequency-independent walls and the tail is the fdn (matched in T60, not in
 spectrum); `tube` and `box` are comb filters; whether the spring's chirp
 matches a real spring was not measured. An `ir` is at most the document's length.
 
+### The camera: distance and space for a video (`docs/nodes/camera.md`)
+
+- `camera` before `output`: `distance` (m, a number or signal), 1/r level
+  past `ref_distance` (`inverse_law`, default on), ISO 9613-1 `air`
+  absorption, optional `delay` (Doppler with a moving distance), a ground
+  reflection from `source_height` / `camera_height` / `ground`, and `space`
+  none | outdoor | street | room | hall (stereo; the room does not fall
+  with distance). All off = bit-identical passthrough. For video / film
+  renders only: game sounds stay dry. A `peak_db` / `lufs` output undoes the
+  1/r level (use `gain_db`).
+
 ### Motion and stereo (`docs/nodes/motion.md`)
 
 - `doppler` {input (mono), [speed 30 m/s], [closest 5 m], [at s], [pan true],

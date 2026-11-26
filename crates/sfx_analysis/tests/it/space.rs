@@ -1291,3 +1291,142 @@ mod motion {
         assert!(correlation(&a, &b).abs() < 0.6);
     }
 }
+
+mod camera {
+    //! `camera`: distance, air, delay, ground reflection, space presets.
+
+    use crate::common::*;
+    use serde_json::{Value, json};
+
+    fn src() -> Vec<Value> {
+        vec![
+            json!({"type": "noise", "name": "n", "color": "white", "seed": 4}),
+            json!({"type": "decay", "name": "e", "time": 0.05}),
+            json!({"type": "math", "name": "src", "op": "mul", "a": "n", "b": "e"}),
+        ]
+    }
+
+    fn cam(extra: Value) -> Vec<Value> {
+        let mut v = src();
+        v.push(with_fields(
+            json!({"type": "camera", "name": "cam", "input": "src"}),
+            extra,
+        ));
+        v
+    }
+
+    #[test]
+    fn off_is_bit_identical_passthrough() {
+        let a = node_audio(cam(json!({})), "cam", 0.5);
+        let b = node_audio(src(), "src", 0.5);
+        assert_eq!(fnv(&a), fnv(&b));
+    }
+
+    #[test]
+    fn inverse_law_falls_6_db_per_doubling_and_toggles_off() {
+        let near = rms_db(&node_audio(
+            cam(json!({"distance": 2, "air": false})),
+            "cam",
+            0.5,
+        ));
+        let far = rms_db(&node_audio(
+            cam(json!({"distance": 4, "air": false})),
+            "cam",
+            0.5,
+        ));
+        assert!((near - far - 6.02).abs() < 0.1, "{near} {far}");
+        let dry = rms_db(&node_audio(src(), "src", 0.5));
+        let off = rms_db(&node_audio(
+            cam(json!({"distance": 40, "air": false, "inverse_law": false})),
+            "cam",
+            0.5,
+        ));
+        assert!((off - dry).abs() < 0.01, "{off} {dry}");
+    }
+
+    #[test]
+    fn air_takes_the_highs_with_distance() {
+        let x = node_audio(src(), "src", 0.5);
+        let y = node_audio(
+            cam(json!({"distance": 200, "inverse_law": false})),
+            "cam",
+            0.5,
+        );
+        let lo = band_db(&x, SR, 200.0, 1000.0) - band_db(&y, SR, 200.0, 1000.0);
+        let hi = band_db(&x, SR, 8000.0, 12000.0) - band_db(&y, SR, 8000.0, 12000.0);
+        // ISO 9613-1 at 10 kHz, 50 %: about 0.15 dB/m, so 200 m takes tens of dB.
+        assert!(lo < 1.0 && hi > 15.0, "lo {lo} hi {hi}");
+    }
+
+    #[test]
+    fn delay_shifts_by_distance_over_c() {
+        let v = vec![
+            json!({"type": "impulse", "name": "src", "at": 0.01}),
+            json!({"type": "camera", "name": "cam", "input": "src", "distance": 34.3, "air": false, "inverse_law": false, "delay": true}),
+        ];
+        let y = node_audio(v, "cam", 0.3);
+        let i = y
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.abs().total_cmp(&b.1.abs()))
+            .unwrap()
+            .0;
+        assert!((i as i64 - (0.11 * SR as f32) as i64).abs() <= 2, "{i}");
+    }
+
+    #[test]
+    fn ground_reflection_arrives_at_the_path_difference() {
+        let v = vec![
+            json!({"type": "impulse", "name": "src", "at": 0.01}),
+            json!({"type": "camera", "name": "cam", "input": "src", "distance": 10, "air": false,
+                   "source_height": 1.0, "camera_height": 1.0, "ground": 1.0}),
+        ];
+        let y = node_audio(v, "cam", 0.2);
+        let dt = ((10f32.powi(2) + 4.0).sqrt() - 10.0) / 343.0;
+        let at = ((0.01 + dt) * SR as f32).round() as usize;
+        let around = y[at - 2..at + 3].iter().fold(0f32, |m, s| m.max(s.abs()));
+        let d = y[(0.01 * SR as f32) as usize];
+        assert!(around > 0.8 * d && around < d, "refl {around} direct {d}");
+    }
+
+    #[test]
+    fn spaces_are_stereo_and_rank_by_tail() {
+        let tail = |space: &str| {
+            let a = render(cam(json!({"space": space})), 3.0);
+            assert_eq!(a.channels.len(), 2, "{space}");
+            let x = &a.channels[0];
+            rms_db(&x[(1.0 * SR as f32) as usize..])
+        };
+        let (room, hall) = (tail("room"), tail("hall"));
+        assert!(hall > room + 10.0, "room {room} hall {hall}");
+        for s in ["outdoor", "street"] {
+            assert_finite(&render(cam(json!({"space": s})), 2.0).channels[0], s);
+        }
+    }
+
+    #[test]
+    fn farther_camera_hears_more_room() {
+        let ratio = |d: f32| {
+            let dry = node_audio(cam(json!({"distance": d, "air": false})), "cam", 2.0);
+            let all = node_audio(
+                cam(json!({"distance": d, "air": false, "space": "room"})),
+                "cam",
+                2.0,
+            );
+            let wet: Vec<f32> = all.iter().zip(&dry).map(|(a, b)| a - b).collect();
+            rms_db(&dry) - rms_db(&wet)
+        };
+        let (near, far) = (ratio(1.0), ratio(8.0));
+        assert!((near - far - 18.06).abs() < 0.5, "{near} {far}");
+    }
+
+    #[test]
+    fn moving_distance_and_errors() {
+        let mut v = src();
+        v.push(json!({"type": "ramp", "name": "d", "from": 5, "to": 50, "time": 0.5}));
+        v.push(json!({"type": "camera", "name": "cam", "input": "src", "distance": "d", "delay": true}));
+        assert_finite(&node_audio(v, "cam", 0.6), "moving");
+        assert!(render_error(cam(json!({"air": false})), "cam", 0.3).contains("need a distance"));
+        assert!(render_error(cam(json!({"space_db": 3})), "cam", 0.3).contains("need a space"));
+    }
+}

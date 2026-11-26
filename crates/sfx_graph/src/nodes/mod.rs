@@ -31,6 +31,7 @@ mod modulators;
 
 mod sequence;
 
+mod camera;
 mod space;
 
 mod lofi;
@@ -110,6 +111,7 @@ pub use modulators::*;
 
 pub use sequence::*;
 
+pub use camera::*;
 pub use space::*;
 
 pub use lofi::*;
