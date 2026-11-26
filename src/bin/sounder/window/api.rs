@@ -21,6 +21,10 @@ pub const CLIENT: &str = "window";
 pub const HUMAN: &str = "you";
 /// A pause in changes this long before the checks / macro sweeps run.
 const SETTLE_AFTER: Duration = Duration::from_millis(400);
+/// How long one background warming command may render before it yields to
+/// the page's calls, and the pause between two of them.
+const WARM_SLICE: Duration = Duration::from_millis(150);
+const WARM_GAP: Duration = Duration::from_millis(30);
 
 /// What the window's calls share besides the session.
 pub struct Shared {
@@ -29,6 +33,7 @@ pub struct Shared {
     pub solo: Mutex<Option<String>>,
     pub tx: mpsc::Sender<Cmd>,
     settling: AtomicBool,
+    warming: AtomicBool,
 }
 
 impl Shared {
@@ -38,6 +43,7 @@ impl Shared {
             solo: Mutex::new(None),
             tx,
             settling: AtomicBool::new(false),
+            warming: AtomicBool::new(false),
         })
     }
 
@@ -280,7 +286,28 @@ fn state(s: &mut Session, sh: &Arc<Shared>, doc: Option<&str>) -> Result<Value, 
     st["solo"] = json!(solo);
     st["playing"] = json!(sh.player.playing());
     schedule_settle(s, sh, doc);
+    schedule_warm(sh);
     Ok(st)
+}
+
+/// Renders the open sounds whose render is stale, a slice at a time in
+/// commands of their own, so `state` answers at once and the grid's lengths
+/// and loudness fill in as they come (`Session::warm_renders` bumps `rev`).
+fn schedule_warm(sh: &Arc<Shared>) {
+    if sh.warming.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let sh2 = Arc::clone(sh);
+    std::thread::spawn(move || {
+        std::thread::sleep(WARM_GAP);
+        let sh3 = Arc::clone(&sh2);
+        let _ = sh2.tx.send(Cmd::Exec(Box::new(move |s: &mut Session| {
+            sh3.warming.store(false, Ordering::SeqCst);
+            if s.warm_renders(WARM_SLICE) {
+                schedule_warm(&sh3);
+            }
+        })));
+    });
 }
 
 /// Runs the default checks (which include the macro sweeps) in a command of

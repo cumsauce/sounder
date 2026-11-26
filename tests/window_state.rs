@@ -388,3 +388,30 @@ fn sounds_list_the_most_recently_edited_first() {
     assert_eq!(names(&mut s), vec!["zap", "hum"]);
     s.end_call(Some("look"));
 }
+
+/// `state` never renders the sounds that are not on screen: a restored
+/// session of 254 sounds kept the page blank while it rendered them all.
+/// Their length and loudness are null until `warm_renders` fills them in.
+#[test]
+fn state_reads_only_cached_renders_and_warming_fills_the_rest() {
+    let mut s = session("warm");
+    let mut doc = s.sound(Some("zap")).unwrap().doc.clone();
+    doc.name = "zap2".into();
+    s.open_doc(doc, "zap2", false).unwrap();
+    s.begin_call(Some("window"), None, None);
+    let st = s.window_state(Some("zap")).unwrap();
+    let tile = |st: &Value, n: &str| {
+        st["sounds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|x| x["name"] == n)
+            .unwrap()["seconds"]
+            .clone()
+    };
+    assert!(tile(&st, "zap2").is_null(), "zap2 was rendered by state");
+    assert!(!s.warm_renders(std::time::Duration::from_secs(5)));
+    let st = s.window_state(Some("zap")).unwrap();
+    assert!(tile(&st, "zap2").as_f64().unwrap() > 0.0);
+    s.end_call(Some("window"));
+}

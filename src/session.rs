@@ -251,6 +251,15 @@ impl Sound {
         }
     }
 
+    /// The render, only if one for this exact document is cached.
+    pub fn cached_render(&self, opts: &RenderOpts, salt: u64) -> Option<&Rendered> {
+        let key = hash_of(&(&self.doc, &opts.base_dir, self.salt(salt)));
+        match &self.render {
+            Some((k, r)) if *k == key => Some(r),
+            _ => None,
+        }
+    }
+
     /// Stores a render the caller already made for this document.
     pub fn set_render(&mut self, opts: &RenderOpts, salt: u64, r: Rendered) {
         self.render = Some((hash_of(&(&self.doc, &opts.base_dir, self.salt(salt))), r));
@@ -311,6 +320,8 @@ pub struct Session {
     current: Option<String>,
     /// The sound untagged callers work in.
     shared_active: Option<String>,
+    /// Sounds `warm_renders` could not render, with the generation it tried.
+    warm_failed: std::collections::HashSet<(String, u64)>,
     /// The default project / group of untagged callers (`project use`).
     shared_filing: Option<(String, Option<String>)>,
     pub project: Option<PathBuf>,

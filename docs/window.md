@@ -18,6 +18,10 @@ filter and the collapsed sections are kept in the page's `localStorage`. All
 of it goes through the agents' `project` tool (`window_tool`), so a move or a
 style edit is the same call an agent would make. `state` carries `projects`
 and each sound's `project` / `group`; up to 500 saved sounds are listed.
+`state` reads only cached renders for the tiles' length and loudness (they
+are null until rendered); `schedule_warm` renders the stale ones in 150 ms
+slices on the session thread and bumps `rev`, so a restored session of
+hundreds of sounds opens at once.
 
 Data flow (the contract is `design/window-api.md`):
 

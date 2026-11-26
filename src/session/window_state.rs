@@ -123,6 +123,43 @@ impl Session {
         (!(checks_ok && macros_ok)).then_some(name)
     }
 
+    /// Renders open sounds whose render is stale, for up to `budget` (at
+    /// least one), most recently edited first, so the grid's lengths and
+    /// loudness fill in. Bumps `rev` when it rendered any (the page asks for
+    /// `state` again). Returns true while some are left. A sound that fails
+    /// to render is skipped until its document changes.
+    pub fn warm_renders(&mut self, budget: Duration) -> bool {
+        let start = Instant::now();
+        let opts = self.render_opts();
+        let salt = self.generation();
+        let mut order: Vec<String> = self.order.clone();
+        order.sort_by_key(|n| std::cmp::Reverse(self.touched.get(n).copied()));
+        let mut did = false;
+        for n in order {
+            let Some(s) = self.sounds.get_mut(&n) else {
+                continue;
+            };
+            let h = s.doc_hash(salt);
+            if self.warm_failed.contains(&(n.clone(), h)) {
+                continue;
+            }
+            if s.doc.nodes.is_empty() || s.cached_render(&opts, salt).is_some() {
+                continue;
+            }
+            if did && start.elapsed() >= budget {
+                return true;
+            }
+            if s.rendered(&opts, salt).is_err() {
+                self.warm_failed.insert((n.clone(), h));
+            }
+            did = true;
+        }
+        if did {
+            self.rev += 1;
+        }
+        false
+    }
+
     /// The window's `state` (no `solo` / `playing` knowledge: the window
     /// layer fills those in). `doc` switches the window's open sound.
     pub fn window_state(&mut self, doc: Option<&str>) -> Result<Value, String> {
@@ -136,15 +173,16 @@ impl Session {
             |t: Option<Instant>, within: Duration| t.is_some_and(|t| t.elapsed() < within);
 
         // Each open sound's length and loudness (the grid's tiles show them):
-        // from the render cache, rendering when it is stale; null when the
-        // sound does not render yet.
+        // from the render cache only, so `state` never waits on hundreds of
+        // renders (a restored session of 254 sounds kept the page blank);
+        // null until `warm_renders` fills the cache in the background.
         let opts = self.render_opts();
         let salt = self.generation();
         let mut stats: BTreeMap<String, (Option<f32>, Option<f32>)> = BTreeMap::new();
-        for (n, s) in self.sounds.iter_mut() {
+        for (n, s) in self.sounds.iter() {
             stats.insert(
                 n.clone(),
-                s.rendered(&opts, salt)
+                s.cached_render(&opts, salt)
                     .map(|r| (Some(r.audio.seconds()), Some(r.lufs)))
                     .unwrap_or((None, None)),
             );
