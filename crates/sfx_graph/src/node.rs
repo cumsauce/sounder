@@ -406,6 +406,7 @@ node_types! {
     "shatter" => Shatter,
     "collapse" => Collapse,
     "debris" => Debris,
+    "grind" => Grind,
 
 
 
