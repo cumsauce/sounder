@@ -68,7 +68,7 @@ daemon opens the window so the human sees every agent's sounds in one place
 4. **Build with `sound_ops`.** For an impact, a hit or a mechanism, read
    "Layering a designed sound": the ready-made node is the body layer, and a
    designed sound adds pre, crack, weight and after layers on a dry bus.
-   `describe_op` lists the 148 node types; `describe_op {kind: "filter"}`
+   `describe_op` lists the 154 node types; `describe_op {kind: "filter"}`
    gives one's example and schema.
 5. **`listen`, `verify`, fix, repeat.**
 6. **Add macros (knobs)**, unasked, on every sound: usually 1-4, on the 1-2
@@ -101,6 +101,8 @@ after each holds the detail.
   (`time_stretch`, `pitch_shift`, `spectral`, `smear`, a long `reverb`,
   `thunder`), or they are cut. `duration: 0` returns to automatic length.
 - **Dry and mono by default**; no `reverb` unless the brief names a space.
+  A sound for a video has no engine to add the room: put `camera` before
+  `output` (`docs/nodes/camera.md`).
 - **`modal` needs `noise`** (wood 0.6; metal 0.4 with `noise_width` 0.1 and a
   low `loss`) or it reads as a tuned instrument. Impacts are atonal.
 - **An event stream is not audio**: `pattern poisson bounce burst once
@@ -228,7 +230,7 @@ another node** (`"freq": "sweep"`: audio-rate modulation; a port as
 `"2*$rand"`) is an expression even without the `=`; a string that is a valid
 node or port name (`"verb.wet"`, `"a_b"`) is always a node.
 
-Families (148 types; * = a section in `docs/nodes/README.md`):
+Families (154 types; * = a section in `docs/nodes/README.md`):
 
 - **sources** `osc noise impulse sample`, `fm wavetable`*; **control** `lfo
   wander sample_hold slew ramp`, `chaos fbm curve switch pitch_follow
@@ -237,13 +239,14 @@ Families (148 types; * = a section in `docs/nodes/README.md`):
 - **filters** `filter onepole comb allpass resonators`, `ladder eq
   filterbank vocoder multiband`*; **time** `delay convolve`, `reverb`
   (models)*, `ir`*; **nonlinear** `shape compress limit`, `ringmod transient
-  gate sub exciter`*; **the bus** `finish`*; **exaggeration** `subdrop
+  gate sub exciter`*; **the bus** `finish`*, `camera`* (video: distance, air, space); **exaggeration** `subdrop
   riser`*; **modulation** `chorus flanger phaser freq_shift`*; **lo-fi and
   loops** `crossfade_loop resample tape stutter`*.
 - **mix** `mix pan width`, `haas decorrelate doppler`*; **offline** `reverse
   normalize trim fade`, spectral `pitch_shift time_stretch spectral`*.
 - **events** `once pattern poisson bounce burst on_threshold shatter
-  collapse`*, with `grains cloud debris`* and `voices`; `sound` (an instance of another sound).
+  collapse cascade fracture_on contacts`*, with `grains cloud debris grind
+  dust`* and `voices`; `sound` (an instance of another sound).
 - **physical models** `modal contact friction impact rig`*, mechanism
   `click`*, foley `bubble air glottis tract syrinx thunder`*, waveguides
   `tube string`*, surfaces `rolling cloth crumple footstep`*, water `water
@@ -344,6 +347,11 @@ notes on knocks, metal, stone) is `docs/routing.md`.
 | a whoosh | the `whoosh_sweep` part (wide band, q ~1) |
 | breaking glass | `shatter` -> `voices` of a small `modal` |
 | many things falling at once (a wall of bricks, a rockfall) | `collapse` -> `debris` (shared bodies, physical timing), a few `collapse.hero` hits through `voices` of a `rig` (`docs/nodes/collapse.md`); not heard yet |
+| a scene from a physics simulation | `contacts` (a CSV / JSON contact log, any engine) -> `debris` / `voices` (`$size $pan $distance $material $kind`) |
+| a building or hillside coming down | `cascade` -> `debris` with `scale` |
+| hard hits breaking things, dust after | `fracture_on` -> chip events; `dust` |
+| a pile still sliding, one object rolling | `grind` |
+| a sound for a video (not a game) | the layers dry, then `camera` (`distance`, `space`) before `output`; `fps` + frame times (`docs/timeline.md`) |
 | a laser, UI blip, drone | primitives (recipes in "Nodes") |
 | a cinematic hit | add `subdrop` / `riser` only when the brief asks |
 
