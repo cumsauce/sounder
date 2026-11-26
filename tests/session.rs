@@ -422,6 +422,7 @@ fn export_writes_wavs_and_a_manifest_with_game_inputs() {
             sounds: None,
             catalog_name: Some("boom".into()),
             file_name: None,
+            timeline: Default::default(),
         },
     )
     .unwrap();
@@ -454,6 +455,7 @@ fn export_writes_wavs_and_a_manifest_with_game_inputs() {
             sounds: None,
             catalog_name: None,
             file_name: None,
+            timeline: Default::default(),
         },
     )
     .unwrap();

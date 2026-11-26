@@ -755,3 +755,68 @@ fn expr_recipes_from_the_docs_run() {
     assert!((5..=30).contains(&hits), "{hits} bounces");
     assert!(b[0] > 0.99 && b.iter().all(|x| (0.0..=1.0).contains(x)));
 }
+
+// ------------------------------------------------------------ video frames
+
+#[test]
+fn frame_times_resolve_at_the_document_fps_and_need_one() {
+    let hit = |at: Value| {
+        vec![
+            json!({"type": "impulse", "name": "i", "at": at}),
+            json!({"type": "output", "name": "out", "input": "i", "fade_in": 0.0005}),
+        ]
+    };
+    let mut d = doc_with(hit(json!("f:12")));
+    d.duration = Some(1.0);
+    let e = d.render(&RenderOpts::default()).unwrap_err();
+    assert!(e.contains("no fps"), "{e}");
+    d.fps = Some(24.0);
+    let first = |d: &SoundDoc| {
+        let r = d.render(&RenderOpts::default()).unwrap();
+        r.audio.channels[0]
+            .iter()
+            .position(|x| x.abs() > 0.1)
+            .unwrap()
+    };
+    assert_eq!(first(&d), 24000); // frame 12 at 24 fps = 0.5 s at 48 kHz
+    d.nodes = hit(json!(["0.25", "6f"]));
+    d.nodes[0]["at"] = json!([0.75, "6f"]);
+    let r = d.render(&RenderOpts::default()).unwrap();
+    assert!(r.audio.channels[0][12000].abs() > 0.1); // 6f = 0.25 s
+    // The same graph in seconds renders the same bits.
+    let mut s = doc_with(hit(json!(0.5)));
+    s.duration = Some(1.0);
+    let mut f = doc_with(hit(json!("12f")));
+    f.duration = Some(1.0);
+    f.fps = Some(24.0);
+    assert_eq!(
+        s.render(&RenderOpts::default()).unwrap().audio.channels,
+        f.render(&RenderOpts::default()).unwrap().audio.channels
+    );
+    // Fractional rates.
+    assert!((sfx_graph::Time::Frames(30.0).seconds(Some(29.97)).unwrap() - 1.001).abs() < 1e-3);
+    // Node names that look like frames are still names unless they match.
+    assert_eq!(sfx_graph::params::frames_of("f:abc"), None);
+    assert_eq!(sfx_graph::params::frames_of("f"), None);
+    assert_eq!(sfx_graph::params::frames_of(" f:7 "), Some(7.0));
+}
+
+#[test]
+fn fps_is_set_and_cleared_by_an_edit_and_is_absent_by_default() {
+    let mut d = doc_with(vec![]);
+    assert!(!serde_json::to_string(&d).unwrap().contains("fps"));
+    let edit = DocEdit {
+        fps: Some(Some(0.0)),
+        ..DocEdit::default()
+    };
+    let e = d.apply(vec![], edit, &RenderOpts::default()).unwrap_err();
+    assert!(e.contains("fps"), "{e}");
+    let edit = DocEdit {
+        fps: Some(Some(25.0)),
+        ..DocEdit::default()
+    };
+    d.apply(vec![], edit, &RenderOpts::default()).unwrap();
+    assert_eq!(d.fps, Some(25.0));
+    let back: SoundDoc = serde_json::from_str(&serde_json::to_string(&d).unwrap()).unwrap();
+    assert_eq!(back.fps, Some(25.0));
+}

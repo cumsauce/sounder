@@ -659,6 +659,10 @@ then its file name alone). `catalog {action: "sources"}` lists them.
   - The manifest has the format, per file `bytes`, seconds / samples / LUFS /
     peak, kind, loop points, game inputs, baked macros, seeds, the causal
     flag and the source catalog entry.
+  - **For a video clip** (`docs/timeline.md`): with a sound `fps`, any time
+    may be frames (`"f:123"` / `"123f"`); `export` `start_frame` / `offset`
+    adds leading silence, `length_frames` / `length` pads or trims to the
+    clip; the manifest records `fps`, `offset`, `start_frame`, `length_frames`.
 
 ## Failures explain themselves
 

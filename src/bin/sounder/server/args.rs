@@ -112,9 +112,16 @@ pub(crate) struct SoundOpsArgs {
     /// Seconds. Omit (or null) to leave it as it is. A oneshot with no duration renders
     /// until it falls under -80 dBFS or 60 dB under its peak (up to 30 s); a loop needs one. Pass
     /// 0 to clear a fixed duration and go back to automatic length.
+    /// Also frames when the sound has an fps: "f:120" or "120f".
     #[serde(default, deserialize_with = "present_or_null_num")]
-    #[schemars(with = "Option<f32>")]
-    pub(crate) duration: Option<Option<f32>>,
+    #[schemars(with = "Option<serde_json::Value>")]
+    pub(crate) duration: Option<Option<sfx_graph::Time>>,
+    /// Video frame rate (24, 25, 29.97, 30, 60, ...): any time field may then
+    /// be written in frames, "f:123" or "123f" (at, start, impulse at lists,
+    /// duration). 0 removes it; omit (or null) to leave it.
+    #[serde(default, deserialize_with = "present_or_null_num")]
+    #[schemars(with = "Option<f64>")]
+    pub(crate) fps: Option<Option<f64>>,
     /// The sound's randomness (default 1).
     #[serde(default, deserialize_with = "opt_num")]
     pub(crate) seed: Option<u64>,
@@ -321,8 +328,14 @@ pub(crate) struct NewSoundArgs {
     pub(crate) kind: Option<String>,
     /// Seconds (0..600). A loop needs one before it can render: pass it here
     /// or in the first sound_ops call. Omit for a oneshot (automatic length).
+    /// Frames ("f:120" / "120f") when `fps` is given.
     #[serde(default, deserialize_with = "opt_num")]
-    pub(crate) duration: Option<f32>,
+    #[schemars(with = "Option<serde_json::Value>")]
+    pub(crate) duration: Option<sfx_graph::Time>,
+    /// Video frame rate (24, 25, 29.97, 30, 60, ...): times may then be
+    /// written in frames, "f:123" or "123f".
+    #[serde(default, deserialize_with = "opt_num")]
+    pub(crate) fps: Option<f64>,
     /// The sound's randomness (default 1).
     #[serde(default, deserialize_with = "opt_num")]
     pub(crate) seed: Option<u64>,
@@ -399,6 +412,25 @@ pub(crate) struct ExportArgs {
     pub(crate) bits: Option<u32>,
     #[serde(default)]
     pub(crate) sample_rate: Option<u32>,
+    /// For a video clip: leading silence so the file lines up with frame 0
+    /// of the clip. Seconds or frames ("f:12" / "12f", needs the sound's fps).
+    #[serde(default, deserialize_with = "opt_num")]
+    #[schemars(with = "Option<serde_json::Value>")]
+    pub(crate) offset: Option<sfx_graph::Time>,
+    /// The frame of the clip the sound starts on (needs fps): the same as
+    /// `offset` in frames. Not with `offset`.
+    #[serde(default, deserialize_with = "opt_num")]
+    pub(crate) start_frame: Option<f64>,
+    /// The clip's length in frames (needs fps): the file is padded with
+    /// silence or trimmed (with a 5 ms fade) to exactly this length, offset
+    /// included.
+    #[serde(default, deserialize_with = "opt_num")]
+    pub(crate) length_frames: Option<f64>,
+    /// The clip's length in seconds or frames ("f:240"); not with
+    /// `length_frames`.
+    #[serde(default, deserialize_with = "opt_num")]
+    #[schemars(with = "Option<serde_json::Value>")]
+    pub(crate) length: Option<sfx_graph::Time>,
     #[serde(default)]
     pub(crate) doc: Option<String>,
 }
