@@ -460,6 +460,16 @@ fn do_new_sound(s: &mut Session, a: NewSoundArgs) -> R {
         Some(t) => Some(plain(t.seconds(a.fps).map_err(|e| format!("duration: {e}")))? as f32),
         None => None,
     };
+    // Where it is filed: the arguments, else the client's `project use`.
+    let filing = match (a.project.clone(), a.group.clone()) {
+        (Some(p), g) => Some((p, g)),
+        (None, Some(_)) => return fail("group needs project (the group is inside a project)"),
+        (None, None) => s.filing(),
+    };
+    let lib = plain(s.library_dir())?;
+    if let Some((p, g)) = &filing {
+        plain(sounder::projects::check(&lib, p, g.as_deref()))?;
+    }
     let mut text = plain(s.new_sound_from(
         &a.name,
         kind,
@@ -468,10 +478,403 @@ fn do_new_sound(s: &mut Session, a: NewSoundArgs) -> R {
         a.fps,
         a.template.as_deref(),
     ))?;
+    if let Some((p, g)) = &filing {
+        plain(s.file_sound(Some(&a.name), Some(p.clone()), g.clone()))?;
+        text += &format!("\nfiled under {}:\n", filing_label(p, g.as_deref()));
+        text += &sounder::projects::context(&lib, Some(p), g.as_deref(), 8);
+        text += &siblings(&lib, p, g.as_deref(), &a.name);
+    }
     if let Some(b) = a.brief.as_deref().filter(|b| !b.trim().is_empty()) {
         text += &brief_suggestions(s, b);
     }
     Ok(Out::text(text))
+}
+
+fn filing_label(p: &str, g: Option<&str>) -> String {
+    match g {
+        Some(g) => format!("project `{p}` / group `{g}`"),
+        None => format!("project `{p}`"),
+    }
+}
+
+/// The saved sounds already in this group (or project): the ones a new
+/// sound should sit beside.
+fn siblings(lib: &std::path::Path, p: &str, g: Option<&str>, except: &str) -> String {
+    let near: Vec<catalog::CatalogEntry> = catalog::list(lib)
+        .into_iter()
+        .filter(|e| {
+            e.name != except
+                && e.project.as_deref() == Some(p)
+                && g.is_none_or(|g| e.group.as_deref() == Some(g))
+        })
+        .collect();
+    if near.is_empty() {
+        return String::new();
+    }
+    let mut t = format!(
+        "already in this {} (match their level and character; catalog describe / load one to see how it is built):\n",
+        if g.is_some() { "group" } else { "project" }
+    );
+    for e in near.iter().take(8) {
+        t += &format!(
+            "- `{}` {:.2} s, {:.1} LUFS{}{}\n",
+            e.name,
+            e.length,
+            e.lufs,
+            if e.approved { ", approved" } else { "" },
+            if e.description.is_empty() {
+                String::new()
+            } else {
+                format!(": {}", e.description)
+            }
+        );
+    }
+    if near.len() > 8 {
+        t += &format!(
+            "- ... {} more (catalog list with project / group)\n",
+            near.len() - 8
+        );
+    }
+    t
+}
+
+fn do_project(s: &mut Session, a: ProjectArgs) -> R {
+    use sounder::projects::{self, Group, Note, Project};
+    let lib = plain(s.library_dir())?;
+    let mut all = projects::list(&lib);
+    let need_name = |what: &str| -> Result<String, (String, Option<Value>)> {
+        a.name
+            .clone()
+            .ok_or_else(|| (format!("project {what} needs name (the project)"), None))
+    };
+    let by = s.current_client();
+    let counts = |all_entries: &[catalog::CatalogEntry],
+                  open: &[(String, Option<String>, Option<String>)],
+                  p: &str,
+                  g: Option<&str>| {
+        let mut names: std::collections::BTreeSet<String> = all_entries
+            .iter()
+            .filter(|e| {
+                e.project.as_deref() == Some(p) && g.is_none_or(|g| e.group.as_deref() == Some(g))
+            })
+            .map(|e| e.name.clone())
+            .collect();
+        for (n, ep, eg) in open {
+            if ep.as_deref() == Some(p) && g.is_none_or(|g| eg.as_deref() == Some(g)) {
+                names.insert(n.clone());
+            }
+        }
+        names
+    };
+    let entries = catalog::list(&lib);
+    let open = s.open_filing();
+    match a.action.as_str() {
+        "list" => {
+            if all.is_empty() {
+                return Ok(Out::text(
+                    "no projects yet: project {action: \"create\", name, description, style} makes one; a group inside it with `group`",
+                ));
+            }
+            let mut t = String::new();
+            for p in &all {
+                t += &format!(
+                    "- {} ({} sounds){}{}\n",
+                    p.name,
+                    counts(&entries, &open, &p.name, None).len(),
+                    if p.description.is_empty() {
+                        String::new()
+                    } else {
+                        format!(": {}", p.description)
+                    },
+                    if p.style.is_empty() { "" } else { " [style]" }
+                );
+                for g in &p.groups {
+                    t += &format!(
+                        "  - {} ({} sounds){}{}\n",
+                        g.name,
+                        counts(&entries, &open, &p.name, Some(&g.name)).len(),
+                        if g.description.is_empty() {
+                            String::new()
+                        } else {
+                            format!(": {}", g.description)
+                        },
+                        if g.style.is_empty() { "" } else { " [style]" }
+                    );
+                }
+            }
+            let unfiled = entries.iter().filter(|e| e.project.is_none()).count()
+                + open
+                    .iter()
+                    .filter(|(n, p, _)| p.is_none() && !entries.iter().any(|e| &e.name == n))
+                    .count();
+            t += &format!("unfiled: {unfiled} sounds\n");
+            if let Some((p, g)) = s.filing() {
+                t += &format!("your new sounds go to {}\n", filing_label(&p, g.as_deref()));
+            }
+            Ok(Out::text(t))
+        }
+        "describe" => {
+            let n = need_name("describe")?;
+            plain(projects::check(&lib, &n, a.group.as_deref()))?;
+            let p = all
+                .iter()
+                .find(|p| p.name == n)
+                .cloned()
+                .unwrap_or_default();
+            let mut t = projects::context(&lib, Some(&n), a.group.as_deref(), usize::MAX);
+            if a.group.is_none() && !p.groups.is_empty() {
+                t += &format!(
+                    "groups: {}\n",
+                    p.groups
+                        .iter()
+                        .map(|g| g.name.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+            }
+            let names = counts(&entries, &open, &n, a.group.as_deref());
+            t += &format!(
+                "sounds ({}): {}\n",
+                names.len(),
+                names.into_iter().collect::<Vec<_>>().join(", ")
+            );
+            Ok(Out::text(t))
+        }
+        "create" => {
+            let n = need_name("create")?;
+            plain(projects::valid_name("project", &n))?;
+            let created_project = !all.iter().any(|p| p.name == n);
+            if created_project {
+                all.push(Project {
+                    name: n.clone(),
+                    ..Default::default()
+                });
+            }
+            let p = all.iter_mut().find(|p| p.name == n).expect("just made");
+            let what = match &a.group {
+                Some(g) => {
+                    plain(projects::valid_name("group", g))?;
+                    if p.group(g).is_some() {
+                        return fail(format!(
+                            "group `{g}` is already in `{n}`: use action update to change it"
+                        ));
+                    }
+                    p.groups.push(Group {
+                        name: g.clone(),
+                        description: a.description.clone().unwrap_or_default(),
+                        style: a.style.clone().unwrap_or_default(),
+                        notes: Vec::new(),
+                    });
+                    format!(
+                        "{}made group `{g}` in `{n}`",
+                        if created_project {
+                            format!("made project `{n}`; ")
+                        } else {
+                            String::new()
+                        }
+                    )
+                }
+                None => {
+                    if !created_project {
+                        return fail(format!(
+                            "project `{n}` already exists: use action update to change it"
+                        ));
+                    }
+                    p.description = a.description.clone().unwrap_or_default();
+                    p.style = a.style.clone().unwrap_or_default();
+                    format!("made project `{n}`")
+                }
+            };
+            plain(projects::save_all(&lib, &all))?;
+            s.mark_dirty();
+            Ok(Out::text(
+                what + "\nfile sounds with new_sound {project, group} or project {action: \"assign\"}; project {action: \"use\"} makes it your default",
+            ))
+        }
+        "update" => {
+            let n = need_name("update")?;
+            plain(projects::check(&lib, &n, a.group.as_deref()))?;
+            if a.description.is_none() && a.style.is_none() && a.rename.is_none() {
+                return fail("update takes description, style and / or rename");
+            }
+            if let Some(r) = &a.rename {
+                plain(projects::valid_name(
+                    if a.group.is_some() {
+                        "group"
+                    } else {
+                        "project"
+                    },
+                    r,
+                ))?;
+            }
+            let p = all.iter_mut().find(|p| p.name == n).expect("checked");
+            match &a.group {
+                Some(g) => {
+                    if a.rename.as_ref().is_some_and(|r| p.group(r).is_some()) {
+                        return fail("a group with that name is already in the project");
+                    }
+                    let gr = p.group_mut(g).expect("checked");
+                    if let Some(d) = &a.description {
+                        gr.description = d.clone();
+                    }
+                    if let Some(st) = &a.style {
+                        gr.style = st.clone();
+                    }
+                    if let Some(r) = &a.rename {
+                        gr.name = r.clone();
+                    }
+                }
+                None => {
+                    if let Some(d) = &a.description {
+                        p.description = d.clone();
+                    }
+                    if let Some(st) = &a.style {
+                        p.style = st.clone();
+                    }
+                    if let Some(r) = &a.rename {
+                        p.name = r.clone();
+                    }
+                }
+            }
+            if let Some(r) = &a.rename
+                && a.group.is_none()
+                && all.iter().filter(|p| &p.name == r).count() > 1
+            {
+                return fail(format!("project `{r}` already exists"));
+            }
+            plain(projects::save_all(&lib, &all))?;
+            if let Some(r) = &a.rename {
+                for e in entries.iter().filter(|e| {
+                    e.project.as_deref() == Some(n.as_str())
+                        && a.group.as_ref().is_none_or(|g| e.group.as_ref() == Some(g))
+                }) {
+                    let (p2, g2) = match &a.group {
+                        None => (Some(r.clone()), e.group.clone()),
+                        Some(_) => (e.project.clone(), Some(r.clone())),
+                    };
+                    plain(catalog::set_filing(&lib, &e.name, p2, g2))?;
+                }
+                s.rename_filing(&n, a.group.as_deref(), r);
+            }
+            s.mark_dirty();
+            Ok(Out::text(format!(
+                "updated {}",
+                filing_label(&n, a.group.as_deref())
+            )))
+        }
+        "note" => {
+            let n = need_name("note")?;
+            plain(projects::check(&lib, &n, a.group.as_deref()))?;
+            let Some(text) = a.note.clone().filter(|t| !t.trim().is_empty()) else {
+                return fail("note needs note (the fact to keep)");
+            };
+            let note = Note {
+                text,
+                by: by.clone(),
+                at: projects::now(),
+            };
+            let p = all.iter_mut().find(|p| p.name == n).expect("checked");
+            match &a.group {
+                Some(g) => p.group_mut(g).expect("checked").notes.push(note),
+                None => p.notes.push(note),
+            }
+            plain(projects::save_all(&lib, &all))?;
+            s.mark_dirty();
+            Ok(Out::text(format!(
+                "noted on {}",
+                filing_label(&n, a.group.as_deref())
+            )))
+        }
+        "assign" => {
+            if a.doc.is_some() && a.sound.is_some() {
+                return fail("assign takes doc (an open sound) or sound (a saved one), not both");
+            }
+            if a.group.is_some() && a.name.is_none() {
+                return fail("group needs name (the project)");
+            }
+            if let Some(n) = &a.name {
+                plain(projects::check(&lib, n, a.group.as_deref()))?;
+            }
+            let where_ = a.name.as_deref().map_or("unfiled".to_string(), |n| {
+                filing_label(n, a.group.as_deref())
+            });
+            match &a.sound {
+                Some(saved) if !open.iter().any(|(n, _, _)| n == saved) => {
+                    plain(catalog::set_filing(
+                        &lib,
+                        saved,
+                        a.name.clone(),
+                        a.group.clone(),
+                    ))?;
+                    s.mark_dirty();
+                    Ok(Out::text(format!("`{saved}`: {where_}")))
+                }
+                other => {
+                    let doc = other.as_deref().or(a.doc.as_deref());
+                    let name = plain(s.file_sound(doc, a.name.clone(), a.group.clone()))?;
+                    Ok(Out::text(format!("`{name}`: {where_}")))
+                }
+            }
+        }
+        "use" => match &a.name {
+            None => {
+                s.set_filing(None);
+                Ok(Out::text("new sounds are not filed by default now"))
+            }
+            Some(n) => {
+                plain(projects::check(&lib, n, a.group.as_deref()))?;
+                s.set_filing(Some((n.clone(), a.group.clone())));
+                let mut t = format!(
+                    "your new sounds go to {}\n",
+                    filing_label(n, a.group.as_deref())
+                );
+                t += &projects::context(&lib, Some(n), a.group.as_deref(), 8);
+                Ok(Out::text(t))
+            }
+        },
+        "delete" => {
+            let n = need_name("delete")?;
+            plain(projects::check(&lib, &n, a.group.as_deref()))?;
+            let names = counts(&entries, &open, &n, a.group.as_deref());
+            if !names.is_empty() && a.force != Some(true) {
+                return fail(format!(
+                    "{} still has {} sounds ({}): move them with assign, or force: true to unfile them",
+                    filing_label(&n, a.group.as_deref()),
+                    names.len(),
+                    names.iter().take(8).cloned().collect::<Vec<_>>().join(", ")
+                ));
+            }
+            for name in &names {
+                let (p2, g2) = match &a.group {
+                    None => (None, None),
+                    Some(_) => (Some(n.clone()), None),
+                };
+                if open.iter().any(|(o, _, _)| o == name) {
+                    plain(s.file_sound(Some(name), p2, g2))?;
+                } else {
+                    plain(catalog::set_filing(&lib, name, p2, g2))?;
+                }
+            }
+            match &a.group {
+                Some(g) => all
+                    .iter_mut()
+                    .find(|p| p.name == n)
+                    .expect("checked")
+                    .groups
+                    .retain(|x| &x.name != g),
+                None => all.retain(|p| p.name != n),
+            }
+            plain(projects::save_all(&lib, &all))?;
+            s.mark_dirty();
+            Ok(Out::text(format!(
+                "deleted {}",
+                filing_label(&n, a.group.as_deref())
+            )))
+        }
+        o => fail(format!(
+            "action `{o}`: use list, describe, create, update, note, assign, use or delete"
+        )),
+    }
 }
 
 /// The window's edits are agents' calls: the same tool, the same parsing and checks, one history
@@ -485,9 +888,10 @@ pub(crate) fn window_tool(s: &mut Session, name: &str, args: Value) -> Result<Va
         "new_sound" => do_new_sound(s, parse(name, args)?),
         "catalog" => do_catalog(s, parse(name, args)?),
         "export" => do_export(s, parse(name, args)?),
+        "project" => do_project(s, parse(name, args)?),
         other => {
             return Err(format!(
-                "the window cannot call `{other}` (sound_ops, new_sound, catalog, export)"
+                "the window cannot call `{other}` (sound_ops, new_sound, catalog, export, project)"
             ));
         }
     };
@@ -660,7 +1064,18 @@ fn do_catalog(s: &mut Session, mut a: CatalogArgs) -> R {
     let lib = plain(s.library_dir())?;
     let force = a.force == Some(true);
     match a.action.as_str() {
-        "list" => Ok(Out::text(catalog::format_list(&catalog::list(&lib)))),
+        "list" => {
+            let all: Vec<_> = catalog::list(&lib)
+                .into_iter()
+                .filter(|e| {
+                    a.project
+                        .as_ref()
+                        .is_none_or(|p| e.project.as_ref() == Some(p))
+                        && a.group.as_ref().is_none_or(|g| e.group.as_ref() == Some(g))
+                })
+                .collect();
+            Ok(Out::text(catalog::format_list(&all)))
+        }
         "search" => {
             if let Some(r) = &a.role
                 && !sounder::parts::ROLES.contains(&r.as_str())
@@ -675,6 +1090,8 @@ fn do_catalog(s: &mut Session, mut a: CatalogArgs) -> R {
                 role: a.role,
                 material: a.material,
                 approved: a.approved,
+                project: a.project,
+                group: a.group,
             };
             let brief = q.text.clone();
             let mut text =
@@ -786,6 +1203,8 @@ fn do_catalog(s: &mut Session, mut a: CatalogArgs) -> R {
                 approved: prior.as_ref().is_some_and(|e| e.approved)
                     && catalog::load(&lib, &name).is_ok_and(|d| d == sound.doc),
                 builtin: false,
+                project: sound.doc.project.clone(),
+                group: sound.doc.group.clone(),
             };
             let lost_approval = prior.as_ref().is_some_and(|e| e.approved) && !entry.approved;
             plain(catalog::save(&lib, &sound.doc, entry))?;
@@ -1143,6 +1562,20 @@ impl Tools {
         self.run(move |s| do_catalog(s, a)).await
     }
 
+    /// Projects (a game, a video series) and groups in them (one machine's
+    /// noises, the UI set): action list, describe (the style, notes and
+    /// sounds), create, update (description / style / rename), note (append
+    /// what you learned about the style), assign (file a sound), use (your
+    /// default for new_sound), delete. Read a project's style before
+    /// building for it, and keep it current when the human says what fits.
+    #[tool]
+    async fn project(
+        &self,
+        Parameters(a): Parameters<ProjectArgs>,
+    ) -> Result<CallToolResult, ErrorData> {
+        self.run(move |s| do_project(s, a)).await
+    }
+
     /// Write Ogg Vorbis files (default; `format: "wav"` for WAV) and a
     /// `<name>.sfx.json` manifest (files with length,
     /// LUFS and peak, kind, loop points, the game-facing knobs, seeds, source).
@@ -1289,6 +1722,7 @@ impl Tools {
 
 const INSTRUCTIONS: &str = r#"Operating guidance for this sound server:
 - You cannot hear. You get numbers and images: summary (state + descriptors), listen (spectrogram / waveform / loudness image + descriptor table), verify (PASS / FAIL checks). The human's comments are the only real ears; the senses get you to a plausible sound, the human decides if it is good. Say what you measured, never that it "sounds" like something.
+- Projects and groups organize the library (a game or video series; one machine's noises, the UI set): project list shows them; new_sound {project, group} (or project use once) files a sound and prints that project's and group's style, notes and the saved sounds already in the group: match them. When the human says what fits ("drier", "always a rattle"), keep it with project note or project update style.
 - Call summary first (and after anything confusing). Open comments are requests: deal with each, then add_annotation {resolve: id, text: what you did}; never delete one.
 - Write the brief as data before building: sound_ops spec {brief, components: [{role, node, material, at: [s, e], length_ms: [min, max], band: [lo, hi], note}]}, one component per layer the brief asks for (role pre crack body weight after bed texture whole; node left out until the layer exists; then sound_ops spec_update [{"index": i, "node": "x"}] names it without resending the spec). summary lists what is missing; verify checks each component's node reaches the output, its material, 80 % of its energy in its slot, its length (the middle 80 % of its energy; a modal body alone lasts ~5 ms: a hit's length comes from a noise body and the weight) and half in its band (the role's band when none is given).
 - An upsert replaces the whole node: re-issue every field you keep (a field left out returns to its default). pattern starts at `start`, not `at`. A whoosh: the part whoosh_sweep, or wide band-passed noise (q ~1) swept up and down; narrow bands read as an artificial sweep.

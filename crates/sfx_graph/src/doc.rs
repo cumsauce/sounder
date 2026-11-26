@@ -68,6 +68,13 @@ pub struct SoundDoc {
     /// (`"f:123"` or `"123f"`), resolved to seconds before render.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fps: Option<f64>,
+    /// The project it belongs to (a game, a video series): a name in the
+    /// library's `projects.json`. Does not change the render.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
+    /// The group inside the project (one machine's noises, the UI set...).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
     /// Raw node JSON, each `{"type", "name", ...}` (unresolved templates).
     #[serde(default)]
     pub nodes: Vec<Value>,
@@ -208,6 +215,8 @@ impl Default for SoundDoc {
             duration: None,
             seed: default_seed(),
             fps: None,
+            project: None,
+            group: None,
             nodes: Vec::new(),
             params: Params::new(),
             macros: Vec::new(),

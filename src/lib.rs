@@ -14,6 +14,7 @@ pub mod history;
 pub mod ogg;
 pub mod parts;
 pub mod player;
+pub mod projects;
 pub mod session;
 pub mod store;
 

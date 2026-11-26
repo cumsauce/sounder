@@ -354,6 +354,7 @@ fn catalog_roundtrip_and_closing() {
             material: None,
             approved: false,
             builtin: false,
+            ..Default::default()
         },
     )
     .unwrap();
@@ -548,6 +549,7 @@ fn sound_nodes_reach_open_and_saved_sounds_and_follow_edits() {
             material: None,
             approved: false,
             builtin: false,
+            ..Default::default()
         },
     )
     .unwrap();
@@ -644,6 +646,7 @@ fn saved_sounds_that_are_not_open_are_listed_as_recent() {
         material: None,
         approved: false,
         builtin: false,
+        ..Default::default()
     };
     sounder::catalog::save(&lib, &doc, entry("old_one")).unwrap();
     // Open: not in `recent`.

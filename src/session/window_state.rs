@@ -23,7 +23,7 @@ const LIVE_FOR: Duration = Duration::from_secs(120);
 const WORKING_FOR: Duration = Duration::from_secs(20);
 
 /// How many saved sounds the All-sounds grid lists after the open ones.
-const RECENT_SAVED: usize = 40;
+const RECENT_SAVED: usize = 500;
 
 fn ago_coarse(t: Instant) -> String {
     let s = t.elapsed().as_secs();
@@ -179,6 +179,8 @@ impl Session {
                     "lufs": stats.get(n).and_then(|x| x.1),
                     // Changes only when this sound's render can change: the page keys its previews on it.
                     "hash": format!("{:x}", s.doc_hash(self.generation)),
+                    "project": s.doc.project,
+                    "group": s.doc.group,
                 })
             })
             .collect();
@@ -206,6 +208,9 @@ impl Session {
                         _ => format!("{} d", secs / 86400),
                     },
                     "macros": e.macros.len(),
+                    "project": e.project,
+                    "group": e.group,
+                    "approved": e.approved,
                 })
             })
             .collect();
@@ -248,8 +253,31 @@ impl Session {
                 || "shared library".to_string(),
                 |n| n.to_string_lossy().into_owned(),
             );
+        // Projects and their groups, for the home page's sections.
+        let projects: Vec<Value> = self
+            .library_dir()
+            .ok()
+            .map(|lib| crate::projects::list(&lib))
+            .unwrap_or_default()
+            .into_iter()
+            .map(|p| {
+                json!({
+                    "name": p.name,
+                    "description": p.description,
+                    "style": p.style,
+                    "notes": p.notes.len(),
+                    "groups": p.groups.iter().map(|g| json!({
+                        "name": g.name,
+                        "description": g.description,
+                        "style": g.style,
+                        "notes": g.notes.len(),
+                    })).collect::<Vec<_>>(),
+                })
+            })
+            .collect();
         Ok(json!({
             "project": project,
+            "projects": projects,
             "rev": self.rev,
             "doc": target,
             "sounds": sounds,

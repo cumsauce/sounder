@@ -144,7 +144,7 @@ function restartKeeping() { if (P.playing) act('play', playArgs(position())); }
 function renderTop() {
   const d = doc();
   $('#gridbtn').setAttribute('aria-pressed', S.view === 'grid'); $('#docbtn').setAttribute('aria-pressed', S.view !== 'grid');
-  $('#doccount').textContent = ST.sounds.length; $('#cdoc').textContent = ST.doc; $('.docproj').textContent = `${ST.project || 'friendSLOP'} /`;
+  $('#doccount').textContent = ST.sounds.length; $('#cdoc').textContent = ST.doc; { const cur = ST.sounds.find(x => x.name === ST.doc) || {}; $('.docproj').textContent = cur.project ? `${cur.project}${cur.group ? ` / ${cur.group}` : ''} /` : `${ST.project || 'library'} /`; }
   $('#transport').hidden = S.view === 'grid';
   $('#playbtn').innerHTML = ic(P.playing ? 'stop' : 'play'); $('#playbtn').setAttribute('aria-label', P.playing ? 'Stop' : 'Play');
   $('#loopbtn').setAttribute('aria-pressed', S.loop || d.kind === 'loop');
@@ -569,11 +569,52 @@ function renderRight() {
 
 // ---------- grid of all sounds ----------
 const THUMBS = new Map(); let THUMB_IO = null;
+// ---------- home: projects > groups > sounds ----------
+// Collapsed sections and the project filter are this viewer's own: kept in localStorage.
+const LS = { get(k, d) { try { const v = localStorage.getItem('sounder.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem('sounder.' + k, JSON.stringify(v)); } catch (e) { /* storage off */ } } };
+let COLL = LS.get('coll', {}), OVP = LS.get('ovp', null);
+const secKey = (p, g) => `${p ?? ''}\u0001${g ?? ''}`;
+function openTile(d) { return `<div class="tile" data-doc="${esc(d.name)}" tabindex="0"><div class="thumb"><canvas data-th="${esc(d.name)}"></canvas>${d.working ? `<span class="chip working" style="font-size:11px"><i class="dot live" style="background:${agentColor(d.by)}"></i>${esc(d.by)} editing</span>` : ''}<button class="tp" data-audition="${esc(d.name)}" aria-label="Play ${esc(d.name)}">${ic('play')}</button></div><div class="info"><span class="n">${esc(d.name)}</span><span class="badge ${d.kind === 'loop' ? 'loop' : ''}">${esc(d.kind)}</span><button class="mv" data-move="${esc(d.name)}" data-open="1" title="Move to another project or group" aria-label="Move ${esc(d.name)}">⋯</button></div><div class="sub"><span class="grow">${d.seconds != null ? `${d.seconds.toFixed(2)} s${d.lufs != null ? ` · ${d.lufs.toFixed(1)} LUFS` : ''}` : ''}</span><span>${esc(d.by)} · ${esc(d.ago)}${d.saved ? '' : ' · <span style="color:var(--warn)">unsaved</span>'}</span></div></div>`; }
+function savedTile(d) { return `<div class="tile saved" data-load="${esc(d.name)}" tabindex="0" title="Saved sound: click to open"><div class="info"><span class="n">${esc(d.name)}</span>${d.approved ? '<span class="badge ok">approved</span>' : ''}<span class="badge ${d.kind === 'loop' ? 'loop' : ''}">${esc(d.kind)}</span><button class="mv" data-move="${esc(d.name)}" data-open="0" title="Move to another project or group" aria-label="Move ${esc(d.name)}">⋯</button></div><div class="sub"><span class="grow">${Number.isFinite(d.seconds) ? `${d.seconds.toFixed(2)} s` : ''}${Number.isFinite(d.lufs) && d.lufs > -90 ? ` · ${d.lufs.toFixed(1)} LUFS` : ''}</span><span>saved · ${esc(d.ago)}</span></div></div>`; }
+function homeHTML(open, saved) {
+  const projs = ST.projects || [], names = new Set(projs.map(p => p.name));
+  const all = open.map(d => ({ d, html: openTile(d) })).concat(saved.map(d => ({ d, html: savedTile(d) })));
+  const inP = (x, p) => (x.d.project && names.has(x.d.project) ? x.d.project : null) === p;
+  const filt = OVP === null ? null : OVP;
+  const chip = (v, label, n) => `<button class="pchip" data-ovp='${esc(JSON.stringify(v))}' aria-pressed="${JSON.stringify(filt) === JSON.stringify(v)}">${esc(label)}<span class="count">${n}</span></button>`;
+  let h = `<div class="ovbar">${chip(null, 'All', all.length)}${projs.map(p => chip(p.name, p.name, all.filter(x => inP(x, p.name)).length)).join('')}${chip('', 'Unfiled', all.filter(x => inP(x, null)).length)}<span class="grow"></span><button class="tbtn" data-newproj>${ic('plus')}Project</button></div>`;
+  const sec = (p, g, title, sub, items, tools, depth) => { const k = secKey(p, g), shut = !!COLL[k];
+    return `<div class="ovsec d${depth} ${shut ? 'shut' : ''}"><button class="tw" data-coll="${esc(k)}" aria-expanded="${!shut}">${ic('chev')}</button><span class="t">${esc(title)}</span><span class="count">${items.length}</span>${sub ? `<span class="desc" title="${esc(sub)}">${esc(sub)}</span>` : ''}<span class="grow"></span>${tools}</div>` + (shut ? '' : items.map(x => x.html).join('') || `<div class="ovempty">nothing here yet</div>`); };
+  const styleBtn = (p, g, has) => `<button class="tbtn sm ${has ? 'on' : ''}" data-pstyle="${esc(p)}" ${g != null ? `data-g="${esc(g)}"` : ''} title="${has ? 'Edit the style agents follow' : 'Write the style agents should follow'}">${has ? 'Style' : 'Style…'}</button>`;
+  const newBtn = (p, g) => `<button class="tbtn sm" data-pnew="${esc(p)}" ${g != null ? `data-g="${esc(g)}"` : ''} title="New sound here">${ic('plus')}Sound</button>`;
+  for (const p of projs) { if (filt !== null && filt !== p.name) continue;
+    const mine = all.filter(x => inP(x, p.name)), k = secKey(p.name, null), shut = !!COLL[k];
+    h += `<div class="ovsec d0 ${shut ? 'shut' : ''}"><button class="tw" data-coll="${esc(k)}" aria-expanded="${!shut}">${ic('chev')}</button><span class="t">${esc(p.name)}</span><span class="count">${mine.length}</span>${p.description ? `<span class="desc" title="${esc(p.description)}">${esc(p.description)}</span>` : ''}<span class="grow"></span>${styleBtn(p.name, null, !!p.style)}<button class="tbtn sm" data-padd="${esc(p.name)}">${ic('plus')}Group</button>${newBtn(p.name, null)}</div>`;
+    if (shut) continue;
+    const gnames = new Set(p.groups.map(g => g.name));
+    for (const g of p.groups) h += sec(p.name, g.name, g.name, g.description, mine.filter(x => x.d.group === g.name), styleBtn(p.name, g.name, !!g.style) + newBtn(p.name, g.name), 1);
+    const loose = mine.filter(x => !gnames.has(x.d.group));
+    if (!p.groups.length) h += loose.map(x => x.html).join('') || `<div class="ovempty">nothing here yet: + Sound, or ⋯ on a sound to move it here</div>`;
+    else if (loose.length) h += sec(p.name, '', 'no group', '', loose, '', 1);
+  }
+  if (filt === null || filt === '') { const un = all.filter(x => inP(x, null)); if (un.length || !projs.length) h += sec('', null, projs.length ? 'Unfiled' : `${ST.project || 'library'}`, projs.length ? 'not in a project yet: ⋯ on a sound moves it' : 'make a project to organize these', un, '', 0); }
+  return h;
+}
+function moveDialog(name, isOpen) { const projs = ST.projects || [], opts = ['(unfiled)'];
+  projs.forEach(p => { opts.push(p.name); p.groups.forEach(g => opts.push(`${p.name} / ${g.name}`)); });
+  const cur = (isOpen ? ST.sounds : (ST.recent || [])).find(x => x.name === name) || {}, now = cur.project ? (cur.group ? `${cur.project} / ${cur.group}` : cur.project) : '(unfiled)';
+  openDlg(`Move ${name}`, [{ label: 'to', key: 'to', kind: 'select', options: opts, value: now }], 'Move', v => { const [p, g] = v.to === '(unfiled)' ? [null, null] : v.to.split(' / ');
+    tool('project', { action: 'assign', ...(isOpen ? { doc: name } : { sound: name }), ...(p ? { name: p } : {}), ...(g ? { group: g } : {}) }).then(r => { if (r) { toast(r.text.split('\n')[0]); pullState(); } }); }); }
+function styleDialog(p, g) { const P0 = (ST.projects || []).find(x => x.name === p) || {}, T = g != null ? (P0.groups || []).find(x => x.name === g) || {} : P0;
+  openDlg(`${g != null ? `${p} / ${g}` : p}: style`, [{ label: 'description', key: 'description', value: T.description || '' }, { label: 'style (agents read this before building here)', key: 'style', kind: 'area', value: T.style || '' }, { label: `add a note${T.notes ? ` (${T.notes} so far)` : ''}`, key: 'note', kind: 'area' }], 'Save',
+    async v => { const base = { name: p, ...(g != null ? { group: g } : {}) };
+      if (v.description !== (T.description || '') || v.style !== (T.style || '')) await tool('project', { action: 'update', ...base, description: v.description, style: v.style });
+      if (v.note.trim()) await tool('project', { action: 'note', ...base, note: v.note.trim() });
+      pullState(); }); }
 function renderOverview() {
   $('#overview').hidden = S.view !== 'grid'; if (S.view !== 'grid') return;
   const sounds = ST.sounds;
-  const gridHTML = `<div class="ovsec">${esc(ST.project || 'friendSLOP')} · ${sounds.length} open${(ST.recent || []).length ? ` · ${ST.recent.length} saved` : ''}</div>` + sounds.map(d => `<div class="tile" data-doc="${esc(d.name)}" tabindex="0"><div class="thumb"><canvas data-th="${esc(d.name)}"></canvas>${d.working ? `<span class="chip working" style="font-size:11px"><i class="dot live" style="background:${agentColor(d.by)}"></i>${esc(d.by)} editing</span>` : ''}<button class="tp" data-audition="${esc(d.name)}" aria-label="Play ${esc(d.name)}">${ic('play')}</button></div><div class="info"><span class="n">${esc(d.name)}</span><span class="badge ${d.kind === 'loop' ? 'loop' : ''}">${esc(d.kind)}</span></div><div class="sub"><span class="grow">${d.seconds != null ? `${d.seconds.toFixed(2)} s${d.lufs != null ? ` · ${d.lufs.toFixed(1)} LUFS` : ''}` : ''}</span><span>${esc(d.by)} · ${esc(d.ago)}${d.saved ? '' : ' · <span style="color:var(--warn)">unsaved</span>'}</span></div></div>`).join('')
-    + (ST.recent || []).map(d => `<div class="tile" data-load="${esc(d.name)}" tabindex="0" title="Saved sound: click to open"><div class="thumb"></div><div class="info"><span class="n">${esc(d.name)}</span><span class="badge ${d.kind === 'loop' ? 'loop' : ''}">${esc(d.kind)}</span></div><div class="sub"><span class="grow">${Number.isFinite(d.seconds) ? `${d.seconds.toFixed(2)} s` : ''}${Number.isFinite(d.lufs) && d.lufs > -90 ? ` · ${d.lufs.toFixed(1)} LUFS` : ''}</span><span>saved · ${esc(d.ago)}</span></div></div>`).join('');
+  const gridHTML = homeHTML(sounds, ST.recent || []);
   const og = $('#ovgrid'); if (og.dataset.html !== gridHTML) { og.dataset.html = gridHTML; og.innerHTML = gridHTML; }
   $('#feed').innerHTML = (ST.feed || []).map(f => { const i = f.what.indexOf(' · '); const what = i > 0 ? `<b>${esc(f.what.slice(0, i))}</b>${esc(f.what.slice(i))}` : esc(f.what);
     return `<div class="ev" data-doc="${esc(f.doc)}"><i class="dot" style="background:${agentColor(f.agent)}"></i><span class="what"><span class="mono">${esc(f.tool)}</span> ${what}</span><time>${esc(f.ago)}</time></div>`; }).join('');
@@ -589,7 +630,7 @@ function renderOverview() {
 }
 
 // ---------- toast, render all ----------
-function toast(t) { const e = $('#toast'); e.innerHTML = `<span class="chip"><b>${esc(t)}</b></span>`; e.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => e.hidden = true, 2600); }
+function toast(t) { const e = $('#toast'); e.innerHTML = `<span class="chip"><b>${esc(String(t).replace(/`/g, ''))}</b></span>`; e.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => e.hidden = true, 2600); }
 function renderCentre() { renderHud(); renderGraph(); requestAnimationFrame(() => { renderPlot(); showRegbar(); refreshPlot(); }); }
 function renderAll() { renderTop(); renderOverview(); renderCentre(); renderDock(); renderRight(); renderOpslog(); }
 
@@ -692,6 +733,13 @@ $('#right').onchange = e => {
 
 // grid of sounds
 $('#ovgrid').onclick = async e => {
+  const cl = e.target.closest('[data-coll]'); if (cl) { const k = cl.dataset.coll; if (COLL[k]) delete COLL[k]; else COLL[k] = 1; LS.set('coll', COLL); renderOverview(); return; }
+  const fp = e.target.closest('[data-ovp]'); if (fp) { OVP = JSON.parse(fp.dataset.ovp); LS.set('ovp', OVP); renderOverview(); return; }
+  const mv = e.target.closest('[data-move]'); if (mv) { e.stopPropagation(); moveDialog(mv.dataset.move, mv.dataset.open === '1'); return; }
+  const ps = e.target.closest('[data-pstyle]'); if (ps) { styleDialog(ps.dataset.pstyle, ps.dataset.g ?? null); return; }
+  const pa = e.target.closest('[data-padd]'); if (pa) { openDlg(`New group in ${pa.dataset.padd}`, [{ label: 'name', key: 'name' }, { label: 'description', key: 'description' }, { label: 'style', key: 'style', kind: 'area' }], 'Create', v => v.name.trim() && tool('project', { action: 'create', name: pa.dataset.padd, group: v.name.trim(), description: v.description, style: v.style }).then(r => { if (r) pullState(); })); return; }
+  const pn = e.target.closest('[data-pnew]'); if (pn) { newSound(null, null, { project: pn.dataset.pnew, ...(pn.dataset.g != null ? { group: pn.dataset.g } : {}) }); return; }
+  if (e.target.closest('[data-newproj]')) { openDlg('New project', [{ label: 'name', key: 'name' }, { label: 'description', key: 'description' }, { label: 'style (agents read this before building here)', key: 'style', kind: 'area' }], 'Create', v => v.name.trim() && tool('project', { action: 'create', name: v.name.trim(), description: v.description, style: v.style }).then(r => { if (r) { OVP = v.name.trim(); LS.set('ovp', OVP); pullState(); } })); return; }
   const a = e.target.closest('[data-audition]'); if (a) { e.stopPropagation(); try { await sounder.call('select_sound', { doc: a.dataset.audition }); await sounder.call('play', { from: 0 }); } catch (er) { toast(errText(er)); } pullState(); return; }
   const ld = e.target.closest('[data-load]'); if (ld) { try { await sounder.call('catalog_load', { name: ld.dataset.load }); await openSound(ld.dataset.load); } catch (er) { toast(errText(er)); } return; }
   const t = e.target.closest('[data-doc]'); if (t) openSound(t.dataset.doc); };
@@ -914,8 +962,10 @@ document.addEventListener('change', e => { const a = S.mapArm; if (!a || !a.entr
 function showEmpty() { if ($('#empty')) return; const el = document.createElement('div'); el.id = 'empty'; el.className = 'empty';
   el.innerHTML = `<div class="emptybox"><b>No sounds open</b><div class="sbtns"><button class="primary" data-enew>${ic('plus')}New sound</button><button class="tbtn" data-etpl>From template</button></div></div>`;
   el.onclick = e => { if (e.target.closest('[data-enew]')) newSound(); else if (e.target.closest('[data-etpl]')) newSound(null, 'door_slam'); }; document.body.appendChild(el); }
-async function newSound(from, template) { const ids = new Set(((ST && ST.sounds) || []).map(s => s.name)); const name = freeName(template || (from ? from + '_copy' : 'sound'), ids);
-  if (await tool('new_sound', { name, ...(template ? { template } : {}) }) === undefined) return;
+async function newSound(from, template, filing) { const ids = new Set(((ST && ST.sounds) || []).map(s => s.name)); const name = freeName(template || (from ? from + '_copy' : 'sound'), ids);
+  // A copy stays where its original is filed; a new sound goes where it was asked for.
+  const src = from && ST.sounds.find(x => x.name === from); filing = filing || (src && src.project ? { project: src.project, ...(src.group ? { group: src.group } : {}) } : {});
+  if (await tool('new_sound', { name, ...(template ? { template } : {}), ...filing }) === undefined) return;
   if (from) { const d = doc(); await tool('sound_ops', { doc: name, ops: d.nodes.map(opOf), macros: d.macros.map(plainMacro), params: d.params, kind: d.kind, ...(d.duration ? { duration: d.duration } : {}), seed: d.seed }); }
   $('#docpop').hidden = true; await openSound(name); S.centre = 'graph'; if (ST) renderCentre(); }
 function saveDialog() { openDlg(`Save ${ST.doc} to the catalog`, [{ label: 'role', key: 'role', kind: 'select', options: ['', 'pre', 'crack', 'body', 'weight', 'after', 'bed', 'texture', 'whole'] }, { label: 'material', key: 'material', kind: 'select', options: ['', 'wood', 'metal', 'glass', 'stone', 'plastic', 'cloth', 'water', 'any'] }, { label: 'tags', key: 'tags' }, { label: 'description', key: 'description', kind: 'area' }], 'Save',
@@ -942,7 +992,7 @@ function openPal({ x, y, title, items, search }) { closePal(); const el = docume
 function closePal() { if (PAL) { PAL.el.remove(); PAL = null; } }
 document.addEventListener('mousedown', e => { if (PAL && !e.target.closest('.pal')) closePal(); if (!e.target.closest('#kedit, .knob, #mapbar, .pal') && !$('#kedit').hidden && !S.mapArm) { $('#kedit').hidden = true; KEDIT = null; } });
 function openDlg(title, fields, primary, onOk) { const el = $('#dlg');
-  el.innerHTML = `<div class="dlgbox"><div class="dlgh">${esc(title)}<button data-dlgx>${ic('x')}</button></div>${fields.map(f => `<label class="dfield"><span>${esc(f.label)}</span>${f.kind === 'select' ? `<select data-dk="${f.key}">${f.options.map(o => `<option ${o === f.value ? 'selected' : ''}>${o}</option>`).join('')}</select>` : f.kind === 'area' ? `<textarea data-dk="${f.key}" rows="3"></textarea>` : `<input data-dk="${f.key}" type="${f.kind || 'text'}" value="${f.value ?? ''}" ${f.step ? `step="${f.step}"` : ''}>`}</label>`).join('')}<div class="dlgf"><button class="tbtn" data-dlgx>Cancel</button><button class="primary" data-dlgok>${esc(primary)}</button></div></div>`;
+  el.innerHTML = `<div class="dlgbox"><div class="dlgh">${esc(title)}<button data-dlgx>${ic('x')}</button></div>${fields.map(f => `<label class="dfield"><span>${esc(f.label)}</span>${f.kind === 'select' ? `<select data-dk="${f.key}">${f.options.map(o => `<option ${o === f.value ? 'selected' : ''}>${o}</option>`).join('')}</select>` : f.kind === 'area' ? `<textarea data-dk="${f.key}" rows="4">${esc(f.value ?? '')}</textarea>` : `<input data-dk="${f.key}" type="${f.kind || 'text'}" value="${f.value ?? ''}" ${f.step ? `step="${f.step}"` : ''}>`}</label>`).join('')}<div class="dlgf"><button class="tbtn" data-dlgx>Cancel</button><button class="primary" data-dlgok>${esc(primary)}</button></div></div>`;
   el.hidden = false; el.onclick = e => { if (e.target === el || e.target.closest('[data-dlgx]')) { el.hidden = true; return; } if (e.target.closest('[data-dlgok]')) { const v = Object.fromEntries([...el.querySelectorAll('[data-dk]')].map(i => [i.dataset.dk, i.type === 'number' ? +i.value : i.value])); el.hidden = true; onOk(v); } };
   el.querySelector('[data-dk]')?.focus(); }
 

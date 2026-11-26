@@ -348,6 +348,13 @@ pub(crate) struct NewSoundArgs {
     /// the parts, templates and ready-made nodes that fit it, best first.
     #[serde(default)]
     pub(crate) brief: Option<String>,
+    /// File it under this project (default: the one `project use` set):
+    /// the result shows the project's style and notes.
+    #[serde(default)]
+    pub(crate) project: Option<String>,
+    /// And this group in it (its style, notes and the sounds already in it).
+    #[serde(default)]
+    pub(crate) group: Option<String>,
 }
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
@@ -389,6 +396,52 @@ pub(crate) struct CatalogArgs {
     /// rest. Approval is set by the human in the window, never by `save`.
     #[serde(default)]
     pub(crate) approved: Option<bool>,
+    /// list / search: only sounds filed under this project.
+    #[serde(default)]
+    pub(crate) project: Option<String>,
+    /// list / search: only sounds in this group (with `project`).
+    #[serde(default)]
+    pub(crate) group: Option<String>,
+}
+
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub(crate) struct ProjectArgs {
+    /// list (every project and group, with counts), describe (a project's
+    /// style, notes and sounds; with `group`, that group's), create (a
+    /// project, or a group in it with `group`), update (description /
+    /// style / rename), note (append a learned fact), assign (file a sound:
+    /// `doc` or `sound`, under `name` / `group`; `name` null unfiles it),
+    /// use (your default project / group for new_sound), delete.
+    pub(crate) action: String,
+    /// The project.
+    #[serde(default)]
+    pub(crate) name: Option<String>,
+    /// A group in the project.
+    #[serde(default)]
+    pub(crate) group: Option<String>,
+    /// One line: what the project or group is.
+    #[serde(default)]
+    pub(crate) description: Option<String>,
+    /// The style guide (replaces the old one): the shared character, levels,
+    /// layers every sound has, what to avoid. For the group with `group`.
+    #[serde(default)]
+    pub(crate) style: Option<String>,
+    /// note: the fact to append ("the listener wants the hits drier").
+    #[serde(default)]
+    pub(crate) note: Option<String>,
+    /// update: the new name of the project (or of the group with `group`);
+    /// every sound filed under it follows.
+    #[serde(default)]
+    pub(crate) rename: Option<String>,
+    /// assign: an open sound (default: your active sound).
+    #[serde(default)]
+    pub(crate) doc: Option<String>,
+    /// assign: a saved sound that is not open.
+    #[serde(default)]
+    pub(crate) sound: Option<String>,
+    /// delete a project or group that still has sounds (they become unfiled).
+    #[serde(default)]
+    pub(crate) force: Option<bool>,
 }
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]

@@ -9,7 +9,7 @@ use sfx_graph::{Kind, SoundDoc};
 
 use crate::store::atomic_write;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct CatalogEntry {
     pub name: String,
     #[serde(default)]
@@ -41,6 +41,12 @@ pub struct CatalogEntry {
     /// Shipped with the tool (`parts/`), not saved in this library.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub builtin: bool,
+    /// The project and group it is filed under (`projects`), as the
+    /// document says.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
 }
 
 fn sounds_dir(lib: &Path) -> PathBuf {
@@ -96,6 +102,29 @@ pub fn save(lib: &Path, doc: &SoundDoc, mut entry: CatalogEntry) -> Result<(), S
     write_index(lib, &entries)
 }
 
+/// Files a saved sound under `project` / `group`, in its file and the index,
+/// keeping its approval (the sound itself is unchanged).
+pub fn set_filing(
+    lib: &Path,
+    name: &str,
+    project: Option<String>,
+    group: Option<String>,
+) -> Result<(), String> {
+    let mut doc = load(lib, name)?;
+    let mut all = list(lib);
+    let Some(e) = all.iter_mut().find(|e| e.name == name) else {
+        return Err(format!("`{name}` is not saved in this library"));
+    };
+    doc.project = project.clone();
+    doc.group = group.clone();
+    e.project = project;
+    e.group = group;
+    let json = serde_json::to_vec_pretty(&doc).map_err(|e| e.to_string())?;
+    atomic_write(&sounds_dir(lib).join(format!("{name}.json")), &json)?;
+    let idx = serde_json::to_vec_pretty(&all).map_err(|e| e.to_string())?;
+    atomic_write(&index_path(lib), &idx)
+}
+
 /// Sets or clears the human's approval of a saved sound.
 pub fn set_approved(lib: &Path, name: &str, approved: bool) -> Result<(), String> {
     let mut entries = list(lib);
@@ -131,6 +160,9 @@ pub struct Query {
     pub role: Option<String>,
     pub material: Option<String>,
     pub approved: Option<bool>,
+    /// Only sounds filed under this project (and group).
+    pub project: Option<String>,
+    pub group: Option<String>,
 }
 
 const STOP_WORDS: &[&str] = &[
@@ -186,6 +218,10 @@ pub fn search(entries: &[CatalogEntry], q: &Query) -> Vec<CatalogEntry> {
                     .as_ref()
                     .is_none_or(|m| e.material.as_deref().is_some_and(|x| x == m || x == "any"))
                 && q.approved.is_none_or(|a| e.approved == a)
+                && q.project
+                    .as_ref()
+                    .is_none_or(|p| e.project.as_ref() == Some(p))
+                && q.group.as_ref().is_none_or(|g| e.group.as_ref() == Some(g))
         })
         .filter_map(|e| {
             if words.is_empty() {

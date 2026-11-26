@@ -210,12 +210,15 @@ impl Sound {
     /// A sound that instances others also keys on the session's generation:
     /// editing an instanced sound changes nothing in this document.
     pub fn doc_hash(&self, generation: u64) -> u64 {
-        // Window positions do not change the render: a moved card keeps the cached render.
-        if self.doc.layout.is_empty() {
+        // Window positions and the project / group do not change the
+        // render: a moved card or a sound filed elsewhere keeps its render.
+        if self.doc.layout.is_empty() && self.doc.project.is_none() && self.doc.group.is_none() {
             return hash_of(&(&self.doc, self.salt(generation)));
         }
         let mut d = self.doc.clone();
         d.layout = sfx_graph::Layout::default();
+        d.project = None;
+        d.group = None;
         hash_of(&(&d, self.salt(generation)))
     }
 
@@ -273,6 +276,8 @@ impl Sound {
 #[derive(Debug, Default)]
 struct ClientState {
     active: Option<String>,
+    /// The project (and group) `project use` set: new sounds go there.
+    filing: Option<(String, Option<String>)>,
     /// When this client's last call ended.
     last: Option<Instant>,
     /// History node count of each sound at this client's last call.
@@ -306,6 +311,8 @@ pub struct Session {
     current: Option<String>,
     /// The sound untagged callers work in.
     shared_active: Option<String>,
+    /// The default project / group of untagged callers (`project use`).
+    shared_filing: Option<(String, Option<String>)>,
     pub project: Option<PathBuf>,
     pub calls: Vec<CallRecord>,
     dirty_since: Option<Instant>,
@@ -425,6 +432,92 @@ impl Session {
         }
         .or_else(|| self.shared_active.clone())
         .filter(|n| self.sounds.contains_key(n))
+    }
+
+    /// The client making the current call.
+    pub fn current_client(&self) -> Option<String> {
+        self.current.clone()
+    }
+
+    /// The calling client's default project and group (`project use`).
+    pub fn filing(&self) -> Option<(String, Option<String>)> {
+        match &self.current {
+            Some(c) => self.clients.get(c).and_then(|s| s.filing.clone()),
+            None => self.shared_filing.clone(),
+        }
+    }
+
+    pub fn set_filing(&mut self, f: Option<(String, Option<String>)>) {
+        match self.current.clone() {
+            Some(c) => self.clients.entry(c).or_default().filing = f,
+            None => self.shared_filing = f,
+        }
+    }
+
+    /// Files an open sound under `project` / `group` (None unfiles it). A
+    /// saved sound that was unchanged is saved again, so it stays saved.
+    pub fn file_sound(
+        &mut self,
+        doc: Option<&str>,
+        project: Option<String>,
+        group: Option<String>,
+    ) -> Result<String, String> {
+        let lib = self.library_dir()?;
+        let name = self.target_name(doc)?;
+        let sound = self.sounds.get_mut(&name).ok_or("no such sound")?;
+        sound.doc.project = project;
+        sound.doc.group = group;
+        if !sound.unsaved
+            && let Some(cn) = sound.catalog_name.clone()
+        {
+            crate::catalog::set_filing(
+                &lib,
+                &cn,
+                sound.doc.project.clone(),
+                sound.doc.group.clone(),
+            )?;
+        }
+        self.mark_dirty();
+        Ok(name)
+    }
+
+    /// Every open sound's name with its project and group.
+    pub fn open_filing(&self) -> Vec<(String, Option<String>, Option<String>)> {
+        self.sounds
+            .iter()
+            .map(|(n, s)| (n.clone(), s.doc.project.clone(), s.doc.group.clone()))
+            .collect()
+    }
+
+    /// Renames a project (or a group in it) on every open sound.
+    pub fn rename_filing(&mut self, project: &str, group: Option<&str>, to: &str) {
+        for s in self.sounds.values_mut() {
+            if s.doc.project.as_deref() != Some(project) {
+                continue;
+            }
+            match group {
+                None => s.doc.project = Some(to.to_string()),
+                Some(g) if s.doc.group.as_deref() == Some(g) => s.doc.group = Some(to.to_string()),
+                _ => {}
+            }
+        }
+        // Defaults set with `project use` follow the rename too.
+        let follow = |f: &mut Option<(String, Option<String>)>| {
+            if let Some((p, g)) = f
+                && p == project
+            {
+                match group {
+                    None => *p = to.to_string(),
+                    Some(gr) if g.as_deref() == Some(gr) => *g = Some(to.to_string()),
+                    _ => {}
+                }
+            }
+        };
+        follow(&mut self.shared_filing);
+        for c in self.clients.values_mut() {
+            follow(&mut c.filing);
+        }
+        self.mark_dirty();
     }
 
     fn set_active(&mut self, name: &str) {
@@ -1557,6 +1650,7 @@ impl Session {
     /// The `summary` tool: text and JSON. Reading it clears the human's knob
     /// moves (the agent has now seen them).
     pub fn summary(&mut self, doc: Option<&str>) -> Result<(String, Value), String> {
+        let lib = self.library_dir().ok();
         let opts = self.render_opts();
         let salt = self.generation;
         let sound = self.sound(doc)?;
@@ -1587,6 +1681,14 @@ impl Session {
         )
         .replace("Oneshot", "oneshot")
         .replace("Loop", "loop");
+        match (&lib, d.project.as_deref()) {
+            (Some(lib), Some(p)) => {
+                out += &crate::projects::context(lib, Some(p), d.group.as_deref(), 5);
+            }
+            _ => {
+                out += "not filed under a project (project {action: \"assign\"} files it; project list shows them)\n"
+            }
+        }
         out += &format!("nodes ({}):\n", d.nodes.len());
         let node_lines: Vec<String> = d
             .nodes

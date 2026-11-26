@@ -56,8 +56,12 @@ daemon opens the window so the human sees every agent's sounds in one place
 ### The workflow
 
 1. **`summary`**: what is open, and what the human asked for (open comments
-   are requests).
-2. **`new_sound {name, brief: "<the brief, word for word>"}`**: it lists the
+   are requests). **`project list`**: which project (a game, a video
+   series) and group (one machine's noises, the UI set) the sound belongs
+   to; ask the human if it is not clear.
+2. **`new_sound {name, project, group, brief: "<the brief, word for
+   word>"}`**: it prints the project's and group's style and notes and the
+   saved sounds already in the group (match them), then lists the
    approved parts, templates and ready-made nodes that fit, best first.
    **When the top one fits, start from it** (a `sound` node, or `catalog
    load` to edit a copy) instead of rebuilding from nodes. See "Which
@@ -77,7 +81,9 @@ daemon opens the window so the human sees every agent's sounds in one place
    ends stay near them: a knob must not turn the sound into a different one.
    `summary` reports "no knobs yet" until there is one. See "Macros: knobs
    for the human".
-7. **`catalog save`, `export`.**
+7. **`catalog save`, `export`.** When the human tells you what fits the
+   project or group ("drier", "always a rattle"), keep it: `project note`
+   (a fact) or `project update style` (the guide).
 
 ### Rules that catch everyone
 
@@ -118,7 +124,7 @@ after each holds the detail.
   does; an unknown node field errors with the node's fields listed. Check
   `describe_op` before guessing a field.
 
-## The tools (16)
+## The tools (17)
 
 | Tool | What it does |
 |---|---|
@@ -135,6 +141,7 @@ after each holds the detail.
 | `undo redo jump history` | the history tree; one `sound_ops` call is one step |
 | `add_annotation` | comment on a node / region, or `resolve` / `reopen` one |
 | `session_log` | recent calls; `feedback` notes; `report` of the friction log |
+| `project` | projects and their groups: `list describe create update note assign use delete`; each carries a `style` and `notes` agents read before building there (see "Projects and groups") |
 
 Every tool that reads a sound takes `doc` (an open sound's name).
 
@@ -633,6 +640,26 @@ then its file name alone). `catalog {action: "sources"}` lists them.
   repo ships none; reference sets live in `refs/`, gitignored).
 - `convolve` resamples an impulse response at another rate (44.1 or 96 kHz
   work as is). Editing a WAV re-renders every node that reads it.
+
+## Projects and groups
+
+The library is organized as **projects** (a whole game, a video series) and
+**groups** inside them (any set: one machine's noises, the UI sounds, the
+forest ambience). A sound is filed by its own `project` / `group` fields;
+the window's home page shows projects, then groups, then sounds, and
+unfiled sounds last.
+
+- `project {action: "create", name, [group], description, style}` makes a
+  project (or a group in it). `style` is the guide (replaced on `update`);
+  `note` appends a fact learned from the human. Both are shown to every
+  agent building there: in `new_sound`, `summary` and `project describe`.
+- File a sound with `new_sound {project, group}`, or `project {action:
+  "use", name, group}` once (your default for later `new_sound`s), or
+  `project {action: "assign", doc | sound, name, group}` (no `name`
+  unfiles it). `update` with `rename` moves every filed sound along.
+- `catalog list` / `search` take `project` / `group`. `delete` refuses a
+  project or group with sounds unless `force` (they become unfiled).
+- Kept in `<library>/projects.json`. Filing never changes a render.
 
 ## Sessions, history, comments
 

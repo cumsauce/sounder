@@ -25,7 +25,9 @@
     "open_comments": 1,
     "seconds": 0.404,
     "lufs": -18.2,
-    "hash": "0000000000000000"
+    "hash": "0000000000000000",
+    "project": "friendSLOP",
+    "group": "laser guns"
    },
    {
     "name": "pan_and_lid",
@@ -37,7 +39,9 @@
     "open_comments": 0,
     "seconds": 1.6,
     "lufs": -19.5,
-    "hash": "a1"
+    "hash": "a1",
+    "project": null,
+    "group": null
    },
    {
     "name": "ui_click",
@@ -49,7 +53,9 @@
     "open_comments": 0,
     "seconds": 0.121,
     "lufs": -20.1,
-    "hash": "0000000000000000"
+    "hash": "0000000000000000",
+    "project": null,
+    "group": null
    },
    {
     "name": "wind_loop",
@@ -61,7 +67,9 @@
     "open_comments": 0,
     "seconds": 4.0,
     "lufs": -24.0,
-    "hash": "0000000000000000"
+    "hash": "0000000000000000",
+    "project": null,
+    "group": null
    }
   ],
   "agents": [
@@ -117,7 +125,23 @@
   ],
   "solo": null,
   "solo_stats": null,
-  "playing": false
+  "playing": false,
+  "projects": [
+   {
+    "name": "friendSLOP",
+    "description": "the game",
+    "style": "dry, chunky, peak -1 dBFS",
+    "notes": 1,
+    "groups": [
+     {
+      "name": "laser guns",
+      "description": "every weapon's zap",
+      "style": "bright sweep, under 0.5 s",
+      "notes": 0
+     }
+    ]
+   }
+  ]
  },
  "sound_data": {
   "laser": {

@@ -190,6 +190,7 @@ impl Part {
             material: Some(self.material.clone()),
             approved: true,
             builtin: true,
+            ..Default::default()
         }
     }
 }

@@ -436,7 +436,7 @@ fn a_node_called_mono_is_refused_with_an_error_that_says_why() {
     .unwrap();
 }
 
-// ------------------------------------------------- the real server, 16 tools
+// ------------------------------------------------- the real server, 17 tools
 
 fn drive(calls: &Value, dir: &Path) -> Vec<Value> {
     let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("mcp_driver.py");
@@ -476,7 +476,7 @@ fn text_of(v: &Value) -> String {
         .join("\n")
 }
 
-const TOOLS: [&str; 16] = [
+const TOOLS: [&str; 17] = [
     "summary",
     "sound_ops",
     "listen",
@@ -493,6 +493,7 @@ const TOOLS: [&str; 16] = [
     "history",
     "add_annotation",
     "session_log",
+    "project",
 ];
 
 #[test]
@@ -524,7 +525,7 @@ fn every_tool_of_the_real_server_rejects_an_unknown_argument() {
     let r = drive(&Value::Array(calls), &dir);
     let ok = |i: usize| r[i]["ok"].as_bool().unwrap_or(false);
 
-    // 1..=16: one per tool, in TOOLS order.
+    // 1..=17: one per tool, in TOOLS order.
     for (i, t) in TOOLS.iter().enumerate() {
         let txt = text_of(&r[i + 1]);
         println!("{t}: {txt}");
@@ -535,7 +536,7 @@ fn every_tool_of_the_real_server_rejects_an_unknown_argument() {
             "{t}: {txt}"
         );
     }
-    let at = |k: usize| 17 + k;
+    let at = |k: usize| TOOLS.len() + 1 + k;
     // describe_op `name`, listen `zoom_in`, sound_ops `delete`, nested expect key.
     let t = text_of(&r[at(0)]);
     assert!(
@@ -739,5 +740,68 @@ fn server_new_sound_null_duration_and_catalog_doc() {
     assert!(
         !ok(11) && t.contains("zoom {t: [from_s, to_s], hz: [low, high]}"),
         "{t}"
+    );
+}
+
+/// Projects and groups: a sound filed by `project use` gets the style and
+/// the notes in new_sound and summary, the saved sounds beside it, and a
+/// rename carries every filed sound (open or saved) and the default along.
+#[test]
+fn projects_file_sounds_and_carry_their_style() {
+    let dir = project("projects");
+    let calls = json!([
+        // 0
+        {"name": "project", "args": {"action": "create", "name": "rampup", "style": "dry and chunky"}},
+        {"name": "project", "args": {"action": "create", "name": "rampup", "group": "generator", "style": "the 38 Hz hum"}},
+        {"name": "project", "args": {"action": "use", "name": "rampup", "group": "generator"}},
+        {"name": "new_sound", "args": {"name": "a"}},
+        {"name": "sound_ops", "args": {"ops": graph()}},
+        // 5
+        {"name": "catalog", "args": {"action": "save", "description": "first"}},
+        {"name": "project", "args": {"action": "note", "name": "rampup", "group": "generator", "note": "longer starts"}},
+        {"name": "new_sound", "args": {"name": "b"}},
+        {"name": "summary", "args": {"doc": "b"}},
+        {"name": "project", "args": {"action": "update", "name": "rampup", "group": "generator", "rename": "diesel"}},
+        // 10
+        {"name": "catalog", "args": {"action": "list", "project": "rampup", "group": "diesel"}},
+        {"name": "new_sound", "args": {"name": "c"}},
+        {"name": "project", "args": {"action": "delete", "name": "rampup"}},
+        {"name": "new_sound", "args": {"name": "d", "project": "nope"}},
+        {"name": "project", "args": {"action": "assign", "doc": "c"}},
+        // 15
+        {"name": "project", "args": {"action": "list"}},
+    ]);
+    let r = drive(&calls, &dir);
+    let ok = |i: usize| r[i]["ok"].as_bool().unwrap_or(false);
+    let t = |i: usize| text_of(&r[i]);
+    for i in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15] {
+        assert!(ok(i), "call {i}: {}", t(i));
+    }
+    assert!(
+        t(3).contains("dry and chunky") && t(3).contains("the 38 Hz hum"),
+        "{}",
+        t(3)
+    );
+    // The second sound sees the first, the note and both styles.
+    assert!(
+        t(7).contains("`a`") && t(7).contains("longer starts"),
+        "{}",
+        t(7)
+    );
+    assert!(
+        t(8).contains("group `generator`") && t(8).contains("dry and chunky"),
+        "{}",
+        t(8)
+    );
+    // The saved sound followed the rename, and so did the default.
+    assert!(t(10).contains("`a`"), "{}", t(10));
+    assert!(t(11).contains("group `diesel`"), "{}", t(11));
+    // A project with sounds is kept; an unknown project is named.
+    assert!(!ok(12) && t(12).contains("still has"), "{}", t(12));
+    assert!(!ok(13) && t(13).contains("projects: rampup"), "{}", t(13));
+    assert!(
+        t(15).contains("diesel (2 sounds)") && t(15).contains("unfiled: 1"),
+        "{}",
+        t(15)
     );
 }

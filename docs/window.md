@@ -10,6 +10,15 @@ cargo run                         # window + MCP on stdio
 cargo run -- --project DIR        # same, in a project
 ```
 
+The home page ("All sounds") is organized by project, then group: a chip
+row filters to one project (or the unfiled sounds); each project and group
+header collapses, opens its style (the guide agents read, plus a note box),
+adds a group or a sound filed there; `⋯` on a tile moves the sound. The
+filter and the collapsed sections are kept in the page's `localStorage`. All
+of it goes through the agents' `project` tool (`window_tool`), so a move or a
+style edit is the same call an agent would make. `state` carries `projects`
+and each sound's `project` / `group`; up to 500 saved sounds are listed.
+
 Data flow (the contract is `design/window-api.md`):
 
 - The page (`ui/`, embedded at build time by `build.rs`; a built-in raw-state

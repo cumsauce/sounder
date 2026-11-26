@@ -97,6 +97,23 @@ fn real_state() -> Value {
     s.check(None, None).unwrap();
     s.log_call("sound_ops", true, 5, Some("look"));
     s.end_call(Some("look"));
+    // One project with a group, the laser filed in it.
+    let lib = s.library_dir().unwrap();
+    sounder::projects::save_all(
+        &lib,
+        &[sounder::projects::Project {
+            name: "friendSLOP".into(),
+            style: "dry".into(),
+            groups: vec![sounder::projects::Group {
+                name: "laser guns".into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        }],
+    )
+    .unwrap();
+    s.file_sound(None, Some("friendSLOP".into()), Some("laser guns".into()))
+        .unwrap();
     s.window_state(None).unwrap()
 }
 

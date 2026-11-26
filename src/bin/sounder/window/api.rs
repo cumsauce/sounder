@@ -888,6 +888,7 @@ mod tests {
                 material: None,
                 approved: false,
                 builtin: false,
+                ..Default::default()
             };
             sounder::catalog::save(&lib, &doc, entry).unwrap();
             s.close_sound("zap", true).unwrap();
