@@ -250,6 +250,7 @@ node_types! {
     "delay" => Delay,
     "reverb" => Reverb,
     "convolve" => Convolve,
+    "camera" => Camera,
     // nonlinear
     "shape" => Shape,
     "compress" => Compress,

@@ -11,6 +11,7 @@ Start from these. Each was picked best of its box, or rated good blind.
 
 | Need | Parts | Stack |
 |---|---|---|
+| a sound for a video or film shot at a distance (no engine to add the room) | none: `camera` on the finished sound before `output` (`distance`, `space`) | a game sound stays dry; `docs/nodes/camera.md` |
 | a door slam | the `door_slam` template; its layers `wood_brush`, `noise_crack`, `wood_panel_body`, `low_thump`, `wood_knock` | the template is the approved slam |
 | footsteps | `all_purpose_step`, `concrete_step`, `gravel_step`, `grass_step`, `dirt_step`, `wood_step`, `carpet_step`, `metal_step` (all `step`) | `gravel_crunch` or `grass_swish` (step textures) over `all_purpose_step`; a walk is `step` with an `at` list |
 | a pipe, coin or wooden block dropped, bouncing | `impact_pipe_drop`, `impact_coin_drop`, `impact_block_drop` (`impact`) | a crack from the part's `force` over it |
