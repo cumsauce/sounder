@@ -888,6 +888,9 @@ patch adds one 64-sample block to the loop, and the ports include it.
   hits through a few shared `modal` bodies, a contact pulse per hit (faster
   is shorter and brighter); 100 or 10,000 hits cost the same. Heroes: a `rig`
   patch in `voices` on `collapse.hero`. Full: `docs/nodes/collapse.md`.
+- `cascade` {[count 2000], [duration 6], [surge 0.3], [floors 1], [peak], [hero]}:
+  a large mass failing over seconds; `debris` `scale` 0..1 lowers the bodies
+  and makes the bed a long rumble (`docs/nodes/collapse.md`).
 
 **Voice upgrades** (`docs/nodes/voice.md`): every new field is off by default
 (the old renders are hash-pinned).

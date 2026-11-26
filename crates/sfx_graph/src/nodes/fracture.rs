@@ -423,6 +423,12 @@ pub struct Debris {
     /// Output level, dB (default 0).
     #[serde(default)]
     pub gain_db: Option<f32>,
+    /// Size of the event, 0..1 (default none: a pile of bricks, unchanged).
+    /// 1 is a building or a hillside: the bodies are 10x lower, contact
+    /// pulses 5x longer, the floor body 10x bigger, and the `bed` is a long
+    /// (about 1 s) rumble at 30 Hz with infrasonic weight at 15 Hz.
+    #[serde(default)]
+    pub scale: Option<f32>,
     /// Mixed with the document seed and the node name (default 0).
     #[serde(default)]
     pub seed: u64,
@@ -506,8 +512,14 @@ impl Eval for Debris {
         if !(0.0..=1.0).contains(&spread) {
             return Err(format!("spread: {spread}: give 0..1"));
         }
-        let contact = positive("contact_ms", self.contact_ms.unwrap_or(0.6))?;
-        if !(0.05..=20.0).contains(&contact) {
+        let scale = f64::from(self.scale.unwrap_or(0.0));
+        if !(0.0..=1.0).contains(&scale) {
+            return Err(format!("scale: {scale}: give 0..1"));
+        }
+        let scale = scale as f32;
+        let size_k = 1.0 + 9.0 * scale;
+        let contact = positive("contact_ms", self.contact_ms.unwrap_or(0.6))? * (1.0 + 4.0 * scale);
+        if !(0.05..=100.0).contains(&contact) {
             return Err(format!("contact_ms: {contact}: give 0.05..20"));
         }
         let mut rng = cx.rng(self.seed);
@@ -549,7 +561,8 @@ impl Eval for Debris {
                 "tilt": self.tilt.unwrap_or(2.0), "seed": self.seed.wrapping_add(k as u64 * 7919),
             });
             let mut body = body;
-            body[key] = serde_json::json!(base * (1.0 + spread * off));
+            let lowered = if key == "f0" { 1.0 / size_k } else { size_k };
+            body[key] = serde_json::json!(base * (1.0 + spread * off) * lowered);
             for (o, y) in out.iter_mut().zip(ring_modal(cx, body, x)?) {
                 *o += y;
             }
@@ -563,7 +576,7 @@ impl Eval for Debris {
             }
             let body = serde_json::json!({
                 "material": material_json(&self.ground_material, "earth"),
-                "size": positive("ground_size", self.ground_size.unwrap_or(0.8))?,
+                "size": positive("ground_size", self.ground_size.unwrap_or(0.8))? * size_k,
                 "noise": 0.8, "loss": 1.5, "seed": self.seed ^ 0x0067_0001,
             });
             let gain = 10f32.powf(self.ground_db.unwrap_or(-10.0) / 20.0);
@@ -574,16 +587,28 @@ impl Eval for Debris {
         if let Some(db) = self.bed_db {
             // Energy smoothed over ~60 ms -> amplitude -> low noise (two
             // one-poles at 300 Hz).
-            let a_env = (-1.0 / (0.06 * cx.sr)).exp();
-            let a_lp = (-2.0 * std::f32::consts::PI * 300.0 / cx.sr).exp();
-            let (mut env, mut l1, mut l2) = (0.0f32, 0.0f32, 0.0f32);
-            let gain = 10f32.powf(db / 20.0) * 4.0;
+            let a_env = (-1.0 / (0.06 * (1.0 + 15.0 * scale) * cx.sr)).exp();
+            let fc = 300.0 / size_k;
+            let a_lp = (-2.0 * std::f32::consts::PI * fc / cx.sr).exp();
+            let a_sub = (-2.0 * std::f32::consts::PI * 15.0 / cx.sr).exp();
+            let (mut env, mut l1, mut l2, mut s1, mut s2) =
+                (0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32);
+            // A lower cutoff passes less noise: sqrt(k) puts the level back.
+            let gain = 10f32.powf(db / 20.0) * 4.0 * size_k.sqrt();
             for (o, en) in out.iter_mut().zip(&energy) {
                 env = en * (1.0 - a_env) * 200.0 + env * a_env;
                 let w = rng.unit() * 2.0 - 1.0;
                 l1 = w * (1.0 - a_lp) + l1 * a_lp;
                 l2 = l1 * (1.0 - a_lp) + l2 * a_lp;
                 *o += l2 * env.sqrt() * gain;
+                if scale > 0.0 {
+                    // Infrasonic weight: the same envelope through two
+                    // poles at 15 Hz, its own noise.
+                    let w = rng.unit() * 2.0 - 1.0;
+                    s1 = w * (1.0 - a_sub) + s1 * a_sub;
+                    s2 = s1 * (1.0 - a_sub) + s2 * a_sub;
+                    *o += s2 * env.sqrt() * gain * 2.0 * scale;
+                }
             }
         }
         let g = 10f32.powf(self.gain_db.unwrap_or(0.0) / 20.0);
@@ -591,5 +616,150 @@ impl Eval for Debris {
             out.iter_mut().for_each(|v| *v *= g);
         }
         Ok(one(Buf::Audio(out)))
+    }
+}
+
+/// Most events one `cascade` may make.
+const MAX_CASCADE: usize = 200_000;
+
+/// A mass failing over seconds: a landslide, an avalanche, a rockfall down a
+/// slope, a building giving way floor by floor. Where `collapse` times each
+/// brick from its own fall, `cascade` gives the release an envelope: the
+/// event rate and the speed both follow a surge that builds, peaks and runs
+/// out over `duration`. Feed it to `debris` (with `scale`).
+#[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Cascade {
+    /// How many events (default 2000, 1..200000).
+    #[serde(default)]
+    pub count: Option<usize>,
+    /// Seconds from the first movement to the last (default 6).
+    #[serde(default)]
+    pub duration: Option<f32>,
+    /// Where the surge peaks, 0..1 of the duration (default 0.3: a fast
+    /// start and a long run-out).
+    #[serde(default)]
+    pub surge: Option<f32>,
+    /// Failures in sequence, 1..32 (default 1): above 1 the surge is that
+    /// many overlapping pulses, each heavier than the last, one per floor.
+    #[serde(default)]
+    pub floors: Option<usize>,
+    /// Event value at the peak of the surge, 0..1 (default 0.8); the tails
+    /// run at a quarter of it, each hit scattered by `looseness`.
+    #[serde(default)]
+    pub peak: Option<f32>,
+    /// Scatter of the values, 0..1 (default 0.5).
+    #[serde(default)]
+    pub looseness: Option<f32>,
+    /// The N strongest events also go on the `hero` port (default 0).
+    #[serde(default)]
+    pub hero: Option<usize>,
+    /// Time the mass starts to go, seconds (default 0).
+    #[serde(default)]
+    pub at: Option<f32>,
+    /// Mixed with the document seed and the node name (default 0).
+    #[serde(default)]
+    pub seed: u64,
+}
+
+impl Describe for Cascade {
+    const BLURB: &'static str = "a large mass failing over seconds (avalanche, rockfall, a building floor by floor): event rate and value follow a surge envelope; ports hero; drives debris with `scale`";
+    fn example() -> serde_json::Value {
+        serde_json::json!({"count": 2000, "duration": 6, "surge": 0.3, "floors": 1})
+    }
+}
+
+/// The surge shape over x in 0..1: a skewed bump peaking at `p`, 0 at the ends.
+fn surge_bump(x: f64, p: f64) -> f64 {
+    if !(0.0..1.0).contains(&x) {
+        return 0.0;
+    }
+    let (a, b) = (4.0 * p.max(0.05), 4.0 * (1.0 - p).max(0.05));
+    let peak = (a / (a + b)).powf(a) * (b / (a + b)).powf(b);
+    x.powf(a) * (1.0 - x).powf(b) / peak
+}
+
+impl Eval for Cascade {
+    fn random(&self) -> bool {
+        true
+    }
+    fn eval(&self, cx: &Cx) -> Result<Outs, String> {
+        let count = self.count.unwrap_or(2000);
+        if count == 0 || count > MAX_CASCADE {
+            return Err(format!("count: {count}: give 1..{MAX_CASCADE}"));
+        }
+        let dur = f64::from(positive("duration", self.duration.unwrap_or(6.0))?);
+        let p = f64::from(self.surge.unwrap_or(0.3));
+        if !(0.0..=1.0).contains(&p) {
+            return Err(format!("surge: {p}: give 0..1"));
+        }
+        let floors = self.floors.unwrap_or(1);
+        if !(1..=32).contains(&floors) {
+            return Err(format!("floors: {floors}: give 1..32"));
+        }
+        let peak = f64::from(self.peak.unwrap_or(0.8));
+        let loose = f64::from(self.looseness.unwrap_or(0.5));
+        if !(0.0..=1.0).contains(&peak) || !(0.0..=1.0).contains(&loose) {
+            return Err("peak and looseness: give 0..1".into());
+        }
+        let at = f64::from(non_negative("at", self.at.unwrap_or(0.0))?);
+        // The envelope: one surge, or `floors` of them, each a window of
+        // width w that starts later and weighs more than the one before.
+        let w = 1.0 / (1.0 + 0.5 * (floors as f64 - 1.0));
+        let env = |x: f64| -> f64 {
+            if floors == 1 {
+                return surge_bump(x, p);
+            }
+            (0..floors)
+                .map(|f| {
+                    let start = f as f64 * (1.0 - w) / (floors as f64 - 1.0);
+                    (0.5 + f as f64 / floors as f64) * surge_bump((x - start) / w, p)
+                })
+                .sum()
+        };
+        const N: usize = 2048;
+        let table: Vec<f64> = (0..N).map(|i| env((i as f64 + 0.5) / N as f64)).collect();
+        let top = table.iter().copied().fold(1e-9, f64::max);
+        let mut cdf = Vec::with_capacity(N);
+        let mut acc = 0.0;
+        for v in &table {
+            acc += v + 1e-4 * top;
+            cdf.push(acc);
+        }
+        let mut rng = cx.rng(self.seed);
+        let mut hits: Vec<(f64, f32)> = Vec::with_capacity(count);
+        for _ in 0..count {
+            let u = f64::from(rng.unit()) * acc;
+            let i = cdf.partition_point(|c| *c < u).min(N - 1);
+            let lo = if i == 0 { 0.0 } else { cdf[i - 1] };
+            let x = (i as f64 + (u - lo) / (cdf[i] - lo).max(1e-12)) / N as f64;
+            let level = (table[i] / top).clamp(0.0, 1.0);
+            let base = peak * (0.25 + 0.75 * level);
+            let v = base * (1.0 - loose * 0.8 * f64::from(rng.unit()));
+            hits.push((at + x * dur, v as f32));
+        }
+        let len = cx.n as f64 / f64::from(cx.sr);
+        hits.retain(|(t, _)| *t >= 0.0 && *t < len);
+        hits.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let to_events = |v: &[(f64, f32)]| {
+            Buf::Events(
+                v.iter()
+                    .enumerate()
+                    .map(|(i, &(t, value))| Event {
+                        t,
+                        value,
+                        id: i as u32,
+                    })
+                    .collect(),
+            )
+        };
+        let mut heroes = hits.clone();
+        heroes.sort_by(|a, b| b.1.total_cmp(&a.1));
+        heroes.truncate(self.hero.unwrap_or(0));
+        heroes.sort_by(|a, b| a.0.total_cmp(&b.0));
+        Ok(vec![
+            ("out", to_events(&hits)),
+            ("hero", to_events(&heroes)),
+        ])
     }
 }
