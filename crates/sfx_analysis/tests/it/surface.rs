@@ -1466,3 +1466,90 @@ mod click {
         assert_eq!(d.onsets.len(), 2);
     }
 }
+
+mod grind {
+    //! `grind`: activity follows hits and settles; material changes the
+    //! spectrum; a speed signal drives one rolling object.
+
+    use crate::common::*;
+    use serde_json::{Value, json};
+    use sfx_analysis::describe;
+    use sfx_graph::Audio;
+
+    fn at(t: f32) -> usize {
+        (t * SR as f32) as usize
+    }
+
+    fn hits() -> Value {
+        json!({"type": "pattern", "name": "ev", "start": 0.05, "every": 0.05, "count": 6})
+    }
+
+    fn grind(extra: Value) -> Value {
+        with_fields(
+            json!({"type": "grind", "name": "n", "events": "ev", "settle": 0.4, "seed": 1}),
+            extra,
+        )
+    }
+
+    fn centroid(x: &[f32]) -> f32 {
+        describe(&Audio::mono(SR, x.to_vec())).centroid_all_hz
+    }
+
+    #[test]
+    fn level_follows_hits_then_settles() {
+        let x = node_audio(vec![hits(), grind(json!({"settle": 1.0}))], "n", 2.0);
+        let near = rms_db(&x[at(0.3)..at(0.4)]);
+        let later = rms_db(&x[at(0.8)..at(0.9)]);
+        let end = rms_db(&x[at(1.5)..at(1.6)]);
+        println!("grind: right after hits {near:.1} dB, +0.5 s {later:.1} dB, end {end:.1} dB");
+        assert!(near > later + 10.0 && later > end + 3.0);
+    }
+
+    #[test]
+    fn longer_settle_lasts_longer() {
+        let a = node_audio(vec![hits(), grind(json!({"settle": 0.3}))], "n", 2.0);
+        let b = node_audio(vec![hits(), grind(json!({"settle": 1.5}))], "n", 2.0);
+        let w = at(1.0)..at(1.3);
+        assert!(rms_db(&b[w.clone()]) > rms_db(&a[w]) + 10.0);
+    }
+
+    #[test]
+    fn material_changes_the_spectrum() {
+        let c = |m: &str| {
+            let x = node_audio(vec![hits(), grind(json!({"material": m}))], "n", 1.0);
+            centroid(&x)
+        };
+        let (wood, metal) = (c("wood"), c("metal"));
+        println!("grind centroid: wood {wood:.0} Hz, metal {metal:.0} Hz");
+        assert!(metal > wood * 1.3);
+    }
+
+    #[test]
+    fn speed_signal_drives_a_rolling_object() {
+        let nodes = vec![
+            json!({"type": "ramp", "name": "v", "from": 0.0, "to": 2.0, "time": 1.0, "curve": "linear"}),
+            json!({"type": "grind", "name": "n", "speed": "v", "material": "glass", "seed": 1}),
+        ];
+        let x = node_audio(nodes, "n", 1.0);
+        let (a, b) = (rms_db(&x[..9600]), rms_db(&x[38400..]));
+        println!("grind speed ramp: start {a:.1} dB, end {b:.1} dB");
+        assert!(b > a + 6.0);
+    }
+
+    #[test]
+    fn no_input_and_bad_material_are_errors() {
+        let e = render_error(vec![json!({"type": "grind", "name": "n"})], "n", 0.2);
+        assert!(e.contains("events"), "{e}");
+        let e = render_error(vec![hits(), grind(json!({"material": "jelly"}))], "n", 0.2);
+        assert!(e.contains("stone, wood, metal or glass"), "{e}");
+    }
+
+    #[test]
+    fn same_seed_is_identical_and_micro_rate_matters() {
+        let a = node_audio(vec![hits(), grind(json!({}))], "n", 0.6);
+        let b = node_audio(vec![hits(), grind(json!({}))], "n", 0.6);
+        let c = node_audio(vec![hits(), grind(json!({"micro_rate": 0.0}))], "n", 0.6);
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+    }
+}

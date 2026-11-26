@@ -1139,3 +1139,7 @@ agent-sized; AGENTS.md keeps one row pointing here. Same columns.
 | a chattering robot, a beam-up shimmer, a sci-fi torpedo, a hand-held beam | `droid`, `transporter`, `torpedo`, `phaser_beam` | `chatter`, `pitch`, `mood`; `chime`, `reverb`; `sweep`, `ring`; `mode` kill / stun; each a `length` | heard: transporter good, beam good (an alert), droid ok (too random), torpedo ok (a space weapon) |
 | a telephone: dial, busy, ringback, touch tones, rotary; a two-tone alarm | `phone_tone`; `two_tone` | `kind`, `digits`, `line` 0..1, `tempo`; `low`, `high`, `rate`, `shape` | heard: dial, busy, ringback, touch tones, two_tone good; pulse_dial as distant gunfire |
 | thunder, a distant storm | `thunder` | `distance`, `brightness`, `length`, `duration` | foley's N-wave and rumble; `brightness` tilts above 100 Hz, `length` stretches the rumble; a `duration` that fits |
+
+## `grind`
+
+Scrape, grind and roll texture whose level follows a hit-driven activity (settles over `settle`) and/or a speed signal; `rolling` + `modal` + micro-impacts, by material. See `pile.md`.

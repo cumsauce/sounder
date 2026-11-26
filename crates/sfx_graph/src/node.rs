@@ -410,6 +410,7 @@ node_types! {
     "contacts" => Contacts,
     "fracture_on" => FractureOn,
     "dust" => Dust,
+    "grind" => Grind,
 
 
 

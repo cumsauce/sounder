@@ -64,6 +64,7 @@ mod contacts;
 mod fracture;
 
 mod breakage;
+mod pile;
 
 mod bands;
 
@@ -142,6 +143,7 @@ pub use contacts::*;
 pub use fracture::*;
 
 pub use breakage::*;
+pub use pile::*;
 
 pub use bands::*;
 
