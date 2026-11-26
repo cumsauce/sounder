@@ -62,6 +62,8 @@ mod surface;
 
 mod fracture;
 
+mod breakage;
+
 mod bands;
 
 mod mechanism;
@@ -136,6 +138,8 @@ pub use waveguide::*;
 pub use surface::*;
 
 pub use fracture::*;
+
+pub use breakage::*;
 
 pub use bands::*;
 

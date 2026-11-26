@@ -406,6 +406,8 @@ node_types! {
     "shatter" => Shatter,
     "collapse" => Collapse,
     "debris" => Debris,
+    "fracture_on" => FractureOn,
+    "dust" => Dust,
 
 
 
