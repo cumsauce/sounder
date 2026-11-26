@@ -9,9 +9,13 @@ use crate::node::{Cx, Describe, Eval, In, Outs};
 #[derive(Clone, Copy, Debug, Default, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum FilterModeSpec {
+    // The long names are aliases: agents write them (`lowpass`, `bandpass`).
     #[default]
+    #[serde(alias = "lowpass")]
     Lp,
+    #[serde(alias = "highpass")]
     Hp,
+    #[serde(alias = "bandpass")]
     Bp,
     Notch,
     Peak,
@@ -325,7 +329,9 @@ impl Eval for Equalizer {
 #[serde(rename_all = "lowercase")]
 pub enum PoleMode {
     #[default]
+    #[serde(alias = "lowpass")]
     Lp,
+    #[serde(alias = "highpass")]
     Hp,
 }
 

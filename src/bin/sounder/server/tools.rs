@@ -94,7 +94,16 @@ impl Tools {
     ) -> Result<CallToolResult, ErrorData> {
         let (reply_tx, reply_rx) = oneshot::channel();
         let cmd = Cmd::Exec(Box::new(move |s: &mut Session| {
-            let _ = reply_tx.send(f(s));
+            let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(s))).unwrap_or_else(
+                |p| {
+                    fail(format!(
+                        "internal error: the call panicked ({}); the server is still running, \
+                         but this is a sounder bug: please report it with session_log feedback",
+                        super::bridge::panic_message(&*p)
+                    ))
+                },
+            );
+            let _ = reply_tx.send(r);
         }));
         self.tx
             .send(cmd)
@@ -461,7 +470,20 @@ fn do_export(s: &mut Session, a: ExportArgs) -> R {
     let sources = s.source_dirs();
     let sounds = Some(s.sound_source());
     let sound = plain(s.sound(a.doc.as_deref()))?;
-    let format = match a.format.as_deref().unwrap_or("ogg") {
+    // A path naming a file (`renders/hit.ogg`) writes that file: its folder is
+    // the export folder and its extension the format.
+    let (path, file_name, path_format) = match a.path.as_deref().and_then(export::split_file_path) {
+        Some((dir, stem, fmt)) => (dir, Some(stem), Some(fmt)),
+        None => (a.path.clone(), None, None),
+    };
+    if let (Some(pf), Some(f)) = (path_format, a.format.as_deref())
+        && pf != f
+    {
+        return fail(format!(
+            "path ends in .{pf} but format is {f:?}: give one, or make them agree"
+        ));
+    }
+    let format = match a.format.as_deref().or(path_format).unwrap_or("ogg") {
         "ogg" => {
             if a.bits.is_some() {
                 return fail("bits applies to format \"wav\"; ogg takes quality (0..1)");
@@ -487,7 +509,7 @@ fn do_export(s: &mut Session, a: ExportArgs) -> R {
     };
     let doc = sound.doc.clone();
     let opts = export::ExportOpts {
-        dir: export::dir_for(project.as_deref(), a.path.as_deref()),
+        dir: export::dir_for(project.as_deref(), path.as_deref()),
         variations: a.variations.unwrap_or(1),
         format,
         sample_rate: a.sample_rate,
@@ -495,6 +517,7 @@ fn do_export(s: &mut Session, a: ExportArgs) -> R {
         sources,
         sounds,
         catalog_name: sound.catalog_name.clone(),
+        file_name,
     };
     let ex = plain(export::export(&doc, &opts))?;
     let mut text = format!("exported `{}` to {}\n", doc.name, opts.dir.display());
@@ -1220,7 +1243,7 @@ const INSTRUCTIONS: &str = r#"Operating guidance for this sound server:
 - Recordings and impulse responses: a relative file (sample file, grains / cloud source, convolve ir, listen / verify reference, extract_modes file) is looked for in the project, then <project>/assets/sources/, then <library>/sources/ (by path, then by file name); catalog {action: "sources"} lists them. convolve resamples an IR at another rate. extract_modes {file, residual: "x.wav"} also writes the recording minus the modes into the sources folder and returns a rebuild (impulse + resonators + sample of the residual) that sums back to the recording. Use only material the project may use (own recordings, CC0).
 - Several agents may share one server: each keeps its own active sound; pass doc when working on a specific one. undo refuses another agent's step unless force.
 - history / undo / redo / jump move a history tree; one sound_ops call is one step.
-- export writes WAVs and a manifest into <project>/assets/sounds/ (variations: N warns when no node reads the seed and the files are identical); catalog saves a sound for later.
+- export writes Ogg (or WAV) files and a manifest into <project>/assets/sounds/ (a path ending in .ogg / .wav names the file; variations: N warns when no node reads the seed and the files are identical); catalog saves a sound for later.
 - When a call surprises you, tell the maintainers with session_log(feedback: "...").
 Full details (every node's fields, recipes, measured limits) live next to the source: AGENTS.md (rules, workflow, short routing), docs/routing.md (every brief -> part / template / node), docs/macros.md (map paths, claim measures), docs/senses.md (every listen line and verify check), docs/nodes/README.md (every node family in short), docs/nodes/<family>.md (in full), docs/graph.md (loops, events, voices, expr)."#;
 

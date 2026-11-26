@@ -39,8 +39,8 @@ const MAX_DETUNE: f32 = 1200.0;
 #[derive(Clone, Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Osc {
-    /// sine (default), saw, square, tri, pulse.
-    #[serde(default)]
+    /// sine (default), saw, square, tri, pulse. Alias `wave`.
+    #[serde(default, alias = "wave")]
     pub shape: WaveSpec,
     /// Hz; a node here sweeps or frequency-modulates.
     pub freq: In,
@@ -85,6 +85,8 @@ pub struct Osc {
 }
 
 impl Describe for Osc {
+    // `wave` is an alias of `shape`: a word, not a node.
+    const WORDS: &'static [&'static str] = &["wave"];
     const BLURB: &'static str = "band-limited oscillator (sine/saw/square/tri/pulse); freq may be a node (pitch sweeps, FM); sync (hard sync from a master signal), unison + detune + spread (supersaw), pm (phase modulation)";
     fn example() -> serde_json::Value {
         serde_json::json!({"shape": "saw", "freq": "sweep", "amp": 0.5})

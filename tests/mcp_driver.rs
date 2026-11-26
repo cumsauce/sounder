@@ -309,3 +309,43 @@ fn consecutive_calls_runs_see_each_others_sounds() {
         );
     }
 }
+
+/// What agents wrote and the friction log caught: quoted numbers, long
+/// filter-mode names, guessed field names, and an export path naming the
+/// file. Each now works instead of costing a retry.
+#[test]
+fn the_names_agents_guess_are_accepted() {
+    let dir = temp_dir("guessed_names");
+    let out = dir.join("renders");
+    let calls = serde_json::json!([
+        {"name": "new_sound", "args": {"name": "guess", "kind": "loop", "duration": "1.0", "seed": "3"}},
+        {"name": "sound_ops", "args": {"duration": "1.0", "ops": [
+            {"type": "osc", "name": "o", "wave": "saw", "freq": 110},
+            {"type": "filter", "name": "f", "input": "o", "mode": "lowpass", "freq": 900},
+            {"type": "onepole", "name": "dc", "input": "f", "mode": "highpass", "freq": 30},
+            {"type": "lfo", "name": "l", "freq": 2},
+            {"type": "slew", "name": "s", "input": "l", "rise": 0.01, "fall": 0.05},
+            {"type": "math", "name": "m", "op": "mul", "a": "dc", "b": "s"},
+            {"type": "reverb", "name": "v", "input": "m", "wet": 0.2},
+            {"type": "crossfade_loop", "name": "seam", "input": "v", "time": 0.1},
+            {"type": "output", "name": "out", "input": "seam", "lufs": -20}]}},
+        {"name": "export", "args": {"path": out.join("tone.wav").to_str().unwrap()}},
+        {"name": "export", "args": {"path": out.join("tone.wav").to_str().unwrap()}},
+        {"name": "export", "args": {"path": out.join("tone.wav").to_str().unwrap(), "format": "ogg"}}
+    ]);
+    let r = drive(&calls, &dir).unwrap();
+    let ok = |i: usize| r[i]["ok"].as_bool().unwrap_or(false);
+    for (i, c) in r.iter().enumerate().take(2) {
+        assert!(ok(i), "call {i}: {}", text_of(c));
+    }
+    // A path ending in .wav writes that file (twice: the second overwrites).
+    assert!(ok(2) && ok(3), "{} / {}", text_of(&r[2]), text_of(&r[3]));
+    assert!(out.join("tone.wav").is_file() && out.join("tone.sfx.json").is_file());
+    assert!(!out.join("tone.wav").join("guess.ogg").exists());
+    assert!(
+        !ok(4) && text_of(&r[4]).contains("ends in .wav"),
+        "{}",
+        text_of(&r[4])
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}

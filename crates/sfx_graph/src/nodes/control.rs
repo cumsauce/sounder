@@ -212,9 +212,11 @@ impl Eval for SampleHold {
 #[serde(deny_unknown_fields)]
 pub struct Slew {
     pub input: In,
-    /// Seconds to rise by 1 (0 = instant).
+    /// Seconds to rise by 1 (0 = instant). Alias `rise`.
+    #[serde(alias = "rise")]
     pub up: f32,
-    /// Seconds to fall by 1 (0 = instant).
+    /// Seconds to fall by 1 (0 = instant). Alias `fall`.
+    #[serde(alias = "fall")]
     pub down: f32,
 }
 

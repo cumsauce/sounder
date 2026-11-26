@@ -131,6 +131,11 @@ every call.
   exactly the fields you give: a field left out goes back to its default
   (it is not merged). To change one field, send the node with all of its
   fields (`summary` lists them).
+- **Aliases agents guess, accepted:** filter / onepole `mode` `lowpass`
+  `highpass` `bandpass`; osc `wave` (= `shape`); reverb `wet` (= `mix`);
+  slew `rise` / `fall` (= `up` / `down`); crossfade_loop `time` (= `fade`);
+  trigger_env `input` (= `events`). A tool's `duration`, `seed` or
+  `sample_rate` given as a string (`"2.0"`) is read as the number.
 - **Names that trip people:** `pattern` starts at `start`, not `at` (`accel` 0.7 = last gap 0.7 x the first, for a speed-up). `impulse` takes `at`, a number or a list of
   times (`"at": [0, 0.1, 0.2]`), default 0. `wander` takes `rate` and
   `range: [lo, hi]` or `min` and `max` together (not both forms; `range`
@@ -668,7 +673,9 @@ channels, peak and centroid. Rules:
   `FRIENDSLOP_DATA_DIR` overrides both (tests).
 - `export` writes into `<project>/assets/sounds/` for relative paths:
   `<name>.ogg` (or `<name>_<i>.ogg` for `variations: N`, seeds 1..N) and
-  `<name>.sfx.json`. **Ogg Vorbis is the default** (`quality` 0..1, default
+  `<name>.sfx.json`; a `path` ending in `.ogg` / `.wav` names the file
+  itself (`renders/hit.wav`: `hit.wav` + `hit.sfx.json` there, the
+  extension sets the format). **Ogg Vorbis is the default** (`quality` 0..1, default
   0.5, about 160 kbps stereo; a fixed stream serial, so the same sound gives
   the same bytes; sample-exact, so the loop points hold). `format: "wav"`
   writes WAV instead (`bits` 16 / 24 / 32; `bits` with ogg or `quality` with

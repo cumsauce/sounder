@@ -2012,6 +2012,16 @@ mod impact {
     }
 
     #[test]
+    fn a_long_fast_roll_renders() {
+        // 10 m of path: the finest octave holds ~160k bumps, where f32 rounds
+        // `len - 1.001` up to `len - 1` and the lookup read one past the end
+        // (a bowling-ball roll panicked the server).
+        let x = node_audio(roller(json!({"slide": 10.0})), "hit", 1.0);
+        assert!(x.iter().all(|v| v.is_finite()));
+        assert!(rms(&x[24_000..]) > 0.0, "the roll is silent");
+    }
+
+    #[test]
     fn a_smooth_roll_is_quiet() {
         // Without bumps nothing excites the modes after the landing.
         let x = node_audio(roller(json!({"roughness": 0.0})), "hit", 1.0);

@@ -421,6 +421,7 @@ fn export_writes_wavs_and_a_manifest_with_game_inputs() {
             sources: Vec::new(),
             sounds: None,
             catalog_name: Some("boom".into()),
+            file_name: None,
         },
     )
     .unwrap();
@@ -452,6 +453,7 @@ fn export_writes_wavs_and_a_manifest_with_game_inputs() {
             sources: Vec::new(),
             sounds: None,
             catalog_name: None,
+            file_name: None,
         },
     )
     .unwrap();

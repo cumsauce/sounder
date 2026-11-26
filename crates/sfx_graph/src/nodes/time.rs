@@ -90,8 +90,9 @@ pub struct Reverb {
     /// High-frequency damping 0..1 (default 0.3; `plate` 0.1).
     #[serde(default)]
     pub damp: Option<f32>,
-    /// Wet share 0..1 (default 0.3); port `wet` is the tail alone.
-    #[serde(default)]
+    /// Wet share 0..1 (default 0.3); port `wet` is the tail alone. Alias
+    /// `wet`.
+    #[serde(default, alias = "wet")]
     pub mix: Option<f32>,
     /// Seconds before the tail starts (default 0.01).
     #[serde(default)]

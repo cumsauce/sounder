@@ -124,10 +124,17 @@ pub fn read() -> Vec<Entry> {
         .collect()
 }
 
-/// An error's first line with numbers and quoted names blanked, so the same
-/// problem on different parts groups together.
+/// An error's first FAIL line (a `verify` or `sound_ops` `expect` failure
+/// starts with its PASS lines or the render summary), else its first line,
+/// with numbers and quoted names blanked, so the same problem on different
+/// parts groups together.
 fn signature(detail: &str) -> String {
-    let first = detail.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
+    let first = detail
+        .lines()
+        .map(str::trim)
+        .find(|l| l.starts_with("FAIL "))
+        .or_else(|| detail.lines().find(|l| !l.trim().is_empty()))
+        .unwrap_or("");
     let mut out = String::new();
     let mut quoted = None;
     for c in first.chars() {
@@ -270,6 +277,28 @@ mod tests {
             streak,
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn a_failed_verify_is_grouped_by_its_fail_line() {
+        let es = vec![
+            e(
+                "error",
+                "verify",
+                "PASS finite: every sample is finite\nFAIL clicks: 3 clicks (at 0.1 s)",
+                1,
+            ),
+            e(
+                "error",
+                "sound_ops",
+                "sound `a` v2 (oneshot): 3 node(s)\nexpect:\nPASS dc: ok\nFAIL clicks: 1 clicks (at 0.4 s)",
+                1,
+            ),
+        ];
+        let r = report(&es, None);
+        assert!(r.contains("verify: FAIL clicks"), "{r}");
+        assert!(r.contains("sound_ops: FAIL clicks"), "{r}");
+        assert!(!r.contains("PASS finite"), "{r}");
     }
 
     #[test]

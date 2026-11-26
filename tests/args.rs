@@ -312,6 +312,7 @@ fn export_opts(dir: PathBuf, variations: u32) -> export::ExportOpts {
         sources: Vec::new(),
         sounds: None,
         catalog_name: None,
+        file_name: None,
     }
 }
 

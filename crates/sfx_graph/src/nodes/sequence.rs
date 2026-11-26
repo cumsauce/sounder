@@ -44,7 +44,8 @@ pub enum Retrigger {
 #[serde(deny_unknown_fields)]
 pub struct TriggerEnv {
     /// The event stream that fires the envelope (`pattern`, `poisson`,
-    /// `bounce`, `burst`, `on_threshold`, `once`).
+    /// `bounce`, `burst`, `on_threshold`, `once`). Alias `input`.
+    #[serde(alias = "input")]
     pub events: In,
     /// Linear rise to the peak, seconds, >= 0 (default 0.002). 0 puts the
     /// peak on the event's first sample.

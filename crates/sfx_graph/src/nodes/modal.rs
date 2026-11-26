@@ -1730,7 +1730,11 @@ impl Eval for Impact {
             return Err("floor is for a drop (no striker_mass): drop one of them".into());
         }
         if striker.is_none() && self.hardness.is_some() {
-            return Err("hardness is the striker's (give striker_mass), a dropped object lands on its `floor`".into());
+            return Err(
+                "hardness is the striker's, and there is no striker_mass: for a dropped object remove `hardness` \
+                 (the `floor` sets how hard the landing is), or give `striker_mass` to strike it with something"
+                    .into(),
+            );
         }
         let (height, speed) = match (self.height, self.speed) {
             (Some(_), Some(_)) => {
@@ -1845,9 +1849,12 @@ impl Eval for Impact {
             let mut h = 0.0;
             for (g, bumps) in &layers {
                 let half = bumps.len() as f32 / 2.0;
-                let t = (x / g + half).clamp(0.0, bumps.len() as f32 - 1.001);
-                let j = t as usize;
-                let f = t - j as f32;
+                let t = (x / g + half).clamp(0.0, bumps.len() as f32 - 1.0);
+                // Bound the index, not just `t`: for a long profile (hundreds of
+                // thousands of bumps) f32 cannot hold `len - 1.001`, it rounds up
+                // to `len - 1` and `j + 1` ran one past the end.
+                let j = (t as usize).min(bumps.len() - 2);
+                let f = (t - j as f32).clamp(0.0, 1.0);
                 let w = 0.5 - 0.5 * (PI * f).cos();
                 h += bumps[j] * (1.0 - w) + bumps[j + 1] * w;
             }
@@ -1910,9 +1917,11 @@ impl Eval for Impact {
             if envelope.is_empty() {
                 return 0.0;
             }
-            let t = ((x + span) / dx).clamp(0.0, cells as f32 - 1.001);
-            let j = t as usize;
-            let f = t - j as f32;
+            // The index is bounded, not `t`: past ~16k cells f32 rounds
+            // `cells - 1.001` up to `cells - 1` (see `raw_profile`).
+            let t = ((x + span) / dx).clamp(0.0, cells as f32 - 1.0);
+            let j = (t as usize).min(cells - 2);
+            let f = (t - j as f32).clamp(0.0, 1.0);
             envelope[j] * (1.0 - f) + envelope[j + 1] * f
         };
         let round = |x: f32| wobble * (1.0 - (x / radius).cos());

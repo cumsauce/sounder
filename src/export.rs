@@ -24,6 +24,9 @@ pub struct ExportOpts {
     /// How `sound` nodes reach other sounds.
     pub sounds: Option<sfx_graph::SoundSource>,
     pub catalog_name: Option<String>,
+    /// The files' base name (`<file_name>.ogg`, `<file_name>.sfx.json`);
+    /// None: the sound's name.
+    pub file_name: Option<String>,
 }
 
 /// What the files are written as.
@@ -91,10 +94,11 @@ pub fn export(doc: &SoundDoc, o: &ExportOpts) -> Result<Exported, String> {
         })?;
         causal &= r.causal;
         let ext = o.format.ext();
+        let base = o.file_name.as_deref().unwrap_or(&doc.name);
         let file = if o.variations == 1 {
-            format!("{}.{ext}", doc.name)
+            format!("{base}.{ext}")
         } else {
-            format!("{}_{i}.{ext}", doc.name)
+            format!("{base}_{i}.{ext}")
         };
         let path = o.dir.join(&file);
         match o.format {
@@ -150,7 +154,8 @@ pub fn export(doc: &SoundDoc, o: &ExportOpts) -> Result<Exported, String> {
         "causal": causal,
         "source": o.catalog_name,
     });
-    let manifest_path = o.dir.join(format!("{}.sfx.json", doc.name));
+    let base = o.file_name.as_deref().unwrap_or(&doc.name);
+    let manifest_path = o.dir.join(format!("{base}.sfx.json"));
     let bytes = serde_json::to_vec_pretty(&manifest).map_err(|e| e.to_string())?;
     crate::store::atomic_write(&manifest_path, &bytes)?;
     Ok(Exported {
@@ -196,4 +201,22 @@ fn identical_variations(rendered: &[Vec<Vec<f32>>]) -> Vec<String> {
 /// Where a path argument lands (see `store::resolve_export_dir`).
 pub fn dir_for(project: Option<&Path>, path: Option<&str>) -> PathBuf {
     crate::store::resolve_export_dir(project, path)
+}
+
+/// A `path` that names a file (`.../hit.ogg`, `hit.wav`): its folder, the
+/// file's base name and the format its extension says. None for a folder.
+pub fn split_file_path(path: &str) -> Option<(Option<String>, String, &'static str)> {
+    let p = Path::new(path);
+    let ext = p.extension()?.to_str()?.to_ascii_lowercase();
+    let fmt = match ext.as_str() {
+        "ogg" => "ogg",
+        "wav" => "wav",
+        _ => return None,
+    };
+    let stem = p.file_stem()?.to_str()?.to_string();
+    let dir = p
+        .parent()
+        .map(|d| d.to_string_lossy().into_owned())
+        .filter(|d| !d.is_empty());
+    Some((dir, stem, fmt))
 }

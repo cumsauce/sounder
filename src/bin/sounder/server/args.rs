@@ -13,6 +13,48 @@ where
     <Option<T> as serde::Deserialize>::deserialize(d).map(Some)
 }
 
+/// A number that may arrive as a string (`"2.0"`): agents quote numbers
+/// often enough that refusing them only cost a retry, and serde's error for
+/// it named no field.
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum NumOrStr<T> {
+    Num(T),
+    Str(String),
+}
+
+impl<T: std::str::FromStr> NumOrStr<T> {
+    fn get<E: serde::de::Error>(self) -> Result<T, E> {
+        match self {
+            NumOrStr::Num(v) => Ok(v),
+            NumOrStr::Str(s) => s
+                .trim()
+                .parse()
+                .map_err(|_| E::custom(format!("{s:?} is not a number"))),
+        }
+    }
+}
+
+/// An optional number, also given as a numeric string.
+fn opt_num<'de, D, T>(d: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de> + std::str::FromStr,
+{
+    <Option<NumOrStr<T>> as serde::Deserialize>::deserialize(d)?
+        .map(NumOrStr::get)
+        .transpose()
+}
+
+/// `present_or_null` for a number that may be a numeric string.
+fn present_or_null_num<'de, D, T>(d: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de> + std::str::FromStr,
+{
+    opt_num(d).map(Some)
+}
+
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 pub(crate) struct DocOnly {
     /// Run on this open sound (by name) instead of your active one; errors
@@ -70,14 +112,14 @@ pub(crate) struct SoundOpsArgs {
     /// Seconds. Omit (or null) to leave it as it is. A oneshot with no duration renders
     /// until it falls under -80 dBFS or 60 dB under its peak (up to 30 s); a loop needs one. Pass
     /// 0 to clear a fixed duration and go back to automatic length.
-    #[serde(default, deserialize_with = "present_or_null")]
+    #[serde(default, deserialize_with = "present_or_null_num")]
     #[schemars(with = "Option<f32>")]
     pub(crate) duration: Option<Option<f32>>,
     /// The sound's randomness (default 1).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "opt_num")]
     pub(crate) seed: Option<u64>,
     /// Sample rate (default 48000).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "opt_num")]
     pub(crate) sample_rate: Option<u32>,
     /// Checks to run in the same call (the same fields as verify's
     /// `expect`): {"duration": {"min": 0.4, "max": 1.2}, "onsets": {"min": 1,
@@ -279,10 +321,10 @@ pub(crate) struct NewSoundArgs {
     pub(crate) kind: Option<String>,
     /// Seconds (0..600). A loop needs one before it can render: pass it here
     /// or in the first sound_ops call. Omit for a oneshot (automatic length).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "opt_num")]
     pub(crate) duration: Option<f32>,
     /// The sound's randomness (default 1).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "opt_num")]
     pub(crate) seed: Option<u64>,
     /// Start from an approved sound instead of an empty one: "door_slam"
     /// (the layered slam the listener approved, with knobs stick, weight,
@@ -339,7 +381,8 @@ pub(crate) struct CatalogArgs {
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 pub(crate) struct ExportArgs {
     /// A folder: relative paths land in <project>/assets/sounds/ (default
-    /// there). Absolute paths are used as given.
+    /// there). Absolute paths are used as given. A path ending in .ogg or
+    /// .wav names the file itself (its extension sets the format).
     #[serde(default)]
     pub(crate) path: Option<String>,
     /// Seeds 1..N, one file each (default 1: the sound's own seed).

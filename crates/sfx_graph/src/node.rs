@@ -674,7 +674,8 @@ mod tests {
         }
         assert_eq!(<Fake as Describe>::WORDS, ["flavour"]);
         // Defaults: no words; every real type's words come from its impl.
-        assert!(words("osc").is_empty());
+        assert!(words("noise").is_empty());
+        assert_eq!(words("osc"), ["wave"]);
         assert!(words("nope").is_empty());
         assert_eq!(blurb("noise"), <Noise as Describe>::BLURB);
         assert!(blurb("nope").is_empty());

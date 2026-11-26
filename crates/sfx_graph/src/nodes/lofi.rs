@@ -28,8 +28,8 @@ pub struct CrossfadeLoop {
     pub input: In,
     /// Length of each of the two crossfades, seconds: more than 0, and at
     /// most half the sound's length (default 0.25). The sound is unchanged
-    /// except for this long at each end.
-    #[serde(default)]
+    /// except for this long at each end. Alias `time`.
+    #[serde(default, alias = "time")]
     pub fade: Option<f32>,
 }
 
