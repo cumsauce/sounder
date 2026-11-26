@@ -405,6 +405,7 @@ node_types! {
 
     "shatter" => Shatter,
     "collapse" => Collapse,
+    "cascade" => Cascade,
     "debris" => Debris,
     "contacts" => Contacts,
 

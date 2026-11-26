@@ -86,3 +86,37 @@ Measured with the default `lean` 0.05 (before it became 0.15), 4 s: hits
 from 0.92 to 1.44 s, energy under 200 Hz / 200 Hz-2 kHz / 2-8 kHz 53 / 42 /
 5 %, voiced 0 %, `verify` passes on seeds 1-4. `rig` takes 16 bodies at most
 and solves at the sample rate, so it is for the heroes, not the whole wall.
+
+## Large-scale events: `cascade` and `debris` `scale`
+
+A building coming down, an avalanche or a rockfall is not a wall of bricks:
+the release lasts seconds and the pile is a rumble, not hits.
+
+- **`cascade`** `{[count 2000], [duration 6 s], [surge 0.3], [floors 1],
+  [peak 0.8], [looseness 0.5], [hero 0], [at 0], [seed]}`: events whose rate
+  and value follow a surge envelope (a skewed bump peaking at `surge` of the
+  duration: 0.3 is a quick start and a long run-out). `floors` > 1 makes that
+  many overlapping surges, each heavier than the last (a structure failing
+  floor by floor). Ports `out`, `hero` (the strongest N). Tested: 3000
+  events, the middle of the surge holds over a third of them and the last
+  25 % under a third of that.
+- **`debris` `scale`** 0..1 (unset = unchanged; 0 is bit-identical to unset,
+  tested): at 1 the shared bodies are 10x lower (`f0` / 10, `size` x 10), the
+  floor body 10x bigger, contact pulses 5x longer, and the `bed` is smoothed
+  over about 1 s, low-passed at 30 Hz instead of 300, with a second noise
+  through two poles at 15 Hz (infrasonic weight, scaled by `scale`). The bed
+  level is compensated by sqrt(1 + 9 scale).
+- Measured (1500 events over 3 s, `bed_db` -12): the 10-80 Hz to 200 Hz-4 kHz
+  ratio rises by over 10 dB at `scale` 1, the centroid halves, and the rumble
+  is 6 dB or more louder than the unscaled one a second after the last hit.
+  Through `output` `peak_db` -1 the peak lands within the target.
+
+```json
+[
+  {"type": "cascade", "name": "slide", "count": 3000, "duration": 8, "surge": 0.3, "hero": 6, "at": 0.1},
+  {"type": "debris", "name": "rocks", "events": "slide", "scale": 0.8, "banks": 6, "bed_db": -10},
+  {"type": "output", "name": "out", "input": "rocks", "peak_db": -1}
+]
+```
+
+Not heard yet; give the human a `scale` knob (claim `centroid`, -1).

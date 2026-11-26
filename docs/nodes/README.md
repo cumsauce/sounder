@@ -895,6 +895,9 @@ patch adds one 64-sample block to the loop, and the ports include it.
   $pan $distance $material $kind $body`; `collapse` fills size and pan
   (`pan_width`, `distance`); `debris` falls off with distance and takes
   `stereo: true`. Full: `docs/nodes/contacts.md`.
+- `cascade` {[count 2000], [duration 6], [surge 0.3], [floors 1], [peak], [hero]}:
+  a large mass failing over seconds; `debris` `scale` 0..1 lowers the bodies
+  and makes the bed a long rumble (`docs/nodes/collapse.md`).
 
 **Voice upgrades** (`docs/nodes/voice.md`): every new field is off by default
 (the old renders are hash-pinned).

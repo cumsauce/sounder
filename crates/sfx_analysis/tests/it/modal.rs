@@ -2444,4 +2444,67 @@ mod contacts {
         let hz = peak_hz(&x, 48000);
         assert!((hz - 265.6).abs() < 6.0, "{hz}");
     }
+
+    /// A cascade puts its events on a surge: most of them near the peak, a
+    /// run-out after it, and `floors` gives that many pulses.
+    #[test]
+    fn a_cascade_follows_its_surge() {
+        let node = json!({"type": "cascade", "name": "c", "count": 3000, "duration": 6, "surge": 0.25, "hero": 4});
+        let e = events(node.clone(), "c", 8.0);
+        assert_eq!(e.len(), 3000);
+        assert!(e.last().unwrap().0 <= 6.0);
+        let mid = e.iter().filter(|x| (0.8..2.2).contains(&x.0)).count();
+        let tail = e.iter().filter(|x| x.0 > 4.5).count();
+        assert!(mid > 1000 && tail < mid / 3, "mid {mid} tail {tail}");
+        assert_eq!(events(node, "c.hero", 8.0).len(), 4);
+        let f = json!({"type": "cascade", "name": "c", "count": 3000, "duration": 6, "floors": 4});
+        let e = events(f, "c", 8.0);
+        let bins: Vec<usize> = (0..12)
+            .map(|k| e.iter().filter(|x| (x.0 / 0.5) as usize == k).count())
+            .collect();
+        let dips = bins
+            .windows(3)
+            .filter(|w| w[1] < w[0] && w[1] < w[2])
+            .count();
+        let total: usize = bins.iter().sum();
+        assert_eq!(total, 3000);
+        assert!(dips <= 3, "{bins:?}");
+    }
+
+    /// `scale` lowers the bodies and turns the bed into a long low rumble;
+    /// without it nothing changes.
+    #[test]
+    fn debris_scale_lowers_and_lengthens() {
+        let at = |s: Option<f32>| {
+            let mut d =
+                json!({"type": "debris", "name": "d", "events": "c", "f0": 900, "bed_db": -12});
+            if let Some(s) = s {
+                d["scale"] = json!(s);
+            }
+            let nodes = vec![
+                json!({"type": "cascade", "name": "c", "count": 1500, "duration": 3, "at": 0.1}),
+                d,
+            ];
+            node_audio(&nodes, "d", 5.0)
+        };
+        let (a, b, z) = (at(None), at(Some(1.0)), at(Some(0.0)));
+        assert_eq!(fnv(&a), fnv(&z), "scale 0 is the default render");
+        assert_finite(&b, "scaled");
+        let sr = 48000;
+        let low = |x: &[f32]| band_db(x, sr, 10.0, 80.0) - band_db(x, sr, 200.0, 4000.0);
+        assert!(low(&b) > low(&a) + 10.0, "{} vs {}", low(&b), low(&a));
+        assert!(stft_centroid(&b) < stft_centroid(&a) * 0.5);
+        // The rumble outlasts the last hit (3.1 s) by about a second.
+        let tail = |x: &[f32]| rms_db(&x[(3.6 * sr as f32) as usize..(4.4 * sr as f32) as usize]);
+        assert!(tail(&b) > tail(&a) + 6.0, "{} vs {}", tail(&b), tail(&a));
+        // Through an output limiter the peak target is still met.
+        let nodes = vec![
+            json!({"type": "cascade", "name": "c", "count": 1500, "duration": 3}),
+            json!({"type": "debris", "name": "d", "events": "c", "scale": 1, "bed_db": -6}),
+            json!({"type": "output", "name": "out", "input": "d", "peak_db": -1}),
+        ];
+        let o = render(&nodes, 5.0);
+        let x = &o.channels[0];
+        assert!(peak_db(x) < -0.3 && peak_db(x) > -2.0, "{}", peak_db(x));
+    }
 }
