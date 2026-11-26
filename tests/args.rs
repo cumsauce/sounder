@@ -313,6 +313,7 @@ fn export_opts(dir: PathBuf, variations: u32) -> export::ExportOpts {
         sounds: None,
         catalog_name: None,
         file_name: None,
+        timeline: Default::default(),
     }
 }
 
@@ -354,6 +355,51 @@ fn identical_variations_warn_for_a_noise_free_sound_and_not_for_a_seeded_one() {
     let ex = export::export(&doc, &export_opts(project("export_seeded_out"), 3)).unwrap();
     println!("seeded: {:?}", ex.warnings);
     assert!(ex.warnings.is_empty(), "{:?}", ex.warnings);
+}
+
+#[test]
+fn export_lines_up_with_a_video_clip() {
+    let mut s = Session::new(Some(project("export_clip")));
+    s.new_sound("hit", Kind::Oneshot).unwrap();
+    s.apply_ops(
+        None,
+        vec![
+            json!({"type": "impulse", "name": "i", "at": "f:2"}),
+            json!({"type": "output", "name": "out", "input": "i", "fade_in": 0.0005}),
+        ],
+        DocEdit {
+            fps: Some(Some(25.0)),
+            duration: Some(Some(0.5)),
+            ..DocEdit::default()
+        },
+    )
+    .unwrap();
+    let doc = s.sound(None).unwrap().doc.clone();
+    let dir = project("export_clip_out");
+    let mut o = export_opts(dir.clone(), 1);
+    // Frame 10 of the clip at 25 fps, a 50-frame clip: 0.4 s lead, 2 s file.
+    o.timeline = export::Timeline {
+        offset: 0.4,
+        length: Some(2.0),
+    };
+    let ex = export::export(&doc, &o).unwrap();
+    assert_eq!(ex.manifest["files"][0]["samples"], json!(96000));
+    assert_eq!(ex.manifest["fps"], json!(25.0));
+    assert_eq!(ex.manifest["offset"], json!(0.4));
+    assert_eq!(ex.manifest["start_frame"], json!(10.0));
+    assert_eq!(ex.manifest["length_frames"], json!(50.0));
+    let a = wav::read(&dir.join("hit.wav")).unwrap();
+    let first = a.channels[0].iter().position(|x| x.abs() > 0.1).unwrap();
+    assert_eq!(first, 19200 + 3840); // offset + frame 2
+    // Trimmed shorter than the sound.
+    o.timeline.length = Some(0.1);
+    o.timeline.offset = 0.0;
+    let ex = export::export(&doc, &o).unwrap();
+    assert_eq!(ex.manifest["files"][0]["samples"], json!(4800));
+    // No timeline: as rendered, no fps-derived fields.
+    let ex = export::export(&doc, &export_opts(dir, 1)).unwrap();
+    assert_eq!(ex.manifest["files"][0]["samples"], json!(24000));
+    assert_eq!(ex.manifest["offset"], json!(0.0));
 }
 
 // ------------------------------------------------------------ reserved names

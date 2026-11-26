@@ -380,6 +380,21 @@ fn do_sound_ops(s: &mut Session, a: SoundOpsArgs) -> R {
         plain(s.ensure_sound(name, kind))?;
         doc = Some(name.clone());
     }
+    // Frames in `duration` read the fps given in this call, else the sound's.
+    let fps = match a.fps {
+        Some(Some(0.0)) => None,
+        Some(Some(f)) => {
+            plain(sfx_graph::params::check_fps(f))?;
+            Some(f)
+        }
+        _ => plain(s.sound(doc.as_deref()))?.doc.fps,
+    };
+    let duration = match a.duration {
+        Some(Some(t)) => Some(Some(
+            plain(t.seconds(fps).map_err(|e| format!("duration: {e}")))? as f32,
+        )),
+        _ => None,
+    };
     let edit = DocEdit {
         params: a.params,
         macros: a.macros,
@@ -389,13 +404,18 @@ fn do_sound_ops(s: &mut Session, a: SoundOpsArgs) -> R {
         // default, so `null` changes nothing; 0 clears the duration and an
         // empty spec (`{}`) removes the spec. (Treating `null` as "clear"
         // reset the duration on every edit that left it out.)
-        duration: match a.duration {
+        duration: match duration {
             Some(Some(d)) if d > 0.0 => Some(Some(d)),
             Some(Some(_)) => Some(None),
             _ => None,
         },
         seed: a.seed,
         sample_rate: a.sample_rate,
+        fps: match a.fps {
+            Some(Some(0.0)) => Some(None),
+            Some(Some(f)) => Some(Some(f)),
+            _ => None,
+        },
         spec: match a.spec {
             Some(Some(sp)) if sp.brief.is_empty() && sp.components.is_empty() => Some(None),
             Some(Some(sp)) => Some(Some(sp)),
@@ -433,8 +453,21 @@ fn report_text(results: &[sfx_analysis::CheckResult]) -> String {
 
 fn do_new_sound(s: &mut Session, a: NewSoundArgs) -> R {
     let kind = plain(parse_kind(&a.kind))?.unwrap_or_default();
-    let mut text =
-        plain(s.new_sound_from(&a.name, kind, a.duration, a.seed, a.template.as_deref()))?;
+    if let Some(f) = a.fps {
+        plain(sfx_graph::params::check_fps(f))?;
+    }
+    let duration = match a.duration {
+        Some(t) => Some(plain(t.seconds(a.fps).map_err(|e| format!("duration: {e}")))? as f32),
+        None => None,
+    };
+    let mut text = plain(s.new_sound_from(
+        &a.name,
+        kind,
+        duration,
+        a.seed,
+        a.fps,
+        a.template.as_deref(),
+    ))?;
     if let Some(b) = a.brief.as_deref().filter(|b| !b.trim().is_empty()) {
         text += &brief_suggestions(s, b);
     }
@@ -462,6 +495,40 @@ pub(crate) fn window_tool(s: &mut Session, name: &str, args: Value) -> Result<Va
         Ok(o) => Ok(json!({"text": o.text, "json": o.json})),
         Err((e, _)) => Err(e),
     }
+}
+
+/// The export's place on a video timeline: `offset` / `start_frame` and
+/// `length` / `length_frames`, in seconds.
+fn export_timeline(a: &ExportArgs, fps: Option<f64>) -> Result<export::Timeline, String> {
+    let frames = |f: f64, what: &str| {
+        if !(f.is_finite() && f >= 0.0) {
+            return Err(format!("{what}: {f}: give a frame number >= 0"));
+        }
+        sfx_graph::Time::Frames(f)
+            .seconds(fps)
+            .map_err(|e| format!("{what}: {e}"))
+    };
+    let offset = match (a.offset, a.start_frame) {
+        (Some(_), Some(_)) => return Err("give offset or start_frame, not both".into()),
+        (Some(t), None) => t.seconds(fps).map_err(|e| format!("offset: {e}"))?,
+        (None, Some(f)) => frames(f, "start_frame")?,
+        (None, None) => 0.0,
+    };
+    if !(offset.is_finite() && (0.0..=600.0).contains(&offset)) {
+        return Err(format!("offset: {offset} s: give 0..600 seconds"));
+    }
+    let length = match (a.length, a.length_frames) {
+        (Some(_), Some(_)) => return Err("give length or length_frames, not both".into()),
+        (Some(t), None) => Some(t.seconds(fps).map_err(|e| format!("length: {e}"))?),
+        (None, Some(f)) => Some(frames(f, "length_frames")?),
+        (None, None) => None,
+    };
+    if let Some(l) = length
+        && !(l.is_finite() && l > 0.0 && l <= 1200.0)
+    {
+        return Err(format!("length: {l} s: give 0..1200 seconds"));
+    }
+    Ok(export::Timeline { offset, length })
 }
 
 fn do_export(s: &mut Session, a: ExportArgs) -> R {
@@ -508,6 +575,7 @@ fn do_export(s: &mut Session, a: ExportArgs) -> R {
         f => return fail(format!("format: {f:?}: use \"ogg\" (default) or \"wav\"")),
     };
     let doc = sound.doc.clone();
+    let timeline = plain(export_timeline(&a, doc.fps))?;
     let opts = export::ExportOpts {
         dir: export::dir_for(project.as_deref(), path.as_deref()),
         variations: a.variations.unwrap_or(1),
@@ -518,6 +586,7 @@ fn do_export(s: &mut Session, a: ExportArgs) -> R {
         sounds,
         catalog_name: sound.catalog_name.clone(),
         file_name,
+        timeline,
     };
     let ex = plain(export::export(&doc, &opts))?;
     let mut text = format!("exported `{}` to {}\n", doc.name, opts.dir.display());

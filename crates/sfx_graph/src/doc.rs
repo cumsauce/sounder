@@ -64,6 +64,10 @@ pub struct SoundDoc {
     pub duration: Option<f32>,
     #[serde(default = "default_seed")]
     pub seed: u64,
+    /// Video frame rate. When set, any time may be written in frames
+    /// (`"f:123"` or `"123f"`), resolved to seconds before render.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fps: Option<f64>,
     /// Raw node JSON, each `{"type", "name", ...}` (unresolved templates).
     #[serde(default)]
     pub nodes: Vec<Value>,
@@ -203,6 +207,7 @@ impl Default for SoundDoc {
             sample_rate: default_rate(),
             duration: None,
             seed: default_seed(),
+            fps: None,
             nodes: Vec::new(),
             params: Params::new(),
             macros: Vec::new(),
@@ -290,6 +295,8 @@ pub struct DocEdit {
     pub duration: Option<Option<f32>>,
     pub seed: Option<u64>,
     pub sample_rate: Option<u32>,
+    /// Some(None) removes the frame rate.
+    pub fps: Option<Option<f64>>,
     /// Some(None) removes the spec.
     pub spec: Option<Option<Spec>>,
     /// Edits to single components, after `spec`: each `{"index": i,
@@ -362,7 +369,11 @@ impl SoundDoc {
             .nodes
             .iter()
             .enumerate()
-            .map(|(k, n)| params::resolve(n, &eff).map_err(|e| format!("node #{k}: {e}")))
+            .map(|(k, n)| {
+                params::resolve_frames(n, self.fps)
+                    .and_then(|n| params::resolve(&n, &eff))
+                    .map_err(|e| format!("node #{k}: {e}"))
+            })
             .collect::<Result<_, _>>()?;
         macros::apply(&resolved, &self.macros, overrides)
     }
@@ -699,6 +710,12 @@ impl SoundDoc {
         if let Some(r) = edit.sample_rate {
             next.sample_rate = r;
         }
+        if let Some(f) = edit.fps {
+            if let Some(f) = f {
+                params::check_fps(f)?;
+            }
+            next.fps = f;
+        }
         if let Some(sp) = edit.spec {
             if let Some(sp) = &sp {
                 sp.validate()?;
@@ -834,7 +851,11 @@ impl SoundDoc {
             .nodes
             .iter()
             .enumerate()
-            .map(|(k, n)| params::resolve(n, &eff).map_err(|e| format!("node #{k}: {e}")))
+            .map(|(k, n)| {
+                params::resolve_frames(n, next.fps)
+                    .and_then(|n| params::resolve(&n, &eff))
+                    .map_err(|e| format!("node #{k}: {e}"))
+            })
             .collect::<Result<_, _>>()?;
         let current = macros::apply(&resolved, &next.macros, &BTreeMap::new()).map_err(hint)?;
         if let Err(e) = eval::parse(&current, &Params::new()) {

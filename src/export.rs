@@ -27,6 +27,50 @@ pub struct ExportOpts {
     /// The files' base name (`<file_name>.ogg`, `<file_name>.sfx.json`);
     /// None: the sound's name.
     pub file_name: Option<String>,
+    /// Placing the file on a video timeline (default: as rendered).
+    pub timeline: Timeline,
+}
+
+/// Lines a file up with a video clip: `offset` seconds of leading silence
+/// (frame 0 of the clip is sample 0 of the file), then padded with silence or
+/// trimmed to `length` seconds (offset included) when given.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Timeline {
+    pub offset: f64,
+    pub length: Option<f64>,
+}
+
+impl Timeline {
+    fn is_identity(&self) -> bool {
+        self.offset == 0.0 && self.length.is_none()
+    }
+
+    /// `channels` shifted by the offset and fitted to the length; a trim
+    /// fades the last 5 ms out so the cut does not click.
+    pub fn apply(&self, channels: &mut [Vec<f32>], sample_rate: u32) {
+        if self.is_identity() {
+            return;
+        }
+        let sr = f64::from(sample_rate);
+        let lead = (self.offset * sr).round().max(0.0) as usize;
+        for c in channels.iter_mut() {
+            if lead > 0 {
+                c.splice(0..0, std::iter::repeat_n(0.0, lead));
+            }
+            if let Some(len) = self.length {
+                let n = (len * sr).round().max(1.0) as usize;
+                if c.len() > n {
+                    c.truncate(n);
+                    let fade = ((0.005 * sr) as usize).min(n);
+                    for k in 0..fade {
+                        c[n - fade + k] *= 1.0 - (k + 1) as f32 / fade as f32;
+                    }
+                } else {
+                    c.resize(n, 0.0);
+                }
+            }
+        }
+    }
 }
 
 /// What the files are written as.
@@ -92,6 +136,8 @@ pub fn export(doc: &SoundDoc, o: &ExportOpts) -> Result<Exported, String> {
             sounds: o.sounds.clone(),
             ..RenderOpts::default()
         })?;
+        let mut r = r;
+        o.timeline.apply(&mut r.audio.channels, r.audio.sample_rate);
         causal &= r.causal;
         let ext = o.format.ext();
         let base = o.file_name.as_deref().unwrap_or(&doc.name);
@@ -147,12 +193,19 @@ pub fn export(doc: &SoundDoc, o: &ExportOpts) -> Result<Exported, String> {
         },
         "quality": match o.format { Format::Ogg { quality } => json!(quality), Format::Wav(_) => Value::Null },
         "files": entries,
-        "loop": (doc.kind == Kind::Loop).then(|| json!({"start": 0, "end": first_samples})),
+        "loop": (doc.kind == Kind::Loop).then(|| json!({"start": (o.timeline.offset * f64::from(doc.sample_rate)).round() as u64, "end": first_samples})),
         "inputs": game,
         "baked_macros": baked,
         "seeds": entries.iter().map(|e| e["seed"].clone()).collect::<Vec<_>>(),
         "causal": causal,
         "source": o.catalog_name,
+        "fps": doc.fps,
+        "offset": o.timeline.offset,
+        "start_frame": doc.fps.map(|f| o.timeline.offset * f),
+        "length_frames": match (doc.fps, o.timeline.length) {
+            (Some(f), Some(l)) => json!(l * f),
+            _ => Value::Null,
+        },
     });
     let base = o.file_name.as_deref().unwrap_or(&doc.name);
     let manifest_path = o.dir.join(format!("{base}.sfx.json"));

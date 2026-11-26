@@ -202,3 +202,115 @@ mod tests {
         );
     }
 }
+
+/// A time given in seconds or in video frames. Frames are written `"f:123"`
+/// or `"123f"` (fractions allowed: `"12.5f"`) and need the document's `fps`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Time {
+    Seconds(f64),
+    Frames(f64),
+}
+
+impl Time {
+    /// Seconds, converting frames at `fps`.
+    pub fn seconds(self, fps: Option<f64>) -> Result<f64, String> {
+        match self {
+            Time::Seconds(s) => Ok(s),
+            Time::Frames(f) => match fps {
+                Some(r) => Ok(f / r),
+                None => Err(format!(
+                    "{f} frames: the sound has no fps; set fps (e.g. 24, 25, 29.97, 30, 60) in sound_ops or new_sound"
+                )),
+            },
+        }
+    }
+}
+
+impl std::str::FromStr for Time {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Time, String> {
+        if let Some(f) = frames_of(s) {
+            return Ok(Time::Frames(f));
+        }
+        s.trim()
+            .parse::<f64>()
+            .map(Time::Seconds)
+            .map_err(|_| format!("{s:?} is not seconds or frames (\"f:123\" / \"123f\")"))
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Time {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Time, D::Error> {
+        match Value::deserialize(d)? {
+            Value::Number(n) => Ok(Time::Seconds(n.as_f64().unwrap_or(0.0))),
+            Value::String(s) => s.parse().map_err(serde::de::Error::custom),
+            v => Err(serde::de::Error::custom(format!(
+                "{v}: give seconds or frames (\"f:123\" / \"123f\")"
+            ))),
+        }
+    }
+}
+
+/// The frame count of a frame time string (`"f:123"`, `"123f"`), else None.
+pub fn frames_of(s: &str) -> Option<f64> {
+    let s = s.trim();
+    let num = s.strip_prefix("f:").or_else(|| s.strip_suffix('f'))?.trim();
+    if num.is_empty() || !num.bytes().all(|b| b.is_ascii_digit() || b == b'.') {
+        return None;
+    }
+    num.parse::<f64>().ok().filter(|f| f.is_finite())
+}
+
+/// Checks a frame rate: positive and at most 1000.
+pub fn check_fps(fps: f64) -> Result<(), String> {
+    if fps.is_finite() && fps > 0.0 && fps <= 1000.0 {
+        Ok(())
+    } else {
+        Err(format!(
+            "fps: {fps}: give frames per second in 0..1000 (24, 25, 29.97, 30, 60)"
+        ))
+    }
+}
+
+/// `v` with every frame time string (`"f:123"`, `"123f"`) replaced by its
+/// seconds at `fps`, anywhere in the node (patch nodes included). Runs before
+/// [`resolve`], so frames work in every time field without each node knowing.
+pub fn resolve_frames(v: &Value, fps: Option<f64>) -> Result<Value, String> {
+    Ok(match v {
+        Value::String(s) => match frames_of(s) {
+            Some(f) => {
+                let secs = Time::Frames(f)
+                    .seconds(fps)
+                    .map_err(|e| format!("`{s}`: {e}"))?;
+                serde_json::Number::from_f64(secs)
+                    .map(Value::Number)
+                    .ok_or_else(|| format!("`{s}` is not a finite time"))?
+            }
+            None => v.clone(),
+        },
+        Value::Array(items) => Value::Array(
+            items
+                .iter()
+                .map(|x| resolve_frames(x, fps))
+                .collect::<Result<_, _>>()?,
+        ),
+        Value::Object(map) => {
+            let skip = expr_text_keys(map);
+            let mut out = serde_json::Map::new();
+            for (k, x) in map {
+                let keep =
+                    k == "name" || k == "type" || (skip.contains(&k.as_str()) && k != "patch");
+                out.insert(
+                    k.clone(),
+                    if keep {
+                        x.clone()
+                    } else {
+                        resolve_frames(x, fps)?
+                    },
+                );
+            }
+            Value::Object(out)
+        }
+        _ => v.clone(),
+    })
+}

@@ -649,7 +649,7 @@ impl Session {
         duration: Option<f32>,
         seed: Option<u64>,
     ) -> Result<String, String> {
-        self.new_sound_from(name, kind, duration, seed, None)
+        self.new_sound_from(name, kind, duration, seed, None, None)
     }
 
     /// `new_sound`, optionally starting from a template (`TEMPLATES`): an
@@ -660,6 +660,7 @@ impl Session {
         kind: Kind,
         duration: Option<f32>,
         seed: Option<u64>,
+        fps: Option<f64>,
         template: Option<&str>,
     ) -> Result<String, String> {
         if let Some(t) = template {
@@ -687,6 +688,9 @@ impl Session {
             }
             if let Some(sd) = seed {
                 doc.seed = sd;
+            }
+            if fps.is_some() {
+                doc.fps = fps;
             }
             let by = self.current.clone();
             let mut sound = Sound::new(name, doc.kind, by.as_deref());
@@ -723,8 +727,9 @@ impl Session {
         }
         let by = self.current.clone();
         let mut sound = Sound::new(name, kind, by.as_deref());
-        if duration.is_some() || seed.is_some() {
+        if duration.is_some() || seed.is_some() || fps.is_some() {
             sound.doc.duration = duration;
+            sound.doc.fps = fps;
             if let Some(sd) = seed {
                 sound.doc.seed = sd;
             }
@@ -1567,12 +1572,15 @@ impl Session {
             .filter_map(|n| n.get("name").and_then(Value::as_str))
             .collect();
         out += &format!(
-            "sound `{}` v{} ({:?}, {} Hz, seed {}{}){}\n",
+            "sound `{}` v{} ({:?}, {} Hz, seed {}{}{}){}\n",
             d.name,
             d.version,
             d.kind,
             d.sample_rate,
             d.seed,
+            d.fps.map_or(String::new(), |f| format!(
+                ", {f} fps (times may be frames: \"f:12\" / \"12f\")"
+            )),
             d.duration
                 .map_or(", length automatic".into(), |s| format!(", duration {s} s")),
             if sound.unsaved { " [unsaved]" } else { "" }
