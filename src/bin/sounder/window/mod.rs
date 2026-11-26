@@ -320,8 +320,8 @@ const PROBE_JS: &str = r#"(() => {
   window.ipc.postMessage(JSON.stringify({ name: 'probe_report', args: out }));
 })()"#;
 
-/// The app icon (a struck sound spiralling in, in the spectrogram's palette;
-/// `icon.svg` is its source).
+/// The app icon (a transient waveform on a sound clip, in the shared icon
+/// family's violet; `icon.svg` is its source, made by `../icon-family`).
 const ICON_PNG: &[u8] = include_bytes!("icon.png");
 
 /// The icon as a tao window icon (the title bar / taskbar off macOS).

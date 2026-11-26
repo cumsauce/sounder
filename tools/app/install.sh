@@ -75,7 +75,7 @@ echo "$REV" > "$STAGE/Contents/Resources/commit"
 ICONSET="$CACHE/sounder.iconset"; rm -rf "$ICONSET"; mkdir -p "$ICONSET"
 for s in 16 32 128 256 512; do
   sips -z $s $s "$WT/src/bin/sounder/window/icon.png" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
-  d=$((s * 2)); [ $d -le 512 ] && sips -z $d $d "$WT/src/bin/sounder/window/icon.png" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
+  d=$((s * 2)); sips -z $d $d "$WT/src/bin/sounder/window/icon.png" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$STAGE/Contents/Resources/sounder.icns"
 cat > "$STAGE/Contents/Info.plist" <<EOF
