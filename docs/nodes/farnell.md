@@ -14,7 +14,7 @@ real Pd. Code: `crates/sfx_graph/src/nodes/farnell.rs`. Tests:
    y)), `vcf~` (a complex one-pole).
 2. Render the patch with Pd 0.57 in batch mode with `-compatibility 0.41`
    and Pd-extended's `pow~` (right ^ left), at 48 kHz, the top-level `dac~`
-   swapped for `writesf~` (see AGENTS.md, "Porting Farnell's Designing Sound
+   swapped for `writesf~` (see docs/porting-farnell.md, "Porting Farnell's Designing Sound
    patches"). The bell is an abstraction: a host patch sets 750 Hz and
    strikes at 0.05 and 1.55 s. The ball needs its start message banged, the
    twang its trigger.
