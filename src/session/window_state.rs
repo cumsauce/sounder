@@ -143,7 +143,7 @@ impl Session {
             if self.warm_failed.contains(&(n.clone(), h)) {
                 continue;
             }
-            if s.doc.nodes.is_empty() || s.cached_render(&opts, salt).is_some() {
+            if s.doc.nodes.is_empty() || s.cached_stats(&opts, salt).is_some() {
                 continue;
             }
             if did && start.elapsed() >= budget {
@@ -153,6 +153,8 @@ impl Session {
                 self.warm_failed.insert((n.clone(), h));
             }
             did = true;
+            // Only the numbers are wanted here: keep the most recent renders.
+            self.evict_renders(None);
         }
         if did {
             self.rev += 1;
@@ -182,8 +184,8 @@ impl Session {
         for (n, s) in self.sounds.iter() {
             stats.insert(
                 n.clone(),
-                s.cached_render(&opts, salt)
-                    .map(|r| (Some(r.audio.seconds()), Some(r.lufs)))
+                s.cached_stats(&opts, salt)
+                    .map(|(secs, lufs)| (Some(secs), Some(lufs)))
                     .unwrap_or((None, None)),
             );
         }

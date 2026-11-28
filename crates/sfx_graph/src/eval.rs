@@ -241,8 +241,19 @@ pub(crate) fn resolve(ports: &HashMap<String, Ports>, i: &In) -> Result<Sig, Str
 
 // ------------------------------------------------------------------ cache
 
-/// Cached node results are capped at this many bytes (LRU eviction).
-const CACHE_BYTES: usize = 512 << 20;
+/// Cached node results are capped at this many bytes (LRU eviction):
+/// 256 MB, or `SOUNDER_CACHE_MB`. At 512 MB the long-running shared daemon
+/// sat at its cap all day.
+fn cache_bytes() -> usize {
+    static B: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *B.get_or_init(|| {
+        std::env::var("SOUNDER_CACHE_MB")
+            .ok()
+            .and_then(|v| v.trim().parse::<usize>().ok())
+            .unwrap_or(256)
+            << 20
+    })
+}
 
 struct Entry {
     ports: Ports,
@@ -271,13 +282,13 @@ fn cache_get(k: u64) -> Option<Ports> {
 
 fn cache_put(k: u64, v: Ports) {
     let bytes: usize = v.iter().map(|(_, b)| b.bytes()).sum();
-    if bytes > CACHE_BYTES / 4 {
+    if bytes > cache_bytes() / 4 {
         return;
     }
     if let Ok(mut g) = CACHE.lock() {
         let c = g.get_or_insert_with(Cache::default);
         c.clock += 1;
-        while c.bytes + bytes > CACHE_BYTES {
+        while c.bytes + bytes > cache_bytes() {
             let Some(old) = c.map.iter().min_by_key(|(_, e)| e.used).map(|(k, _)| *k) else {
                 break;
             };

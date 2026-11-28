@@ -50,7 +50,9 @@ daemon opens the window so the human sees every agent's sounds in one place
   `--save-shot`). Consecutive `--calls` runs share one autosave, so a sound
   made in one run is open in the next.
 - Env: `SOUNDER_BINARY`, `SOUNDER_SOCKET`, `SOUNDER_PROJECT`, `SOUNDER_STDERR`
-  (mirror modeler's `MODELER_*`). The binary directly:
+  (mirror modeler's `MODELER_*`); `SOUNDER_CACHE_MB` caps the node cache
+  (default 256). Only the 8 most recently used sounds keep a render in
+  memory; the rest re-render when next read. The binary directly:
   `target/debug/sounder --headless`.
 
 ### The workflow

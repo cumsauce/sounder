@@ -258,7 +258,7 @@ fn do_listen(s: &mut Session, a: ListenArgs) -> R {
             None => note = "diff: no earlier render of this request to compare; this one is stored for next time\n".into(),
         }
     }
-    sound.last_listen.insert(key, cols[0].1.clone());
+    sound.keep_listen(key, cols[0].1.clone());
     let mut text = note;
     if let Some(file) = &a.reference {
         let rf = plain(sfx_analysis::reference::load(

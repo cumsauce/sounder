@@ -777,3 +777,34 @@ for line in sys.stdin:
     // Once off, it stays off without trying again.
     assert_eq!(off.hear(&audio, "").unwrap_err(), e);
 }
+
+#[test]
+fn only_the_most_recent_renders_stay_in_memory() {
+    let mut s = Session::new(Some(project("evict")));
+    let n = sounder::session::RENDERS_KEEP + 4;
+    for i in 0..n {
+        build(&mut s, &format!("s{i}"));
+    }
+    // Touch each so it holds a render, then count what is left.
+    for i in 0..n {
+        let name = format!("s{i}");
+        s.node_audio(Some(&name), None).unwrap();
+    }
+    let (opts, salt) = (s.render_opts(), s.generation());
+    let held: Vec<&String> = s
+        .sounds
+        .iter()
+        .filter(|(_, x)| x.cached_render(&opts, salt).is_some())
+        .map(|(k, _)| k)
+        .collect();
+    assert!(held.len() <= sounder::session::RENDERS_KEEP, "{held:?}");
+    let last = format!("s{}", n - 1);
+    assert!(
+        held.contains(&&last),
+        "the last used keeps its render: {held:?}"
+    );
+    // Every sound keeps its length and loudness for the window's grid.
+    for x in s.sounds.values() {
+        assert!(x.cached_stats(&opts, salt).is_some());
+    }
+}

@@ -104,6 +104,21 @@ impl Annotation {
     }
 }
 
+/// How many open sounds keep their render (every node's buffers) in memory.
+/// A render holds each node's samples, several MB a sound; with a hundred
+/// sounds open the renders alone passed a gigabyte. The others re-render on
+/// their next listen, play or verify (mostly from the node cache).
+pub const RENDERS_KEEP: usize = 8;
+
+/// How many earlier `listen` renders a sound keeps for `diff`.
+pub const LAST_LISTEN_KEEP: usize = 4;
+
+static RENDER_CLOCK: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+fn render_tick() -> u64 {
+    RENDER_CLOCK.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
 /// One open sound: the document, its history, comments, the human's knob
 /// moves, and what is cached from rendering it.
 #[derive(Debug)]
@@ -118,7 +133,14 @@ pub struct Sound {
     /// The catalog name it was loaded from or saved as.
     pub catalog_name: Option<String>,
     render: Option<(u64, Rendered)>,
-    /// The previous render per `listen` request, for `diff`.
+    /// When `render` was last made or read (the [`RENDER_CLOCK`] tick), for
+    /// keeping only the most recently used renders.
+    render_used: u64,
+    /// (render key, seconds, LUFS) of the last render: survives
+    /// [`Sound::drop_render`] so the window's grid keeps its numbers.
+    stats: Option<(u64, f32, f32)>,
+    /// The previous render per `listen` request, for `diff` (at most
+    /// [`LAST_LISTEN_KEEP`]).
     pub last_listen: HashMap<String, Audio>,
     /// The last macros check result per macro: (doc hash, line).
     pub macro_results: BTreeMap<String, (u64, bool, String)>,
@@ -162,6 +184,8 @@ impl Sound {
             unsaved: true,
             catalog_name: None,
             render: None,
+            render_used: 0,
+            stats: None,
             last_listen: HashMap::new(),
             macro_results: BTreeMap::new(),
         }
@@ -189,6 +213,8 @@ impl Sound {
             unsaved: s.unsaved,
             catalog_name: s.catalog_name,
             render: None,
+            render_used: 0,
+            stats: None,
             last_listen: HashMap::new(),
             macro_results: BTreeMap::new(),
         }
@@ -243,8 +269,10 @@ impl Sound {
         let key = hash_of(&(&self.doc, &opts.base_dir, salt));
         if self.render.as_ref().is_none_or(|(k, _)| *k != key) {
             let r = self.doc.render(opts)?;
+            self.stats = Some((key, r.audio.seconds(), r.lufs));
             self.render = Some((key, r));
         }
+        self.render_used = render_tick();
         match &self.render {
             Some((_, r)) => Ok(r),
             None => Err("no render".into()),
@@ -262,7 +290,39 @@ impl Sound {
 
     /// Stores a render the caller already made for this document.
     pub fn set_render(&mut self, opts: &RenderOpts, salt: u64, r: Rendered) {
-        self.render = Some((hash_of(&(&self.doc, &opts.base_dir, self.salt(salt))), r));
+        let key = hash_of(&(&self.doc, &opts.base_dir, self.salt(salt)));
+        self.stats = Some((key, r.audio.seconds(), r.lufs));
+        self.render = Some((key, r));
+        self.render_used = render_tick();
+    }
+
+    /// Length (s) and loudness (LUFS) of the current document's last render,
+    /// even when the render itself was dropped.
+    pub fn cached_stats(&self, opts: &RenderOpts, salt: u64) -> Option<(f32, f32)> {
+        let key = hash_of(&(&self.doc, &opts.base_dir, self.salt(salt)));
+        match self.stats {
+            Some((k, secs, lufs)) if k == key => Some((secs, lufs)),
+            _ => None,
+        }
+    }
+
+    /// Drops the cached render and the `diff` renders (rebuilt on demand).
+    pub fn drop_render(&mut self) {
+        self.render = None;
+        self.last_listen.clear();
+    }
+
+    /// Keeps a `listen` render for the next `diff`, dropping the oldest
+    /// beyond [`LAST_LISTEN_KEEP`] (an arbitrary older one goes).
+    pub fn keep_listen(&mut self, key: String, audio: Audio) {
+        self.last_listen.remove(&key);
+        while self.last_listen.len() >= LAST_LISTEN_KEEP {
+            let Some(k) = self.last_listen.keys().next().cloned() else {
+                break;
+            };
+            self.last_listen.remove(&k);
+        }
+        self.last_listen.insert(key, audio);
     }
 
     pub fn open_annotations(&self) -> impl Iterator<Item = &Annotation> {
@@ -585,7 +645,29 @@ impl Session {
 
     pub fn sound(&mut self, doc: Option<&str>) -> Result<&mut Sound, String> {
         let n = self.target_name(doc)?;
+        self.evict_renders(Some(&n));
         self.open_mut(&n)
+    }
+
+    /// Drops the renders of all but the [`RENDERS_KEEP`] most recently used
+    /// sounds (`keep` is about to be used and stays).
+    pub fn evict_renders(&mut self, keep: Option<&str>) {
+        let mut held: Vec<(u64, String)> = self
+            .sounds
+            .iter()
+            .filter(|(n, s)| s.render.is_some() && Some(n.as_str()) != keep)
+            .map(|(n, s)| (s.render_used, n.clone()))
+            .collect();
+        let room = RENDERS_KEEP.saturating_sub(1);
+        if held.len() <= room {
+            return;
+        }
+        held.sort_unstable();
+        for (_, n) in &held[..held.len() - room] {
+            if let Some(s) = self.sounds.get_mut(n) {
+                s.drop_render();
+            }
+        }
     }
 
     /// Something changed that renders may depend on: bumps the generation
