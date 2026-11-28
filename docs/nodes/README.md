@@ -597,16 +597,23 @@ document's length (like `thunder`).
   line^4 smoothed at 5 Hz. The listener preferred the book's long rumble but
   not its crackly opening, so the opening is unchanged; set a
   `duration` that fits.
-- `gunshot` {caliber (mm, 2..60), [barrel 0.4 m], [suppressed false], [distance
-  0], [seed]}: Farnell's fig. 53.9 (Designing Sound ch. 53), dry: a cartridge
-  chirp ((1.05 x)^64, about 15 kHz falling, 93 ms), a four-cycle barrel wave
-  and a 115 ms noise burst 12 ms later (x barrel / 0.4), all through an 8-band
-  weapon body (Q 4.56), tanh; caliber stretches the times and lowers the
-  bands as (caliber / 9)^0.3, a short barrel drives the body harder (louder).
-  Plus an N-wave crack when the bullet is supersonic; the crack leads the
-  blast by the travel-time difference (135 ms at 100 m). A ten-shot burst 80
-  ms apart was heard as "perfectly like an smg" with a room reverb added for
-  preview: keep the shot dry, let the game add the space (or author a tail).
+- `gunshot` {weapon pistol|revolver|smg|carbine|rifle|sniper|shotgun|lmg or
+  caliber (mm, 2..60), [barrel 0.4 m], [suppressed false], [punch 0.5],
+  [drive 0.7], [action none|semi], [space none|open|forest|urban|canyon|room|
+  hall|hangar], [space_size 1], [tail_db 0], [layer all|close|crack|mech|tail],
+  [events], [distance 0], [seed]}: Farnell's fig. 53.9 open shot (a cartridge
+  chirp, a barrel wave and a noise burst through an 8-band weapon body) plus
+  an atonal low punch (50-250 Hz), soft saturation (`drive`: recorded shots
+  have a 15-18 dB crest), the slide's clacks, an N-wave crack for a supersonic
+  bullet (it leads the blast by the travel-time difference, 135 ms at 100 m),
+  and a report tail built for the space (a dense, darkening field with
+  slapbacks; not `camera`, whose discrete slaps read as "a digital glitch" on
+  a shot). `events` fires one varied round per event (automatic fire). A
+  ten-shot burst 80 ms apart of the plain Farnell shot was heard as "perfectly
+  like an smg". For a game keep `space: none` (or export `layer: close` and
+  `layer: tail` apart); for a video set the space. With `space: open` a pistol,
+  rifle and shotgun sit 7-9 dB from the nearest of four recordings (dry: 15-20);
+  not heard yet (`docs/nodes/blast.md`).
 - Both start 2.5 ms in (so the default fade-in does not cut them), delay by
   `distance / 343` s, darken and quieten with distance, and end in `tanh`, so
   every size peaks near 0.8: size and caliber move the sub band and the length,
@@ -964,7 +971,7 @@ patch adds one 64-sample block to the loop, and the ports include it.
 More recipes: a wind loop is `wind` `speed` 12 `gust` 0.6 in a `kind: loop`
 document with `output.lufs` -26; a campfire is `fire` size 0.7 with an
 `onepole` hp at 30 Hz and `lufs` -28; a rifle heard at 120 m is `gunshot`
-caliber 7.62 barrel 0.5 distance 120 with `output.lufs` -14; a brook is
+weapon rifle distance 120 space open with `output.peak_db` -1; a brook is
 `water` with `flow` from a `wander` 0.35..0.7 plus a `splash` `at` 1.5; a
 struck pipe is a hard `contact` into `modal` `shape: "tube"` metal `size` 0.12;
 a creaky nasal vowel is `glottis` `fry` from a `ramp` into `tract` `vowel: "o"`

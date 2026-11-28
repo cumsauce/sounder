@@ -1,0 +1,662 @@
+[
+ {
+  "id": "b32_01",
+  "family": "gunshot",
+  "group": "gun_shotgun",
+  "design": "kit_open",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "shotgun",
+     "space": "open"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ },
+ {
+  "id": "b32_02",
+  "family": "gunshot",
+  "group": "gun_rifle",
+  "design": "kit_open",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "rifle",
+     "space": "open"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ },
+ {
+  "id": "b32_03",
+  "family": "gunshot",
+  "group": "gun_indoor",
+  "design": "kit_hall",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "pistol",
+     "space": "hall"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b32_04",
+  "family": "gunshot",
+  "group": "gun_auto",
+  "design": "old_voices_room",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "pattern",
+     "name": "rof",
+     "every": 0.08,
+     "count": 10,
+     "jitter": 0.002,
+     "seed": 2
+    },
+    {
+     "type": "voices",
+     "name": "shots",
+     "events": "rof",
+     "length": 0.4,
+     "max": 16,
+     "patch": [
+      {
+       "type": "gunshot",
+       "name": "shot",
+       "seed": 1,
+       "caliber": 9,
+       "barrel": 0.2,
+       "punch": 0,
+       "drive": 0
+      }
+     ]
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "shots",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 1.8
+  }
+ },
+ {
+  "id": "b32_05",
+  "family": "gunshot",
+  "group": "gun_pistol",
+  "design": "kit_urban",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "pistol",
+     "space": "urban"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b32_06",
+  "family": "gunshot",
+  "group": "gun_rifle",
+  "design": "old_room",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "caliber": 7.62,
+     "barrel": 0.5,
+     "punch": 0,
+     "drive": 0
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "shot",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ },
+ {
+  "id": "b32_07",
+  "family": "gunshot",
+  "group": "gun_pistol",
+  "design": "kit_dry",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "pistol"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ },
+ {
+  "id": "b32_08",
+  "family": "gunshot",
+  "group": "gun_rifle",
+  "design": "kit_forest",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "rifle",
+     "space": "forest"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 2.0
+  }
+ },
+ {
+  "id": "b32_09",
+  "family": "gunshot",
+  "group": "gun_auto",
+  "design": "kit_events_open_lmg",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "pattern",
+     "name": "rof",
+     "every": 0.1,
+     "count": 10,
+     "jitter": 0.002,
+     "seed": 2
+    },
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "lmg",
+     "events": "rof",
+     "space": "open"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b32_10",
+  "family": "gunshot",
+  "group": "gun_rifle",
+  "design": "kit_dry",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "rifle"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ },
+ {
+  "id": "b32_11",
+  "family": "gunshot",
+  "group": "gun_rifle",
+  "design": "kit_canyon",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "rifle",
+     "space": "canyon"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 4.0
+  }
+ },
+ {
+  "id": "b32_12",
+  "family": "gunshot",
+  "group": "gun_shotgun",
+  "design": "ref_213925",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "recording",
+     "file": "refs/gun_set/213925_cut.wav"
+    }
+   ]
+  }
+ },
+ {
+  "id": "b32_13",
+  "family": "gunshot",
+  "group": "gun_pistol",
+  "design": "ref_427598",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "recording",
+     "file": "refs/gun_set/427598_cut.wav"
+    }
+   ]
+  }
+ },
+ {
+  "id": "b32_14",
+  "family": "gunshot",
+  "group": "gun_indoor",
+  "design": "kit_room",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "pistol",
+     "space": "room"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ },
+ {
+  "id": "b32_15",
+  "family": "gunshot",
+  "group": "gun_auto",
+  "design": "kit_events_dry",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "pattern",
+     "name": "rof",
+     "every": 0.08,
+     "count": 10,
+     "jitter": 0.002,
+     "seed": 2
+    },
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "smg",
+     "events": "rof"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 1.8
+  }
+ },
+ {
+  "id": "b32_16",
+  "family": "gunshot",
+  "group": "gun_pistol",
+  "design": "old_room",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "caliber": 9,
+     "barrel": 0.1,
+     "punch": 0,
+     "drive": 0
+    },
+    {
+     "type": "reverb",
+     "name": "room_dress",
+     "input": "shot",
+     "model": "room",
+     "size": 0.3,
+     "decay": 0.7,
+     "mix": 0.18
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "room_dress",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ },
+ {
+  "id": "b32_17",
+  "family": "gunshot",
+  "group": "gun_rifle",
+  "design": "ref_427594",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "recording",
+     "file": "refs/gun_set/427594_cut.wav"
+    }
+   ]
+  }
+ },
+ {
+  "id": "b32_18",
+  "family": "gunshot",
+  "group": "gun_indoor",
+  "design": "kit_hangar",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "pistol",
+     "space": "hangar"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 3.5
+  }
+ },
+ {
+  "id": "b32_19",
+  "family": "gunshot",
+  "group": "gun_shotgun",
+  "design": "kit_dry",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "shotgun"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ },
+ {
+  "id": "b32_20",
+  "family": "gunshot",
+  "group": "gun_pistol",
+  "design": "old_dry",
+  "dressed": false,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "caliber": 9,
+     "barrel": 0.1,
+     "punch": 0,
+     "drive": 0
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ },
+ {
+  "id": "b32_21",
+  "family": "gunshot",
+  "group": "gun_auto",
+  "design": "kit_events_urban",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "pattern",
+     "name": "rof",
+     "every": 0.08,
+     "count": 10,
+     "jitter": 0.002,
+     "seed": 2
+    },
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "smg",
+     "events": "rof",
+     "space": "urban"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 2.5
+  }
+ },
+ {
+  "id": "b32_22",
+  "family": "gunshot",
+  "group": "gun_pistol",
+  "design": "kit_open",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "pistol",
+     "space": "open"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ },
+ {
+  "id": "b32_23",
+  "family": "gunshot",
+  "group": "gun_shotgun",
+  "design": "kit_room",
+  "dressed": true,
+  "doc": {
+   "ops": [
+    {
+     "type": "gunshot",
+     "name": "shot",
+     "seed": 1,
+     "weapon": "shotgun",
+     "space": "room"
+    },
+    {
+     "type": "output",
+     "name": "out",
+     "input": "shot",
+     "fade_in": 0.0005,
+     "peak_db": -1
+    }
+   ],
+   "seed": 1,
+   "duration": 1.5
+  }
+ }
+]

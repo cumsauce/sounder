@@ -592,3 +592,175 @@ mod after_listening {
         }
     }
 }
+
+mod kit {
+    //! The weapon kit on `gunshot`: weapon presets, punch, drive, the action,
+    //! the report tail of a space, layers and automatic fire. Measured on the
+    //! node's own samples. Against the four recordings in refs/gun_set the
+    //! dry pistol was 15-28 dB away (their own spread 13.6 dB); a pistol,
+    //! rifle or shotgun with `space: open` is 7-16 dB away (docs/nodes/blast.md).
+
+    use crate::common::*;
+    use serde_json::{Value, json};
+    use sfx_analysis::measure::measure;
+    use sfx_graph::{Audio, Measure};
+
+    fn gun(fields: Value, secs: f32) -> Vec<f32> {
+        let n = with_fields(json!({"type": "gunshot", "name": "x", "seed": 1}), fields);
+        node_audio([n], "x", secs)
+    }
+
+    fn share_db(x: &[f32], lo: f32, hi: f32) -> f32 {
+        band_db(x, SR, lo, hi) - band_db(x, SR, 0.0, 24_000.0)
+    }
+
+    fn m(x: &[f32], k: Measure) -> f32 {
+        measure(&Audio::mono(SR, x.to_vec()), k)
+    }
+
+    #[test]
+    fn every_weapon_renders_finite_and_atonal_low_end_grows_with_the_gun() {
+        let mut low = Vec::new();
+        for w in [
+            "pistol", "revolver", "smg", "carbine", "rifle", "sniper", "shotgun", "lmg",
+        ] {
+            let x = gun(json!({"weapon": w}), 1.0);
+            assert_finite(&x, w);
+            assert!(peak(&x) > 0.1 && peak(&x) <= 1.0, "{w}: peak {}", peak(&x));
+            let c = m(&x, Measure::Centroid);
+            eprintln!(
+                "{w}: centroid {c:.0} Hz, under 200 Hz {:.1} dB, crest {:.1} dB",
+                share_db(&x, 20.0, 200.0),
+                m(&x, Measure::Crest)
+            );
+            low.push((w, c));
+        }
+        let get = |w: &str| low.iter().find(|p| p.0 == w).unwrap().1;
+        assert!(get("shotgun") < 0.85 * get("pistol"), "{low:?}");
+    }
+
+    #[test]
+    fn punch_raises_the_low_end() {
+        let (a, b) = (
+            gun(json!({"caliber": 9, "punch": 0.0}), 1.0),
+            gun(json!({"caliber": 9, "punch": 1.0}), 1.0),
+        );
+        let (la, lb) = (share_db(&a, 20.0, 200.0), share_db(&b, 20.0, 200.0));
+        eprintln!("punch 0 / 1: under 200 Hz {la:.1} / {lb:.1} dB");
+        assert!(lb > la + 3.0, "{la} -> {lb}");
+    }
+
+    #[test]
+    fn drive_lowers_the_crest() {
+        let c: Vec<f32> = [0.0, 0.5, 1.0]
+            .iter()
+            .map(|d| {
+                m(
+                    &gun(json!({"weapon": "pistol", "drive": d}), 1.0),
+                    Measure::Crest,
+                )
+            })
+            .collect();
+        eprintln!(
+            "drive 0 / 0.5 / 1: crest {:.1} / {:.1} / {:.1} dB",
+            c[0], c[1], c[2]
+        );
+        assert!(c[0] > c[1] && c[1] > c[2], "{c:?}");
+    }
+
+    #[test]
+    fn a_space_adds_a_report_that_darkens_and_the_layers_add_back() {
+        let dry = gun(json!({"weapon": "rifle"}), 2.0);
+        let open = gun(json!({"weapon": "rifle", "space": "open"}), 2.0);
+        let late = |x: &[f32]| rms_db(&x[(0.3 * SR as f32) as usize..(0.6 * SR as f32) as usize]);
+        eprintln!(
+            "rifle 0.3-0.6 s: dry {:.1} dB, open {:.1} dB",
+            late(&dry),
+            late(&open)
+        );
+        assert!(late(&open) > late(&dry) + 30.0);
+        // The report (the tail layer alone) is darker late than early.
+        let tail = gun(
+            json!({"weapon": "rifle", "space": "open", "layer": "tail"}),
+            2.0,
+        );
+        let s = |a: f32, b: f32| &tail[(a * SR as f32) as usize..(b * SR as f32) as usize];
+        let (h0, h1) = (
+            share_db(s(0.05, 0.2), 4000.0, 16000.0),
+            share_db(s(0.6, 1.0), 4000.0, 16000.0),
+        );
+        eprintln!("open report 4-16 kHz share: 50-200 ms {h0:.1} dB, 0.6-1 s {h1:.1} dB");
+        assert!(h1 < h0 - 6.0, "{h0} -> {h1}");
+        // Layers: far away the final soft clip is nearly linear, so the
+        // layers sum to `all`.
+        let far = json!({"weapon": "pistol", "space": "urban", "distance": 400});
+        let all = gun(far.clone(), 3.0);
+        let mut sum = vec![0.0f32; all.len()];
+        for l in ["close", "crack", "mech", "tail"] {
+            let x = gun(with_fields(far.clone(), json!({"layer": l})), 3.0);
+            assert_finite(&x, l);
+            for (s, v) in sum.iter_mut().zip(&x) {
+                *s += v;
+            }
+        }
+        let err = all
+            .iter()
+            .zip(&sum)
+            .fold(0.0f32, |a, (x, y)| a.max((x - y).abs()));
+        assert!(err < 0.02 * peak(&all), "layers sum off by {err}");
+        let none_tail = gun(json!({"weapon": "pistol", "layer": "tail"}), 1.0);
+        assert_eq!(peak(&none_tail), 0.0, "space none has no tail");
+    }
+
+    #[test]
+    fn automatic_fire_gives_one_varied_round_per_event() {
+        let nodes = [
+            json!({"type": "pattern", "name": "rof", "every": 0.08, "count": 6}),
+            json!({"type": "gunshot", "name": "x", "weapon": "smg", "events": "rof", "seed": 1}),
+        ];
+        let x = node_audio(nodes, "x", 1.5);
+        assert_finite(&x, "burst");
+        let w = |t: f32| {
+            let a = ((t + 0.0025) * SR as f32) as usize;
+            x[a..a + (0.01 * SR as f32) as usize].to_vec()
+        };
+        for i in 0..6 {
+            let t = 0.08 * i as f32;
+            let (hit, before) = (rms_db(&w(t)), rms_db(w(t - 0.012).split_at(240).0));
+            eprintln!("round {i}: {hit:.1} dB, 12 ms before {before:.1} dB");
+            assert!(hit > before + 3.0, "round {i}: {hit} vs {before}");
+        }
+        assert_ne!(fnv(&w(0.08)), fnv(&w(0.16)), "rounds are not copies");
+        let e = render_error(
+            vec![
+                json!({"type": "pattern", "name": "rof", "every": 0.0001, "count": 3000}),
+                json!({"type": "gunshot", "name": "x", "weapon": "smg", "events": "rof"}),
+            ],
+            "x",
+            0.5,
+        );
+        assert!(e.contains("at most 2000"), "{e}");
+    }
+
+    #[test]
+    fn kit_errors_say_the_field_value_and_fix() {
+        let e = render_error(vec![json!({"type": "gunshot", "name": "x"})], "x", 0.5);
+        assert!(e.contains("caliber") && e.contains("weapon"), "{e}");
+        for (f, v, want) in [
+            ("punch", json!(2), "punch: 2"),
+            ("drive", json!(-1), "drive: -1"),
+            ("space_size", json!(9), "space_size: 9"),
+            ("tail_db", json!(50), "tail_db: 50"),
+        ] {
+            let n = with_fields(
+                json!({"type": "gunshot", "name": "x", "weapon": "pistol"}),
+                json!({f: v}),
+            );
+            let e = render_error(vec![n], "x", 0.5);
+            assert!(e.contains(want), "{f}: {e}");
+        }
+        let n = json!({"type": "gunshot", "name": "x", "weapon": "musket"});
+        let e = render_error(vec![n], "x", 0.5);
+        assert!(e.contains("pistol"), "{e}");
+    }
+}

@@ -352,7 +352,7 @@ notes on knocks, metal, stone) is `docs/routing.md`.
 | stone, brick | noise layers + a quiet stone `modal` (`docs/routing.md`, "From the round 6 listen") |
 | a latch, switch, button, lock | `click` (`noise` ~0.75; `fade_in` 0.0005) |
 | fire, wind, rain, water, a splash, sparks | `fire`, `wind`, `rain`, `water`, `splash`, `spark` |
-| an explosion, a gunshot | `explosion`, `gunshot` |
+| an explosion, a gunshot, automatic fire | `explosion`; `gunshot {weapon, space}` (`space` bakes the report for a video; a game keeps it `none` or exports `layer: tail` apart; `events` from a `pattern` for automatic fire) |
 | an engine, a motor | `engine`, `motor` with a `ramp` / `wander` on `rpm` and a `duration` |
 | a creature | `creature` or the `creature_*` parts |
 | a whoosh | the `whoosh_sweep` part (wide band, q ~1) |

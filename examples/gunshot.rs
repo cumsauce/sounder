@@ -1,7 +1,7 @@
-//! A 7.62 mm rifle shot heard from 120 m: the supersonic crack arrives about
+//! A 7.62 mm rifle shot heard from 120 m in the open: the supersonic crack arrives about
 //! 0.1 s before the muzzle blast. Writes `gunshot.wav` and `gunshot.png` (the
-//! listen image) and prints the descriptors and the default checks. Change
-//! `"suppressed"` to true for the subsonic, suppressed version.
+//! listen image) and prints the descriptors and the default checks. Add
+//! `"suppressed": true` for the subsonic, suppressed version.
 //!
 //! cargo run --example gunshot [out_dir]
 
@@ -15,7 +15,7 @@ fn main() -> Result<(), String> {
     let dir = PathBuf::from(std::env::args().nth(1).unwrap_or_else(|| ".".into()));
     let mut doc = SoundDoc::named("gunshot");
     let ops = vec![
-        json!({"type": "gunshot", "name": "shot", "caliber": 7.62, "barrel": 0.5, "suppressed": false, "distance": 120, "seed": 1}),
+        json!({"type": "gunshot", "name": "shot", "weapon": "rifle", "distance": 120, "space": "open", "seed": 1}),
         json!({"type": "output", "name": "out", "input": "shot", "lufs": -14}),
     ];
     let opts = RenderOpts::default();
